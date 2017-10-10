@@ -16,4 +16,3 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     -ICR and IC calculations
     -Confidence interval calculations for risk
     -Delta beta function for sensitivity analysis
-    -Network analysis tools to complement NetworkX
