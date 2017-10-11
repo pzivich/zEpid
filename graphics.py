@@ -12,15 +12,17 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 #####################################################################
-#Forest Plot Generator
-def forest_plot_data(study,effect_measure,lcl,ucl):
-    '''Creates dataframe compatible with forest_plot() function from four lists. If you want trailing
+#Effect Measure Plot (Odds Ratio / Risk Difference / Risk Ratio plot)
+def effectmeasure_plotdata(label,effect_measure,lcl,ucl):
+    '''Creates dataframe compatible with effectmeasure_plot() function from four lists. If you want trailing
     zeroes to displayed, enter those items as a character type. This function is adapted to take list of
-    numeric mixed with character variables as inputes to ensure trailing zeroes are displayed as 
-    requested. This function is recommended to be used to prepare data for display by the forest_plot 
+    numeric mixed with character variables as inputs to ensure trailing zeroes are displayed as 
+    in the table. This function is recommended to be used to prepare data for display by the effectmeasure_plot() 
     function. 
     
-    study:
+    Example of input data: effect_measure = [0.88,1.02,'0.90',1.11]
+    
+    label:
         -list of labels of lines
     effect_measure:
         -list of point estimates of measure
@@ -30,7 +32,7 @@ def forest_plot_data(study,effect_measure,lcl,ucl):
         -list of level of the upper confidence limit
     '''
     df = pd.DataFrame();df['study'] = study;df['OR'] = effect_measure;df['LCL'] = lcl;df['UCL'] = ucl
-    df['OR2'] = df['OR'].astype(str).astype(float) #Need to fix this so missing are ignored
+    df['OR2'] = df['OR'].astype(str).astype(float)
     if ((all(isinstance(item,float) for item in lcl))&(all(isinstance(item,float) for item in effect_measure))):
         df['LCL_dif'] = df['OR'] - df['LCL']
     else:
@@ -42,21 +44,23 @@ def forest_plot_data(study,effect_measure,lcl,ucl):
     return df
     
 
-def forest_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',errc='dimgrey',shape='d',pc='k',linec='gray',t_adjuster=0.01,size = 3):
-    '''Creates Forest plot: Necessary to format data appropriately. forest_plot_data() function will return an 
-    appropriately created dataframe from a series of lists. Data points must be integers or float. Generates a 
-    forestplot by using features from Matplotlib.
+def effectmeasure_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',errc='dimgrey',shape='d',pc='k',linec='gray',t_adjuster=0.01,size = 3):
+    '''Creates Effect Measure plot: Necessary to format data appropriately for this function. effectmeasure_plotdata() 
+    function will return an appropriately created dataframe from a series of lists. Data points must be integers or float. 
+    Generates a forestplot by using features from Matplotlib.
+    
+    NOTE: Highly recommend using effectmeasure_plotdata() to create df compatible with function
     
     df: 
         -dataframe that contains labels, effect measure, lower CI, upper CI. Dataframe must have appropriate
-         columns labels to function properly. Recommended that forest_plot_data() is used to generate the 
+         columns labels to function properly. Recommended that effectmeasure_plotdata() is used to generate the 
          dataframe input into this function to prevent issues.
     decimal: 
         -amount of decimals to display. Default is 3
     title: 
-        -set a title for the generated plot. Default is no title
+        -set a title for the generated plot. Default is blank title
     em: 
-        -label for the effect measure. Default is OR, abbreviation for odds ratio
+        -label for the effect measure. Default is 'OR', abbreviation for odds ratio
     ci: 
         -label for confidence intervals. Default is '95% CI' 
     scale: 
@@ -92,7 +96,6 @@ def forest_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',errc='dimg
         else:
             tval.append([' ',' '])
             ytick.append(i)
-    print(tval)
     if (pd.to_numeric(df['UCL']).max() < 9):
         maxi = round(((pd.to_numeric(df['UCL'])).max() + 1),0) #setting x-axis maximum for UCL less than 10
     if (pd.to_numeric(df['UCL']).max() > 9):
@@ -107,7 +110,7 @@ def forest_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',errc='dimg
     plot.axvline(1,color=linec) #set reference line at x = 1
     plot.errorbar(df.OR2,df.index,xerr=[df.LCL_dif,df.UCL_dif],ecolor=errc,fmt=shape,color=pc,elinewidth=(size/size),markersize=(size*2)) #draw EM & CL
     if (scale=='log'):
-        plot.set_xscale('log') #log scale since OR/RR
+        plot.set_xscale('log') #log scale for OR/RR
     plot.set_yticks(ytick);plot.set_xlim([mini,maxi]);plot.set_xticks([mini,1,maxi])
     plot.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plot.set_yticklabels(df['study'])
