@@ -9,7 +9,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     -Measures of association, on summary data
     -Screening measures (sensitivity, specificity, NPV, PPV, etc.)
     -Sensitivity analysis tools
-    -Forest plot generator
+    -Effect measure plot generator (alternative to a large table of results)
     -Other various calculations
 
 # Current items to be added still:
