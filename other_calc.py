@@ -1,6 +1,8 @@
 #####################################################################
 # Random calculations
 #####################################################################
+import math
+
 def prop_to_odds(prop):
     '''Convert proportion to odds
     
@@ -21,9 +23,9 @@ def odds_to_prop(odds):
     return prop
     
 
-def risk_ci(events,total):
-    '''Calculate 95% Confidence interval of Risk'''
-    return
+#def risk_ci(events,total):
+#    '''Calculate 95% Confidence interval of Risk'''
+#    return
 
 
 def ir_ci(events,time,alpha=0.05,decimal=3):
@@ -48,3 +50,34 @@ def ir_ci(events,time,alpha=0.05,decimal=3):
     print('IR: ',round((events/time),decimal))
     print('95% CI: (',round(lower,decimal),', ',round(upper,decimal),')')
 
+
+def StandMeanDiff(df,binary,continuous,decimal=3):
+    '''Calculates the standardized mean difference (SMD) of a continuous variable
+    stratified by a binary variable. This can be used to assess for 
+    collinearity between the continuous and binary variables of interest.
+    A SMD greater than 2 suggests potential collinearity issues. It does NOT
+    mean that there will be collinearity issues in the full model though.
+    
+    df:
+        -specify the dataframe that contains the variables of interest
+    binary:
+        -binary variable of interest. Input can be string or number
+    continuous:
+        -continuous variable of interest. Can be discrete or continuous.
+         Input can be string or number
+    decimal:
+        -Number of decimal places to display. Default is 3
+    '''
+    #divide dataframe by binary variable
+    v0 = df.loc[df[binary]==0]
+    v1 = df.loc[df[binary]==1]
+    #calculate mean and standard deviation of continuous variable, by binary variable
+    m0 = np.mean(v0[continuous])
+    m1 = np.mean(v1[continuous])
+    sd0 = np.std(v0[continuous])
+    sd1 = np.std(v1[continuous])
+    #calculate the pooled standard deviation
+    pooled_sd = math.sqrt((((len(v0) - 1) * (sd0**2)) + ((len(v1) - 1) * (sd1**2))) / (len(v0) + len(v1) - 2))
+    #calculate the SMD
+    smd = abs(((m0 - m1) / pooled_sd))
+    print('Standardized Mean Difference: '+str(round(smd,decimal)))
