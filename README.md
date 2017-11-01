@@ -17,5 +17,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     -Confidence interval calculations for risk
     -Delta beta function for sensitivity analysis (using statsmodel package)
     -Plot for functional form assessment of continuous variables (using statsmodel package)
+    -g-formula
+    -Marginal Structural Models
 
 A full guide of the package and a sample dataframe are underdevelopment. If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
