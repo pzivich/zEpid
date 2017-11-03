@@ -38,7 +38,7 @@ def RelRisk(exposure,disease,decimal=3):
     print('Risk in exposed: ',round(r1,decimal));print('Risk in unexposed: ',round(r2,decimal));print('Relative Risk: ',round(relrisk,decimal))
     SE=math.sqrt((1/a)-(1/(a+b))+(1/c)-(1/(c+d)));lnrr=math.log(relrisk);lcl=lnrr-(1.96*SE);ucl=lnrr+(1.96*SE)
     print('95% CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-    print('Interval width (relative precision): ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+    print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
     return relrisk
 
 
@@ -69,7 +69,7 @@ def RiskDiff(exposure,disease,decimal=3):
     riskdiff = r1-r2
     print('Risk in exposed: ',round(r1,decimal));print('Risk in unexposed: ',round(r2,decimal));print('Risk Difference: ',round(riskdiff,decimal))
     SE=math.sqrt(((a*b)/((((a+b)**2)*(a+b-1))))+((c*d)/(((c+d)**2)*(c+d-1))));lcl=riskdiff-(1.96*SE);ucl=riskdiff+(1.96*SE)
-    print('95% CI: (',round(lcl,decimal),', ',round(ucl,decimal),')');print('Interval width (relative precision): ',round((ucl-lcl),decimal))
+    print('95% CI: (',round(lcl,decimal),', ',round(ucl,decimal),')');print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
     return riskdiff
 
 
@@ -145,7 +145,7 @@ def OddsRatio(exposure,disease,decimal=3):
     oddsratio = o1/o2
     print('Odds in exposed: ',round(o1,decimal));print('Odds in unexposed: ',round(o2,decimal));print('Odds Ratio: ',round(oddsratio,decimal))
     SE=math.sqrt((1/a)+(1/b)+(1/c)+(1/d));lnor=math.log(oddsratio);lcl=lnor-(1.96*SE);ucl=lnor+(1.96*SE)
-    print('95% CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')');print('Interval width (relative precision): ',round((ucl-lcl),decimal))
+    print('95% CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')');print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
     return oddsratio
 
 
@@ -181,6 +181,7 @@ def IncRateRatio(exposure,disease,time,decimal=3):
     print('Incidence Rate in exposed: ',round(ir_e,decimal));print('Incidence Rate in unexposed: ',round(ir_u,decimal));print('Incidence Rate Ratio: ',round(irr,decimal))
     SE=math.sqrt((1/a)+(1/c));lnirr=math.log(irr);lcl=lnirr-(1.96*SE);ucl=lnirr+(1.96*SE)
     print('95% CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+    print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
     return irr
     
 
@@ -216,6 +217,7 @@ def IncRateDiff(exposure, disease, time,decimal=3):
     print('Incidence Rate in exposed: ',round(ir_e,decimal));print('Incidence Rate in unexposed: ',round(ir_u,decimal));print('Incidence Rate Difference: ',round(ird,decimal))
     SE=math.sqrt((a/((time_a)**2))+(c/((time_c)**2)));lcl=ird-(1.96*SE);ucl=ird+(1.96*SE)
     print('95% CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
+    print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
     return ird
  
 
