@@ -10,6 +10,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     -Screening measures (sensitivity, specificity, NPV, PPV, etc.)
     -Sensitivity analysis tools
     -Effect measure plot generator (alternative to a large table of results)
+    -Inverse Probability Weighting (IPW) fit via GEE with independence structure
     -Other various calculations
 
 # Current items to be added still:
