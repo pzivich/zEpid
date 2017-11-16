@@ -33,7 +33,7 @@ def ipw(df,miss_model,model,idv,model_type='logistic'):
             Linear-risk regression (PD/RD):      'linear-risk'
     '''
     mm = sm.families.family.Binomial(sm.families.links.logit) #specify logistic regression for IPW 
-    log = smf.glm(fullm,df,family=mm).fit()
+    log = smf.glm(miss_model,df,family=mm).fit()
     w = log.predict()
     w = w**-1
     print(w)
