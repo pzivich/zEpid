@@ -45,7 +45,7 @@ def ipw(df,miss_model,model,idv,model_type='logistic'):
     elif model_type == 'linear-risk':
         efm = sm.families.family.Binomial(sm.families.links.identity)
     else:
-        print('Please use a valid model')
+        raise ValueError('Unsupported regression model: please specify a supported model. See documentation for supported models')
     ind = sm.cov_struct.Independence()
     ipw = smf.gee(model,idv,df,cov_struct=ind,family=efm,weights=w).fit()
     print('\nExposure-Outcome IPW Results')
