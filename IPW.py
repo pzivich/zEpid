@@ -36,7 +36,8 @@ def ipw(df,miss_model,model,idv,model_type='logistic'):
     log = smf.glm(miss_model,df,family=mm).fit()
     w = log.predict()
     w = w**-1
-    print(w)
+    print('Weighting Model Results')
+    print(log.summary())
     if model_type == 'logistic':
         efm = sm.families.family.Binomial(sm.families.links.logit)
     elif model_type == 'log-risk':
@@ -47,6 +48,7 @@ def ipw(df,miss_model,model,idv,model_type='logistic'):
         print('Please use a valid model')
     ind = sm.cov_struct.Independence()
     ipw = smf.gee(model,idv,df,cov_struct=ind,family=efm,weights=w).fit()
+    print('\nExposure-Outcome IPW Results')
     print(ipw.summary())
     return ipw
 
