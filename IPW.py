@@ -32,12 +32,6 @@ def ipw(df,miss_model,model,idv,model_type='logistic'):
             Log-risk regression (PR/RR):         'log-risk'
             Linear-risk regression (PD/RD):      'linear-risk'
     '''
-    mm = sm.families.family.Binomial(sm.families.links.logit) #specify logistic regression for IPW 
-    log = smf.glm(miss_model,df,family=mm).fit()
-    w = log.predict()
-    w = w**-1
-    print('Weighting Model Results')
-    print(log.summary())
     if model_type == 'logistic':
         efm = sm.families.family.Binomial(sm.families.links.logit)
     elif model_type == 'log-risk':
@@ -46,6 +40,12 @@ def ipw(df,miss_model,model,idv,model_type='logistic'):
         efm = sm.families.family.Binomial(sm.families.links.identity)
     else:
         raise ValueError('Unsupported regression model: please specify a supported model. See documentation for supported models')
+    mm = sm.families.family.Binomial(sm.families.links.logit) #specify logistic regression for IPW 
+    log = smf.glm(miss_model,df,family=mm).fit()
+    w = log.predict()
+    w = w**-1
+    print('Weighting Model Results')
+    print(log.summary())
     ind = sm.cov_struct.Independence()
     ipw = smf.gee(model,idv,df,cov_struct=ind,family=efm,weights=w).fit()
     print('\nExposure-Outcome IPW Results')
