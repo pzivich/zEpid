@@ -31,7 +31,7 @@ def effectmeasure_plotdata(label,effect_measure,lcl,ucl):
     ucl:
         -list of level of the upper confidence limit
     '''
-    df = pd.DataFrame();df['study'] = study;df['OR'] = effect_measure;df['LCL'] = lcl;df['UCL'] = ucl
+    df = pd.DataFrame();df['study'] = label;df['OR'] = effect_measure;df['LCL'] = lcl;df['UCL'] = ucl
     df['OR2'] = df['OR'].astype(str).astype(float)
     if ((all(isinstance(item,float) for item in lcl))&(all(isinstance(item,float) for item in effect_measure))):
         df['LCL_dif'] = df['OR'] - df['LCL']
@@ -81,9 +81,6 @@ def effectmeasure_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',err
     size:
         -change the plot size. May need to change to fit all labels inside saved object. Default is 3
     '''
-    import matplotlib
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
     tval = [] #sets values to display in side table
     ytick = [] #determines y tick marks to use
     for i in range(len(df)):
@@ -111,8 +108,9 @@ def effectmeasure_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',err
     plot.errorbar(df.OR2,df.index,xerr=[df.LCL_dif,df.UCL_dif],ecolor=errc,fmt=shape,color=pc,elinewidth=(size/size),markersize=(size*2)) #draw EM & CL
     if (scale=='log'):
         plot.set_xscale('log') #log scale for OR/RR
-    plot.set_yticks(ytick);plot.set_xlim([mini,maxi]);plot.set_xticks([mini,1,maxi])
     plot.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    plot.get_xaxis().set_minor_formatter(matplotlib.ticker.NullFormatter())
+    plot.set_yticks(ytick);plot.set_xlim([mini,maxi]);plot.set_xticks([mini,1,maxi])
     plot.set_yticklabels(df['study'])
     plot.invert_yaxis() #invert y-axis to align values properly with table
     plot.xaxis.set_ticks_position('bottom');plot.yaxis.set_ticks_position('left')
