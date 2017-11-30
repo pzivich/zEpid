@@ -110,7 +110,7 @@ def effectmeasure_plot(df,decimal=3,title='',em='OR',ci='95% CI',scale='log',err
         plot.set_xscale('log') #log scale for OR/RR
     plot.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
     plot.get_xaxis().set_minor_formatter(matplotlib.ticker.NullFormatter())
-    plot.set_yticks(ytick);plot.set_xlim([mini,maxi]);plot.set_xticks([mini,1,maxi])
+    plot.set_yticks(ytick);plot.set_xlim([mini,maxi]);plot.set_xticks([mini,1,maxi]);plot.set_xticklabels([mini,1,maxi])
     plot.set_yticklabels(df['study'])
     plot.invert_yaxis() #invert y-axis to align values properly with table
     plot.xaxis.set_ticks_position('bottom');plot.yaxis.set_ticks_position('left')
