@@ -15,6 +15,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
 
 # Current items to be added still:
     -ICR and IC calculations (summary & df)
+    -E-value (Vanderweele & Ding 2017)
     -Confidence interval calculations for risk
     -Delta beta function for sensitivity analysis (using statsmodel package)
     -Plot for functional form assessment of continuous variables (using statsmodel package)
