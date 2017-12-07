@@ -9,13 +9,13 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     -Measures of association, on summary data
     -Screening measures (sensitivity, specificity, NPV, PPV, etc.)
     -Sensitivity analysis tools
+    -E-value calculation (Vanderweele and Ding 2017)
     -Effect measure plot generator (alternative to a large table of results)
     -Inverse Probability Weighting (IPW) fit via GEE with independence structure
     -Other various calculations
 
 # Current items to be added still:
     -ICR and IC calculations (summary & df)
-    -E-value (Vanderweele & Ding 2017)
     -Confidence interval calculations for risk
     -Delta beta function for sensitivity analysis (using statsmodel package)
     -Plot for functional form assessment of continuous variables (using statsmodel package)
