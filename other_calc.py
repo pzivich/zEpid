@@ -23,9 +23,29 @@ def odds_to_prop(odds):
     return prop
     
 
-#def risk_ci(events,total):
-#    '''Calculate 95% Confidence interval of Risk'''
-#    return
+def risk_ci(events,total,alpha=0.05,decimal=3):
+    '''Calculate two-sided (1-alpha)% Confidence interval of Risk. Note
+    relies on the Central Limit Theorem, so there must be at least 5 events 
+    and 5 no events. Exact methods currently not available
+    
+    events:
+        -Number of events/outcomes that occurred
+    total:
+        -total number of subjects that could have experienced the event
+    alpha:
+        -Alpha level. Default is 0.05
+    decimal:
+        -Number of decimal places to display. Default is 3 decimal places
+    '''
+    from scipy.stats import norm
+    risk = events/total
+    c = 1 - alpha/2
+    zalpha = norm.ppf(c,loc=0,scale=1)
+    se = math.sqrt((risk*(1-risk)) / total)
+    lower = risk - zalpha*se
+    upper = risk + zalpha*se
+    print('Risk: ',round(risk,decimal))
+    print(str(c)+'% CI: (',round(lower,decimal),', ',round(upper,decimal),')')    
 
 
 def ir_ci(events,time,alpha=0.05,decimal=3):
@@ -38,7 +58,7 @@ def ir_ci(events,time,alpha=0.05,decimal=3):
     alpha:
         -alpha level. Default is 0.05
     decimal:
-        -amount of decimal places to display. Default is three decimal places
+        -amount of decimal places to display. Default is 3 decimal places
     '''
     a = alpha/2
     prob_l = 2*events
