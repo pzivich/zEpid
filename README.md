@@ -15,6 +15,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Sensitivity analysis tools:
         -E-value calculation (Vanderweele and Ding 2017)
         -Crude corrected RR
+        -Delta Beta analysis
     Graphics:
         -Effect measure plot generator (akin to forest plot)
     Other various calculations:
@@ -26,8 +27,6 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
 # Current items to be added still:
     Association measures:
         -Causal inference tools (https://www.hsph.harvard.edu/causal/software/) Note; this is going to take awhile to add
-    Sensitivity analysis tools:
-        -Delta beta analysis
     Graphics:
         -Forest plot
         -Functional form assessment plots
