@@ -19,6 +19,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
         -Effect measure plot generator (akin to forest plot)
     Other various calculations:
         -Convert between proportions and odds
+        -Risk (probability) confidence interval
         -Incidence rate confidence interval
         -Standardized mean difference
 
@@ -30,7 +31,5 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Graphics:
         -Forest plot
         -Functional form assessment plots
-    Other various calculations:
-        -Confidence interval calculations for risk
 
 A full guide of the package and a sample dataframe are underdevelopment. If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
