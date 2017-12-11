@@ -5,20 +5,32 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
 
 
 # Contents include:
-    -Measures of association, directly on dataframe
-    -Measures of association, on summary data
-    -Screening measures (sensitivity, specificity, NPV, PPV, etc.)
-    -Sensitivity analysis tools
-    -E-value calculation (Vanderweele and Ding 2017)
-    -Effect measure plot generator (alternative to a large table of results)
-    -Inverse Probability Weighting (IPW) fit via GEE with independence structure
-    -Other various calculations
+    Association measures:
+        -Measures of association, directly on dataframe (RR/RD/OR/NNT/IRR/IRD/ACR/PAF)
+        -Measures of association, on summary data (RR/RD/OR/NNT/IRR/IRD/ACR/PAF)
+        -Inverse Probability Weighting fit via GEE with independence structure
+    Screening Measures:
+        -Screening measures (sensitivity/specificity/NPV/PPV)
+    Sensitivity analysis tools:
+        -E-value calculation (Vanderweele and Ding 2017)
+        -Crude corrected RR
+    Graphics:
+        -Effect measure plot generator (akin to forest plot)
+    Other various calculations:
+        -Convert between proportions and odds
+        -Incidence rate confidence interval
+        -Standardized mean difference
 
 # Current items to be added still:
-    -ICR and IC calculations (summary & df)
-    -Confidence interval calculations for risk
-    -Delta beta function for sensitivity analysis (using statsmodel package)
-    -Plot for functional form assessment of continuous variables (using statsmodel package)
-    -Causal inference methodologies (https://www.hsph.harvard.edu/causal/software/)
+    Association measures:
+        -ICR and IC calculations (summary & df)
+        -Causal inference tools (https://www.hsph.harvard.edu/causal/software/)
+    Sensitivity analysis tools:
+        -Delta beta analysis
+    Graphics:
+        -Forest plot
+        -Functional form assessment plots
+    Other various calculations:
+        -Confidence interval calculations for risk
 
 A full guide of the package and a sample dataframe are underdevelopment. If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
