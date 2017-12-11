@@ -8,6 +8,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Association measures:
         -Measures of association, directly on dataframe (RR/RD/OR/NNT/IRR/IRD/ACR/PAF)
         -Measures of association, on summary data (RR/RD/OR/NNT/IRR/IRD/ACR/PAF)
+        -Interaction Contrast & Interaction Contrast Ratio
         -Inverse Probability Weighting fit via GEE with independence structure
     Screening Measures:
         -Screening measures (sensitivity/specificity/NPV/PPV)
@@ -23,8 +24,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
 
 # Current items to be added still:
     Association measures:
-        -ICR and IC calculations (summary & df)
-        -Causal inference tools (https://www.hsph.harvard.edu/causal/software/)
+        -Causal inference tools (https://www.hsph.harvard.edu/causal/software/) Note; this is going to take awhile to add
     Sensitivity analysis tools:
         -Delta beta analysis
     Graphics:
