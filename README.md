@@ -23,6 +23,9 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
         -Risk (probability) confidence interval
         -Incidence rate confidence interval
         -Standardized mean difference
+        -Weibull Model estimation of survival/incidence/expected cases/expected person-time
+        -Counternull & Counternull P-value
+        -Simple Bayesian Analysis
 
 # Current items to be added still:
     Association measures:
@@ -30,5 +33,9 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Graphics:
         -Forest plot
         -Functional form assessment plots
+    -Life Table 
+    -Spline
 
-A full guide of the package and a sample dataframe are underdevelopment. If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
+A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information
+
+If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
