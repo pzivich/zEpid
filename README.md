@@ -9,7 +9,15 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
         -Measures of association, directly on dataframe (RR/RD/OR/NNT/IRR/IRD/ACR/PAF)
         -Measures of association, on summary data (RR/RD/OR/NNT/IRR/IRD/ACR/PAF)
         -Interaction Contrast & Interaction Contrast Ratio
-        -Inverse Probability Weighting fit via GEE with independence structure
+    Inverse Probability Weighting
+        -Inverse probability for missing (IPMW)
+        -Inverse probability for treatment (IPTW) 
+            -Standardized & unstandardized weights
+        -IPW weight diagnostic tools
+            -Graphical displays (histogram, boxplot)
+            -Standardized differences (binary, continuous)
+            -Positivity assessment
+        -Fit IPW via GEE with independent covariance structure
     Screening Measures:
         -Screening measures (sensitivity/specificity/NPV/PPV)
     Sensitivity analysis tools:
@@ -27,14 +35,20 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
         -Counternull & Counternull P-value
         -Simple Bayesian Analysis
 
-# Current items to be added still:
+# Current items that will be added:
+**Note:** Some of these, like the causal inference tools, are going to take awhile to be implemented
+
     Association measures:
-        -Causal inference tools (https://www.hsph.harvard.edu/causal/software/) Note; this is going to take awhile to add
+        -Causal inference tools (https://www.hsph.harvard.edu/causal/software/) 
+    IPW:
+        -Inverse probability of censoring weights (IPCW)
+        -Additional diagnostic tools
     Graphics:
         -Forest plot
         -Functional form assessment plots
-    -Life Table 
-    -Spline
+    Various others:
+        -Life Table 
+        -Spline
 
 A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information
 
