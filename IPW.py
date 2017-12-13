@@ -48,7 +48,7 @@ def ipmw(df,missing,model):
     dm.loc[dm[missing].notnull(),'miss'] = 0
     p = ipw(dm,'miss ~ '+model)
     w = p**-1
-    return pd.Series(w)
+    return pd.Series(p),pd.Series(w)
 
 
 def iptw(df,treatment,model,stabilized=True):
@@ -86,7 +86,7 @@ def iptw(df,treatment,model,stabilized=True):
     else:
         twdf.loc[twdf['t']==1,'w'] = 1 / twdf['p']
         twdf.loc[twdf['t']==0,'w'] = 1 / (1-twdf['p'])
-    return twdf.w
+    return twdf.p,twdf.w
 
 
 def ipw_fit(df,model,match,weight,link_dist=None):
@@ -124,7 +124,7 @@ def ipw_fit(df,model,match,weight,link_dist=None):
         f = sm.families.family.Binomial(sm.families.links.logit)
     else:
         f = link_dist
-    IPW = smf.gee(model,match,df,cov_struct=ind,family=f,weights=weight).fit()
+    IPW = smf.gee(model,match,df,cov_struct=ind,family=f,weights=df[weight]).fit()
     return IPW 
 
 
@@ -142,7 +142,7 @@ class diagnostic:
         positivity()
             -Only valid for stabilized IPTW
     '''
-    def weighted_avg(v,w,t):
+    def weighted_avg(df,v,w,t):
         '''This function is only used to calculate the weighted mean for 
         standardized_diff function for continuous variables'''
         l = []
@@ -158,12 +158,13 @@ class diagnostic:
         standardized_diff function for continuous variables'''
         l = []
         for i in [0,1]:
-            n1 = df.loc[df[t]==i][v].sum()
-            d1 = (df.loc[df[t]==i][v].sum())**2
-            d2 = sum(df.loc[df[t]==i][v]**2)
-            n2 = sum(df.loc[df[t]==i][w] * ((df.loc[df[t]==i][v] - xbar)**2))
+            n1 = sum(df.loc[df[t]==i][w])
+            d1 = sum(df.loc[df[t]==i][w]) ** 2
+            d2 = sum(df.loc[df[t]==i][w]**2)
+            n2 = sum(df.loc[df[t]==i][w] * ((df.loc[df[t]==i][v] - xbar[i])**2))
             a = ((n1/(d1-d2))*n2)
             l.append(a)
+        print(l)
         return l[0],l[1]
     
     def standardized_diff(df,treatment,var,weight,var_type='binary',decimal=3):
@@ -176,8 +177,8 @@ class diagnostic:
             wnot = np.sum(df.loc[(df[var]==1) & (df[treatment]==0)][weight].dropna()) / np.sum(df.loc[df[treatment]==0][weight].dropna())
             wsmd = 100 * ((wtre - wnot) / math.sqrt(((wtre*(1-wtre)+wnot*(1-wnot)) / 2)))
         elif var_type == 'continuous':
-            wmt,wmn = diagnostic.weighted_avg(df,v=var,w=weight,t=treatment)
-            wst,wsn = diagnostic.weighted_std(df,v=var,w=weight,t=treatment)
+            wmn,wmt = diagnostic.weighted_avg(df,v=var,w=weight,t=treatment)
+            wsn,wst = diagnostic.weighted_std(df,v=var,w=weight,t=treatment,xbar=[wmn,wmt])
             wsmd = 100 * (wmt - wmn) / (math.sqrt((wst+wsn) / 2))
         else:
             raise ValueError('The only variable types currently supported are binary and continuous')
@@ -191,44 +192,42 @@ class diagnostic:
         print('Weighted SMD: \t',round(wsmd,decimal))
         print('----------------------------------------------------------------------')
     
-    def w_hist(df,treatment,weight):
+    def w_hist(df,treatment,probability):
         '''Generates a histogram that can be used to check whether positivity may be violated 
-        qualitatively. This method is valid for all calculated weights types. Note that this
-        can be used for either calculated weights or calculated probabilities
+        qualitatively. Note input probability variable, not the weight
         
         df:
             -dataframe that contains the weights
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
-        weight:
-            -dataframe column name of the weights
+        probability:
+            -dataframe column name of the probability
         '''
         import matplotlib.pyplot as plt
-        plt.hist(df.loc[df[treatment]==1][weight].dropna(),label='T=1',color='b',alpha=0.75)
-        plt.hist(df.loc[df[treatment]==0][weight].dropna(),label='T=0',color='r',alpha=0.75)
-        plt.xlabel('Weight')
+        plt.hist(df.loc[df[treatment]==1][probability].dropna(),label='T=1',color='b',alpha=0.8)
+        plt.hist(df.loc[df[treatment]==0][probability].dropna(),label='T=0',color='r',alpha=0.5)
+        plt.xlabel('Probability')
         plt.ylabel('Number of observations')
         plt.legend()
         plt.show()
     
-    def w_boxplot(df,treat,weight):
+    def w_boxplot(df,treat,probability):
         '''Generates a stratified boxplot that can be used to visually check whether positivity
-        may be violated, qualitatively. This method is valid for all calcualted weight types. 
-        Note that this can be used for either calculated weights or calculated probabilities
+        may be violated, qualitatively. Note input probability, not the weight
         
         df:
             -dataframe that contains the weights
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
-        weight:
-            -dataframe column name of the weights
+        probability:
+            -dataframe column name of the probability
         '''
         import matplotlib.pyplot as plt
-        boxes = df.loc[df['psy_stress2']==1]['weight'].dropna(), df.loc[df['psy_stress2']==0]['weight'].dropna()
+        boxes = df.loc[df[treat]==1][probability].dropna(), df.loc[df[treat]==0][probability].dropna()
         labs = ['T=1','T=0']
         meanpointprops = dict(marker='D', markeredgecolor='black',markerfacecolor='black')
         plt.boxplot(boxes,labels=labs,meanprops=meanpointprops,showmeans=True)
-        plt.ylabel('Weight')
+        plt.ylabel('Probability')
         plt.show()
     
     def positivity(df,weight,decimal=3):
@@ -262,5 +261,3 @@ class diagnostic:
         print('Minimum weight:\t\t\t',round(mn,decimal))
         print('Maximum weight:\t\t\t',round(mx,decimal))
         print('----------------------------------------------------------------------')
-        
-        
