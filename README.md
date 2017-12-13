@@ -43,10 +43,11 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     IPW:
         -Inverse probability of censoring weights (IPCW)
         -Additional diagnostic tools
+        -Propensity score matching algorithms
     Graphics:
         -Forest plot
         -Functional form assessment plots
-    Various others:
+    Various other items:
         -Life Table 
         -Spline
 
