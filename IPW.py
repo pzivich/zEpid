@@ -168,8 +168,30 @@ class diagnostic:
         return l[0],l[1]
     
     def standardized_diff(df,treatment,var,weight,var_type='binary',decimal=3):
-        '''Compute the standardized differences for the weighted and unweighted 
-        probability of treatment.
+        '''Compute the standardized differences for the IP weights by treatment. 
+        Note that this can be used to compare both mean(continuous variable) and
+        proportions (binary variable) between baseline variables. To compare interactions
+        and higher-order moments of continuous variables, calculate a corresponding 
+        variable then simply put in this new variable as the variable of interest 
+        regarding balance. Note that comparing the mean of squares of continuous variables
+        is akin to comparing the variances between the treatment groups.
+        
+        df:
+            -pandas dataframe containing the variables of interest
+        treatment:
+            -Column name for variable that is regarded as the treatment. Currently, 
+             only binary (0,1) treatments are supported
+        var:
+            -Column name for variable of interest regarding balanced by weights. 
+             Variable can be binary (0,1) or continuous. If continuous, var_type option 
+             must be changed
+        weight:
+            -Column name of variable containing the IP weights
+        var_type:
+            -The type of variable in the var option. Default is binary. For continuous variables
+             var_type must be specified as 'continuous' 
+        decimal:
+            -Number of decimal places to display in result
         '''
         import math
         if var_type == 'binary':
@@ -192,7 +214,7 @@ class diagnostic:
         print('Weighted SMD: \t',round(wsmd,decimal))
         print('----------------------------------------------------------------------')
     
-    def w_hist(df,treatment,probability):
+    def p_hist(df,treatment,probability):
         '''Generates a histogram that can be used to check whether positivity may be violated 
         qualitatively. Note input probability variable, not the weight
         
@@ -211,7 +233,7 @@ class diagnostic:
         plt.legend()
         plt.show()
     
-    def w_boxplot(df,treat,probability):
+    def p_boxplot(df,treat,probability):
         '''Generates a stratified boxplot that can be used to visually check whether positivity
         may be violated, qualitatively. Note input probability, not the weight
         
