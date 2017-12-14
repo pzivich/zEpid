@@ -50,6 +50,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Various other items:
         -Life Table 
         -Spline
+        -Simulation method to estimate expected person-time at risk
 
 A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information
 
