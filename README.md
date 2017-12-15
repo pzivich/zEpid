@@ -35,7 +35,7 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
         -Counternull & Counternull P-value
         -Simple Bayesian Analysis
 
-# Current items that will be added:
+# Future Inclusions:
 **Note:** Some of these, like the causal inference tools, are going to take awhile to be implemented
 
     Association measures:
@@ -46,10 +46,8 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
         -Propensity score matching algorithms
     Graphics:
         -Forest plot
-        -Functional form assessment plots
     Various other items:
         -Life Table 
-        -Spline
         -Simulation method to estimate expected person-time at risk
 
 A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information
