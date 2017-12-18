@@ -196,7 +196,7 @@ We can see that our outcome variable is missing some data. Therefore, let's weig
 m,df['ipmw_weight'] = ze.ipw.ipmw(df,'outcome','C(category)')
 ```
 The above function with produce the weights as a new column, which we have labelled as 'ipmw_weight'. Since we do not care about the probabilities, we just set them equal to 'm'. The following model fit output will be printed
-```python
+```
                  Generalized Linear Model Regression Results                  
 ==============================================================================
 Dep. Variable:                    obs   No. Observations:                 3427
@@ -282,6 +282,148 @@ binary                -4.6120      0.235    -19.595      0.000      -5.073      
 Now that we have weights, we can run some diagnostics on the IPTW model
 ##### Positivity
 ```python
-
+ze.ipw.diagnostic.positivity(df,'iptw_weight')
 ```
 Which produces teh following output
+```
+----------------------------------------------------------------------
+IPW Diagnostic for positivity
+NOTE: This method is only valid for stabilized IPTW weights
+
+If the mean of the weights is far from either the min or max, this may
+ indicate the model is mispecified or positivity is violated
+Standard deviation can help in IPTW model selection
+----------------------------------------------------------------------
+Mean weight:		 0.947
+Standard Deviation:		 0.942
+Minimum weight:			 0.328
+Maximum weight:			 12.997
+----------------------------------------------------------------------
+```
+We can see that we may have some issues since our Maximum is quite far from the mean stabilized weight. However, we will ignore this issue in our example
+##### Standarized Differences
+Standardized differences can be calculated for both binary and continuous variables. To calculate, we use the following code
+**Binary**:
+```python
+ze.ipw.diagnostic.standardized_diff(df,'exposure','binary','iptw_weight')
+```
+Output:
+```
+	Binary variable: binary
+----------------------------------------------------------------------
+Weighted SMD: 	 -32.711
+----------------------------------------------------------------------
+```
+**Continuous**:
+```python
+ze.ipw.diagnostic.standardized_diff(df,'exposure','continuous','iptw_weight',var_type='continuous')
+```
+Output:
+```
+	Continuous variable: continuous
+----------------------------------------------------------------------
+Weighted SMD: 	 14.318
+----------------------------------------------------------------------
+```
+Again, we see issues with our IPTW model. We will ignore these issues through our example
+##### Graphical Assessments
+We can generate two different graphical figures to assess how well the IPTW model is fitting. We can generate a histogram of the weights, stratified by treatment
+```python
+ze.ipw.diagnostic.p_hist(df,'exposure','exp_prob')
+```
+![alt text](https://github.com/pzivich/zepid/blob/master/images/hist_iptw.png "IPTW Histogram")
+
+Alternatively, we can generate a boxplot stratified by the treatment
+```python
+ze.ipw.diagnostic.p_boxplot(df,'exposure','exp_prob')
+```
+![alt text](https://github.com/pzivich/zepid/blob/master/images/box_iptw.png "IPTW Boxplot")
+
+From our graphics, we can see that there are issues with our model. We will ignore these for the purpose of our example. In an actual analysis, we would consider different options or coding schemes
+#### Fitting an IPTW Model 
+We can use the same ipw_fit() function described in the IPMW section to fit a IPTW model
+```python
+iptmodel = ze.ipw.ipw_fit(df,'outcome ~ exposure','id','iptw_weight')
+print(iptmodel.summary())
+```
+Which outputs
+```
+                               GEE Regression Results                              
+===================================================================================
+Dep. Variable:                     outcome   No. Observations:                 3161
+Model:                                 GEE   No. clusters:                     3161
+Method:                        Generalized   Min. cluster size:                   1
+                      Estimating Equations   Max. cluster size:                   1
+Family:                           Binomial   Mean cluster size:                 1.0
+Dependence structure:         Independence   Num. iterations:                     5
+Date:                     Mon, 18 Dec 2017   Scale:                           1.000
+Covariance type:                    robust   Time:                         09:39:27
+==============================================================================
+                 coef    std err          z      P>|z|      [0.025      0.975]
+------------------------------------------------------------------------------
+Intercept     -1.2998      0.056    -23.122      0.000      -1.410      -1.190
+exposure       0.7922      0.165      4.801      0.000       0.469       1.116
+==============================================================================
+Skew:                          1.0508   Kurtosis:                      -0.7536
+Centered skew:                 0.0000   Centered kurtosis:             -3.0000
+==============================================================================
+```
+*Note*: Due to the model fitting issues, these results are NOT valid estimates
+## Sensitivity Analyses
+Now that we have completed our main analysis, we can conduct some sensitivity analyses
+### E-values
+E-values are a recently proposed item to assess the amount of bias required to shift the estimate to a null value (or some other value). For more information regarding e-values, we direct readers to Vanderweele & Ding 2017
+We will calculate the e-value for our crude Odds Ratio from previous
+```python
+ze.sens_analysis.e_value(effect_measure=1.95,lcl=1.64,ucl=2.32,measure='OR')
+```
+Which returns
+```
+WARNING: if the outcome is common, OR/HR need to use the approximation method
+for the E-value. The approximation method is implemented by default. If the
+outcome is relatively rare (<15%) then the approximation is not required
+----------------------------------------------------------------------
+Effect Measure: OR	(Reference = 1)
+
+E-values
+	Point Estimate = 	2.14
+	Confidence Limit = 	1.88
+----------------------------------------------------------------------
+```
+Since our outcome is considered common in our data, we use the approximation method (default for OR in the calculation)
+### Delta-Beta Analysis
+Now we can use a delta-beta analysis to determine if any single observation was disproportionately driving the observed association. This functions fits a regression model dropping each observation at a time. This means the function may take awhile when large data sets are used, since it fits *n* regression models, where *n* is the number of observations in the data set.
+To use this function and store the results, we use the following function. Since are only measure of interest is the exposure, we will only keep track of the changes in beta of this variable
+```python
+df['delta_b'] = ze.sens_analysis.delta_beta(df,model='outcome ~ exposure + C(category) + binary + continuous + cont_sq',beta=['exposure'])
+```
+###### Note: This may take a minute or two to run since it fits over 3000 glm models
+We can now make a histogram of the delta-beta results to see if there was any outliers driving our association
+```python
+plt.hist(df.delta_b)
+plt.show()
+```
+![alt text](https://github.com/pzivich/zepid/blob/master/images/hist_deltabeta.png "Delta-Beta Histogram")
+
+From this, we can see there is not any single observation really driving the observed association. As a result, we have some reassurance that our estimate is not due to the covariate structure of a single observation
+## Summary image for our effect measures
+Now to summary our results (and our results from a normal GLM model not shown here), we will use a specific effect measure plot. This plot produces something similar to a forest plot, but does not provide a summary measure. 
+First, we need to prepare our data. We create four lists containing the labels we want, the point estimates, the lower CI, and the upper CI. We convert these lists to a compatible object for our plotting function using the effectmeasure_plot_data() function
+```python
+labs = ['Crude','Logit','IPTW','IPMW']
+resu = [1.95,2.45,1.12,2.53]
+rlcl = [1.64,1.93,0.76,'2.00']
+rucl = [2.32,'3.10',1.66,3.21]
+pf = ze.graphics.effectmeasure_plotdata(labs,resu,rlcl,rucl)
+```
+Now that our data is all prepared for our plot, we generate our plot using the following code
+```python
+ze.graphics.effectmeasure_plot(pf,decimal=3,title='Odds Ratio Plot of Results',em='OR',ci='95% CI',scale='log',t_adjuster=0.09,size=3)
+```
+Producing the following plot
+
+![alt text](https://github.com/pzivich/zepid/blob/master/images/hist_deltabeta.png "Delta-Beta Histogram")
+
+As we can see, our IPTW results are far off. We noticed there were issues in our IPTW diagnostics so we would either create a better IPTW model or not report these results. 
+
+This completes the general walkthrough. In this example, we did not discuss any of the sensitivity or specificity analysis tools. Those will be discussed in a upcoming walkthrough
