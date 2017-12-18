@@ -177,12 +177,21 @@ and image
 
 For our other functional form assessments, we obtain the following plots
 #### Quadratic
+```python 
+ze.graphics.func_form_plot(df,'outcome','continuous','continuous + cont_sq',ylims=[0.15,0.5])
+```
 
 ![alt text](https://github.com/pzivich/zepid/blob/master/images/quad_funcform.png "Quadratic Functional Form")
 #### Categorical
+```python 
+ze.graphics.func_form_plot(df,'outcome','continuous','C(ccat)',ylims=[0.15,0.5])
+```
 
 ![alt text](https://github.com/pzivich/zepid/blob/master/images/cat_funcform.png "Categorical Functional Form")
 #### Restricted Quadratic Spline
+```python 
+ze.graphics.func_form_plot(df,'outcome','continuous','continuous + rs1 + rs2 + rs3 + rs4',ylims=[0.15,0.5])
+```
 
 ![alt text](https://github.com/pzivich/zepid/blob/master/images/rqs_funcform.png "Restricted Quadratic Spline Functional Form")
 
