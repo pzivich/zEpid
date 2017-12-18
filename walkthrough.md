@@ -284,7 +284,7 @@ Now that we have weights, we can run some diagnostics on the IPTW model
 ```python
 ze.ipw.diagnostic.positivity(df,'iptw_weight')
 ```
-Which produces teh following output
+Which produces the following output
 ```
 ----------------------------------------------------------------------
 IPW Diagnostic for positivity
@@ -294,7 +294,7 @@ If the mean of the weights is far from either the min or max, this may
  indicate the model is mispecified or positivity is violated
 Standard deviation can help in IPTW model selection
 ----------------------------------------------------------------------
-Mean weight:		 0.947
+Mean Stabilized weight:		 0.947
 Standard Deviation:		 0.942
 Minimum weight:			 0.328
 Maximum weight:			 12.997
@@ -422,7 +422,7 @@ ze.graphics.effectmeasure_plot(pf,decimal=3,title='Odds Ratio Plot of Results',e
 ```
 Producing the following plot
 
-![alt text](https://github.com/pzivich/zepid/blob/master/images/hist_deltabeta.png "Delta-Beta Histogram")
+![alt text](https://github.com/pzivich/zepid/blob/master/images/result_plot.png "Effect Measure Summary Plot")
 
 As we can see, our IPTW results are far off. We noticed there were issues in our IPTW diagnostics so we would either create a better IPTW model or not report these results. 
 
