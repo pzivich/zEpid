@@ -1,5 +1,6 @@
 # zepid
-zepid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. Basic calculations are provided for both summary data and directly with raw data.
+zepid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The purpose of this package is to make epidemiology in Python E-Z. A variety of calculations and plots can be generated through various functions. Just a few highlights to provide; easily create functional form assessment plots, easily generate and conduct diagnostic tests on inverse probability of treatment weights, and generate a summary graphic and table
+For a sample walkthrough of what this package is capable of, please look to the walkthrough.md 
 
 Measures of association and IPW have been compared to SAS v9.4
 
@@ -83,6 +84,6 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Life Table 
     Simulation method to estimate expected person-time at risk
 
-A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information. For examples before the guide is uploaded, please see zepid_tutorial in documents
+A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information. For examples before the guide is uploaded, please see zepid_tutorial in documents and the walkthrough.md for some general guides
 
 If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
