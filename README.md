@@ -6,6 +6,10 @@ Measures of association and IPW have been compared to SAS v9.4
 
 Note: regarding confidence intervals, only Wald confidence intervals are currently implemented. Currently, there are no plans to implement other types of confidence intervals. 
 
+# Dependencies
+pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, scipy >= 1.0.0
+###### Note that earlier versions of these modules may be okay to use. When this package was built, these were the versions of the modules used
+
 # Module Structure:
     zepid
         RelRisk: calculate the relative risk from a pandas dataframe
@@ -83,6 +87,8 @@ Note: regarding confidence intervals, only Wald confidence intervals are current
     Forest plot
     Life Table 
     Simulation method to estimate expected person-time at risk
+    Network analysis tools to complement NetworkX functions
+    Mathematical Modeling tools
 
 A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information. For examples before the guide is uploaded, please see zepid_tutorial in documents and the walkthrough.md for some general guides
 
