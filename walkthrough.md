@@ -146,9 +146,11 @@ To generate a spline, we can use the zepid function spline. spline is used to ge
 df[['rs1','rs2','rs3','rs4']] = ze.spline(df,'continuous',n_knots=5,term=2,restricted=True)
 ```
 ### Functional form plots
-Now that our potential forms are coded, we can create some function form plots. First we will look at our linear functional form
+Now that our potential forms are coded, we can create some function form plots. 
+#### Linear
+First we will look at our linear functional form
 ```python
-
+ze.graphics.func_form_plot(df,'outcome','continuous',ylims=[0.15,0.5]) #linear
 ```
 Which produces the following output
 ```
@@ -170,4 +172,17 @@ continuous     0.0081      0.001      5.788      0.000       0.005       0.011
 ==============================================================================
 ```
 and image
+
 ![alt text](https://github.com/pzivich/zepid/blob/master/images/linear_funcform.png "Linear Functional Form")
+
+For our other functional form assessments, we obtain the following plots
+#### Quadratic
+
+![alt text](https://github.com/pzivich/zepid/blob/master/images/quad_funcform.png "Quadratic Functional Form")
+#### Categorical
+
+![alt text](https://github.com/pzivich/zepid/blob/master/images/cat_funcform.png "Categorical Functional Form")
+#### Restricted Quadratic Spline
+
+![alt text](https://github.com/pzivich/zepid/blob/master/images/rqs_funcform.png "Restricted Quadratic Spline Functional Form")
+Based on these results, we will use a quadratic functional form for our continuous variable
