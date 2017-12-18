@@ -185,4 +185,103 @@ For our other functional form assessments, we obtain the following plots
 #### Restricted Quadratic Spline
 
 ![alt text](https://github.com/pzivich/zepid/blob/master/images/rqs_funcform.png "Restricted Quadratic Spline Functional Form")
+
 Based on these results, we will use a quadratic functional form for our continuous variable
+
+## Inverse Probability Weights
+Currently, both IPW for missingness and IPW for treatment are supported. Let's look at each of these
+### Inverse Probability of Missingness Weights
+We can see that our outcome variable is missing some data. Therefore, let's weight our data by missingness due to the categorical variables
+```python
+m,df['ipmw_weight'] = ze.ipw.ipmw(df,'outcome','C(category)')
+```
+The above function with produce the weights as a new column, which we have labelled as 'ipmw_weight'. Since we do not care about the probabilities, we just set them equal to 'm'. The following model fit output will be printed
+```python
+                 Generalized Linear Model Regression Results                  
+==============================================================================
+Dep. Variable:                    obs   No. Observations:                 3427
+Model:                            GLM   Df Residuals:                     3424
+Model Family:                Binomial   Df Model:                            2
+Link Function:                  logit   Scale:                             1.0
+Method:                          IRLS   Log-Likelihood:                -816.08
+Date:                Mon, 18 Dec 2017   Deviance:                       1632.2
+Time:                        08:20:15   Pearson chi2:                 3.43e+03
+No. Iterations:                     6                                         
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+Intercept              3.0192      0.162     18.645      0.000       2.702       3.337
+C(category)[T.1.0]    -1.8639      0.186    -10.044      0.000      -2.228      -1.500
+C(category)[T.2.0]     0.3054      0.205      1.492      0.136      -0.096       0.707
+======================================================================================
+```
+###### Note that we use the default to calculate the stabilized weights, but we could also obtain the unstablilized weights by using stabilized=False
+Now that we have our weights, we can fit a IPMW model using the ipw_fit() function. This function uses GEE with an independent covariance structure to obtain the point estimate and the corresponding confidence intervals. This function is used to fit both IPMW and IPTW models
+```python
+df['id'] = df.index
+ipmmodel = ze.ipw.ipw_fit(df,model='outcome ~ exposure + C(category) + binary + continuous + cont_sq',match='id',weight='ipmw_weight')
+print(ipmmodel.summary())
+```
+Which produces the following output
+```
+                               GEE Regression Results                              
+===================================================================================
+Dep. Variable:                     outcome   No. Observations:                 3161
+Model:                                 GEE   No. clusters:                     3161
+Method:                        Generalized   Min. cluster size:                   1
+                      Estimating Equations   Max. cluster size:                   1
+Family:                           Binomial   Mean cluster size:                 1.0
+Dependence structure:         Independence   Num. iterations:                     6
+Date:                     Mon, 18 Dec 2017   Scale:                           1.000
+Covariance type:                    robust   Time:                         08:23:23
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+Intercept             -0.4643      0.145     -3.198      0.001      -0.749      -0.180
+C(category)[T.1.0]    -0.4836      0.125     -3.871      0.000      -0.728      -0.239
+C(category)[T.2.0]    -1.2174      0.113    -10.808      0.000      -1.438      -0.997
+exposure               0.9300      0.121      7.691      0.000       0.693       1.167
+binary                -0.5200      0.102     -5.115      0.000      -0.719      -0.321
+continuous            -0.0105      0.006     -1.810      0.070      -0.022       0.001
+cont_sq                0.0002    5.6e-05      3.333      0.001    7.68e-05       0.000
+==============================================================================
+Skew:                          0.9645   Kurtosis:                      -0.6150
+Centered skew:                 0.0000   Centered kurtosis:             -3.0000
+==============================================================================
+```
+
+### Inverse Probability of Treatment Weights
+To create an IPTW model, we use the following code to generate both the probabilities and the stabilized weights
+```python
+df['exp_prob'],df['iptw_weight'] = ze.ipw.iptw(df,'exposure','continuous + binary + C(category)')
+```
+Which produces the following output
+```
+                 Generalized Linear Model Regression Results                  
+==============================================================================
+Dep. Variable:               exposure   No. Observations:                 3427
+Model:                            GLM   Df Residuals:                     3422
+Model Family:                Binomial   Df Model:                            4
+Link Function:                  logit   Scale:                             1.0
+Method:                          IRLS   Log-Likelihood:                -1045.8
+Date:                Mon, 18 Dec 2017   Deviance:                       2091.6
+Time:                        08:27:23   Pearson chi2:                 2.69e+03
+No. Iterations:                     7                                         
+======================================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+Intercept             -3.0628      0.215    -14.245      0.000      -3.484      -2.641
+C(category)[T.1.0]     1.4697      0.228      6.449      0.000       1.023       1.916
+C(category)[T.2.0]     3.5098      0.201     17.488      0.000       3.116       3.903
+continuous             0.0073      0.002      3.858      0.000       0.004       0.011
+binary                -4.6120      0.235    -19.595      0.000      -5.073      -4.151
+======================================================================================
+```
+###### Note we can again request unstabilized weights if we set stabilized=False
+#### Diagnostics
+Now that we have weights, we can run some diagnostics on the IPTW model
+##### Positivity
+```python
+
+```
+Which produces teh following output
