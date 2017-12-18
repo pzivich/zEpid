@@ -170,4 +170,4 @@ continuous     0.0081      0.001      5.788      0.000       0.005       0.011
 ==============================================================================
 ```
 and image
-![alt text](https://github.com/pzivich/zepid/images/linear_funcform.png "Linear Functional Form")
+![alt text](https://github.com/pzivich/zepid/blob/master/images/linear_funcform.png "Linear Functional Form")
