@@ -65,26 +65,31 @@ Contents:
     |
     |___ipw
     |    |
-    |    |-ipw():
-    |    |-iptw():
-    |    |-ipmw():
-    |    |-ipcw_data_converter():
-    |    |-ipcw(): 
-    |    |-ipw_fit():
-    |    |-ipcw_fit(): 
+    |    |-ipw(): generate probabilities/propensity scores via logistic regression
+    |    |__iptw(): class for inverse probability of treament weights
+    |         |-weight(): generate IPT weights 
+    |         |-merge_weights(): merge weights from another IPW model
+    |         |-fit(): fit an IPTW model via GEE
+    |    |__ipmw(): class for inverse probability of missing weights
+    |         |-weight(): generate IPM weights
+    |         |-merge_weights(): merge weights from another IPW model
+    |         |-fit(): fit an IPMW model via GEE
+    |    |__ipcw(): class for inverse probability of censoring weights
+    |         |-longdata_converter(): convert a wide survival dataset to a long format
+    |         |-weight(): generate IPC weights 
+    |         |-merge_weights(): merge weights from another IPW model
+    |         |-fit(): fit an IPCW model via weighted Kaplan-Meier
     |    |__diagnostic
-    |         |-p_boxplot():
-    |         |-p_hist():
-    |         |-positivity():
-    |         |-standardized_diff():
-    |         |-weighted_avg():
-    |         |-weighted_std():
+    |         |-p_boxplot():generate boxplot of probabilities by exposure
+    |         |-p_hist(): generates histogram of probabilities by exposure
+    |         |-positivity(): diagnostic values for positivity issues
+    |         |-standardized_diff(): calculates the standardized differences of IP weights
     |    
     |___sens_analysis
          |
-         |-rr_corr():
-         |-trapezoidal():
-         |-delta_beta():
+         |-rr_corr(): generates a corrected RR based on RR of confounder and probabilities confounder
+         |-trapezoidal(): generates a trapezoidal distribution of values
+         |-delta_beta(): conducts a delta-beta analysis
 '''
 from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,datex,StandMeanDiff,survival_upper_lower
 
