@@ -10,8 +10,6 @@ ________________________________________________________________________________
 |       -Useful graphics                                                                    |
 |       -Inverse probability weighting                                                      |
 |       -Sensitivity analysis tools                                                         |
-|                                                                                           |
-| Future tools will be implemented in mathmodel and network                                 |
 |___________________________________________________________________________________________|
 
 Contents:
@@ -87,9 +85,6 @@ Contents:
          |-rr_corr():
          |-trapezoidal():
          |-delta_beta():
-         |-e_value():
-         |-e_value_difference():
-         |-e_value_RD():
 '''
 from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,datex,StandMeanDiff,survival_upper_lower
 
@@ -97,5 +92,3 @@ from .calc import calc
 from .graphics import graphics 
 from .ipw import ipw
 from .sens_analysis import sens_analysis
-from .mathmodel import mathmodel
-from .network import network
