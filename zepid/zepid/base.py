@@ -11,6 +11,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from tabulate import tabulate
 
 
 #####################################################################
@@ -18,32 +19,34 @@ import matplotlib.gridspec as gridspec
 #####################################################################
 #####################################################################
 #Relative Risk formula
-def RelRisk(exposure,disease,alpha=0.05,decimal=3):
-    '''Estimate of Relative Risk with a (1-(2*alpha)*100)% Confidence interval. Current structure is based on
-    pandas crosstab
+def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+    '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
+    this function. 
     
-    WARNING: Exposure & Disease must be coded as (1: yes, 0:no). If the table has one column missing, no 
+    WARNING: Exposure & Outcome must be coded as (1: yes, 0:no). If the table has one column missing, no 
     values will be produced. Only works for binary exposures and outcomes
     
+    df:
+        -pandas dataframe containing variables of interest
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -exposure variable. Must be coded as binary (0,1) where 1 is exposed
+    outcome:
+        -outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
         -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
          95% confidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True, which prints the results
+    return_result:
+        -Whether to return the RR as a object. Default is False
     '''
-    table = pd.crosstab(exposure,disease)
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    print(table,'\n')
-    a = table[1][1]
-    b = table[0][1]
-    c = table[1][0]
-    d = table[0][0]
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
     r1 = (a/(a+b))
     r2 = (c/(c+d))
     relrisk = r1/r2
@@ -51,75 +54,84 @@ def RelRisk(exposure,disease,alpha=0.05,decimal=3):
     lnrr=math.log(relrisk)
     lcl=lnrr-(zalpha*SE)
     ucl=lnrr+(zalpha*SE)
-    print('----------------------------------------------------------------------')
-    print('Risk in exposed: ',round(r1,decimal))
-    print('Risk in unexposed: ',round(r2,decimal))
-    print('----------------------------------------------------------------------')
-    print('Relative Risk: ',round(relrisk,decimal))
-    print(str(round(100*(1-alpha),1)),'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-    print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-    print('----------------------------------------------------------------------')
-    return relrisk
+    if print_result == True:
+        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Risk in exposed: ',round(r1,decimal))
+        print('Risk in unexposed: ',round(r2,decimal))
+        print('----------------------------------------------------------------------')
+        print('Relative Risk: ',round(relrisk,decimal))
+        print(str(round(100*(1-alpha),1)),'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return relrisk
 
 
 #####################################################################
 #Risk Difference formula
-def RiskDiff(exposure,disease,alpha=0.05,decimal=3):
-    '''Estimate of Risk Difference with a (1-(2*alpha)*100)% Confidence interval. Current structure is based on 
-    pandas crosstab
+def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+    '''Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this 
+    function. 
     
-    WARNING: Exposure & Disease must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table
     has one column missing, no values will be produced.
     
+    df:
+        -pandas dataframe containing the variables of interest
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -exposure variable. Variable in column must be coded as binary (0,1) where 1 is exposed
+    outcome:
+        -outcome variable. Variabul in column must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
         -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
          95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True, which prints the results
+    return_result:
+        -Whether to return the RR as a object. Default is False
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    b = table[0][1]
-    c = table[1][0]
-    d = table[0][0]
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
     r1 = (a/(a+b))
     r2 = (c/(c+d))
     riskdiff = r1-r2
     SE=math.sqrt(((a*b)/((((a+b)**2)*(a+b-1))))+((c*d)/(((c+d)**2)*(c+d-1))))
     lcl=riskdiff-(zalpha*SE)
     ucl=riskdiff+(zalpha*SE)
-    print('----------------------------------------------------------------------')
-    print('Risk in exposed: ',round(r1,decimal))
-    print('Risk in unexposed: ',round(r2,decimal))
-    print('----------------------------------------------------------------------')
-    print('Risk Difference: ',round(riskdiff,decimal))
-    print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
-    print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
-    print('----------------------------------------------------------------------')
-    return riskdiff
+    if print_result == True:
+        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Risk in exposed: ',round(r1,decimal))
+        print('Risk in unexposed: ',round(r2,decimal))
+        print('----------------------------------------------------------------------')
+        print('Risk Difference: ',round(riskdiff,decimal))
+        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
+        print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return riskdiff
 
 
 #####################################################################
 #Number Needed to Treat
-def NNT(exposure,disease,alpha=0.05,decimal=3):
+def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimates of Number Needed to Treat. Current structure is based on Pandas crosstab. NNT 
-    (1-(2*alpha)*100)% confidence interval presentation is based on Altman, DG (BMJ 1998). 
+    (1-alpha)*100% confidence interval presentation is based on Altman, DG (BMJ 1998).
+    Missing data is ignored by this function. 
     
-    WARNING: Exposure & Disease must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the 
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the 
     table has one column missing, no values will be produced.
     
     exposure:
         -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
          is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
+    outcome:
         -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
          the outcome of interest. Variation in coding are not guaranteed to function as expected
     alpha:
@@ -127,59 +139,71 @@ def NNT(exposure,disease,alpha=0.05,decimal=3):
          95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_res:
+        -Whether to print the results. Default is True, which prints the results
+    return_res:
+        -Whether to return the RR as a object. Default is False
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    b = table[0][1]
-    c = table[1][0]
-    d = table[0][0]
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
     r1 = (a/(a+b))
     r2 = (c/(c+d))
     riskdiff = r1-r2
-    print('----------------------------------------------------------------------')
-    print('Risk Difference: ',round(riskdiff,decimal))
-    print('----------------------------------------------------------------------')
-    NNT = 1/riskdiff
-    if riskdiff == 0:
-        print('Number Needed to Treat = infinite')
-    else:
-        if riskdiff > 0:
-            print('Number Needed to Harm: ',round(abs(NNT),decimal),'\n')
-        if riskdiff < 0:
-            print('Number Needed to Treat: ',round(abs(NNT),decimal),'\n')
-    print(str(round(100*(1-alpha),1))+'% two-sided CI: ')
+    try:
+        NNT = 1/riskdiff
+    except:
+        NNT = 'inf'
     SE=math.sqrt(((a*b)/((((a+b)**2)*(a+b-1))))+((c*d)/(((c+d)**2)*(c+d-1))))
     lcl_rd=(riskdiff-(zalpha*SE))
     ucl_rd=(riskdiff+(zalpha*SE))
     try:
         ucl = 1/lcl_rd
+    except:
+        ucl = 'inf'
+    try:
         lcl = 1/ucl_rd
     except:
-        raise ValueError('One of the confidence limits is equal to zero, and cannot be evaluated')
-    if lcl_rd < 0 < ucl_rd:
-        print('NNH ',round(abs(lcl),decimal),'to infinity to NNT ',round(abs(ucl),decimal))
-    elif 0 < lcl_rd:
-        print('NNT ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
-    else:
-        print('NNH ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
-    print('----------------------------------------------------------------------')
-    return NNT
+        lcl = 'inf'
+    if print_result == True:
+        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Risk Difference: ',round(riskdiff,decimal))
+        print('----------------------------------------------------------------------')
+        if riskdiff == 0:
+            print('Number Needed to Treat = infinite')
+        else:
+            if riskdiff > 0:
+                print('Number Needed to Harm: ',round(abs(NNT),decimal),'\n')
+            if riskdiff < 0:
+                print('Number Needed to Treat: ',round(abs(NNT),decimal),'\n')
+        print(str(round(100*(1-alpha),1))+'% two-sided CI: ')
+        if lcl_rd < 0 < ucl_rd:
+            print('NNT ',round(abs(lcl),decimal),'to infinity to NNH ',round(abs(ucl),decimal))
+        elif 0 < lcl_rd:
+            print('NNH ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
+        else:
+            print('NNT ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return NNT
     
 
 #####################################################################
 #Odds Ratio formula
-def OddsRatio(exposure,disease,alpha=0.05,decimal=3):
-    '''Estimates of Odds Ratio with a (1-(2*alpha)*100)% Confidence interval. Current structure is based on Pandas crosstab.  
+def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+    '''Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Current structure is based on Pandas crosstab.  
+    Missing data is ignored by this function. 
 
-    WARNING: Exposure & Disease must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the 
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the 
     table has one column missing, no values will be produced.
     
     exposure:
         -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
          is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
+    outcome:
         -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
          the outcome of interest. Variation in coding are not guaranteed to function as expected
     alpha:
@@ -187,14 +211,16 @@ def OddsRatio(exposure,disease,alpha=0.05,decimal=3):
          95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_res:
+        -Whether to print the results. Default is True, which prints the results
+    return_res:
+        -Whether to return the RR as a object. Default is False
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    b = table[0][1]
-    c = table[1][0]
-    d = table[0][0]
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
     o1 = (a/b)
     o2 = (c/d)
     oddsratio = o1/o2
@@ -202,30 +228,33 @@ def OddsRatio(exposure,disease,alpha=0.05,decimal=3):
     lnor=math.log(oddsratio)
     lcl=lnor-(zalpha*SE)
     ucl=lnor+(zalpha*SE)
-    print('----------------------------------------------------------------------')
-    print('Odds in exposed: ',round(o1,decimal))
-    print('Odds in unexposed: ',round(o2,decimal))
-    print('----------------------------------------------------------------------')
-    print('Odds Ratio: ',round(oddsratio,decimal))
-    print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-    print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-    print('----------------------------------------------------------------------')
-    return oddsratio
+    if print_result == True:
+        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Odds in exposed: ',round(o1,decimal))
+        print('Odds in unexposed: ',round(o2,decimal))
+        print('----------------------------------------------------------------------')
+        print('Odds Ratio: ',round(oddsratio,decimal))
+        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return oddsratio
 
 
 #####################################################################
 #Incidence Rate Ratio
-def IncRateRatio(exposure,disease,time,alpha=0.05,decimal=3):
-    '''Produces the estimate of the Incidence Rate Ratio with a (1-(2*alpha)*100)% Confidence Interval. Current 
-    structure is based on Pandas crosstab.
+def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
+    '''Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval. Current 
+    structure is based on Pandas crosstab. Missing data is ignored by this function. 
 
-    WARNING: Disease must be coded as 1 and 0 (1: yes, 0: no).  If the table has one
+    WARNING: Outcome must be coded as 1 and 0 (1: yes, 0: no).  If the table has one
     column missing, no values with be produced
     
     exposure:
         -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
          is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
+    outcome:
         -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
          the outcome of interest. Variation in coding are not guaranteed to function as expected
     time:
@@ -236,14 +265,16 @@ def IncRateRatio(exposure,disease,time,alpha=0.05,decimal=3):
          95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_res:
+        -Whether to print the results. Default is True, which prints the results
+    return_res:
+        -Whether to return the RR as a object. Default is False
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    c = table[1][0]
-    time_a = time.loc[exposure==1].sum()
-    time_c = time.loc[exposure==0].sum()
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    time_a = df.loc[exposure==1][time].sum()
+    time_c = df.loc[exposure==0][time].sum()
     ir_e = (a/time_a)
     ir_u = (c/time_c)
     irr = ir_e/ir_u
@@ -251,30 +282,33 @@ def IncRateRatio(exposure,disease,time,alpha=0.05,decimal=3):
     lnirr=math.log(irr)
     lcl=lnirr-(zalpha*SE)
     ucl=lnirr+(zalpha*SE)
-    print('----------------------------------------------------------------------')
-    print('Incidence Rate in exposed: ',round(ir_e,decimal))
-    print('Incidence Rate in unexposed: ',round(ir_u,decimal))
-    print('----------------------------------------------------------------------')
-    print('Incidence Rate Ratio: ',round(irr,decimal))
-    print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-    print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-    print('----------------------------------------------------------------------')
-    return irr
+    if print_result == True:
+        print(tabulate([['E=1',a,time_a],['E=0',c,time_c]],headers=['','D=1','Person-time'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Incidence Rate in exposed: ',round(ir_e,decimal))
+        print('Incidence Rate in unexposed: ',round(ir_u,decimal))
+        print('----------------------------------------------------------------------')
+        print('Incidence Rate Ratio: ',round(irr,decimal))
+        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return irr
     
 
 #####################################################################
 #Incidence Rate Difference
-def IncRateDiff(exposure,disease,time,alpha=0.05,decimal=3):
-    '''Produces the estimate of the Incidence Rate Difference with a (1-(2*alpha)*100)% confidence interval.
-    Current structure is based on Pandas crosstab.
+def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
+    '''Produces the estimate of the Incidence Rate Difference with a (1-alpha)*100% confidence interval.
+    Current structure is based on Pandas crosstab. Missing data is ignored by this function. 
     
-    WARNING: Disease must be coded as 1 and 0 (1: yes, 0: no).  If the table has one
+    WARNING: Outcome must be coded as 1 and 0 (1: yes, 0: no).  If the table has one
     column missing, no values with be produced
     
     exposure:
         -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
          is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
+    outcome:
         -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
          the outcome of interest. Variation in coding are not guaranteed to function as expected
     time:
@@ -285,56 +319,61 @@ def IncRateDiff(exposure,disease,time,alpha=0.05,decimal=3):
          95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_res:
+        -Whether to print the results. Default is True, which prints the results
+    return_res:
+        -Whether to return the RR as a object. Default is False
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    c = table[1][0]
-    time_a = time.loc[exposure==1].sum()
-    time_c = time.loc[exposure==0].sum()
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    time_a = df.loc[exposure==1][time].sum()
+    time_c = df.loc[exposure==0][time].sum()
     ir_e = (a/time_a)
     ir_u = (c/time_c)
     ird = ir_e-ir_u
     SE=math.sqrt((a/((time_a)**2))+(c/((time_c)**2)))
     lcl=ird-(zalpha*SE)
     ucl=ird+(zalpha*SE)
-    print('----------------------------------------------------------------------')
-    print('Incidence Rate in exposed: ',round(ir_e,decimal))
-    print('Incidence Rate in unexposed: ',round(ir_u,decimal))
-    print('----------------------------------------------------------------------')
-    print('Incidence Rate Difference: ',round(ird,decimal))
-    print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
-    print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
-    print('----------------------------------------------------------------------')
-    return ird
+    if print_result == True:
+        print(tabulate([['E=1',a,time_a],['E=0',c,time_c]],headers=['','D=1','Person-time'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Incidence Rate in exposed: ',round(ir_e,decimal))
+        print('Incidence Rate in unexposed: ',round(ir_u,decimal))
+        print('----------------------------------------------------------------------')
+        print('Incidence Rate Difference: ',round(ird,decimal))
+        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
+        print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return ird
  
 
 #####################################################################
 #Attributable Community Risk / Population Attributable Risk
-def ACR(exposure,disease,decimal=3):
+def ACR(df,exposure,outcome,decimal=3):
     '''Produces the estimated Attributable Community Risk (ACR). ACR is also known as Population Attributable 
     Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used to 
-    clarify differences in the formulas. Current structure is based on Pandas crosstab. 
+    clarify differences in the formulas. Current structure is based on Pandas crosstab. Missing data is ignored 
+    by this function. 
     
-    WARNING: Exposure & Disease must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table 
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table 
     has one column missing, no values will be produced.
     
     exposure:
         -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
          is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
+    outcome:
         -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
          the outcome of interest. Variation in coding are not guaranteed to function as expected
     decimal:
         -amount of decimal points to display. Default is 3
     '''
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    b = table[0][1]
-    c = table[1][0]
-    d = table[0][0]
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
     rt=(a+c)/(a+b+c+d)
     r0=c/(c+d)
     acr=(rt-r0)
@@ -343,27 +382,27 @@ def ACR(exposure,disease,decimal=3):
 
 #####################################################################
 #Population Attributable Fraction
-def PAF(exposure, disease,decimal=3):
+def PAF(df,exposure, outcome,decimal=3):
     '''Produces the estimated Population Attributable Fraction. Current structure is based on Pandas crosstab. 
+    Missing data is ignored by this function. 
     
-    WARNING: Exposure & Disease must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table
     has one column missing, no values will be produced.
     
     exposure:
         -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
          is exposed. Variations in coding are not guaranteed to function as expected
-    disease:
+    outcome:
         -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
          the outcome of interest. Variation in coding are not guaranteed to function as expected
     decimal:
         -amount of decimal points to display. Default is 3
     '''
-    table = pd.crosstab(exposure,disease)
-    print(table,'\n')
-    a = table[1][1]
-    b = table[0][1]
-    c = table[1][0]
-    d = table[0][0]
+    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
+    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
+    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
     rt=(a+c)/(a+b+c+d)
     r0=c/(c+d)
     paf=(rt-r0)/rt
@@ -373,15 +412,12 @@ def PAF(exposure, disease,decimal=3):
 #####################################################################
 # Interaction Contrast (IC)
 def IC(df,outcome,exposure,modifier,adjust='',decimal=5):
-    '''Calculate the Interaction Contrast (IC) using a pandas dataframe and
-    statsmodels to fit a linear binomial regression. Can ONLY be used for 
-    a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
-    outcome = {0,1}). Can handle missing data and adjustment for other confounders
-    in the regression model. Prints the fit of the linear binomial regression,
-    the IC, and the corresponding IC 95% confidence interval.
+    '''Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear 
+    binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
+    outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit 
+    of the linear binomial regression, the IC, and the corresponding IC 95% confidence interval.
     
-    NOTE: statsmodels may produce a domain error in some versions. This can
-    be ignored if the linear binomial model is a properly fitting model
+    NOTE: statsmodels may produce a domain error in some versions. 
     
     df: 
         -pandas dataframe object containing all variables of interest
@@ -534,7 +570,7 @@ def ICR(df,outcome,exposure,modifier,adjust='',regression='log',ci='delta',b_sam
 
 #####################################################################
 #Sensitivity
-def Sensitivity(test,disease,alpha=0.05,decimal=3):
+def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Generates the calculated sensitivity. Current structure is based on Pandas crosstab.  
 
     WARNING: Disease & Test must be coded as (1: yes, 0:no). If the table has one column missing, 
@@ -548,26 +584,33 @@ def Sensitivity(test,disease,alpha=0.05,decimal=3):
          Needs to be coded as binary (0,1), where 1 indicates the individual has the outcome
     decimal:
         -amount of decimal points to display. Default is 3
+    print_res:
+        -Whether to print the results. Default is True, which prints the results
+    return_res:
+        -Whether to return the RR as a object. Default is False
     '''
-    table = pd.crosstab(test,disease)
-    print(table,'\n')
-    a = table[1][1]
-    c = table[1][0]
+    a = len(df.loc[(df[test]==1)&(df[disease]==1)])
+    b = len(df.loc[(df[test]==1)&(df[disease]==0)])
+    c = len(df.loc[(df[test]==0)&(df[disease]==1)])
+    d = len(df.loc[(df[test]==0)&(df[disease]==0)])
     sens = a/(a+c)
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     se = math.sqrt((sens*(1-sens)) / (a+c))
     lower = sens - zalpha*se
     upper = sens + zalpha*se
-    print('----------------------------------------------------------------------')
-    print('Sensitivity: ',(round(sens,decimal)*100),'%','\n')
-    print(str(round(100*(1-alpha)))+'% two-sided CI: (',round(lower,decimal),', ',round(upper,decimal),')')
-    print('----------------------------------------------------------------------')
-    return sens
+    if print_result == True:
+        print(tabulate([["T+",a,b],["T-",c,d]],headers=['','D+','D-'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Sensitivity: ',(round(sens,decimal)*100),'%','\n')
+        print(str(round(100*(1-alpha)))+'% two-sided CI: (',round(lower,decimal),', ',round(upper,decimal),')')
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return sens
 
 
 #####################################################################
 #Specificity
-def Specificity(test,disease,alpha=0.05,decimal=3):
+def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Generates the calculated specificity. Current structure is based on Pandas crosstab.  
     WARNING: Disease & Test must be coded as (1: yes, 0:no). 
     If the table has one column missing, no values will be produced.
@@ -580,21 +623,28 @@ def Specificity(test,disease,alpha=0.05,decimal=3):
          Needs to be coded as binary (0,1), where 1 indicates the individual has the outcome
     decimal:
         -amount of decimal points to display. Default is 3
+    print_res:
+        -Whether to print the results. Default is True, which prints the results
+    return_res:
+        -Whether to return the RR as a object. Default is False
     '''
-    table = pd.crosstab(test,disease)
-    print(table,'\n')
-    b = table[0][1]
-    d = table[0][0]
+    a = len(df.loc[(df[test]==1)&(df[disease]==1)])
+    b = len(df.loc[(df[test]==1)&(df[disease]==0)])
+    c = len(df.loc[(df[test]==0)&(df[disease]==1)])
+    d = len(df.loc[(df[test]==0)&(df[disease]==0)])
     spec = d/(d+b)
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     se = math.sqrt((spec*(1-spec)) / (b+d))
     lower = spec - zalpha*se
     upper = spec + zalpha*se
-    print('----------------------------------------------------------------------')
-    print('Specificity: ',(round(spec,decimal)*100),'%','\n')
-    print(str(round(100*(1-alpha)))+'% two-sided CI: (',round(lower,decimal),', ',round(upper,decimal),')')
-    print('----------------------------------------------------------------------')
-    return spec
+    if print_result == True:
+        print(tabulate([["T+",a,b],["T-",c,d]],headers=['','D+','D-'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        print('Specificity: ',(round(spec,decimal)*100),'%','\n')
+        print(str(round(100*(1-alpha)))+'% two-sided CI: (',round(lower,decimal),', ',round(upper,decimal),')')
+        print('----------------------------------------------------------------------')
+    if return_result == True:
+        return spec
 
 
 def StandMeanDiff(df,binary,continuous,decimal=3):
@@ -686,58 +736,53 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
     sf = df.copy()
     for i in range(len(pts)):
         colnames.append('spline'+str(i))
-        sf.loc[sf[var]>pts[i],'spline'+str(i)] = (df[var] - pts[i])**term
-        sf.loc[sf[var]<=pts[i],'spline'+str(i)] = 0
+        sf['ref'+str(i)] = (sf[var] - pts[i])**term
+        sf['spline'+str(i)] = [j if x > pts[i] else 0 for x,j in zip(sf[var],sf['ref'+str(i)])]
         sf.loc[sf[var].isnull(),'spline'+str(i)] = np.nan
     if restricted == False:
         return sf[colnames]
     elif restricted == True:
         rsf = sf.copy()
         colnames = []
-        for i in range(len(pts[1:])):
+        for i in range(len(pts)-1):
             colnames.append('rspline'+str(i))
-            rsf.loc[rsf[var]>pts[i+1],'rspline'+str(i)] = (rsf['spline'+str(i)] - rsf['spline'+str(i+1)])
-            rsf.loc[rsf[var]<=pts[i+1],'rspline'+str(i)] = 0
+            rsf['ref'+str(i)] = (rsf['spline'+str(i)] - rsf['spline'+str(len(pts)-1)])
+            rsf['rspline'+str(i)] = [j if x > pts[i] else 0 for x,j in zip(rsf[var],rsf['ref'+str(i)])]
             rsf.loc[rsf[var].isnull(),'rspline'+str(i)] = np.nan
         return rsf[colnames]
     else:
         raise ValueError('restricted must be set to either True or False')
 
 
-def datex():
-    '''Provides the example data set that is used in the zepid tutorials. Calling this 
-    function will produce a pandas dataframe containing the following columns; exposure,
-    confounder, continuous, categorical, outcome. 
+        
+def survival_upper_lower(df,t_start,t_end,time,censor,outcome):
+    '''Converts datasets to estimate the Upper and Lower bounds of survival analysis methods
+    (i.e. Kaplen-Meier, Nelson-Aalen). To generate the lower bound of the risk function, all 
+    censored individuals are assumed to not have had the outcome by the end of follow-up. To 
+    generate the upper bound of the risk function, all censored individuals arer assumed to 
+    have the outcome at the same time as they were censored. Each of the generated dataframes 
+    can be fit by Kaplan-Meier through the lifelines package. Plotting the bounds give some 
+    understanding of the uncertainty due to the censoring.
     
-    Returns a pandas dataframe containing an example dataframe for example usage
+    Returns: lower bound dataframe, upper bound dataframe
+    
+    df:
+        -pandas dataframe
+    t_start:
+        -column name of dataframe that contains the origin time for each individual (ex. 1995)
+    t_end:
+        -integer/float of the end date of follow-up
+    time:
+        -column name of dataframe that contains the total time contributed by participants
+    censor:
+        -column name of dataframe that contains indicator of whether individual was censored
+    outcome:
+        -column name of dataframe that contains binary outcome of interest
     '''
-    np.random.seed(919)
-    df = pd.DataFrame()
-    df['error1'] = np.random.randint(0,100,3427)
-    df['error2'] = np.random.randint(0,100,3427)
-    df['c_prob'] = np.random.randint(0,100,3427)
-    lev = df.c_prob.quantile(q=0.55)
-    df.loc[df.c_prob>=lev,'binary'] = 1
-    df.loc[df.c_prob<lev,'binary'] = 0
-    df['z_prob'] = np.random.randint(0,100,3427)
-    df['continuous'] = df['z_prob']
-    df['s_prob'] = np.random.randint(0,100,3427)
-    lev1,lev2,lev3 = df.s_prob.quantile(q=[0.25,0.45,0.8])
-    df.loc[df.s_prob<=lev1,'category'] = 0
-    df.loc[((df.s_prob>lev1)&(df.s_prob<=lev2)),'category'] = 1
-    df.loc[df.s_prob>=lev2,'category'] = 2
-    df['e_prob'] = df['error1'] - 3*df['c_prob'] + .2*df['z_prob'] + 2*df['s_prob'] 
-    df['d_prob'] = df['error2'] + 0.8*df['e_prob'] + 2*df['c_prob'] - (1/2)*df['z_prob'] + (1/200)*(df['z_prob']**2) - 2*df['s_prob'] 
-    df['e_prob'] /= np.max(df['e_prob'])
-    lev = df.e_prob.quantile(q=0.75)
-    df.loc[df.e_prob>=lev,'exposure'] = 1
-    df.loc[df.e_prob<lev,'exposure'] = 0
-    df['d_prob'] /= np.max(df['d_prob'])
-    lev = df.d_prob.quantile(q=0.734)
-    df.loc[df.d_prob>=lev,'outcome'] = 1
-    df.loc[df.d_prob<lev,'outcome'] = 0
-    df.loc[(df.s_prob<df.s_prob.quantile(q=0.015)),'outcome'] = np.nan
-    df.loc[((df.s_prob>df.s_prob.quantile(q=0.25))&(df.s_prob<df.s_prob.quantile(q=0.3))),'outcome'] = np.nan
-    df.loc[(df.s_prob>df.s_prob.quantile(q=0.975)),'outcome'] = np.nan
-    df = df[['exposure','binary','continuous','category','outcome']]
-    return df
+    dfl = df.copy()
+    dfl.loc[dfl[censor]==1,outcome] = 0
+    dfl['store'] = t_end - dfl[t_start]
+    dfl[time] = [j if x == 1 else i for x,j,i in zip(dfl[censor],dfl['store'],dfl[time])]
+    dfu = df.copy()
+    dfu.loc[dfu[censor]==1,outcome] = 1
+    return dfl,dfu
