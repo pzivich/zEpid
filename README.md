@@ -2,12 +2,8 @@
 zepid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The purpose of this package is to make epidemiology in Python E-Z. A variety of calculations and plots can be generated through various functions. Just a few highlights to provide; easily create functional form assessment plots, easily generate and conduct diagnostic tests on inverse probability of treatment weights, and generate a summary graphic and table
 For a sample walkthrough of what this package is capable of, please look to the walkthrough.md 
 
-Measures of association and IPW have been compared to SAS v9.4
-
-Note: regarding confidence intervals, only Wald confidence intervals are currently implemented. Currently, there are no plans to implement other types of confidence intervals. 
-
 # Dependencies
-pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, scipy >= 1.0.0, lifelines >= 0.14.0, tabulate
+pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifelines >= 0.14.0, tabulate
 
 # Module Structure:
     |
