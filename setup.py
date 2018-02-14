@@ -1,8 +1,12 @@
 from setuptools import setup 
 
-setup(name='zepid',version='0.1.0',description='Tool package for epidemiologic analyses',
-      long_description='''This package contains some essential epidemiological tools for epidemiology analyses in Python 3.5+ Available 
-      tools include basic association meaures, IC and ICR, effect measure plots, functional form assessments,
-      senstivity analysis tools, and inverse probability weights.''',
-      author='Paul Zivich',author_email='zepidpy@gmail.com',install_requires=['pandas',
-      'numpy','statsmodels','matplotlib','scipy','networkx','lifelines','tabulate'])
+setup(
+    name='zepid',
+    version='0.1.0',
+    description='Tool package for epidemiologic analyses',
+    author='Paul Zivich',
+    author_email='zepidpy@gmail.com',
+    url = 'https://github.com/pzivich/zepid',
+    classifiers = ['Programming Language :: Python :: 3.5']
+    install_requires=['pandas'>=0.18,'numpy','statsmodels','matplotlib','scipy','networkx','lifelines','tabulate'],
+    keywords=['epidemiology'])
