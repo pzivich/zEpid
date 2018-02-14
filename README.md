@@ -93,7 +93,7 @@ pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, sc
 
 A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information. For examples before the guide is uploaded, please see zepid_tutorial in documents and the walkthrough.md for some general guides
 
-If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github or email
+If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github, email, or twitter (@zepidpy).
 
 #To do:
 -Update docs
