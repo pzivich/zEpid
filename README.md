@@ -7,8 +7,7 @@ Measures of association and IPW have been compared to SAS v9.4
 Note: regarding confidence intervals, only Wald confidence intervals are currently implemented. Currently, there are no plans to implement other types of confidence intervals. 
 
 # Dependencies
-pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, scipy >= 1.0.0
-###### Note that earlier versions of these modules may be okay to use. When this package was built, these were the versions of the modules used
+pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, scipy >= 1.0.0, lifelines >= 0.14.0, tabulate
 
 # Module Structure:
     |
@@ -82,10 +81,6 @@ pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, sc
          |-rr_corr():
          |-trapezoidal():
          |-delta_beta():
-         |-e_value():
-         |-e_value_difference():
-         |-e_value_RD():
-
 
 # Future Inclusions:
 **Note:** Some of these, like the causal inference tools, are going to take awhile to be implemented
@@ -93,16 +88,12 @@ pandas >= 0.21.0, numpy >= 1.13.3, statsmodels >= 0.8.0, matplotlib >= 2.1.0, sc
     Causal inference tools (https://www.hsph.harvard.edu/causal/software/) 
     Propensity score matching algorithms
     Forest plot
-    Life Table 
     Network analysis tools to complement NetworkX functions
     Mathematical Modeling tools
 
 A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information. For examples before the guide is uploaded, please see zepid_tutorial in documents and the walkthrough.md for some general guides
 
-If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
+If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github or email
 
 #To do:
--Update docs in base.py
--Add table generation to calc.py
--Add tabulate to list of dependencies
--Revise IPW to class (potentially). Need to see if it is more efficient / easier
+-Update docs
