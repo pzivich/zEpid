@@ -50,10 +50,6 @@ Contents:
     |    |-npv_conv(): calculate negative predictive value
     |    |-screening_cost_analyzer(): calculate relative costs of screening program
     |    |-counternull_pvalue(): calculate counternull p-value
-    |    |-miss_count(): 
-    |    |-weibull_calc(): 
-    |    |-expected_cases_weibull():
-    |    |-expected_time_weibull():
     |
     |___graphics
     |    |
@@ -67,18 +63,21 @@ Contents:
     |    |
     |    |-ipw(): generate probabilities/propensity scores via logistic regression
     |    |__iptw(): class for inverse probability of treament weights
-    |         |-weight(): generate IPT weights 
-    |         |-merge_weights(): merge weights from another IPW model
-    |         |-fit(): fit an IPTW model via GEE
+    |    |     |-weight(): generate IPT weights 
+    |    |     |-merge_weights(): merge weights from another IPW model
+    |    |     |-fit(): fit an IPTW model via GEE or weighted Kaplan Meier
+    |    |
     |    |__ipmw(): class for inverse probability of missing weights
-    |         |-weight(): generate IPM weights
-    |         |-merge_weights(): merge weights from another IPW model
-    |         |-fit(): fit an IPMW model via GEE
+    |    |     |-weight(): generate IPM weights
+    |    |     |-merge_weights(): merge weights from another IPW model
+    |    |     |-fit(): fit an IPMW model via GEE or weighted Kaplan Meier
+    |    |  
     |    |__ipcw(): class for inverse probability of censoring weights
-    |         |-longdata_converter(): convert a wide survival dataset to a long format
-    |         |-weight(): generate IPC weights 
-    |         |-merge_weights(): merge weights from another IPW model
-    |         |-fit(): fit an IPCW model via weighted Kaplan-Meier
+    |    |     |-longdata_converter(): convert a wide survival dataset to a long format
+    |    |     |-weight(): generate IPC weights 
+    |    |     |-merge_weights(): merge weights from another IPW model
+    |    |     |-fit(): fit an IPCW model via weighted Kaplan-Meier
+    |    |
     |    |__diagnostic
     |         |-p_boxplot():generate boxplot of probabilities by exposure
     |         |-p_hist(): generates histogram of probabilities by exposure
