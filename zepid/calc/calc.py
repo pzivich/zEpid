@@ -426,103 +426,6 @@ def ir_ci(events,time,alpha=0.05,return_result=False,decimal=3):
     print('95% CI: (',round(lower,decimal),', ',round(upper,decimal),')')
     if return_result == True:
         return ir
-
-
-def weibull_calc(lamb,time,gamma,print_result=True,decimal=3):
-    '''Uses the Weibull Model to calculaive the cumulative survival 
-    and cumulative incidence functions. The Weibull model assumes that
-    there are NO competing risks
-    
-    Returns hazard, survival, and cumulative incidence estimates
-    
-    lamb:
-        -Lambda value (scale parameter) in cases per time
-    time:
-        -Number of time units. Must be the same unit as the scale parameter
-    gamma:
-        -Gamma value (shape parameter)
-    print_res:
-        -Whether to print the calculated values. Default is True
-    decimal:
-        -Number of decimal places to display. Default is three
-    '''
-    import math
-    if ((lamb<0) | (gamma<0)):
-        raise ValueError('Lambda/Gamma parameters cannot be less than or equal to zero')
-    haza = lamb*gamma*(time**(gamma-1))
-    surv = math.exp(-lamb*(time**gamma))
-    inci = 1 - surv
-    if print_result==True:
-        print('----------------------------------------------------------------------')
-        if gamma > 1:
-            print('h(t) rises over time')
-        elif gamma < 1:
-            print('h(t) declines over time')
-        else:
-            print('h(t) is constant over time')
-        print('----------------------------------------------------------------------')
-        print('Hazard: ',round(haza,decimal))
-        print('Cumulative Survival: ',round(surv,decimal))
-        print('Cumulative Incidence: ',round(inci,decimal))
-    return haza,surv,inci
-
-
-def expected_cases_weibull(lamb,time,gamma,N):
-    '''Using the Weibull Model, we calculate the expected number
-    of incidence cases. Note that the Weibull Model assumption of 
-    no competing risks cannot be violated. All parameters must be greater
-    than zero
-    
-    Returns the number of expected cases
-        
-    lamb:
-        -Lambda value (scale parameter) in cases per time
-    time:
-        -Number of time units. Must be the same unit as the scale parameter
-    gamma:
-        -Gamma value (shape parameter)
-    N:
-        -Total population size
-    '''
-    import math
-    if ((lamb<=0) | (gamma<=0) | (time<=0) | (N<=0)):
-        raise ValueError('All parameters must be greater than zero')
-    surv = math.exp(-lamb*(time**gamma))
-    A = N*(1-surv)
-    return A 
-
-
-def expected_time_weibull(lamb,time,gamma,N,warn=True):
-    '''Using the Weibull Model, we can calculate the expected person-time
-    NOTE: This formula is only valid when the hazard is constant. Additionally,
-    it is assumed that follow-up is long enough for everyone to be a case. These
-    two assumptions reduce the Weibull Model to the exponential formula, allowing
-    the calculation of expected person-time
-        
-    lamb:
-        -Lambda value (scale parameter) in cases per time
-    time:
-        -Number of time units. Must be the same unit as the scale parameter
-    gamma:
-        -Gamma value (shape parameter). Note that gamma MUST be one for calculation
-         to proceed. This is NOT defaulted, so as to remind users about the underlying
-         assumption of the Weibull Model to calculate expected person-time
-    N:
-        -Total population size
-    warn:
-        -Whether to print the warning regarding the major assumption of this method.
-         Default is True
-    '''
-    if gamma != 1:
-        raise ValueError('The expected person-time calculation is only valid when gamma is one (constant hazard)')
-    if ((lamb<=0) | (time<=0) | (N<=0)):
-        raise ValueError('All parameters must be greater than zero')
-    if warn==True:
-        print('----------------------------------------------------------------------')
-        print('WARNING: This method makes the strong assumption that hazards are \nconstant. This may NOT be a valid assumption')
-        print('----------------------------------------------------------------------')
-    T = N/lamb
-    return T 
     
 
 def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
@@ -679,35 +582,6 @@ def npv_conv(sensitivity,specificity,prevalence):
     nsens_prev = (1-sensitivity)*prevalence
     npv = spec_nprev / (spec_nprev + nsens_prev)
     return npv
-
-    
-def miss_count(countA,totalN,sensitivity,specificity):
-    '''The formula is based on  Modern Epidemiology 3rd Edition (Rotham et al.) pg.XXX
-    miss_count() totals the amount of those with outcome and not outcome
-    removing the potential bias introduced by missclassification
-    
-    Returns A (count of Disease=1) and B (count of Disease=0)
-        
-    countA:
-        -observed count of 
-    totalN:
-        -observed total amount of subjects
-    sensitivity:
-        -sensitivity of the criteria used for classification
-    specificity:
-        -specificity of the criteria used for classification
-    '''
-    if ((sensitivity > 1)|(specificity > 1)):
-        raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
-    if ((countA<0)|(totalN<0)):
-        raise ValueError('observed count of A and total sample size must be greater than 0')
-    if (countA>totalN):
-        raise ValueError('observed count of A cannot be greater than total sample size')
-    A_top = countA - (1-specificity)*totalN
-    A_bottom = sensitivity + specificity - 1
-    A = A_top / A_bottom
-    B = totalN - A
-    return A,B
 
 
 def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity,specificity,population=10000,decimal=3):
