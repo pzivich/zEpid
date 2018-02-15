@@ -13,12 +13,6 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from tabulate import tabulate
 
-
-#####################################################################
-# BASIC MEASURES OF ASSOCIATION (on dataframe)
-#####################################################################
-#####################################################################
-#Relative Risk formula
 def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
     this function. 
@@ -68,8 +62,6 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
         return relrisk
 
 
-#####################################################################
-#Risk Difference formula
 def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this 
     function. 
@@ -118,8 +110,6 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
         return riskdiff
 
 
-#####################################################################
-#Number Needed to Treat
 def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimates of Number Needed to Treat. Current structure is based on Pandas crosstab. NNT 
     (1-alpha)*100% confidence interval presentation is based on Altman, DG (BMJ 1998).
@@ -191,8 +181,6 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
         return NNT
     
 
-#####################################################################
-#Odds Ratio formula
 def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Current structure is based on Pandas crosstab.  
     Missing data is ignored by this function. 
@@ -242,8 +230,6 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
         return oddsratio
 
 
-#####################################################################
-#Incidence Rate Ratio
 def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval. Current 
     structure is based on Pandas crosstab. Missing data is ignored by this function. 
@@ -296,8 +282,6 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
         return irr
     
 
-#####################################################################
-#Incidence Rate Difference
 def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Produces the estimate of the Incidence Rate Difference with a (1-alpha)*100% confidence interval.
     Current structure is based on Pandas crosstab. Missing data is ignored by this function. 
@@ -349,8 +333,6 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
         return ird
  
 
-#####################################################################
-#Attributable Community Risk / Population Attributable Risk
 def ACR(df,exposure,outcome,decimal=3):
     '''Produces the estimated Attributable Community Risk (ACR). ACR is also known as Population Attributable 
     Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used to 
@@ -377,11 +359,11 @@ def ACR(df,exposure,outcome,decimal=3):
     rt=(a+c)/(a+b+c+d)
     r0=c/(c+d)
     acr=(rt-r0)
+    print('----------------------------------------------------------------------')
     print('ACR: ',round(acr,decimal))
+    print('----------------------------------------------------------------------')
 
 
-#####################################################################
-#Population Attributable Fraction
 def PAF(df,exposure, outcome,decimal=3):
     '''Produces the estimated Population Attributable Fraction. Current structure is based on Pandas crosstab. 
     Missing data is ignored by this function. 
@@ -406,11 +388,11 @@ def PAF(df,exposure, outcome,decimal=3):
     rt=(a+c)/(a+b+c+d)
     r0=c/(c+d)
     paf=(rt-r0)/rt
+    print('----------------------------------------------------------------------')
     print('PAF: ',round(paf,decimal))
+    print('----------------------------------------------------------------------')
 
 
-#####################################################################
-# Interaction Contrast (IC)
 def IC(df,outcome,exposure,modifier,adjust='',decimal=5):
     '''Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear 
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
@@ -454,8 +436,6 @@ def IC(df,outcome,exposure,modifier,adjust='',decimal=5):
     print('----------------------------------------------------------------------')
 
 
-#####################################################################
-# Interaction Contrast Ratio (ICR)
 def ICR(df,outcome,exposure,modifier,adjust='',regression='log',ci='delta',b_sample=1000,alpha=0.05,decimal=5):
     '''Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and 
     conducts either log binomial or logistic regression through statsmodels. Can ONLY be 
@@ -568,8 +548,6 @@ def ICR(df,outcome,exposure,modifier,adjust='',regression='log',ci='delta',b_sam
     print('----------------------------------------------------------------------')
 
 
-#####################################################################
-#Sensitivity
 def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Generates the calculated sensitivity. Current structure is based on Pandas crosstab.  
 
@@ -608,8 +586,6 @@ def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_re
         return sens
 
 
-#####################################################################
-#Specificity
 def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Generates the calculated specificity. Current structure is based on Pandas crosstab.  
     WARNING: Disease & Test must be coded as (1: yes, 0:no). 
@@ -677,7 +653,6 @@ def StandMeanDiff(df,binary,continuous,decimal=3):
     print('----------------------------------------------------------------------')
 
 
-#Spline creator
 def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
     '''Creates spline dummy variables based on either user specified knot locations or 
     automatically derives knot locations based on percentiles. Options are available to
