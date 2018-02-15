@@ -217,7 +217,7 @@ def oddr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         return oddsr
 
     
-def irr(a,b,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Calculates the Incidence Rate Ratio from count data.
     
     a:
@@ -238,13 +238,13 @@ def irr(a,b,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     return_res:
         -Whether to return the RR as a object. Default is False
     '''
-    if ((a<=0) | (b<=0) | (T1<=0) | (T2<=0)):
+    if ((a<=0) | (c<=0) | (T1<=0) | (T2<=0)):
         raise ValueError('All numbers must be positive')
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     irate1=a/T1
-    irate2=b/T2
+    irate2=c/T2
     irr = irate1/irate2
-    SE=math.sqrt((1/a)+(1/b))
+    SE=math.sqrt((1/a)+(1/c))
     lnirr=math.log(irr)
     lcl=lnirr-(zalpha*SE)
     ucl=lnirr+(zalpha*SE)
@@ -256,11 +256,12 @@ def irr(a,b,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
         print('----------------------------------------------------------------------')
         print('Incidence Rate Ratio:',round(irr,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return irr
 
-def ird(a,b,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Calculates the Incidence Rate Difference from count data.
 
     a:
@@ -281,23 +282,24 @@ def ird(a,b,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     return_res:
         -Whether to return the RR as a object. Default is False
     '''
-    if ((a<=0) | (b<=0) | (T1<=0) | (T2<=0)):
+    if ((a<=0) | (c<=0) | (T1<=0) | (T2<=0)):
         raise ValueError('All numbers must be positive')
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     rated1=a/T1
-    rated2=b/T2
+    rated2=c/T2
     ird = rated1-rated2
-    SE=math.sqrt((a/((T1)**2))+(b/((T2)**2)))
+    SE=math.sqrt((a/((T1)**2))+(c/((T2)**2)))
     lcl=ird-(zalpha*SE)
     ucl=ird+(zalpha*SE)
     if print_result == True:
-        print(tabulate([['E=1',a,time_a],['E=0',c,time_c]],headers=['','D=1','Person-time'],tablefmt='grid'))
+        print(tabulate([['E=1',a,T1],['E=0',c,T2]],headers=['','D=1','Person-time'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
         print('Incidence Rate exposed:',round(rated1,decimal))
         print('Incidence Rate unexposed:',round(rated2,decimal))
         print('----------------------------------------------------------------------')
         print('Incidence Rate Difference:',round(ird,decimal))	
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
+        print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return ird
