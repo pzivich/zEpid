@@ -1,11 +1,15 @@
 # zepid
-zepid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The purpose of this package is to make epidemiology in Python E-Z. A variety of calculations and plots can be generated through various functions. Just a few highlights to provide; easily create functional form assessment plots, easily generate and conduct diagnostic tests on inverse probability of treatment weights, and generate a summary graphic and table
-For a sample walkthrough of what this package is capable of, please look to the walkthrough.md 
+
+If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github (https://github.com/pzivich), email (gmail: zepidpy), or twitter (@zepidpy).
+
+zepid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The purpose of this package is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be generated through various functions. For a sample walkthrough of what this package is capable of, please look to the introduction to Python 3 for epidemiologists at https://github.com/pzivich/Python-for-Epidemiologists
+
+Just a few highlights to provide: basic epidemiology calculations, easily create functional form assessment plots, easily create effectmeasure plots, generate and conduct diagnostic tests on inverse probability weight.
 
 # Dependencies
 pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifelines >= 0.14.0, tabulate
 
-# Module Structure:
+# Module Overall Structure / Features:
     |
     |-RelRisk(): calculate risk ratio from pandas dataframe
     |-RiskDiff(): calculate risk difference from pandas dataframe
@@ -85,15 +89,11 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
 # Future Inclusions:
 **Note:** Some of these, like the causal inference tools, are going to take awhile to be implemented
 
-    Causal inference tools (https://www.hsph.harvard.edu/causal/software/) 
+    Causal inference tools (https://www.hsph.harvard.edu/causal/software/) (i.e. marginal structural models, g-formula)
     Propensity score matching algorithms
     Forest plot
     Network analysis tools to complement NetworkX functions
     Mathematical Modeling tools
 
-A full guide of the package and a sample dataframe are underdevelopment. Please see my other repository ('Python-for-Epidemiologists') for more information. For examples before the guide is uploaded, please see zepid_tutorial in documents and the walkthrough.md for some general guides
-
-If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github, email, or twitter (@zepidpy).
-
-# TODO:
+# TODO items for me:
 -Update docs, finish verifications
