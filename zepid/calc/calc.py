@@ -148,7 +148,7 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         lcl = 1/ucl_rd
     except:
         lcl = 'inf'
-    if print_res == True:
+    if print_result == True:
         print('----------------------------------------------------------------------')
         print('Risk Difference: ',round(riskdiff,decimal))
         print('----------------------------------------------------------------------')
@@ -167,7 +167,7 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         else:
             print('NNH ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
     print('----------------------------------------------------------------------')
-    if return_res == True:
+    if return_result == True:
         return nnt 
 
 
