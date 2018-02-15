@@ -273,8 +273,8 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    time_a = df.loc[exposure==1][time].sum()
-    time_c = df.loc[exposure==0][time].sum()
+    time_a = df.loc[df[exposure]==1][time].sum()
+    time_c = df.loc[df[exposure]==0][time].sum()
     ir_e = (a/time_a)
     ir_u = (c/time_c)
     irr = ir_e/ir_u
@@ -327,8 +327,8 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    time_a = df.loc[exposure==1][time].sum()
-    time_c = df.loc[exposure==0][time].sum()
+    time_a = df.loc[df[exposure]==1][time].sum()
+    time_c = df.loc[df[exposure]==0][time].sum()
     ir_e = (a/time_a)
     ir_u = (c/time_c)
     ird = ir_e-ir_u
