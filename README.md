@@ -7,12 +7,12 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
 
 # Module Structure:
     |
-    |-RelRisk(): calculate risk ratio from pandas dataframe
-    |-RiskDiff(): calculate risk difference from pandas dataframe
-    |-NNT(): calcualte the number needed to treat from pandas dataframe
-    |-OddsRatio(): calculate the odds ratio from pandas dataframe
-    |-IncRateDiff(): calculate the incidence rate difference from pandas dataframe
-    |-IncRateRatio(): calculate the incidence rate ratio from pandas dataframe
+    |-RelRisk(): calculate risk ratio from pandas dataframe (verified with SAS 9.4)
+    |-RiskDiff(): calculate risk difference from pandas dataframe (verified with SAS 9.4)
+    |-NNT(): calcualte the number needed to treat from pandas dataframe (verified with SAS 9.4)
+    |-OddsRatio(): calculate the odds ratio from pandas dataframe (verified with SAS 9.4)
+    |-IncRateDiff(): calculate the incidence rate difference from pandas dataframe (verified with SAS 9.4)
+    |-IncRateRatio(): calculate the incidence rate ratio from pandas dataframe (verified with SAS 9.4)
     |-IC(): calculate the interaction contrast from pandas dataframe
     |-ICR(): calculate the interaction contrast ratio from pandas dataframe
     |-ACR(): calculate attributable community risk from pandas dataframe
@@ -25,15 +25,15 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
     |
     |___calc
     |    |
-    |    |-rr(): calculate risk ratio from summary data 
-    |    |-rd(): calculate risk difference from summary data 
-    |    |-nnt(): calculate number needed to treat from summary data 
-    |    |-oddr(): calculate odds ratio from summary data 
-    |    |-ird(): calculate incidence rate difference from summary data 
-    |    |-irr(): calculate incidence rate ratio from summary data 
+    |    |-rr(): calculate risk ratio from summary data (verified with SAS 9.4)
+    |    |-rd(): calculate risk difference from summary data (verified with SAS 9.4)
+    |    |-nnt(): calculate number needed to treat from summary data (verified with SAS 9.4)
+    |    |-oddr(): calculate odds ratio from summary data (verified with SAS 9.4)
+    |    |-ird(): calculate incidence rate difference from summary data (verified with SAS 9.4)
+    |    |-irr(): calculate incidence rate ratio from summary data (verified with SAS 9.4)
     |    |-acr(): calculate attributable community risk from summary data 
     |    |-paf(): calculate population attributable fraction from summary data 
-    |    |-risk_ci(): calculate risk confidence interval
+    |    |-risk_ci(): calculate risk confidence interval (verified with SAS 9.4)
     |    |-ir_ci(): calculate incidence rate confidence interval
     |    |-stand_mean_diff(): calculate standardized mean difference
     |    |-odds_to_prop(): convert odds to proportion
@@ -42,10 +42,6 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
     |    |-npv_conv(): calculate negative predictive value
     |    |-screening_cost_analyzer(): calculate relative costs of screening program
     |    |-counternull_pvalue(): calculate counternull p-value
-    |    |-miss_count(): 
-    |    |-weibull_calc(): 
-    |    |-expected_cases_weibull():
-    |    |-expected_time_weibull():
     |
     |___graphics
     |    |
