@@ -17,24 +17,25 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
     this function. 
     
-    WARNING: Exposure & Outcome must be coded as (1: yes, 0:no). If the table has one column missing, no 
-    values will be produced. Only works for binary exposures and outcomes
+    WARNING: Exposure & Outcome must be coded as (1: yes, 0:no). Only works for binary exposures and outcomes
     
     df:
         -pandas dataframe containing variables of interest
     exposure:
-        -exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% confidence interval
+        -Alpha value to calculate two-sided confidence intervals. Default is 95% confidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
-        -Whether to print the results. Default is True, which prints the results
+        -Whether to print the results. Default is True
     return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    >zepid.RelRisk(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
@@ -66,24 +67,25 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     '''Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this 
     function. 
     
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table
-    has one column missing, no values will be produced.
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
     
     df:
         -pandas dataframe containing the variables of interest
     exposure:
-        -exposure variable. Variable in column must be coded as binary (0,1) where 1 is exposed
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable. Variabul in column must be coded as binary (0,1) where 1 is the outcome of interest
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
         -Whether to print the results. Default is True, which prints the results
     return_result:
-        -Whether to return the RR as a object. Default is False
+        -Whether to return the RD as a object. Default is False
+    
+    Example)
+    >zepid.RiskDiff(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
@@ -111,28 +113,28 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
 
 
 def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Estimates of Number Needed to Treat. Current structure is based on Pandas crosstab. NNT 
-    (1-alpha)*100% confidence interval presentation is based on Altman, DG (BMJ 1998).
-    Missing data is ignored by this function. 
+    '''Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on 
+    Altman, DG (BMJ 1998). Missing data is ignored by this function. 
     
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the 
-    table has one column missing, no values will be produced.
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). 
     
+    df:
+        -pandas dataframe containing the variables of interest
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
-        -Whether to return the RR as a object. Default is False
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the NNT as a object. Default is False
+    
+        Example)
+    >zepid.NNT(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
@@ -182,27 +184,27 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     
 
 def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Current structure is based on Pandas crosstab.  
-    Missing data is ignored by this function. 
+    '''Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored by this function. 
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the 
-    table has one column missing, no values will be produced.
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). 
     
+    df:
+        -pandas dataframe containing the variables of interest
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    >zepid.OddsRatio(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
@@ -231,30 +233,30 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
 
 
 def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval. Current 
-    structure is based on Pandas crosstab. Missing data is ignored by this function. 
+    '''Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval. 
+    Missing data is ignored by this function. 
 
-    WARNING: Outcome must be coded as 1 and 0 (1: yes, 0: no).  If the table has one
-    column missing, no values with be produced
+    WARNING: Exposure & Outcome must be coded as 1 and 0 (1: yes, 0: no).
     
+    df:
+        -pandas dataframe containing the variables of interest
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     time:
-        -total person-time contributed for each person. Stored as a variable for each row in a pandas dataframe,
-         df['time'].
+        -column name of person-time contributed by each individual. Must all be greater than 0
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    >zepid.IncRateRatio(df=data,exposure='exposure',outcome='outcome',time='person_time')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
@@ -284,29 +286,27 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
 
 def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Produces the estimate of the Incidence Rate Difference with a (1-alpha)*100% confidence interval.
-    Current structure is based on Pandas crosstab. Missing data is ignored by this function. 
+    Missing data is ignored by this function. 
     
-    WARNING: Outcome must be coded as 1 and 0 (1: yes, 0: no).  If the table has one
-    column missing, no values with be produced
+    WARNING: Exposure & Outcome must be coded as 1 and 0 (1: yes, 0: no)
     
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     time:
-        -total person-time contributed for each person. Stored as a variable for each row in a pandas dataframe,
-         df['time'].
+        -column name of person-time contributed by individual. Must be greater than 0
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    >zepid.IncRateDiff(df=data,exposure='exposure',outcome='outcome',time='person_time')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
@@ -336,20 +336,21 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
 def ACR(df,exposure,outcome,decimal=3):
     '''Produces the estimated Attributable Community Risk (ACR). ACR is also known as Population Attributable 
     Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used to 
-    clarify differences in the formulas. Current structure is based on Pandas crosstab. Missing data is ignored 
-    by this function. 
+    clarify differences in the formulas. Missing data is ignored by this function. 
     
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table 
-    has one column missing, no values will be produced.
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
     
+    df:
+        -pandas dataframe containing the variables of interest
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     decimal:
         -amount of decimal points to display. Default is 3
+
+    Example)
+    >zepid.ACR(df=data,exposure='exposure',outcome='outcome')
     '''
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
@@ -365,20 +366,19 @@ def ACR(df,exposure,outcome,decimal=3):
 
 
 def PAF(df,exposure, outcome,decimal=3):
-    '''Produces the estimated Population Attributable Fraction. Current structure is based on Pandas crosstab. 
-    Missing data is ignored by this function. 
+    '''Produces the estimated Population Attributable Fraction. Missing data is ignored by this function. 
     
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). If the table
-    has one column missing, no values will be produced.
+    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
     
     exposure:
-        -exposure variable (column) in pandas dataframe, df['exposure']. Must be coded as binary (0,1) where 1
-         is exposed. Variations in coding are not guaranteed to function as expected
+        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
-        -outcome variable (column) in pandas dataframe, df['outcome']. Must be coded as binary (0,1) where 1 is
-         the outcome of interest. Variation in coding are not guaranteed to function as expected
+        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     decimal:
         -amount of decimal points to display. Default is 3
+    
+    Example)
+    >zepid.PAF(df=data,exposure='exposure',outcome='outcome')
     '''
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
@@ -393,7 +393,7 @@ def PAF(df,exposure, outcome,decimal=3):
     print('----------------------------------------------------------------------')
 
 
-def IC(df,outcome,exposure,modifier,adjust='',decimal=5):
+def IC(df,exposure,outcome,modifier,adjust='',decimal=5):
     '''Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear 
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit 
@@ -402,20 +402,23 @@ def IC(df,outcome,exposure,modifier,adjust='',decimal=5):
     NOTE: statsmodels may produce a domain error in some versions. 
     
     df: 
-        -pandas dataframe object containing all variables of interest
-    outcome:
-        -str object of the outcome variable name from pandas df. Ex) 'Outcome'
+        -pandas dataframe containing variables of interest
     exposure:
-        -str object of the exposure variable name from pandas df. Ex) 'Exposure'
+        -column name of exposure variable. Must be coded as (0,1) where 1 is exposure
+    outcome:
+        -column name of outcome variable. Must be coded as (0,1) where 1 is outcome of interest
     modifier:
-        -str object of the modifier variable name from pandas df. Ex) 'Modifier'
+        -column name of modifier variable. Must be coded as (0,1) where 1 is modifier
     adjust:
-        -str object of other variables to adjust for in correct statsmodels format.
-        Note: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates
-              variables with those names. Answers will be incorrect
+        -string of other variables to adjust for, in correct statsmodels format. Default is none
+        NOTE: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates variables with those names. 
+              Answers will be incorrect
          Ex) '+ C1 + C2 + C3 + Z'
     decimal:
         -Number of decimals to display in result. Default is 3
+    
+    Example)
+    zepid.IC(df=data,exposure='expo',outcome='event',modifier='modi',adjust='+ Z') 
     '''
     df.loc[((df[exposure]==1)&(df[modifier]==1)),'E1M1'] = 1
     df.loc[((df[exposure]!=1)|(df[modifier]!=1)),'E1M1'] = 0
@@ -436,46 +439,41 @@ def IC(df,outcome,exposure,modifier,adjust='',decimal=5):
     print('----------------------------------------------------------------------')
 
 
-def ICR(df,outcome,exposure,modifier,adjust='',regression='log',ci='delta',b_sample=1000,alpha=0.05,decimal=5):
-    '''Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and 
-    conducts either log binomial or logistic regression through statsmodels. Can ONLY be 
-    used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
-    outcome = {0,1}). Can handle missing data and adjustment for other confounders
-    in the regression model. Prints the fit of the binomial regression,
-    the ICR, and the corresponding ICR confidence interval. Confidence intervals can be 
-    generated using the delta method or bootstrap method
+def ICR(df,exposure,outcome,modifier,adjust='',regression='log',ci='delta',b_sample=1000,alpha=0.05,decimal=5):
+    '''Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial 
+    or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, 
+    modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression 
+    model. Prints the fit of the binomial regression, the ICR, and the corresponding ICR confidence interval. Confidence 
+    intervals can be generated using the delta method or bootstrap method
     
-    NOTE: statsmodels may produce a domain error for log binomial models in some 
-    versions. This can be ignored if the log binomial model is a properly fitting model
+    NOTE: statsmodels may produce a domain error for log binomial models in some versions
     
     df: 
-        -pandas dataframe object containing all variables of interest
-    outcome:
-        -str object of the outcome variable name from pandas df. Ex) 'Outcome'
+        -pandas dataframe containing variables of interest
     exposure:
-        -str object of the exposure variable name from pandas df. Ex) 'Exposure'
+        -column name of exposure variable. Must be coded as (0,1) where 1 is exposure
+    outcome:
+        -column name of outcome variable. Must be coded as (0,1) where 1 is outcome of interest
     modifier:
-        -str object of the modifier variable name from pandas df. Ex) 'Modifier'
+        -column name of modifier variable. Must be coded as (0,1) where 1 is modifier
     adjust:
-        -str object of other variables to adjust for in correct statsmodels format.
-        Note: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates
-              variables with those names. Answers will be incorrect
+        -string of other variables to adjust for, in correct statsmodels format. Default is none
+        NOTE: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates variables with those names. 
+              Answers will be incorrect
          Ex) '+ C1 + C2 + C3 + Z'
     regression:
-        -Type of regression model (and relative measure) to estimate. Default is log binomial.
+        -Type of regression model to fit. Default is log binomial.
          Options include:
             'log':      Log-binomial model. Estimates the Relative Risk (RR)
-            'logit':    Logistic (logit) model. Estimates the Odds Ratio (OR). Note, this is 
-                        only valid when the OR approximates the RR 
+            'logit':    Logistic (logit) model. Estimates the Odds Ratio (OR). Note, this is only valid when the 
+                        OR approximates the RR 
     ci:
         -Type of confidence interval to return. Default is the delta method. Options include:
             'delta':      Delta method as described by Hosmer and Lemeshow (1992)
-            'bootstrap':  bootstrap method (Assmann et al. 1996). Depending on the number of 
-                          resampling requested and the sample size, can take a long time. 
-                          The delta method is more time efficient
+            'bootstrap':  bootstrap method (Assmann et al. 1996). The delta method is more time efficient than bootstrap
     b_sample:
-        -Number of times to resample to generate bootstrap confidence intervals. Only important
-         if bootstrap confidence intervals are requested. Default is 1000
+        -Number of times to resample to generate bootstrap confidence intervals. Only important if bootstrap confidence 
+         intervals are requested. Default is 1000
     alpha:
         -Alpha level for confidence interval. Default is 0.05
     decimal:
@@ -549,23 +547,26 @@ def ICR(df,outcome,exposure,modifier,adjust='',regression='log',ci='delta',b_sam
 
 
 def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Generates the calculated sensitivity. Current structure is based on Pandas crosstab.  
+    '''Generates the Sensitivity and (1-alpha)% confidence interval, comparing test results to disease status 
+    from pandas dataframe
 
-    WARNING: Disease & Test must be coded as (1: yes, 0:no). If the table has one column missing, 
-    no values will be produced.
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
     
     test:
-        -column of pandas dataframe that indicates the results of the test to detect the outcome. df['test']
-         Needs to be coded as binary (0,1), where 1 indicates a positive test for the individual
+        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a 
+        positive test for the individual
     disease:
-        -column of pandas dataframe that indicates the true outcomes status df['outcome']
-         Needs to be coded as binary (0,1), where 1 indicates the individual has the outcome
+        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual 
+         has the outcome
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
-        -Whether to return the RR as a object. Default is False
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the RR as a object. Default is False.
+    
+    Example)
+    >zepid.Sensitivity(df,test='test_result',disease='outcome_stat')
     '''
     a = len(df.loc[(df[test]==1)&(df[disease]==1)])
     b = len(df.loc[(df[test]==1)&(df[disease]==0)])
@@ -587,22 +588,26 @@ def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_re
 
 
 def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Generates the calculated specificity. Current structure is based on Pandas crosstab.  
-    WARNING: Disease & Test must be coded as (1: yes, 0:no). 
-    If the table has one column missing, no values will be produced.
+    '''Generates the Specificity and (1-alpha)% confidence interval, comparing test results to disease status 
+    from pandas dataframe
+
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
     
     test:
-        -column of pandas dataframe that indicates the results of the test to detect the outcome. df['test']
-         Needs to be coded as binary (0,1), where 1 indicates a positive test for the individual
+        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a 
+        positive test for the individual
     disease:
-        -column of pandas dataframe that indicates the true outcomes status df['outcome']
-         Needs to be coded as binary (0,1), where 1 indicates the individual has the outcome
+        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual 
+         has the outcome
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
-        -Whether to return the RR as a object. Default is False
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the RR as a object. Default is False.
+    
+    Example)
+    >zepid.Specificity(df,test='test_result',disease='outcome_stat')    
     '''
     a = len(df.loc[(df[test]==1)&(df[disease]==1)])
     b = len(df.loc[(df[test]==1)&(df[disease]==0)])
@@ -624,21 +629,22 @@ def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_resul
 
 
 def StandMeanDiff(df,binary,continuous,decimal=3):
-    '''Calculates the standardized mean difference (SMD) of a continuous variable
-    stratified by a binary variable. This can be used to assess for 
-    collinearity between the continuous and binary variables of interest.
-    A SMD greater than 2 suggests potential collinearity issues. It does NOT
-    mean that there will be collinearity issues in the full model though.
+    '''Calculates the standardized mean difference (SMD) of a continuous variable stratified by a binary variable (0,1). 
+    This can be used to assess for collinearity between the continuous and binary variables of interest. A SMD greater 
+    than 2 suggests potential collinearity issues. It does NOT mean that there will be collinearity issues in the full 
+    model though.
     
     df:
-        -specify the dataframe that contains the variables of interest
+        -pandas dataframe containing variables of interest
     binary:
-        -binary variable of interest. Input can be string or number
+        -column name of binary variable. Must be coded as (0,1)
     continuous:
-        -continuous variable of interest. Can be discrete or continuous.
-         Input can be string or number
+        -column name of continuous variable of interest
     decimal:
         -Number of decimal places to display. Default is 3
+    
+    Example)
+    zepid.StandMeanDiff(df=data,binary='expo',continuous='age')
     '''
     v0 = df.loc[df[binary]==0]
     v1 = df.loc[df[binary]==1]
@@ -654,25 +660,24 @@ def StandMeanDiff(df,binary,continuous,decimal=3):
 
 
 def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
-    '''Creates spline dummy variables based on either user specified knot locations or 
-    automatically derives knot locations based on percentiles. Options are available to
-    set the number of knots, location of knots (value), term (linear, quadratic, etc.),
-    and restricted/unrestricted.
+    '''Creates spline dummy variables based on either user specified knot locations or automatically
+    determines knot locations based on percentiles. Options are available to set the number of knots, 
+    location of knots (value), term (linear, quadratic, etc.), and restricted/unrestricted.
     
-    Returns a pandas dataframe object containing the spline variables (labeled 0 to max(n_knots))
+    Returns a pandas dataframe containing the spline variables (labeled 0 to n_knots)
     
     df:
-        -Pandas dataframe containing the variable of interest
+        -pandas dataframe containing the variables of interest
     var:
-        -Continuous variable that spline will be created for 
+        -continuous variable to generate spline for
     n_knots:
-        -Number of knots requested. Options for knots include any positive integer if the location of 
-         knots are specified. If the know locations are not specified, n_knots must be an integer between 
+        -number of knots requested. Options for knots include any positive integer if the location of 
+         knots are specified. If knot locations are not specified, n_knots must be an integer between 
          1 to 7, including both. Default is set to 3
     knots:
-        -Location of specified knots. To specify the location of knots, put desired numbers for knots into 
-         a list. Be sure that the length of the list is the same as the specified number of knots. Default 
-         is None, so that the function will automatically determine knot locations without user specification
+        -Location of specified knots in a list. To specify the location of knots, put desired numbers for 
+         knots into a list. Be sure that the length of the list is the same as the specified number of knots. 
+         Default is None, so that the function will automatically determine knot locations without user specification
     term:
         -High order term for the spline terms. To calculate a quadratic spline change to 2, cubic spline 
          change to 3, etc. Default is 1, so a linear spline is returned
@@ -680,6 +685,9 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
         -Whether to return a restricted spline. Note that the restricted spline returns one less column
          than the number of knots. An unrestricted spline returns the same number of columns as the number of knots.
          Default is False, providing an unrestricted spline
+    
+    Example)
+    >zepid.spline(df=data,var='age',n_knots=4,knots=[18,30,50,65],term=2,restricted=True)
     '''
     if knots == None:
         if n_knots == 1:
@@ -729,48 +737,10 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
         raise ValueError('restricted must be set to either True or False')
 
 
-def datex():
-    '''Provides the example data set that is used in the zepid tutorials. Calling this 
-    function will produce a pandas dataframe containing the following columns; exposure,
-    confounder, continuous, categorical, outcome. 
-    
-    Returns a pandas dataframe containing an example dataframe for example usage
-    '''
-    np.random.seed(919)
-    df = pd.DataFrame()
-    df['error1'] = np.random.randint(0,100,3427)
-    df['error2'] = np.random.randint(0,100,3427)
-    df['c_prob'] = np.random.randint(0,100,3427)
-    lev = df.c_prob.quantile(q=0.55)
-    df.loc[df.c_prob>=lev,'binary'] = 1
-    df.loc[df.c_prob<lev,'binary'] = 0
-    df['z_prob'] = np.random.randint(0,100,3427)
-    df['continuous'] = df['z_prob']
-    df['s_prob'] = np.random.randint(0,100,3427)
-    lev1,lev2,lev3 = df.s_prob.quantile(q=[0.25,0.45,0.8])
-    df.loc[df.s_prob<=lev1,'category'] = 0
-    df.loc[((df.s_prob>lev1)&(df.s_prob<=lev2)),'category'] = 1
-    df.loc[df.s_prob>=lev2,'category'] = 2
-    df['e_prob'] = df['error1'] - 3*df['c_prob'] + .2*df['z_prob'] + 2*df['s_prob'] 
-    df['d_prob'] = df['error2'] + 0.8*df['e_prob'] + 2*df['c_prob'] - (1/2)*df['z_prob'] + (1/200)*(df['z_prob']**2) - 2*df['s_prob'] 
-    df['e_prob'] /= np.max(df['e_prob'])
-    lev = df.e_prob.quantile(q=0.75)
-    df.loc[df.e_prob>=lev,'exposure'] = 1
-    df.loc[df.e_prob<lev,'exposure'] = 0
-    df['d_prob'] /= np.max(df['d_prob'])
-    lev = df.d_prob.quantile(q=0.734)
-    df.loc[df.d_prob>=lev,'outcome'] = 1
-    df.loc[df.d_prob<lev,'outcome'] = 0
-    df.loc[(df.s_prob<df.s_prob.quantile(q=0.015)),'outcome'] = np.nan
-    df.loc[((df.s_prob>df.s_prob.quantile(q=0.25))&(df.s_prob<df.s_prob.quantile(q=0.3))),'outcome'] = np.nan
-    df.loc[(df.s_prob>df.s_prob.quantile(q=0.975)),'outcome'] = np.nan
-    df = df[['exposure','binary','continuous','category','outcome']]
-    return df
-
-
-
 def survival_upper_lower(df,t_start,t_end,time,censor,outcome):
-    '''Converts datasets to estimate the Upper and Lower bounds of survival analysis methods
+    '''DEBUGGING 
+    
+    Converts datasets to estimate the Upper and Lower bounds of survival analysis methods
     (i.e. Kaplen-Meier, Nelson-Aalen). To generate the lower bound of the risk function, all 
     censored individuals are assumed to not have had the outcome by the end of follow-up. To 
     generate the upper bound of the risk function, all censored individuals arer assumed to 
