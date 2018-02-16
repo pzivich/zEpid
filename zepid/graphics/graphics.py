@@ -1,3 +1,23 @@
+'''Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
+are implemented. Uses matplotlib to generate graphics. Future inclusions include forest plots
+
+-func_form_plot(): generate a functional form plot
+-effectmeasure_plot(): create an effect measure plot class
+    |-labels(): change the labels, scale, reference line for plot
+    |-colors(): change the colors and point shapes for plot
+    |-plot(): generate the effect measure plot 
+
+Example of how and effect measure plot is displayed:
+        _____________________________________________      Measure     % CI 
+        |                                           |
+    1   |        --------o-------                   |       x        n, 2n
+        |                                           |
+    2   |                   ----o----               |       w        m, 2m
+        |                                           | 
+        |___________________________________________|
+        #           #           #           #
+'''
+
 import warnings
 import math 
 import numpy as np
