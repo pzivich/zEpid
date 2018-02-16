@@ -1,3 +1,26 @@
+'''Useful calculations for summary / count data. Association measures, confidence intervals, diagnostics, and 
+other useful calculations are available here. 
+
+Contents:
+-rr(): calculate risk ratio from summary data 
+-rd(): calculate risk difference from summary data 
+-nnt(): calculate number needed to treat from summary data 
+-oddr(): calculate odds ratio from summary data 
+-ird(): calculate incidence rate difference from summary data 
+-irr(): calculate incidence rate ratio from summary data 
+-acr(): calculate attributable community risk from summary data 
+-paf(): calculate population attributable fraction from summary data 
+-risk_ci(): calculate risk confidence interval
+-ir_ci(): calculate incidence rate confidence interval
+-stand_mean_diff(): calculate standardized mean difference
+-odds_to_prop(): convert odds to proportion
+-prop_to_odds(): convert proportion to odds
+-ppv_conv(): calculate positive predictive value
+-npv_conv(): calculate negative predictive value
+-screening_cost_analyzer(): calculate relative costs of screening program
+-counternull_pvalue(): calculate counternull p-value
+'''
+
 import warnings
 import math 
 from tabulate import tabulate
@@ -16,8 +39,6 @@ import matplotlib.gridspec as gridspec
 def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Calculates the Risk Ratio from count data.
     
-    WARNING: a,b,c,d must be positive numbers.
-    
     a:
         -count of exposed individuals with outcome
     b:
@@ -27,15 +48,18 @@ def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     d:
         -count of unexposed individuals without outcome
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
         -Whether to print the results. Default is True, which prints the results
     return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    zepid.calc.rr(25,32,145,192)
     '''
-    if ((a<=0) | (b<=0) | (c<=0) | (d<=0)):
+    if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
     if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
@@ -55,6 +79,7 @@ def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         print('----------------------------------------------------------------------')
         print('Relative Risk:',round(relrisk,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return relrisk 
@@ -72,16 +97,18 @@ def rd(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     d:
         -count of unexposed individuals without outcome
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+        
+    Example)
+    zepid.calc.rd(25,32,145,192)
     '''
-    if ((a<=0) | (b<=0) | (c<=0) | (d<=0)):
+    if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
     if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
@@ -100,12 +127,13 @@ def rd(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         print('----------------------------------------------------------------------')
         print('Risk Difference:',round(riskdiff,decimal))	
         print(str(round(100*(1-alpha),1))+'%  two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
+        print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return riskdiff
 
 def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Calculates the Number Needed to Treat from count data.
+    '''Calculates the Number Needed to Treat from count data
     
     a:
         -count of exposed individuals with outcome
@@ -116,16 +144,18 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     d:
         -count of unexposed individuals without outcome
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    zepid.calc.nnt(25,32,145,192)
     '''
-    if ((a<=0) | (b<=0) | (c<=0) | (d<=0)):
+    if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
     if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
@@ -172,7 +202,7 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
 
 
 def oddr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Calculates the Odds Ratio from count data.
+    '''Calculates the Odds Ratio from count data
 
     a:
         -count of exposed individuals with outcome
@@ -183,16 +213,18 @@ def oddr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     d:
         -count of unexposed individuals without outcome
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    zepid.calc.oddr(25,32,145,192)
     '''
-    if ((a<=0) | (b<=0) | (c<=0) | (d<=0)):
+    if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
     if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
@@ -212,13 +244,14 @@ def oddr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         print('----------------------------------------------------------------------')
         print('Odds Ratio:',round(oddsr,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return oddsr
 
     
 def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Calculates the Incidence Rate Ratio from count data.
+    '''Calculates the Incidence Rate Ratio from count data
     
     a:
         -count of exposed with outcome
@@ -229,17 +262,21 @@ def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     T2:
         -person-time contributed by those who were unexposed
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    zepid.calc.irr(25,32,436,731)
     '''
-    if ((a<=0) | (c<=0) | (T1<=0) | (T2<=0)):
+    if ((a<0) | (c<0) | (T1<=0) | (T2<=0)):
         raise ValueError('All numbers must be positive')
+    if ((a<=5) | (c<=5)):
+        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')    
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     irate1=a/T1
     irate2=c/T2
@@ -261,8 +298,9 @@ def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     if return_result == True:
         return irr
 
+
 def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
-    '''Calculates the Incidence Rate Difference from count data.
+    '''Calculates the Incidence Rate Difference from count data
 
     a:
         -count of exposed with outcome
@@ -273,17 +311,21 @@ def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     T2:
         -person-time contributed by those who were unexposed
     alpha:
-        -Alpha value to calculate confidence intervals. Only compatible with two-sided intervals. Default is 
-         95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
-    print_res:
-        -Whether to print the results. Default is True, which prints the results
-    return_res:
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
         -Whether to return the RR as a object. Default is False
+    
+    Example)
+    zepid.calc.ird(25,32,436,731)
     '''
-    if ((a<=0) | (c<=0) | (T1<=0) | (T2<=0)):
+    if ((a<0) | (c<0) | (T1<=0) | (T2<=0)):
         raise ValueError('All numbers must be positive')
+    if ((a<=5) | (c<=5)):
+        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     rated1=a/T1
     rated2=c/T2
@@ -320,8 +362,11 @@ def acr(a,b,c,d,decimal=3):
         -count of unexposed individuals without outcome
     decimal:
         -amount of decimal points to display. Default is 3
+    
+    Example)
+    zepid.calc.acr(25,32,145,192)
     '''
-    if ((a<=0) | (b<=0) | (c<=0) | (d<=0)):
+    if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
     rt=(a+c)/(a+b+c+d)
     r0=c/(c+d)
@@ -332,7 +377,7 @@ def acr(a,b,c,d,decimal=3):
     print('----------------------------------------------------------------------')
 
 def paf(a,b,c,d,decimal=3):
-    '''Calculates the Population Attributable Fraction from count data.
+    '''Calculates the Population Attributable Fraction from count data
     
     a:
         -count of exposed individuals with outcome
@@ -344,8 +389,11 @@ def paf(a,b,c,d,decimal=3):
         -count of unexposed individuals without outcome
     decimal:
         -amount of decimal points to display. Default is 3
-        '''
-    if ((a<=0) | (b<=0) | (c<=0) | (d<=0)):
+    
+    Example)
+    zepid.calc.paf(25,32,145,192)
+    '''
+    if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
     rt=(a+c)/(a+b+c+d)
     r0=c/(c+d)
@@ -357,31 +405,33 @@ def paf(a,b,c,d,decimal=3):
     
 
 def prop_to_odds(prop):
-    '''Convert proportion to odds
-    
-    Returns the corresponding odds
+    '''Convert proportion to odds. Returns the corresponding odds
 
     prop:
         -proportion that is desired to transform into odds
+    
+    Example)
+    zepid.calc.prop_to_odds(0.31)
     '''
     odds = prop / (1-prop)
     return odds
 
     
 def odds_to_prop(odds):
-    '''Convert odds to proportion
-    
-    Returns the corresponding proportion
+    '''Convert odds to proportion. Returns the corresponding proportion
     
     odds:
         -odds that is desired to transform into a proportion
+    
+    Example)
+    zepid.calc.odds_to_prop(1.1)
     '''
     prop = odds / (1+odds)
     return prop
 
     
 def risk_ci(events,total,alpha=0.05,decimal=3):
-    '''Calculate two-sided (1-alpha)% Confidence interval of Risk. Note
+    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Risk. Note
     relies on the Central Limit Theorem, so there must be at least 5 events 
     and 5 no events. Exact methods currently not available
     
@@ -393,6 +443,9 @@ def risk_ci(events,total,alpha=0.05,decimal=3):
         -Alpha level. Default is 0.05
     decimal:
         -Number of decimal places to display. Default is 3 decimal places
+    
+    Example)
+    zepid.calc.risk_ci(25,145)
     '''
     risk = events/total
     c = 1 - alpha/2
@@ -405,7 +458,7 @@ def risk_ci(events,total,alpha=0.05,decimal=3):
 
 
 def ir_ci(events,time,alpha=0.05,return_result=False,decimal=3):
-    '''Calculate two-sided (1-alpha)% Confidence interval of Incidence Rate
+    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
         
     events:
         -number of events/outcomes that occurred
@@ -415,6 +468,9 @@ def ir_ci(events,time,alpha=0.05,return_result=False,decimal=3):
         -alpha level. Default is 0.05
     decimal:
         -amount of decimal places to display. Default is 3 decimal places
+    
+    Example)
+    zepid.calc.ir_ci(25,436)
     '''
     c = 1 - alpha/2
     ir = events/time
@@ -429,9 +485,8 @@ def ir_ci(events,time,alpha=0.05,return_result=False,decimal=3):
     
 
 def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
-    '''Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful
-    to prevent over-interpretation of results. For a full discussion and how to interpret
-    the estimate and p-value, 
+    '''Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation 
+    of results. For a full discussion and how to interpret the estimate and p-value, see Rosenthal & Rubin.
     
     Warning: Make sure that the confidence interval points put into
     the equation match the alpha level calculation
@@ -453,6 +508,9 @@ def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
          generate confidence intervals
     decimal:
         -Number of decimal places to display. Default is three
+    
+    Example)
+    zepid.calc.counternull_pvalue(1.1,0.9,1.2)
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     se = (ucl - lcl) / (zalpha*2)
@@ -501,6 +559,9 @@ def bayes_approx(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,
         -Alpha level for confidence intervals. Default is 0.05
     decimal:
         -Number of decimal places to display. Default is three
+    
+    Example)
+    zepid.calc.bayes_approx(0.1,0,0.2,0.2,0,0.4)
     '''
     if ln_transform==True:
         prior_mean = math.log(prior_mean)
@@ -544,9 +605,7 @@ def bayes_approx(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,
 
 
 def ppv_conv(sensitivity,specificity,prevalence):
-    '''Generates the Positive Predictive Value from designated
-    Sensitivity, Specificity, and Prevalence.  
-
+    '''Generates the Positive Predictive Value from designated Sensitivity, Specificity, and Prevalence.  
     Returns the positive predictive value
 
     sensitivity:
@@ -555,6 +614,9 @@ def ppv_conv(sensitivity,specificity,prevalence):
         -specificity of the criteria
     prevalence:
         -prevalence of the outcome in the population
+    
+    Example)
+    zepid.calc.ppv_conv(0.9,0.9,0.05)
     '''
     if ((sensitivity > 1)|(specificity > 1)|(prevalence > 1)):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -566,7 +628,6 @@ def ppv_conv(sensitivity,specificity,prevalence):
 
 def npv_conv(sensitivity,specificity,prevalence):
     '''Generates the Negative Predictive Value from designated Sensitivity, Specificity, and Prevalence.  
-
     Returns the negative predictive value
 
     sensitivity:
@@ -575,6 +636,9 @@ def npv_conv(sensitivity,specificity,prevalence):
         -specificity of the criteria
     prevalence:
         -prevalence of the outcome in the population
+    
+    Example)
+    zepid.calc.npv_conv(0.9,0.9,0.05)
     '''
     if ((sensitivity > 1)|(specificity > 1)|(prevalence > 1)):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -587,7 +651,7 @@ def npv_conv(sensitivity,specificity,prevalence):
 def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity,specificity,population=10000,decimal=3):
     '''Compares the cost of sensivitiy/specificity of screening criteria to treating the entire population 
     as test-negative and test-positive. The lowest per capita cost is considered the ideal choice. Note that
-    this function only provides relative costs. However, actual costs can be put in as well
+    this function only provides relative costs
         
     WARNING: When calculating costs, be sure to consult experts in health policy or related fields.  Costs 
     should encompass more than just monetary costs, like relative costs (regret, disappointment, stigma, 
@@ -609,6 +673,9 @@ def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity
         -The population size to set. Choose a larger value since this is only necessary for total calculations. Default is 10,000
     decimal:
         -amount of decimal points to display. Default value is 3
+    
+    Example)
+    zepid.calc.screening_cost_analyzer(2,1,0.05,0.9,0.9)
     '''
     print('----------------------------------------------------------------------')
     print('WARNING: When calculating costs, be sure to consult experts in health\npolicy or related fields.  Costs should encompass more than only monetary\ncosts, like relative costs (regret, disappointment, stigma, disutility, etc.)')
@@ -653,12 +720,10 @@ def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity
 
 
 def stand_mean_diff(n1,n2,mean1,mean2,sd1,sd2,decimal=3):
-    '''Calculates the standardized mean difference (SMD) of a continuous variable
-    stratified by a binary variable. This can be used to assess for 
-    collinearity between the continuous and binary variables of interest.
-    A SMD greater than 2 suggests potential collinearity issues. It does NOT
-    mean that there will be collinearity issues in the full model though. This 
-    functions works for summary data
+    '''Calculates the standardized mean difference (SMD) of a continuous variable stratified by a binary 
+    variable. This can be used to assess for collinearity between the continuous and binary variables of interest.
+    A SMD greater than 2 suggests potential collinearity issues. It does NOT mean that there will be collinearity 
+    issues in the full model though. This functions works for summary data
     
     n1:
         -number of observations in the first group stratified by variable
@@ -676,6 +741,9 @@ def stand_mean_diff(n1,n2,mean1,mean2,sd1,sd2,decimal=3):
         -standard deviation in the second group stratified by variable
     decimal:
         -Number of decimal places to display. Default is 3
+    
+    Example)
+    zepid.calc.stand_mean_diff(10,20,0.5,0.7,0.01,0.01)
     '''
     pooled_sd = math.sqrt((((n1 - 1) * (sd1**2)) + ((n2 - 1) * (sd2**2))) / n1 + n2 - 2)
     smd = abs(((mean1 - mean2) / pooled_sd))
