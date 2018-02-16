@@ -33,7 +33,6 @@ def ipw(df,model,mresult=True):
     return pd.Series(p)
 
 
-
 class iptw:
     '''Class to construct and fit an IPTW model
     '''
@@ -111,7 +110,7 @@ class iptw:
         '''
         self.data['tweight'] *= self.data[otherweight]
     
-    def fit(self,model,link_dist=None,fitmodel='gee',time=None):
+    def fit(self,model,link_dist=None):
         '''Fits an IPTW based on a weight generated weights. Model is fit by using 
         Generalized Estimation Equations with an independent covariance structure. 
         GEE and the robust variance estimator is meant to correct the confidence 
@@ -128,33 +127,14 @@ class iptw:
                 Log-Binomial:  sm.families.family.Binomial(sm.families.links.log)
                 Linear-Risk:   sm.families.family.Binomial(sm.families.links.identity)
              See statsmodels documentation for a complete list 
-        fitmodel:
-            -Which model to use to fit the data. Options include:
-                keyword         model
-                'gee'       :   fit using a GEE (valid CI compared to GLM)
-                'km'        :   weighted Kaplan-Meier (requires time)
-                'na'        :   weighted Nelson-Aalen (requires time)
-        time:
-            -variable containing time. Default is None. Must be specified for KM/NA
         '''
-        if fitmodel=='gee':
-            ind = sm.cov_struct.Independence()
-            if link_dist == None:
-                f = sm.families.family.Binomial(sm.families.links.logit)
-            else:
-                f = link_dist
-            iptw_m = smf.gee(model,self.idvar,self.data,cov_struct=ind,family=f,weights=self.data['tweight']).fit()
-            self.result = iptw_m
-        elif fitmodel=='km':
-            if time == None:
-                raise ValueError('A time variable must be specified')
-            print('Not currently implemented... Waiting on lifelines v0.14.0')
-        elif fitmodel=='na':
-            if time == None:
-                raise ValueError('A time variable must be specified')
-            print('Not currently implemented... Waiting on lifelines v0.14.0')
+        ind = sm.cov_struct.Independence()
+        if link_dist == None:
+            f = sm.families.family.Binomial(sm.families.links.logit)
         else:
-            raise ValueError('Please specify an implmented model')
+            f = link_dist
+        iptw_m = smf.gee(model,self.idvar,self.data,cov_struct=ind,family=f,weights=self.data['tweight']).fit()
+        self.result = iptw_m
 
 
 class ipmw:
@@ -218,97 +198,36 @@ class ipmw:
                 Log-Binomial:  sm.families.family.Binomial(sm.families.links.log)
                 Linear-Risk:   sm.families.family.Binomial(sm.families.links.identity)
              See statsmodels documentation for a complete list 
-        fitmodel:
-            -Which model to use to fit the data. Options include:
-                keyword         model
-                'gee'       :   fit using a GEE (valid CI compared to GLM)
-                'km'        :   weighted Kaplan-Meier (requires time)
-                'na'        :   weighted Nelson-Aalen (requires time)
-        time:
-            -variable containing time. Default is None. Must be specified for KM/NA
         '''
-        if fitmodel=='gee':
-            ind = sm.cov_struct.Independence()
-            if link_dist == None:
-                f = sm.families.family.Binomial(sm.families.links.logit)
-            else:
-                f = link_dist
-            iptw_m = smf.gee(model,self.idvar,self.data,cov_struct=ind,family=f,weights=self.data['mweight']).fit()
-            self.result = iptw_m
-        elif fitmodel=='km':
-            if time == None:
-                raise ValueError('A time variable must be specified')
-            print('Not currently implemented... Waiting on lifelines v0.14.0')
-        elif fitmodel=='na':
-            if time == None:
-                raise ValueError('A time variable must be specified')
-            print('Not currently implemented... Waiting on lifelines v0.14.0')
+        ind = sm.cov_struct.Independence()
+        if link_dist == None:
+            f = sm.families.family.Binomial(sm.families.links.logit)
         else:
-            raise ValueError('Please specify an implmented model')
-
+            f = link_dist
+        iptw_m = smf.gee(model,self.idvar,self.data,cov_struct=ind,family=f,weights=self.data['mweight']).fit()
+        self.result = iptw_m
 
 
 class ipcw():
     '''Class to generate and fit a IPCW model
+    
+        Input data format:
+    cid     t_start     t_end   event   uncensor    ...
+    101     0           1       0       1
+    101     1           2       0       1
+    101     2           2.1     1       1
+    102     0           1       0       1
+    102     1           2       0       1
+    102     2           3       0       1
+    102     3           3.5     0       0
     '''
+    
     def __init__(self,df,idvar,time):
         '''Initiliaze with dataframe containing vars. Needs df, idvar, time
         '''
         self.data = df
         self.idvar = idvar
         self.time = time
-
-    def longdata_converter(self,outcome):
-        '''Converts a pandas dataframe from a condensed format to a long format for calculation of IPCW. 
-        The conversion works as follows; each participant's observations are duplicated for the total number
-        of time points observed (by a unit of one), the event time or drop out times are generated for each
-        participant for each time period, and this dataframe is returned.Note that is dataframe. This function 
-        is used to prepare a dataframe for inverse probability of censoring weights. To generate IPC weights, 
-        the function ipcw() can be used with the generated dataframe. Please see the end of this documentation
-        for an applied example.
-        
-        Important notes/limitations:
-        1) This does NOT currently support left truncated dataframes
-        
-        Returns dataframe with columns for the ID (inherited from input dataframe), start of the observation 
-        period (t_start), end of the observation period (t_end), event indicator for time period (event), and 
-        whether uncensored  for time period (uncensor) 
-        
-        outcome:
-            -Indicator of whether participant had outcome by end of follow-up (True = 1, False = 0)
-
-        This is an example of what an input dataset will look like and the subsequent output:
-            Input data:
-        
-        cid     time    outcome     ...
-        101     2.1     1  
-        102     3.5     0 
-        ...
-        
-            Output data:
-        cid     t_start     t_end   event   uncensor    ...
-        101     0           1       0       1
-        101     1           2       0       1
-        101     2           2.1     1       1
-        102     0           1       0       1
-        102     1           2       0       1
-        102     2           3       0       1
-        102     3           3.5     0       0
-        
-        '''
-        cf = self.data.copy()
-        cf['t_int'] = cf[self.time].astype(int)
-        cfl = pd.DataFrame(np.repeat(cf.values,cf['t_int']+1,axis=0),columns=cf.columns)
-        cfl['lastobs'] = (cfl[self.idvar] != cfl[self.idvar].shift(-1)).astype(int)
-        cfl['tpoint'] = cfl.groupby(self.idvar)['t_int'].cumcount()
-        cfl['tdiff'] =  cfl[self.time] - cfl['tpoint']
-        cfl['event'] = 0
-        cfl['uncensor'] = 1
-        cfl.loc[((cfl['lastobs']==1)&(cfl[outcome]==1)),'event'] = 1
-        cfl.loc[((cfl['lastobs']==1)&(cfl[outcome]==0)),'uncensor'] = 0
-        cfl['t_start'] = cfl['tpoint']
-        cfl['t_end'] = np.where(cfl['tdiff']<1,cfl['t'],cfl['t_start']+1)
-        self.data = cfl.drop(columns=['lastobs','tdiff','tpoint','t_int'])
     
     def weight(self,n_model,d_model,print_models=True,stabilized=True):
         '''Calculate the inverse probability of censoring weights (IPCW). Note that this function will 
@@ -321,7 +240,6 @@ class ipcw():
         1) The dataframe MUST be sorted by ID and ascending time. If not, generated weights will be incorrect
         
         Must be sorted by ID and time points to generate weights properly
-        Add in unstablilized option, once I know it...
         '''
         cf = self.data.copy()
         linkdist=sm.families.family.Binomial(sm.families.links.logit)
