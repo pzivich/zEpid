@@ -26,7 +26,7 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate two-sided confidence intervals. Default is 95% confidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -42,6 +42,8 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     r1 = (a/(a+b))
     r2 = (c/(c+d))
     relrisk = r1/r2
@@ -76,7 +78,7 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -92,6 +94,8 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     r1 = (a/(a+b))
     r2 = (c/(c+d))
     riskdiff = r1-r2
@@ -125,7 +129,7 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -141,6 +145,8 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     r1 = (a/(a+b))
     r2 = (c/(c+d))
     riskdiff = r1-r2
@@ -195,7 +201,7 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     alpha:
-        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -211,6 +217,8 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     o1 = (a/b)
     o2 = (c/d)
     oddsratio = o1/o2
@@ -247,7 +255,7 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
     time:
         -column name of person-time contributed by each individual. Must all be greater than 0
     alpha:
-        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -261,6 +269,8 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    if ((a<=5) | (c<=5)):
+        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     time_a = df.loc[df[exposure]==1][time].sum()
     time_c = df.loc[df[exposure]==0][time].sum()
     ir_e = (a/time_a)
@@ -297,7 +307,7 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
     time:
         -column name of person-time contributed by individual. Must be greater than 0
     alpha:
-        -Alpha value to calculate two-sided confidence intervals. Default is 95% onfidence interval
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -311,6 +321,8 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    if ((a<=5) | (c<=5)):
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     time_a = df.loc[df[exposure]==1][time].sum()
     time_c = df.loc[df[exposure]==0][time].sum()
     ir_e = (a/time_a)
@@ -558,6 +570,8 @@ def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_re
     disease:
         -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual 
          has the outcome
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -599,6 +613,8 @@ def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_resul
     disease:
         -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual 
          has the outcome
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
     print_result:
@@ -737,36 +753,3 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
         raise ValueError('restricted must be set to either True or False')
 
 
-def survival_upper_lower(df,t_start,t_end,time,censor,outcome):
-    '''DEBUGGING 
-    
-    Converts datasets to estimate the Upper and Lower bounds of survival analysis methods
-    (i.e. Kaplen-Meier, Nelson-Aalen). To generate the lower bound of the risk function, all 
-    censored individuals are assumed to not have had the outcome by the end of follow-up. To 
-    generate the upper bound of the risk function, all censored individuals arer assumed to 
-    have the outcome at the same time as they were censored. Each of the generated dataframes 
-    can be fit by Kaplan-Meier through the lifelines package. Plotting the bounds give some 
-    understanding of the uncertainty due to the censoring.
-    
-    Returns: lower bound dataframe, upper bound dataframe
-    
-    df:
-        -pandas dataframe
-    t_start:
-        -column name of dataframe that contains the origin time for each individual (ex. 1995)
-    t_end:
-        -integer/float of the end date of follow-up
-    time:
-        -column name of dataframe that contains the total time contributed by participants
-    censor:
-        -column name of dataframe that contains indicator of whether individual was censored
-    outcome:
-        -column name of dataframe that contains binary outcome of interest
-    '''
-    dfl = df.copy()
-    dfl.loc[dfl[censor]==1,outcome] = 0
-    dfl['store'] = t_end - dfl[t_start]
-    dfl[time] = [j if x == 1 else i for x,j,i in zip(dfl[censor],dfl['store'],dfl[time])]
-    dfu = df.copy()
-    dfu.loc[dfu[censor]==1,outcome] = 1
-    return dfl,dfu
