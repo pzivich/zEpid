@@ -183,7 +183,7 @@ class effectmeasure_plot:
         if 'pointcolor' in kwargs:
             self.pc = kwargs['pointcolor']
     
-    def plot(self,t_adjuster=0.01,decimal=3,size=3):
+    def plot(self,t_adjuster=0.01,decimal=3,size=3,max_value=None,min_value=None):
         '''Generates the matplotlib effect measure plot with the default or specified attributes. 
         The following variables can be used to further fine-tune the effect measure plot
         
@@ -195,6 +195,10 @@ class effectmeasure_plot:
             -number of decimal places to display in the table
         size           
             -size of the plot to generate
+        max_value
+            -maximum value of x-axis scale. Default is None, which automatically determines max value
+        min_value
+            -minimum value of x-axis scale. Default is None, which automatically determines min value
         '''
         tval = []
         ytick = []
@@ -208,23 +212,32 @@ class effectmeasure_plot:
             else:
                 tval.append([' ',' '])
                 ytick.append(i)
-        if (pd.to_numeric(self.df['UCL']).max() < 1):
-            maxi = round(((pd.to_numeric(self.df['UCL'])).max() + 0.05),2) #setting x-axis maximum for UCL less than 1
-        if ((pd.to_numeric(self.df['UCL']).max() < 9) & (pd.to_numeric(self.df['UCL']).max() >= 1)):
-            maxi = round(((pd.to_numeric(self.df['UCL'])).max() + 1),0) #setting x-axis maximum for UCL less than 10
-        if (pd.to_numeric(self.df['UCL']).max() > 9):
-            maxi = round(((pd.to_numeric(self.df['UCL'])).max() + 10),0) #setting x-axis maximum for UCL less than 100
-        if (pd.to_numeric(self.df['LCL']).min() > 0):
-            mini = round(((pd.to_numeric(self.df['LCL'])).min() - 0.1),1) #setting x-axis minimum
-        if (pd.to_numeric(self.df['LCL']).min() < 0):
-            mini = round(((pd.to_numeric(self.df['LCL'])).min() - 0.05),2) #setting x-axis minimum
+        if max_value == None:
+            if (pd.to_numeric(self.df['UCL']).max() < 1):
+                maxi = round(((pd.to_numeric(self.df['UCL'])).max() + 0.05),2) #setting x-axis maximum for UCL less than 1
+            if ((pd.to_numeric(self.df['UCL']).max() < 9) & (pd.to_numeric(self.df['UCL']).max() >= 1)):
+                maxi = round(((pd.to_numeric(self.df['UCL'])).max() + 1),0) #setting x-axis maximum for UCL less than 10
+            if (pd.to_numeric(self.df['UCL']).max() > 9):
+                maxi = round(((pd.to_numeric(self.df['UCL'])).max() + 10),0) #setting x-axis maximum for UCL less than 100
+        else: 
+            maxi = max_value
+        if min_value == None:
+            if (pd.to_numeric(self.df['LCL']).min() > 0):
+                mini = round(((pd.to_numeric(self.df['LCL'])).min() - 0.1),1) #setting x-axis minimum
+            if (pd.to_numeric(self.df['LCL']).min() < 0):
+                mini = round(((pd.to_numeric(self.df['LCL'])).min() - 0.05),2) #setting x-axis minimum
+        else:
+            mini = min_value
         plt.figure(figsize=(size*2,size*1)) #blank figure
         gspec = gridspec.GridSpec(1, 6) #sets up grid
         plot = plt.subplot(gspec[0, 0:4]) #plot of data
         tabl = plt.subplot(gspec[0, 4:]) # table of OR & CI 
         plot.set_ylim(-1,(len(self.df))) #spacing out y-axis properly
         if (self.scale=='log'):
-            plot.set_xscale('log')
+            try:
+                plot.set_xscale('log')
+            except:
+                raise ValueError('For the log scale, all values must be positive')
         plot.axvline(self.center,color=self.linec,zorder=1)
         plot.errorbar(self.df.OR2,self.df.index,xerr=[self.df.LCL_dif,self.df.UCL_dif],marker='None',zorder=2,ecolor=self.errc,elinewidth=(size/size),linewidth=0)
         plot.scatter(self.df.OR2,self.df.index,c=self.pc,s=(size*25),marker=self.shape,zorder=3,edgecolors='None')
