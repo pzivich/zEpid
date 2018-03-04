@@ -89,10 +89,10 @@ class iptw:
                 twdf['w'] = np.where(twdf['t']==1, 1 / twdf['p'], 1 / (1-twdf['p']))
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
             elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1, ((1-twdf['p'])/twdf['p']))
+                twdf['w'] = np.where(twdf['t']==1, 1, (twdf['p']/(1-twdf['p'])))
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
             elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1, (twdf['p']/(1-twdf['p'])), 1)
+                twdf['w'] = np.where(twdf['t']==1, ((1-twdf['p'])/twdf['p']), 1)
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
             else:
                 raise ValueError('Please specify one of the following weighting schemes: population, exposed, unexposed')
