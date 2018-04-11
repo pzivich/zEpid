@@ -168,17 +168,6 @@ class ipmw:
         self.data['mprob'] = p 
         self.data['mweight'] = w
     
-    def merge_weights(self,otherweight):
-        '''Combine weights from another IPW model (such as adding IPTW or IPCW).
-        This is done simply by multipying the weights together. Note that this process
-        must be done to generate the combined weights for the fit() method to work 
-        as expected 
-        
-        other_weight:
-            -Other weight variable column name in the dataset 
-        '''
-        self.data['mweight'] *= self.data[otherweight]
-
     def fit(self,model,link_dist=None,fitmodel='gee',time=None):
         '''Fits an IPMW based on a weight generated weights. Model is fit by using 
         Generalized Estimation Equations with an independent covariance structure. 
@@ -208,10 +197,17 @@ class ipmw:
         self.result = iptw_m
 
 
-class ipcw():
-    '''Class to generate and fit a IPCW model
-    
-        Input data format:
+def ipcw(df,idvar,n_model,d_model,print_models=True,stabilized=True):
+    '''Calculate the inverse probability of censoring weights (IPCW). Note that this function will 
+    only operate as expected when a valid dataframe is input. For a valid style of dataframe, see 
+    below or the documentation for ipcw_data_converter(). IPCW is calculated via logistic regression
+    and weights are cumulative products per unique ID. IPCW can be used to correct for missing at 
+    random data by the generated model in weighted Kaplan-Meier curves
+
+    Important notes/limitations:
+    1) The dataframe MUST be sorted by ID and ascending time. If not, generated weights will be incorrect
+
+    Input data format:
     cid     t_start     t_end   event   uncensor    ...
     101     0           1       0       1
     101     1           2       0       1
@@ -221,58 +217,27 @@ class ipcw():
     102     2           3       0       1
     102     3           3.5     0       0
     '''
-    
-    def __init__(self,df,idvar,time):
-        '''Initiliaze with dataframe containing vars. Needs df, idvar, time
-        '''
-        self.data = df
-        self.idvar = idvar
-        self.time = time
-    
-    def weight(self,n_model,d_model,print_models=True,stabilized=True):
-        '''Calculate the inverse probability of censoring weights (IPCW). Note that this function will 
-        only operate as expected when a valid dataframe is input. For a valid style of dataframe, see 
-        below or the documentation for ipcw_data_converter(). IPCW is calculated via logistic regression
-        and weights are cumulative products per unique ID. IPCW can be used to correct for missing at 
-        random data by the generated model in weighted Kaplan-Meier curves
-        
-        Important notes/limitations:
-        1) The dataframe MUST be sorted by ID and ascending time. If not, generated weights will be incorrect
-        
-        Must be sorted by ID and time points to generate weights properly
-        '''
-        cf = self.data.copy()
-        linkdist=sm.families.family.Binomial(sm.families.links.logit)
-        logn = smf.glm('uncensor ~ '+n_model,cf,family=linkdist).fit()
-        logd = smf.glm('uncensor ~ '+d_model,cf,family=linkdist).fit()
-        if print_models==True:
-            print('Numerator model:')
-            print(logn.summary(),'\n\n')
-            print('Denominator model:')
-            print(logd.summary())
-        cf['num_p'] = logn.predict()
-        cf['den_p'] = logd.predict()
-        cf['num'] = cf.groupby(self.idvar)['num_p'].cumprod()
-        cf['den'] = cf.groupby(self.idvar)['den_p'].cumprod()
-        w = cf['num'] / cf['den']
-        self.data['cweight'] = w
-    
-    def merge_weights(self,otherweight):
-        '''Combine weights from another IPW model (such as adding IPTW or IPMW).
-        This is done simply by multipying the weights together. Note that this process
-        must be done to generate the combined weights for the fit() method to work 
-        as expected 
-        
-        other_weight:
-            -Other weight variable column name in the dataset 
-        '''
-        self.data['cweight'] *= self.data[otherweight]
+    cf = df.copy()
+    linkdist=sm.families.family.Binomial(sm.families.links.logit)
+    logn = smf.glm('uncensor ~ '+n_model,cf,family=linkdist).fit()
+    logd = smf.glm('uncensor ~ '+d_model,cf,family=linkdist).fit()
+    if print_models==True:
+        print('Numerator model:')
+        print(logn.summary(),'\n\n')
+        print('Denominator model:')
+        print(logd.summary())
+    cf['num_p'] = logn.predict(cf)
+    cf['den_p'] = logd.predict(cf)
+    cf['num'] = cf.groupby(idvar)['num_p'].cumprod()
+    cf['den'] = cf.groupby(idvar)['den_p'].cumprod()
+    w = cf['num'] / cf['den']
+    return w    
 
-    def fit(self,reps=1000):
-        '''Future implemented function. Waiting till lifelines package v0.14 comes out with weighted Kaplan Meier.
-        Confidence intervals are generated via bootstrapping
-        '''
-        print('Not currently implemented... Waiting on lifelines v0.14.0')
+def merge_ip_weights():
+    #Future function to merge togetherr multiple IP weights...
+
+def ip_fitter():
+    #Future function to fit IP models (either GEE or weighted KM/NA/AJ models)
 
 
 class diagnostic:
