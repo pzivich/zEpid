@@ -51,9 +51,10 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
     |    |
     |    |-func_form_plot(): generate a functional form plot
     |    |-effectmeasure_plot(): create an effect measure plot
-    |           |-labels(): change the labels, scale, reference line for plot
-    |           |-colors(): change the colors and point shapes for plot
-    |           |-plot(): generate the effect measure plot 
+    |    |      |-labels(): change the labels, scale, reference line for plot
+    |    |      |-colors(): change the colors and point shapes for plot
+    |    |      |-plot(): generate the effect measure plot 
+    |    |-pvalue_plot(): generate a p-value distribution plot
     |
     |___ipw
     |    |
@@ -87,12 +88,8 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
          |-delta_beta(): conducts a delta-beta analysis
 
 # Future Inclusions:
-**Note:** Some of these, like the causal inference tools, are going to take awhile to be implemented
-
-    Causal inference tools (https://www.hsph.harvard.edu/causal/software/) (i.e. marginal structural models, g-formula)
-    Propensity score matching algorithms
+    Augmented IPW
     Forest plot
-    Network analysis tools to complement NetworkX functions
     Mathematical Modeling tools
 
 # TODO items for me:
