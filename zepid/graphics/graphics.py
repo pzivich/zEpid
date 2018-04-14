@@ -6,6 +6,7 @@ are implemented. Uses matplotlib to generate graphics. Future inclusions include
     |-labels(): change the labels, scale, reference line for plot
     |-colors(): change the colors and point shapes for plot
     |-plot(): generate the effect measure plot 
+-pvalue_plot(): generate a p-value distribution plot
 
 Example of how and effect measure plot is displayed:
         _____________________________________________      Measure     % CI 
@@ -361,4 +362,53 @@ def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=No
     plt.ylim(ylims)
     plt.show()
 
+
+
+def pvalue_plot(point,se,color='b',fill=True,null=0):
+    '''Creates a plot of the p-value distribution based on a point estimate and standard error. 
+    I find this plot to be useful to explain p-values and how much evidence weight you have in a 
+    specific value. I think it is useful to explain what exactly a p-value tells you. Note that this
+    plot only works for measures on a linear scale (i.e. it will plot exp(log(RR)) incorrectly). It also
+    helps to understand what exactly confidence intervals are telling you. These  plots are based on 
+    Rothman K. "Epidemiology" 2nd Edition pg 152-153 and explained more fully within.
+    
+    Returns matplotlib axes object
+    
+    point:
+        -point estimate. Must be on a linear scale (RD / log(RR))
+    se:
+        -standard error of the estimate. Must for linear scale (SE(RD) / SE(log(RR)))
+    color:
+        -change color of p-value plot 
+    fill:
+        -Whether to fill the curve under the p-value distribution. Setting to False prevents fill 
+    null:
+        -The main value to compare to. The default is zero
+    '''
+    if point <= null:
+        lower = (point - 3 * se)
+        if (point + 3*se) < 0:
+            upper = point + 3*se
+        else:
+            upper = null + 3*se
+    if point > null:
+        upper = (point + 3 * se)
+        if (point - 3*se) > 0:
+            lower = null - 3*se
+        else:
+            lower = point - 3*se
+    ax = plt.gca()
+    x1 = np.linspace(lower,point,100)
+    x2 = np.linspace(point,upper,100)
+    ax.plot(x2,2*(1 - norm.cdf(x2,loc=point,scale=se)),c=color)
+    ax.plot(x1,2*norm.cdf(x1,loc=point,scale=se),c=color)
+    if fill == True:
+        ax.fill_between(x2,2*(1 - norm.cdf(x2,loc=point,scale=se)),color=color,alpha=0.2)
+        ax.fill_between(x1,2*norm.cdf(x1,loc=point,scale=se),color=color,alpha=0.2)
+    ax.vlines(null,0,1,colors='k')
+    ax.set_xlim([lower,upper])
+    ax.set_ylim([0,1])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('P-value')
+    return ax 
 
