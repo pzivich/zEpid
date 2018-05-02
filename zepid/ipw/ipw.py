@@ -225,9 +225,9 @@ class diagnostic:
     this class and its corresponding functions.
     
     Balance diagnostics
-        weight_hist()
+        p_hist()
             -Graphical display of weights by actual treatment
-        weight_boxplot()
+        p_boxplot()
             -Graphical display of weights by actual treatment
     Positivity diagnostics
         positivity()
@@ -260,7 +260,7 @@ class diagnostic:
         decimal:
             -Number of decimal places to display in result
         '''
-        def weighted_avg(df,v,w,t):
+        def _weighted_avg(df,v,w,t):
             '''This function is only used to calculate the weighted mean for 
             standardized_diff function for continuous variables'''
             l = []
@@ -270,7 +270,7 @@ class diagnostic:
                 a = n / d
                 l.append(a)
             return l[0],l[1]
-        def weighted_std(df,v,w,t,xbar):
+        def _weighted_std(df,v,w,t,xbar):
             '''This function is only used to calculated the weighted mean for
             standardized_diff function for continuous variables'''
             l = []
@@ -287,8 +287,8 @@ class diagnostic:
             wnot = np.sum(self.data.loc[(self.data[var]==1) & (self.data[treatment]==0)][self.w].dropna()) / np.sum(self.data.loc[self.data[treatment]==0][self.w].dropna())
             wsmd = 100 * ((wtre - wnot) / math.sqrt(((wtre*(1-wtre)+wnot*(1-wnot)) / 2)))
         elif var_type == 'continuous':
-            wmn,wmt = weighted_avg(self.data,v=var,w=self.w,t=treatment)
-            wsn,wst = weighted_std(self.data,v=var,w=self.w,t=treatment,xbar=[wmn,wmt])
+            wmn,wmt = _weighted_avg(self.data,v=var,w=self.w,t=treatment)
+            wsn,wst = _weighted_std(self.data,v=var,w=self.w,t=treatment,xbar=[wmn,wmt])
             wsmd = 100 * (wmt - wmn) / (math.sqrt((wst+wsn) / 2))
         else:
             raise ValueError('The only variable types currently supported are binary and continuous')
