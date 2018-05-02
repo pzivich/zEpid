@@ -5,7 +5,7 @@ Contents:
 -rr(): calculate risk ratio from summary data 
 -rd(): calculate risk difference from summary data 
 -nnt(): calculate number needed to treat from summary data 
--oddr(): calculate odds ratio from summary data 
+-oddsratio(): calculate odds ratio from summary data 
 -ird(): calculate incidence rate difference from summary data 
 -irr(): calculate incidence rate ratio from summary data 
 -acr(): calculate attributable community risk from summary data 
@@ -201,7 +201,7 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         return nnt 
 
 
-def oddr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def oddsratio(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Calculates the Odds Ratio from count data
 
     a:
