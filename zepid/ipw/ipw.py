@@ -11,9 +11,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-def ipw(df,model,mresult=True):
-    '''Generate propensity scores (probability) based on the model input.
-    Uses logistic regression model to calculate
+def propensity_score(df,model,mresult=True):
+    '''Generate propensity scores (probability) based on the model input. Uses logistic regression model 
+    to calculate
     
     Returns a pandas Series of calculated probabilities for all observations
     within the dataframe
@@ -33,182 +33,162 @@ def ipw(df,model,mresult=True):
     return pd.Series(p)
 
 
-class iptw:
-    '''Class to construct and fit an IPTW model
-    '''
-    def __init__(self,df,idvar):
-        '''Initiliaze with dataframe containing vars
-        '''
-        self.data = df
-        self.idvar = idvar
+def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,standardize='population',return_probability=False):
+        '''Calculates the weight for inverse probability of treatment weights through logistic regression. 
+        Function can return either stabilized or unstabilized weights. Stabilization is based on model_numerator.
+        Default is just to calculate the prevalence of the treatment in the population.
     
-    def weight(self,treatment,model,stabilized=True,standardize='population'):
-        '''Calculates the weight for inverse probability of treatment weights
-        through logistic regression. Function can return either stabilized or
-        unstabilized weights. Stabilization is based on the proportion that 
-        were treated
-    
-        Returns a pandas Series of calculated probability and a pandas Series
-        of the weights of observations
+        Returns a pandas Series of the weights of observations. Probabilities can also be requested instead
         
+        df: 
+            -pandas dataframe object containing all variables of interest
         treatment:
             -Variable name of treatment variable of interest. Must be coded as binary.
              1 should indicate treatment, while 0 indicates no treatment
-        model:
-            -statsmodels glm format for modeling data. Example) 'var1 + var2 + var3'
+        model_denominator:
+            -statsmodels glm format for modeling data. Only includes predictor variables Example) 'var1 + var2 + var3'
+        model_numerator:
+            -statsmodels glm format for modeling data. Only includes predictor variables for the numerator. Default (None)
+             calculates the overall probability. In general this is recommended. If confounding variables are included in
+             the numerator, they would later need to be adjusted for. Example) 'var1'
         stabilized:
-            -Whether to return stabilized or unstabilized weights. Input is True/False
-             Default is stabilized weights (True)
+            -Whether to return stabilized or unstabilized weights. Input is True/False. Default is stabilized weights (True)
         standardize:
-            -Who to standardize the estimate to. Options are the entire population, the,
-             exposed, or the unexposed. See Sato & Matsuyama. Epidemiology (2003)
-             Options are:
-                'population'    :   entire population
-                'exposed'       :   exposed individuals
-                'unexposed'     :   unexposed individuals
+            -Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. 
+             See Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed
+             Options for standardization are:
+                'population'    :   weight to entire population
+                'exposed'       :   weight to exposed individuals
+                'unexposed'     :   weight to unexposed individuals
+        return_probability:
+            -Whether to return the calculates weights or the denominator probabilities. Default is to return the weights.
+             For diagnostics, the two plots to generate are meant for probabilities and not weights. 
+             
+             For the available diagnostic functions:
+                standardized_diff   :   weight
+                p_hist              :   probability
+                p_boxplot           :   probability
+                positivity          :   weight
         '''
-        p = ipw(self.data,treatment+' ~ '+model)
+        #Generating probabilities of treatment by covariates
+        pd = propensity_score(df,treatment + ' ~ ' + model_denominator)
         twdf = pd.DataFrame()
         twdf['t'] = self.data[treatment].copy()
-        twdf['p'] = p
+        twdf['pd'] = pd
+        if return_probability == True:
+            return twdf.pd
+        
+        #Generating Stabilized Weights if Requested
         if stabilized==True:
-            prev_t = float(np.mean(twdf['t']))
+            #Calculating probabilities for numerator, default goes to Pr(A=a)
+            if model_numerator == None:
+                pn = propensity_score(df,treatment + ' ~ 1')
+            else:
+                pn = propensity_score(df,treatment + ' ~ ' + model_numerator)
+            twdf['pn'] = pn
+            
+            #Stabilizing to population (compares all exposed to unexposed)
             if standardize == 'population':
-                twdf['w'] = np.where(twdf['t']==1, (prev_t / twdf['p']), ((1-prev_t) / (1-twdf['p'])))
+                twdf['w'] = np.where(twdf['t']==1, (twdf['pn'] / twdf['pd']), ((1-twdf['pn']) / (1-twdf['pd'])))
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+            #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['p']/(1-twdf['p'])) * ((1-prev_t)/prev_t))) #something is wrong with formula
+                twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pd']/(1-twdf['pd'])) * ((1-twdf['pn'])/twdf['pn'])))
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+            #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1, (((1-twdf['p'])/twdf['p']) * (prev_t/(1-prev_t))), 1)
+                twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pd'])/twdf['pd']) * (twdf['pn']/(1-twdf['pn']))), 1)
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
             else:
-                raise ValueError('Please specify one of the following weighting schemes: population, exposed, unexposed')
+                raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
+        
+        #Generating Unstabilized Weights if Requested
         else:
+            #Stabilizing to population (compares all exposed to unexposed)
             if standardize == 'population':
-                twdf['w'] = np.where(twdf['t']==1, 1 / twdf['p'], 1 / (1-twdf['p']))
+                twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pd'], 1 / (1-twdf['pd']))
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+            #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1, (twdf['p']/(1-twdf['p'])))
+                twdf['w'] = np.where(twdf['t']==1, 1, (twdf['pd']/(1-twdf['pd'])))
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+            #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1, ((1-twdf['p'])/twdf['p']), 1)
+                twdf['w'] = np.where(twdf['t']==1, ((1-twdf['pd'])/twdf['pd']), 1)
                 twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
             else:
-                raise ValueError('Please specify one of the following weighting schemes: population, exposed, unexposed')
-        self.data['tprob'] = twdf.p
-        self.data['tweight'] = twdf.w
+                raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
+        if return_probability == False:
+            return twdf.w
     
-    def merge_weights(self,otherweight):
-        '''Combine weights from another IPW model (such as adding IPCW or IPMW).
-        This is done simply by multipying the weights together. Note that this process
-        must be done to generate the combined weights for the fit() method to work 
-        as expected 
-        
-        other_weight:
-            -Other weight variable column name in the dataset 
-        '''
-        self.data['tweight'] *= self.data[otherweight]
     
-    def fit(self,model,link_dist=None):
-        '''Fits an IPTW based on a weight generated weights. Model is fit by using 
-        Generalized Estimation Equations with an independent covariance structure. 
-        GEE and the robust variance estimator is meant to correct the confidence 
-        interval deviation due to the added weights of the model
-        
-        df:
-            -pandas dataframe containing the variables of interest
-        model:
-            -Model to fit. Example) 'y ~ treat'
-        link_dist:
-            -Generalized model link and distribution. Default is a logistic
-             binomial model. Will fit any supported statsmodels GEE model type 
-             Some options include:
-                Log-Binomial:  sm.families.family.Binomial(sm.families.links.log)
-                Linear-Risk:   sm.families.family.Binomial(sm.families.links.identity)
-             See statsmodels documentation for a complete list 
-        '''
-        ind = sm.cov_struct.Independence()
-        if link_dist == None:
-            f = sm.families.family.Binomial(sm.families.links.logit)
-        else:
-            f = link_dist
-        iptw_m = smf.gee(model,self.idvar,self.data,cov_struct=ind,family=f,weights=self.data['tweight']).fit()
-        self.result = iptw_m
 
 
-class ipmw:
-    '''IPMW can put raw data into...
-    missing: variable for weights to be generated for 
-    '''
-    def __init__(self,df,idvar,missing):
-        '''Initiliaze with dataframe containing vars
-        '''
-        self.data = df
-        self.idvar = idvar
-        self.data.loc[self.data[missing].isnull(),'obs'] = 0
-        self.data.loc[self.data[missing].notnull(),'obs'] = 1
-    
-    def weight(self,model,stabilized=True):
-        '''Calculates the weight for inverse probability of missing weights
-        through logistic regression. 
+def ipmw(df,missing,model,stabilized=True):
+        '''Calculates the weight for inverse probability of missing weights using logistic regression. 
+        Function automatically codes a missingness indicator (based on np.nan), so data can be directly
+        input.
         
-        Returns a pandas Series of calculated probability and a pandas Series 
-        of weights for all observations
+        Returns a pandas Series of calculated inverse probability of missingness weights for all observations
         
+        df: 
+            -pandas dataframe object containing all variables of interest
+        missing:
+            -Variable with missing data. numpy.nan values should indicate missing observations
         model:
-            -statsmodels glm format for modeling data. Example) 'var1 + var2 + var3'
+            -statsmodels glm format for modeling data. Independent variables should be predictive of missingness
+             of variable of interest. Example) 'var1 + var2 + var3'
+        stabilized:
+            -Whether to return the stabilized or unstabilized IPMW. Default is to return stabilized weights
         '''
-        p = ipw(self.data,'obs ~ '+model)
+        #Generating indicator for Missing data
+        mdf = df.copy()
+        mdf.loc[mdf[missing].isnull(),'observed_indicator'] = 0
+        mdf.loc[mdf[missing].notnull(),'observed_indicator'] = 1
+        
+        #Generating probability of being observed based on model
+        p = propensity_score(self.data,'obs ~ '+model)
+        
+        #Generating weights
         if stabilized==True:
-            p_ = np.mean(self.data.obs)
+            p_ = np.mean(mdf['observed_indicator'])
             w = p_ / p
         else:
             w = p**-1
-        self.data['mprob'] = p 
-        self.data['mweight'] = w
-    
-    def fit(self,model,link_dist=None,fitmodel='gee',time=None):
-        '''Fits an IPMW based on a weight generated weights. Model is fit by using 
-        Generalized Estimation Equations with an independent covariance structure. 
-        GEE and the robust variance estimator is meant to correct the confidence 
-        interval deviation due to the added weights of the model
-
-        Returns a fitted statsmodel GEEResultsWrapper object
-            
-        df:
-            -pandas dataframe containing the variables of interest
-        model:
-            -Model to fit. Example) 'y ~ treat'
-        link_dist:
-            -Generalized model link and distribution. Default is a logistic
-             binomial model. Will fit any supported statsmodels GEE model type 
-             Some options include:
-                Log-Binomial:  sm.families.family.Binomial(sm.families.links.log)
-                Linear-Risk:   sm.families.family.Binomial(sm.families.links.identity)
-             See statsmodels documentation for a complete list 
-        '''
-        ind = sm.cov_struct.Independence()
-        if link_dist == None:
-            f = sm.families.family.Binomial(sm.families.links.logit)
-        else:
-            f = link_dist
-        iptw_m = smf.gee(model,self.idvar,self.data,cov_struct=ind,family=f,weights=self.data['mweight']).fit()
-        self.result = iptw_m
+        return w
 
 
-def ipcw(df,idvar,n_model,d_model,print_models=True,stabilized=True):
+def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
     '''Calculate the inverse probability of censoring weights (IPCW). Note that this function will 
     only operate as expected when a valid dataframe is input. For a valid style of dataframe, see 
     below or the documentation for ipcw_data_converter(). IPCW is calculated via logistic regression
     and weights are cumulative products per unique ID. IPCW can be used to correct for missing at 
     random data by the generated model in weighted Kaplan-Meier curves
+    
+    df:
+        -pandas DataFrame object containing all the variables of interest. This object must be sorted
+         and have a variable called 'uncensored' indicating if an individual remained uncensored for that
+         time period. It is highly recommended that ipcw_prep() is used prior to this function
+    idvar:
+        -Variable indicating a unique identifier for each individual followed over time
+    model_denominator:
+        -statsmodels glm format for modeling data. Only predictor variables for the denominator (variables
+         determined to be related to censoring). All variables included in the numerator, should be included
+         in the denominator. 
+         Example) 'var1 + var2 + var3 + t_start + t_squared'
+    model_numerator:
+        -statsmodels glm format for modeling data. Only includes predictor variables for the numerator.
+         In general, time is included in the numerator. Example) 't_start + t_squared'
+    stabilized:
+        -Whether to return stabilized or unstabilized weights. Input is True/False. Default is stabilized weights (True)
 
     Important notes/limitations:
     1) The dataframe MUST be sorted by ID and ascending time. If not, generated weights will be incorrect
+    2) An indicator variable called 'uncensored' must be generated for the function. This can be accomplished
+       by the ipcw_prep() function
 
     Input data format:
-    cid     t_start     t_end   event   uncensor    ...
+    cid     t_start     t_end   event   uncensored    ...
     101     0           1       0       1
     101     1           2       0       1
     101     2           2.1     1       1
@@ -218,25 +198,23 @@ def ipcw(df,idvar,n_model,d_model,print_models=True,stabilized=True):
     102     3           3.5     0       0
     '''
     cf = df.copy()
-    linkdist=sm.families.family.Binomial(sm.families.links.logit)
-    logn = smf.glm('uncensor ~ '+n_model,cf,family=linkdist).fit()
-    logd = smf.glm('uncensor ~ '+d_model,cf,family=linkdist).fit()
-    if print_models==True:
-        print('Numerator model:')
-        print(logn.summary(),'\n\n')
-        print('Denominator model:')
-        print(logd.summary())
-    cf['num_p'] = logn.predict(cf)
-    cf['den_p'] = logd.predict(cf)
-    cf['num'] = cf.groupby(idvar)['num_p'].cumprod()
-    cf['den'] = cf.groupby(idvar)['den_p'].cumprod()
-    w = cf['num'] / cf['den']
+    print('Numerator model:')
+    cf['pn'] = propensity_score(cf,'uncensored ~ ' + model_numerator)
+    print('Denominator model:')
+    cf['pd'] = propensity_score(cf,'uncensored ~ ' + model_denominator)
+    cf['cn'] = cf.groupby(idvar)['pn'].cumprod()
+    cf['cd'] = cf.groupby(idvar)['pd'].cumprod()
+    
+    #Calculating weight
+    w = cf['cn'] / cf['cd']
     return w    
 
-def merge_ip_weights():
-    #Future function to merge togetherr multiple IP weights...
+def ipcw_prep(df,idvar,t_start,t_end,event):
+    '''Function to prepare the data to an appropriate format for the function ipcw()'''
+    #Need to pull this from other specific code I have previously written
 
-def ip_fitter():
+
+def ipw_fitter(constant_weights=True):
     #Future function to fit IP models (either GEE or weighted KM/NA/AJ models)
 
 
