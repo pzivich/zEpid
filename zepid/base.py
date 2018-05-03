@@ -12,6 +12,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from tabulate import tabulate
+from zepid.calc.calc import rr,rd,nnt,oddsratio,ird,irr,acr,paf,stand_mean_diff
 
 def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
@@ -42,28 +43,8 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
-    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    r1 = (a/(a+b))
-    r2 = (c/(c+d))
-    relrisk = r1/r2
-    SE=math.sqrt((1/a)-(1/(a+b))+(1/c)-(1/(c+d)))
-    lnrr=math.log(relrisk)
-    lcl=lnrr-(zalpha*SE)
-    ucl=lnrr+(zalpha*SE)
-    if print_result == True:
-        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Risk in exposed: ',round(r1,decimal))
-        print('Risk in unexposed: ',round(r2,decimal))
-        print('----------------------------------------------------------------------')
-        print('Relative Risk: ',round(relrisk,decimal))
-        print(str(round(100*(1-alpha),1)),'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-        print('----------------------------------------------------------------------')
-    if return_result == True:
-        return relrisk
-
+    rr(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+ 
 
 def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this 
@@ -94,26 +75,7 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
-    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    r1 = (a/(a+b))
-    r2 = (c/(c+d))
-    riskdiff = r1-r2
-    SE=math.sqrt(((a*b)/((((a+b)**2)*(a+b-1))))+((c*d)/(((c+d)**2)*(c+d-1))))
-    lcl=riskdiff-(zalpha*SE)
-    ucl=riskdiff+(zalpha*SE)
-    if print_result == True:
-        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Risk in exposed: ',round(r1,decimal))
-        print('Risk in unexposed: ',round(r2,decimal))
-        print('----------------------------------------------------------------------')
-        print('Risk Difference: ',round(riskdiff,decimal))
-        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
-        print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
-        print('----------------------------------------------------------------------')
-    if return_result == True:
-        return riskdiff
+    rd(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
 def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
@@ -145,48 +107,7 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
-    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    r1 = (a/(a+b))
-    r2 = (c/(c+d))
-    riskdiff = r1-r2
-    try:
-        NNT = 1/riskdiff
-    except:
-        NNT = 'inf'
-    SE=math.sqrt(((a*b)/((((a+b)**2)*(a+b-1))))+((c*d)/(((c+d)**2)*(c+d-1))))
-    lcl_rd=(riskdiff-(zalpha*SE))
-    ucl_rd=(riskdiff+(zalpha*SE))
-    try:
-        ucl = 1/lcl_rd
-    except:
-        ucl = 'inf'
-    try:
-        lcl = 1/ucl_rd
-    except:
-        lcl = 'inf'
-    if print_result == True:
-        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Risk Difference: ',round(riskdiff,decimal))
-        print('----------------------------------------------------------------------')
-        if riskdiff == 0:
-            print('Number Needed to Treat = infinite')
-        else:
-            if riskdiff > 0:
-                print('Number Needed to Harm: ',round(abs(NNT),decimal),'\n')
-            if riskdiff < 0:
-                print('Number Needed to Treat: ',round(abs(NNT),decimal),'\n')
-        print(str(round(100*(1-alpha),1))+'% two-sided CI: ')
-        if lcl_rd < 0 < ucl_rd:
-            print('NNT ',round(abs(lcl),decimal),'to infinity to NNH ',round(abs(ucl),decimal))
-        elif 0 < lcl_rd:
-            print('NNH ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
-        else:
-            print('NNT ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
-        print('----------------------------------------------------------------------')
-    if return_result == True:
-        return NNT
+    nnt(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
 def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
@@ -226,18 +147,7 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
     lnor=math.log(oddsratio)
     lcl=lnor-(zalpha*SE)
     ucl=lnor+(zalpha*SE)
-    if print_result == True:
-        print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Odds in exposed: ',round(o1,decimal))
-        print('Odds in unexposed: ',round(o2,decimal))
-        print('----------------------------------------------------------------------')
-        print('Odds Ratio: ',round(oddsratio,decimal))
-        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-        print('----------------------------------------------------------------------')
-    if return_result == True:
-        return oddsratio
+    oddsratio(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
 def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
@@ -269,29 +179,9 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    if ((a<=5) | (c<=5)):
-        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     time_a = df.loc[df[exposure]==1][time].sum()
     time_c = df.loc[df[exposure]==0][time].sum()
-    ir_e = (a/time_a)
-    ir_u = (c/time_c)
-    irr = ir_e/ir_u
-    SE=math.sqrt((1/a)+(1/c))
-    lnirr=math.log(irr)
-    lcl=lnirr-(zalpha*SE)
-    ucl=lnirr+(zalpha*SE)
-    if print_result == True:
-        print(tabulate([['E=1',a,time_a],['E=0',c,time_c]],headers=['','D=1','Person-time'],tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Incidence Rate in exposed: ',round(ir_e,decimal))
-        print('Incidence Rate in unexposed: ',round(ir_u,decimal))
-        print('----------------------------------------------------------------------')
-        print('Incidence Rate Ratio: ',round(irr,decimal))
-        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
-        print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-        print('----------------------------------------------------------------------')
-    if return_result == True:
-        return irr
+    irr(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
 def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
@@ -321,28 +211,9 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    if ((a<=5) | (c<=5)):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     time_a = df.loc[df[exposure]==1][time].sum()
     time_c = df.loc[df[exposure]==0][time].sum()
-    ir_e = (a/time_a)
-    ir_u = (c/time_c)
-    ird = ir_e-ir_u
-    SE=math.sqrt((a/((time_a)**2))+(c/((time_c)**2)))
-    lcl=ird-(zalpha*SE)
-    ucl=ird+(zalpha*SE)
-    if print_result == True:
-        print(tabulate([['E=1',a,time_a],['E=0',c,time_c]],headers=['','D=1','Person-time'],tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Incidence Rate in exposed: ',round(ir_e,decimal))
-        print('Incidence Rate in unexposed: ',round(ir_u,decimal))
-        print('----------------------------------------------------------------------')
-        print('Incidence Rate Difference: ',round(ird,decimal))
-        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
-        print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
-        print('----------------------------------------------------------------------')
-    if return_result == True:
-        return ird
+    ird(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
  
 
 def ACR(df,exposure,outcome,decimal=3):
@@ -368,13 +239,7 @@ def ACR(df,exposure,outcome,decimal=3):
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
-    print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
-    rt=(a+c)/(a+b+c+d)
-    r0=c/(c+d)
-    acr=(rt-r0)
-    print('----------------------------------------------------------------------')
-    print('ACR: ',round(acr,decimal))
-    print('----------------------------------------------------------------------')
+    acr(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
 def PAF(df,exposure, outcome,decimal=3):
@@ -396,13 +261,7 @@ def PAF(df,exposure, outcome,decimal=3):
     b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
     c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
     d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
-    print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
-    rt=(a+c)/(a+b+c+d)
-    r0=c/(c+d)
-    paf=(rt-r0)/rt
-    print('----------------------------------------------------------------------')
-    print('PAF: ',round(paf,decimal))
-    print('----------------------------------------------------------------------')
+    paf(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
 def IC(df,exposure,outcome,modifier,adjust='',decimal=5):

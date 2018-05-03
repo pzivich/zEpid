@@ -29,14 +29,13 @@ Contents:
     |-Sensitivity(): calculate sensitivity from pandas dataframe
     |-Specificity(): calculate specificity from pandas dataframe
     |-spline(): generate spline terms for continuous variable in pandas dataframe
-    |-survival_lower_upper(): generate pandas dataframes for upper/lower survival analysis
     |
     |___calc
     |    |
     |    |-rr(): calculate risk ratio from summary data 
     |    |-rd(): calculate risk difference from summary data 
     |    |-nnt(): calculate number needed to treat from summary data 
-    |    |-oddr(): calculate odds ratio from summary data 
+    |    |-oddsratio(): calculate odds ratio from summary data 
     |    |-ird(): calculate incidence rate difference from summary data 
     |    |-irr(): calculate incidence rate ratio from summary data 
     |    |-acr(): calculate attributable community risk from summary data 
