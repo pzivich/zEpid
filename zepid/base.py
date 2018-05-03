@@ -39,10 +39,10 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     >zepid.RelRisk(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
     rr(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
  
 
@@ -71,10 +71,10 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     >zepid.RiskDiff(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
     rd(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
@@ -103,10 +103,10 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     >zepid.NNT(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
     nnt(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
@@ -134,19 +134,10 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
     >zepid.OddsRatio(df=data,exposure='exposure',outcome='outcome')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
-    if ((a<=5) | (b<=5) | (c<=5) | (d<=5)):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    o1 = (a/b)
-    o2 = (c/d)
-    oddsratio = o1/o2
-    SE=math.sqrt((1/a)+(1/b)+(1/c)+(1/d))
-    lnor=math.log(oddsratio)
-    lcl=lnor-(zalpha*SE)
-    ucl=lnor+(zalpha*SE)
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
     oddsratio(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
@@ -177,8 +168,8 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
     >zepid.IncRateRatio(df=data,exposure='exposure',outcome='outcome',time='person_time')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
     time_a = df.loc[df[exposure]==1][time].sum()
     time_c = df.loc[df[exposure]==0][time].sum()
     irr(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
@@ -209,8 +200,8 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
     >zepid.IncRateDiff(df=data,exposure='exposure',outcome='outcome',time='person_time')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
     time_a = df.loc[df[exposure]==1][time].sum()
     time_c = df.loc[df[exposure]==0][time].sum()
     ird(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
@@ -235,10 +226,10 @@ def ACR(df,exposure,outcome,decimal=3):
     Example)
     >zepid.ACR(df=data,exposure='exposure',outcome='outcome')
     '''
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
     acr(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
@@ -257,10 +248,10 @@ def PAF(df,exposure, outcome,decimal=3):
     Example)
     >zepid.PAF(df=data,exposure='exposure',outcome='outcome')
     '''
-    a = len(df.loc[(df[exposure]==1)&(df[outcome]==1)])
-    b = len(df.loc[(df[exposure]==1)&(df[outcome]==0)])
-    c = len(df.loc[(df[exposure]==0)&(df[outcome]==1)])
-    d = len(df.loc[(df[exposure]==0)&(df[outcome]==0)])
+    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
+    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
+    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
     paf(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
@@ -390,7 +381,7 @@ def ICR(df,exposure,outcome,modifier,adjust='',regression='log',ci='delta',b_sam
         ul = 1 - alpha/2
         ll = 0 + alpha/2
         for i in range(b_sample):
-            dfs = df.sample(n=len(df),replace=True)
+            dfs = df.sample(n=df.shape[0],replace=True)
             try:
                 bmodel = smf.glm(eq,dfs,family=f).fit()
                 em_bexpect = math.exp(bmodel.params['E1M0']) + math.exp(bmodel.params['E0M1']) - 1
@@ -441,10 +432,10 @@ def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_re
     Example)
     >zepid.Sensitivity(df,test='test_result',disease='outcome_stat')
     '''
-    a = len(df.loc[(df[test]==1)&(df[disease]==1)])
-    b = len(df.loc[(df[test]==1)&(df[disease]==0)])
-    c = len(df.loc[(df[test]==0)&(df[disease]==1)])
-    d = len(df.loc[(df[test]==0)&(df[disease]==0)])
+    a = df.loc[(df[test]==1)&(df[disease]==1)].shape[0]
+    b = df.loc[(df[test]==1)&(df[disease]==0)].shape[0]
+    c = df.loc[(df[test]==0)&(df[disease]==1)].shape[0]
+    d = df.loc[(df[test]==0)&(df[disease]==0)].shape[0]
     sens = a/(a+c)
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     se = math.sqrt((sens*(1-sens)) / (a+c))
@@ -484,10 +475,10 @@ def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_resul
     Example)
     >zepid.Specificity(df,test='test_result',disease='outcome_stat')    
     '''
-    a = len(df.loc[(df[test]==1)&(df[disease]==1)])
-    b = len(df.loc[(df[test]==1)&(df[disease]==0)])
-    c = len(df.loc[(df[test]==0)&(df[disease]==1)])
-    d = len(df.loc[(df[test]==0)&(df[disease]==0)])
+    a = df.loc[(df[test]==1)&(df[disease]==1)].shape[0]
+    b = df.loc[(df[test]==1)&(df[disease]==0)].shape[0]
+    c = df.loc[(df[test]==0)&(df[disease]==1)].shape[0]
+    d = df.loc[(df[test]==0)&(df[disease]==0)].shape[0]
     spec = d/(d+b)
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     se = math.sqrt((spec*(1-spec)) / (b+d))
@@ -521,17 +512,13 @@ def StandMeanDiff(df,binary,continuous,decimal=3):
     Example)
     zepid.StandMeanDiff(df=data,binary='expo',continuous='age')
     '''
-    v0 = df.loc[df[binary]==0]
-    v1 = df.loc[df[binary]==1]
+    v0 = df.loc[df[binary]==0].shape[0]
+    v1 = df.loc[df[binary]==1].shape[0]
     m0 = np.mean(v0[continuous])
     m1 = np.mean(v1[continuous])
     sd0 = np.std(v0[continuous])
     sd1 = np.std(v1[continuous])
-    pooled_sd = math.sqrt((((len(v0) - 1) * (sd0**2)) + ((len(v1) - 1) * (sd1**2))) / (len(v0) + len(v1) - 2))
-    smd = abs(((m0 - m1) / pooled_sd))
-    print('----------------------------------------------------------------------')
-    print('Standardized Mean Difference: '+str(round(smd,decimal)))
-    print('----------------------------------------------------------------------')
+    stand_mean_diff(n1=v0,n2=v1,mean1=m0,mean2=m1,sd1=sd0,sd2=sd1,decimal=decimal)
 
 
 def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
