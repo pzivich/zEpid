@@ -29,6 +29,9 @@ def rr_corr(rr_obs,rr_conf,p1,p0):
         -Estimated proportion of those with unmeasured confounder in the exposed group
     p0:
         -Estimated porportion of those with unmeasured confounder in the unexposed group
+    
+    Example)
+    >>>zepid.sens_analysis.rr_corr(rr_obs=1.5,rr_conf=1.1,p1=0.6,p0=0.4)
     '''
     denom = (p1*(rr_conf-1)+1) / (p0*(rr_conf-1)+1)
     rr_adj = rr_obs / denom
@@ -54,6 +57,9 @@ def trapezoidal(mini,mode1,mode2,maxi,size=100000,seed=None):
         -number of observations to generate
     seed:
         -specify a seed for reproducible results. Default is None
+    
+    Example)
+    >>>zepid.sens_analysis.trapezoidal(mini=0.2,mode1=0.3,mode2=0.5,maxi=0.6,size=3,seed=1234)
     '''
     if seed != None:
         np.random.seed(seed)
@@ -71,7 +77,7 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
     uses statsmodels to calculate betas. All observations and the difference in estimates is stored 
     in a pandas dataframe that is returned by the function. Multiple delta betas are able to estimated
     at once. All beta(s) of interest should be included in a list. Difference in estimates is calculated 
-    by substracting the full model results from the reduced results
+    by substracting the full model results from the reduced results. Returns dataframe of requested betas
 
     NOTE: that if a delta beta is missing in the returned dataframe, this indicates the model had convergence
     issues when that observation (or group of observations) was removed from the model.
@@ -89,13 +95,16 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
          variable names of beta(s) of interest
     model:
         -Whether to use GLM or GEE. Default is GLM
+    match:
+        -Variable to match observations on for a GEE model
     group:
         -Whether to drop groups. Default is False, which drops individual observations rather than by 
          dropping groups of observations. If group is set to True, groupvar must be specified
     groupvar:
         -Variable which to group by to conduct the delta beta analysis. group must be set to True for this variable to be used.
-        
-    Return: dataframe of requested betas in a pandas dataframe
+    
+    Example)
+    >>>zepid.sens_analysis.delta_beta(df=data,eq='D ~ X + var1 + var2',beta='X')
     '''
     if type(beta) is not list:
         raise ValueError("Input 'beta' must be a list object")
