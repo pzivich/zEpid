@@ -82,18 +82,16 @@ class effectmeasure_plot:
             -size           + size of the plot to generate
     
     
-    Below is an example of this function:
-    
-    >lab = ['One','Two'] #generating lists of data to plot
-    >emm = [1.01,1.31]
-    >lcl = ['0.90',1.01]
-    >ucl = [1.11,1.53]
-    >
-    >x = effectmeasure_plot(lab,emm,lcl,ucl) #initializing effectmeasure_plot with the above lists
-    >x.labels(effectmeasure='RR') #changing the table label to 'RR'
-    >x.colors(pointcolor='r') #changing the point colors to red 
-    >x.plot(t_adjuster=0.13) #generating the effect measure plot 
-
+    Example)
+    >>>lab = ['One','Two'] #generating lists of data to plot
+    >>>emm = [1.01,1.31]
+    >>>lcl = ['0.90',1.01]
+    >>>ucl = [1.11,1.53]
+    >>>
+    >>>x = zepid.graphics.effectmeasure_plot(lab,emm,lcl,ucl) #initializing effectmeasure_plot with the above lists
+    >>>x.labels(effectmeasure='RR') #changing the table label to 'RR'
+    >>>x.colors(pointcolor='r') #changing the point colors to red 
+    >>>x.plot(t_adjuster=0.13) #generating the effect measure plot 
     '''
     def __init__(self,label,effect_measure,lcl,ucl):
         '''Initializes effectmeasure_plot with desired data to plot. All lists should be the same 
@@ -261,7 +259,8 @@ class effectmeasure_plot:
 
 
 
-def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=None,ylims=None,loess_value=0.5,legend=True,model_results=True,loess=True,points=False):
+def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=None,ylims=None,loess_value=0.5,
+                   legend=True,model_results=True,loess=True,points=False):
     '''Creates a LOESS plot to aid in functional form assessment for continuous variables.
     Plots can be created for binary and continuous outcomes. Default options are set to create
     a functional form plot for a binary outcome. To convert to a continuous outcome, 
@@ -301,6 +300,10 @@ def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=No
         -Whether to plot the LOESS curve along with the functional form. Default is True
     points:
         -Whether to plot the data points, where size is relative to the number of observations. Default is False
+    
+    Example)
+    >>>data['var1_sq'] = data['var1']**2
+    >>>zepid.graphics.func_form_plot(df=data,outcome='D',var='var1',f_form='var1 + var1_sq')
     '''
     rf = df.copy()
     rf = rf.dropna().sort_values(by=[var,outcome]).reset_index()
@@ -370,7 +373,7 @@ def pvalue_plot(point,se,color='b',fill=True,null=0):
     specific value. I think it is useful to explain what exactly a p-value tells you. Note that this
     plot only works for measures on a linear scale (i.e. it will plot exp(log(RR)) incorrectly). It also
     helps to understand what exactly confidence intervals are telling you. These  plots are based on 
-    Rothman K. "Epidemiology" 2nd Edition pg 152-153 and explained more fully within.
+    Rothman Epidemiology 2nd Edition pg 152-153 and explained more fully within.
     
     Returns matplotlib axes object
     
@@ -384,6 +387,9 @@ def pvalue_plot(point,se,color='b',fill=True,null=0):
         -Whether to fill the curve under the p-value distribution. Setting to False prevents fill 
     null:
         -The main value to compare to. The default is zero
+    
+    Example)
+    >>>zepid.graphics.pvalue_plot(point=-0.1,se=0.05)
     '''
     if point <= null:
         lower = (point - 3 * se)
