@@ -36,7 +36,7 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >zepid.RelRisk(df=data,exposure='exposure',outcome='outcome')
+    >>>zepid.RelRisk(df=data,exposure='X',outcome='D')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -68,7 +68,7 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
         -Whether to return the RD as a object. Default is False
     
     Example)
-    >zepid.RiskDiff(df=data,exposure='exposure',outcome='outcome')
+    >>>zepid.RiskDiff(df=data,exposure='X',outcome='D')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -100,7 +100,7 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
         -Whether to return the NNT as a object. Default is False
     
         Example)
-    >zepid.NNT(df=data,exposure='exposure',outcome='outcome')
+    >>>zepid.NNT(df=data,exposure='X',outcome='D')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -131,7 +131,7 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >zepid.OddsRatio(df=data,exposure='exposure',outcome='outcome')
+    >>>zepid.OddsRatio(df=data,exposure='X',outcome='D')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -165,7 +165,7 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >zepid.IncRateRatio(df=data,exposure='exposure',outcome='outcome',time='person_time')
+    >>>zepid.IncRateRatio(df=data,exposure='X',outcome='D',time='time')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -197,7 +197,7 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >zepid.IncRateDiff(df=data,exposure='exposure',outcome='outcome',time='person_time')
+    >>>zepid.IncRateDiff(df=data,exposure='X',outcome='D',time='time')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -224,7 +224,7 @@ def ACR(df,exposure,outcome,decimal=3):
         -amount of decimal points to display. Default is 3
 
     Example)
-    >zepid.ACR(df=data,exposure='exposure',outcome='outcome')
+    >>>zepid.ACR(df=data,exposure='X',outcome='D')
     '''
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
     b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
@@ -246,7 +246,7 @@ def PAF(df,exposure, outcome,decimal=3):
         -amount of decimal points to display. Default is 3
     
     Example)
-    >zepid.PAF(df=data,exposure='exposure',outcome='outcome')
+    >>>zepid.PAF(df=data,exposure='X',outcome='D')
     '''
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
     b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
@@ -255,7 +255,7 @@ def PAF(df,exposure, outcome,decimal=3):
     paf(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
-def IC(df,exposure,outcome,modifier,adjust='',decimal=5):
+def IC(df,exposure,outcome,modifier,adjust=None,decimal=5):
     '''Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear 
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit 
@@ -272,7 +272,7 @@ def IC(df,exposure,outcome,modifier,adjust='',decimal=5):
     modifier:
         -column name of modifier variable. Must be coded as (0,1) where 1 is modifier
     adjust:
-        -string of other variables to adjust for, in correct statsmodels format. Default is none
+        -string of other variables to adjust for, in correct statsmodels format. Default is None
         NOTE: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates variables with those names. 
               Answers will be incorrect
          Ex) '+ C1 + C2 + C3 + Z'
@@ -280,12 +280,15 @@ def IC(df,exposure,outcome,modifier,adjust='',decimal=5):
         -Number of decimals to display in result. Default is 3
     
     Example)
-    zepid.IC(df=data,exposure='expo',outcome='event',modifier='modi',adjust='+ Z') 
+    >>>zepid.IC(df=data,exposure='X',outcome='D',modifier='Z',adjust='var1 + var2') 
     '''
     df.loc[((df[exposure]==1)&(df[modifier]==1)),'E1M1'] = 1
     df.loc[((df[exposure]!=1)|(df[modifier]!=1)),'E1M1'] = 0
     df.loc[((df[exposure].isnull())|(df[modifier].isnull())),'E1M1'] = np.nan
-    eq = outcome + '~'+exposure+'+'+modifier+'+E1M1' + adjust
+    if adjust == None:
+        eq = outcome + ' ~ '+ exposure + ' + ' + modifier + ' + E1M1'
+    else:
+        eq = outcome + ' ~ '+ exposure + ' + ' + modifier + ' + E1M1' + adjust
     f = sm.families.family.Binomial(sm.families.links.identity)
     model = smf.glm(eq,df,family=f).fit()
     print(model.summary())
@@ -340,6 +343,9 @@ def ICR(df,exposure,outcome,modifier,adjust='',regression='log',ci='delta',b_sam
         -Alpha level for confidence interval. Default is 0.05
     decimal:
         -Number of decimal places to display in result. Default is 3
+    
+    Example)
+    >>>zepid.ICR(df=data,exposure='X',outcome='D',modifier='Z',adjust='var1 + var2')
     '''
     df.loc[((df[exposure]==1)&(df[modifier]==0)),'E1M0'] = 1
     df.loc[((df[exposure]!=1)|(df[modifier]!=0)),'E1M0'] = 0
@@ -430,7 +436,7 @@ def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_re
         -Whether to return the RR as a object. Default is False.
     
     Example)
-    >zepid.Sensitivity(df,test='test_result',disease='outcome_stat')
+    >zepid.Sensitivity(df=data,test='test_disease',disease='true_disease')
     '''
     a = df.loc[(df[test]==1)&(df[disease]==1)].shape[0]
     b = df.loc[(df[test]==1)&(df[disease]==0)].shape[0]
@@ -473,7 +479,7 @@ def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_resul
         -Whether to return the RR as a object. Default is False.
     
     Example)
-    >zepid.Specificity(df,test='test_result',disease='outcome_stat')    
+    >zepid.Specificity(df=data,test='test_disease',disease='true_disease')    
     '''
     a = df.loc[(df[test]==1)&(df[disease]==1)].shape[0]
     b = df.loc[(df[test]==1)&(df[disease]==0)].shape[0]
@@ -510,7 +516,7 @@ def StandMeanDiff(df,binary,continuous,decimal=3):
         -Number of decimal places to display. Default is 3
     
     Example)
-    zepid.StandMeanDiff(df=data,binary='expo',continuous='age')
+    zepid.StandMeanDiff(df=data,binary='X',continuous='var1')
     '''
     v0 = df.loc[df[binary]==0].shape[0]
     v1 = df.loc[df[binary]==1].shape[0]
@@ -549,7 +555,7 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
          Default is False, providing an unrestricted spline
     
     Example)
-    >zepid.spline(df=data,var='age',n_knots=4,knots=[18,30,50,65],term=2,restricted=True)
+    >zepid.spline(df=data,var='var1',n_knots=4,knots=[18,30,50,65],term=2,restricted=True)
     '''
     if knots == None:
         if n_knots == 1:
