@@ -1,7 +1,7 @@
 from setuptools import setup 
 
-setup(
-    name='zepid',
+
+setup(name='zepid',
     version='0.1.0',
     description='Tool package for epidemiologic analyses',
     author='Paul Zivich',
