@@ -58,7 +58,7 @@ def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         -Whether to return the RR as a object. Default is False
     
     Example)
-    zepid.calc.rr(25,32,145,192)
+    >>>zepid.calc.rr(25,32,145,192)
     '''
     if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
@@ -107,7 +107,7 @@ def rd(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         -Whether to return the RR as a object. Default is False
         
     Example)
-    zepid.calc.rd(25,32,145,192)
+    >>>zepid.calc.rd(25,32,145,192)
     '''
     if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
@@ -154,7 +154,7 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         -Whether to return the RR as a object. Default is False
     
     Example)
-    zepid.calc.nnt(25,32,145,192)
+    >>>zepid.calc.nnt(25,32,145,192)
     '''
     if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
@@ -223,7 +223,7 @@ def oddsratio(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False
         -Whether to return the RR as a object. Default is False
     
     Example)
-    zepid.calc.oddr(25,32,145,192)
+    >>>zepid.calc.oddr(25,32,145,192)
     '''
     if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
@@ -272,7 +272,7 @@ def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
         -Whether to return the RR as a object. Default is False
     
     Example)
-    zepid.calc.irr(25,32,436,731)
+    >>>zepid.calc.irr(25,32,436,731)
     '''
     if ((a<0) | (c<0) | (T1<=0) | (T2<=0)):
         raise ValueError('All numbers must be positive')
@@ -321,7 +321,7 @@ def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
         -Whether to return the RR as a object. Default is False
     
     Example)
-    zepid.calc.ird(25,32,436,731)
+    >>>zepid.calc.ird(25,32,436,731)
     '''
     if ((a<0) | (c<0) | (T1<=0) | (T2<=0)):
         raise ValueError('All numbers must be positive')
@@ -365,7 +365,7 @@ def acr(a,b,c,d,decimal=3):
         -amount of decimal points to display. Default is 3
     
     Example)
-    zepid.calc.acr(25,32,145,192)
+    >>>zepid.calc.acr(25,32,145,192)
     '''
     if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
@@ -392,7 +392,7 @@ def paf(a,b,c,d,decimal=3):
         -amount of decimal points to display. Default is 3
     
     Example)
-    zepid.calc.paf(25,32,145,192)
+    >>>zepid.calc.paf(25,32,145,192)
     '''
     if ((a<0) | (b<0) | (c<0) | (d<0)):
         raise ValueError('All numbers must be positive')
@@ -412,7 +412,7 @@ def prop_to_odds(prop):
         -proportion that is desired to transform into odds
     
     Example)
-    zepid.calc.prop_to_odds(0.31)
+    >>>zepid.calc.prop_to_odds(0.31)
     '''
     odds = prop / (1-prop)
     return odds
@@ -425,7 +425,7 @@ def odds_to_prop(odds):
         -odds that is desired to transform into a proportion
     
     Example)
-    zepid.calc.odds_to_prop(1.1)
+    >>>zepid.calc.odds_to_prop(1.1)
     '''
     prop = odds / (1+odds)
     return prop
@@ -446,7 +446,7 @@ def risk_ci(events,total,alpha=0.05,decimal=3):
         -Number of decimal places to display. Default is 3 decimal places
     
     Example)
-    zepid.calc.risk_ci(25,145)
+    >>>zepid.calc.risk_ci(25,145)
     '''
     risk = events/total
     c = 1 - alpha/2
@@ -471,7 +471,7 @@ def ir_ci(events,time,alpha=0.05,return_result=False,decimal=3):
         -amount of decimal places to display. Default is 3 decimal places
     
     Example)
-    zepid.calc.ir_ci(25,436)
+    >>>zepid.calc.ir_ci(25,436)
     '''
     c = 1 - alpha/2
     ir = events/time
@@ -632,7 +632,7 @@ def ppv_conv(sensitivity,specificity,prevalence):
         -prevalence of the outcome in the population
     
     Example)
-    zepid.calc.ppv_conv(0.9,0.9,0.05)
+    >>>zepid.calc.ppv_conv(0.9,0.9,0.05)
     '''
     if ((sensitivity > 1)|(specificity > 1)|(prevalence > 1)):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -654,7 +654,7 @@ def npv_conv(sensitivity,specificity,prevalence):
         -prevalence of the outcome in the population
     
     Example)
-    zepid.calc.npv_conv(0.9,0.9,0.05)
+    >>>zepid.calc.npv_conv(0.9,0.9,0.05)
     '''
     if ((sensitivity > 1)|(specificity > 1)|(prevalence > 1)):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -691,7 +691,7 @@ def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity
         -amount of decimal points to display. Default value is 3
     
     Example)
-    zepid.calc.screening_cost_analyzer(2,1,0.05,0.9,0.9)
+    >>>zepid.calc.screening_cost_analyzer(2,1,0.05,0.9,0.9)
     '''
     print('----------------------------------------------------------------------')
     print('''NOTE: When calculating costs, be sure to consult experts in health\npolicy or related fields.  
@@ -764,7 +764,7 @@ def stand_mean_diff(n1,n2,mean1,mean2,sd1,sd2,decimal=3):
         -Number of decimal places to display. Default is 3
     
     Example)
-    zepid.calc.stand_mean_diff(10,20,0.5,0.7,0.01,0.01)
+    >>>zepid.calc.stand_mean_diff(10,20,0.5,0.7,0.01,0.01)
     '''
     pooled_sd = math.sqrt((((n1 - 1) * (sd1**2)) + ((n2 - 1) * (sd2**2))) / n1 + n2 - 2)
     smd = abs(((mean1 - mean2) / pooled_sd))
