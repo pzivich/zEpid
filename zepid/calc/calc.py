@@ -19,6 +19,7 @@ Contents:
 -npv_conv(): calculate negative predictive value
 -screening_cost_analyzer(): calculate relative costs of screening program
 -counternull_pvalue(): calculate counternull p-value
+-semibayes(): calculate a semi Bayesian estimate
 '''
 
 import warnings
@@ -510,7 +511,7 @@ def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
         -Number of decimal places to display. Default is three
     
     Example)
-    zepid.calc.counternull_pvalue(1.1,0.9,1.2)
+    >>>zepid.calc.counternull_pvalue(1.1,0.9,1.2)
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     se = (ucl - lcl) / (zalpha*2)
@@ -533,12 +534,13 @@ def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
     print('----------------------------------------------------------------------')
 
 
-def bayes_approx(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,alpha=0.05,decimal=3):
+def semibayes(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,alpha=0.05,decimal=3):
     '''A simple Bayesian Analysis. Note that this analysis assumes normal distribution for the 
-    continuous measure. 
+    continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340)
     
     Warning: Make sure that the alpha used to generate the confidence intervals matches the alpha
-    used in this calculation
+    used in this calculation. Additionally, this calculation can only handle normally distributed 
+    priors and observed 
     
     prior_mean:
         -Prior designated point estimate
@@ -561,8 +563,9 @@ def bayes_approx(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,
         -Number of decimal places to display. Default is three
     
     Example)
-    zepid.calc.bayes_approx(0.1,0,0.2,0.2,0,0.4)
+    >>>zepid.calc.bayes_approx(prior_mean=0.1,prior_lcl=0,prior_ucl=0.2,mean=0.2,lcl=0,ucl=0.4)
     '''
+    #Transforming to log scale if ratio measure
     if ln_transform==True:
         prior_mean = math.log(prior_mean)
         prior_lcl = math.log(prior_lcl)
@@ -571,17 +574,28 @@ def bayes_approx(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,
         lcl = math.log(lcl)
         ucl = math.log(ucl)
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
+    
+    #Extracting prior SD
     prior_sd = (prior_ucl - prior_lcl) / (2*zalpha)
     prior_var = prior_sd**2
     prior_w = 1 / prior_var
+    
+    #Extracting observed SD
     sd = (ucl - lcl) / (2*zalpha)
     var = sd**2
     w = 1 / var 
+    
+    #Checking Prior
+    check = (mean - prior_mean) / ((var + prior_var)**(1/2))
+    
+    #Calculating posterior
     post_mean = ((prior_mean*prior_w)+(mean*w)) / (prior_w + w)
     post_var = 1 / (prior_w + w)
     sd = math.sqrt(post_var)
     post_lcl = post_mean - zalpha*sd 
     post_ucl = post_mean + zalpha*sd
+    
+    #Transforming back if ratio measure
     if ln_transform==True:
         post_mean = math.exp(post_mean)
         post_lcl = math.exp(post_lcl)
@@ -592,6 +606,8 @@ def bayes_approx(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,
         mean = math.exp(mean)
         lcl = math.exp(lcl)
         ucl = math.exp(ucl)
+    
+    #Presenting Results
     print('----------------------------------------------------------------------')
     print('Prior Estimate: ',round(prior_mean,decimal))
     print(str(round((1-alpha)*100,1))+'% Prior Confidence Interval: (',round(prior_lcl,decimal),', ',round(prior_ucl,decimal),')')
@@ -678,24 +694,29 @@ def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity
     zepid.calc.screening_cost_analyzer(2,1,0.05,0.9,0.9)
     '''
     print('----------------------------------------------------------------------')
-    print('WARNING: When calculating costs, be sure to consult experts in health\npolicy or related fields.  Costs should encompass more than only monetary\ncosts, like relative costs (regret, disappointment, stigma, disutility, etc.)')
+    print('''NOTE: When calculating costs, be sure to consult experts in health\npolicy or related fields.  
+        Costs should encompass more than only monetary\ncosts, like relative costs (regret, disappointment, stigma, 
+        disutility, etc.)''')
     if (sensitivity>1) | (specificity>1):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
     disease = population*prevalence
     disease_free = population - disease
+    
+    #TEST: no positives
     nt_cost = disease * cost_miss_case
-        #per capita cost 
     pc_nt_cost = nt_cost/population
-    #TEST: all
-        #total cost of testing
+    
+    #TEST: all postives
     t_cost = disease_free * cost_false_pos
-        #per capita cost 
     pc_t_cost = t_cost/population
+    
     #TEST: criteria
     cost_b = disease - (disease*sensitivity)
     cost_c = disease_free - (disease_free*specificity)
     ct_cost = (cost_miss_case*cost_b) + (cost_false_pos*cost_c)
     pc_ct_cost = ct_cost/population
+    
+    #Present results
     print('----------------------------------------------------------------------')
     print('Treat everyone as Test-Negative')
     print('Total relative cost:\t\t',round(nt_cost,decimal))
