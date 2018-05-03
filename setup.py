@@ -7,6 +7,8 @@ setup(name='zepid',
     author='Paul Zivich',
     author_email='zepidpy@gmail.com',
     url = 'https://github.com/pzivich/zepid',
-    classifiers = ['Programming Language :: Python :: 3.5']
-    install_requires=['pandas'>=0.18,'numpy','statsmodels','matplotlib','scipy','networkx','lifelines','tabulate'],
+    classifiers = ['Programming Language :: Python :: 3.5'],
+    install_requires = ['pandas>=0.18','numpy','statsmodels',
+                        'matplotlib','scipy','networkx',
+                        'lifelines','tabulate'],
     keywords=['epidemiology'])
