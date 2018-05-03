@@ -24,6 +24,9 @@ def propensity_score(df,model,mresult=True):
         -Model to fit the logistic regression to. Example) 'y ~ var1 + var2'
     mresult:
         -Whether to print the logistic regression results. Default is True
+    
+    Example)
+    >>>zepid.ipw.propensity_score(df=data,model='X ~ Z + var1 + var2')
     '''
     f = sm.families.family.Binomial(sm.families.links.logit) 
     log = smf.glm(model,df,family=f).fit()
@@ -34,128 +37,128 @@ def propensity_score(df,model,mresult=True):
 
 
 def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,standardize='population',return_probability=False):
-        '''Calculates the weight for inverse probability of treatment weights through logistic regression. 
-        Function can return either stabilized or unstabilized weights. Stabilization is based on model_numerator.
-        Default is just to calculate the prevalence of the treatment in the population.
+    '''Calculates the weight for inverse probability of treatment weights through logistic regression. 
+    Function can return either stabilized or unstabilized weights. Stabilization is based on model_numerator.
+    Default is just to calculate the prevalence of the treatment in the population.
     
-        Returns a pandas Series of the weights of observations. Probabilities can also be requested instead
-        
-        df: 
-            -pandas dataframe object containing all variables of interest
-        treatment:
-            -Variable name of treatment variable of interest. Must be coded as binary.
-             1 should indicate treatment, while 0 indicates no treatment
-        model_denominator:
-            -statsmodels glm format for modeling data. Only includes predictor variables Example) 'var1 + var2 + var3'
-        model_numerator:
-            -statsmodels glm format for modeling data. Only includes predictor variables for the numerator. Default (None)
-             calculates the overall probability. In general this is recommended. If confounding variables are included in
-             the numerator, they would later need to be adjusted for. Example) 'var1'
-        stabilized:
-            -Whether to return stabilized or unstabilized weights. Input is True/False. Default is stabilized weights (True)
-        standardize:
-            -Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. 
-             See Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed
-             Options for standardization are:
-                'population'    :   weight to entire population
-                'exposed'       :   weight to exposed individuals
-                'unexposed'     :   weight to unexposed individuals
-        return_probability:
-            -Whether to return the calculates weights or the denominator probabilities. Default is to return the weights.
-             For diagnostics, the two plots to generate are meant for probabilities and not weights. 
+    Returns a pandas Series of the weights of observations. Probabilities can also be requested instead
+    
+    df: 
+        -pandas dataframe object containing all variables of interest
+    treatment:
+        -Variable name of treatment variable of interest. Must be coded as binary.
+         1 should indicate treatment, while 0 indicates no treatment
+    model_denominator:
+        -statsmodels glm format for modeling data. Only includes predictor variables Example) 'var1 + var2 + var3'
+    model_numerator:
+        -statsmodels glm format for modeling data. Only includes predictor variables for the numerator. Default (None)
+         calculates the overall probability. In general this is recommended. If confounding variables are included in
+         the numerator, they would later need to be adjusted for. Example) 'var1'
+    stabilized:
+        -Whether to return stabilized or unstabilized weights. Input is True/False. Default is stabilized weights (True)
+    standardize:
+        -Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. 
+         See Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed
+         Options for standardization are:
+            'population'    :   weight to entire population
+            'exposed'       :   weight to exposed individuals
+            'unexposed'     :   weight to unexposed individuals
+    return_probability:
+        -Whether to return the calculates weights or the denominator probabilities. Default is to return the weights.
+         For diagnostics, the two plots to generate are meant for probabilities and not weights. 
              
-             For the available diagnostic functions:
-                standardized_diff   :   weight
-                p_hist              :   probability
-                p_boxplot           :   probability
-                positivity          :   weight
-        '''
-        #Generating probabilities of treatment by covariates
-        pd = propensity_score(df,treatment + ' ~ ' + model_denominator)
-        twdf = pd.DataFrame()
-        twdf['t'] = self.data[treatment].copy()
-        twdf['pd'] = pd
-        if return_probability == True:
-            return twdf.pd
-        
-        #Generating Stabilized Weights if Requested
-        if stabilized==True:
-            #Calculating probabilities for numerator, default goes to Pr(A=a)
-            if model_numerator == None:
-                pn = propensity_score(df,treatment + ' ~ 1')
-            else:
-                pn = propensity_score(df,treatment + ' ~ ' + model_numerator)
-            twdf['pn'] = pn
-            
-            #Stabilizing to population (compares all exposed to unexposed)
-            if standardize == 'population':
-                twdf['w'] = np.where(twdf['t']==1, (twdf['pn'] / twdf['pd']), ((1-twdf['pn']) / (1-twdf['pd'])))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pd']/(1-twdf['pd'])) * ((1-twdf['pn'])/twdf['pn'])))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pd'])/twdf['pd']) * (twdf['pn']/(1-twdf['pn']))), 1)
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            else:
-                raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
-        
-        #Generating Unstabilized Weights if Requested
+    Example)
+    >>>zepid.ipw.iptw(df=data,treatment='X',model_denominator='Z + var1 + var2')
+    '''
+    #Generating probabilities of treatment by covariates
+    pd = propensity_score(df,treatment + ' ~ ' + model_denominator)
+    twdf = pd.DataFrame()
+    twdf['t'] = self.data[treatment].copy()
+    twdf['pd'] = pd
+    if return_probability == True:
+        return twdf.pd
+    
+    #Generating Stabilized Weights if Requested
+    if stabilized==True:
+        #Calculating probabilities for numerator, default goes to Pr(A=a)
+        if model_numerator == None:
+            pn = propensity_score(df,treatment + ' ~ 1')
         else:
-            #Stabilizing to population (compares all exposed to unexposed)
-            if standardize == 'population':
-                twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pd'], 1 / (1-twdf['pd']))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1, (twdf['pd']/(1-twdf['pd'])))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1, ((1-twdf['pd'])/twdf['pd']), 1)
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            else:
-                raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
-        if return_probability == False:
-            return twdf.w
+            pn = propensity_score(df,treatment + ' ~ ' + model_numerator)
+        twdf['pn'] = pn
+        
+        #Stabilizing to population (compares all exposed to unexposed)
+        if standardize == 'population':
+            twdf['w'] = np.where(twdf['t']==1, (twdf['pn'] / twdf['pd']), ((1-twdf['pn']) / (1-twdf['pd'])))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pd']/(1-twdf['pd'])) * ((1-twdf['pn'])/twdf['pn'])))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        elif standardize == 'unexposed':
+            twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pd'])/twdf['pd']) * (twdf['pn']/(1-twdf['pn']))), 1)
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        else:
+            raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
+        
+    #Generating Unstabilized Weights if Requested
+    else:
+        #Stabilizing to population (compares all exposed to unexposed)
+        if standardize == 'population':
+            twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pd'], 1 / (1-twdf['pd']))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            twdf['w'] = np.where(twdf['t']==1, 1, (twdf['pd']/(1-twdf['pd'])))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        elif standardize == 'unexposed':
+            twdf['w'] = np.where(twdf['t']==1, ((1-twdf['pd'])/twdf['pd']), 1)
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        else:
+            raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
+    if return_probability == False:
+        return twdf.w
     
     
 
 
 def ipmw(df,missing,model,stabilized=True):
-        '''Calculates the weight for inverse probability of missing weights using logistic regression. 
-        Function automatically codes a missingness indicator (based on np.nan), so data can be directly
-        input.
+    '''Calculates the weight for inverse probability of missing weights using logistic regression. 
+    Function automatically codes a missingness indicator (based on np.nan), so data can be directly
+    input.
         
-        Returns a pandas Series of calculated inverse probability of missingness weights for all observations
+    Returns a pandas Series of calculated inverse probability of missingness weights for all observations
         
-        df: 
-            -pandas dataframe object containing all variables of interest
-        missing:
-            -Variable with missing data. numpy.nan values should indicate missing observations
-        model:
-            -statsmodels glm format for modeling data. Independent variables should be predictive of missingness
-             of variable of interest. Example) 'var1 + var2 + var3'
-        stabilized:
-            -Whether to return the stabilized or unstabilized IPMW. Default is to return stabilized weights
-        '''
-        #Generating indicator for Missing data
-        mdf = df.copy()
-        mdf.loc[mdf[missing].isnull(),'observed_indicator'] = 0
-        mdf.loc[mdf[missing].notnull(),'observed_indicator'] = 1
+    df: 
+        -pandas dataframe object containing all variables of interest
+    missing:
+        -Variable with missing data. numpy.nan values should indicate missing observations
+    model:
+        -statsmodels glm format for modeling data. Independent variables should be predictive of missingness
+         of variable of interest. Example) 'var1 + var2 + var3'
+    stabilized:
+        -Whether to return the stabilized or unstabilized IPMW. Default is to return stabilized weights
         
-        #Generating probability of being observed based on model
-        p = propensity_score(self.data,'obs ~ '+model)
-        
-        #Generating weights
-        if stabilized==True:
-            p_ = np.mean(mdf['observed_indicator'])
-            w = p_ / p
-        else:
-            w = p**-1
-        return w
+    Example)
+    >>>zepid.ipw.ipmw(df=data,missing='X',model_denominator='Z + var1 + var2')
+    '''
+    #Generating indicator for Missing data
+    mdf = df.copy()
+    mdf.loc[mdf[missing].isnull(),'observed_indicator'] = 0
+    mdf.loc[mdf[missing].notnull(),'observed_indicator'] = 1
+    
+    #Generating probability of being observed based on model
+    p = propensity_score(self.data,'obs ~ '+model)
+    
+    #Generating weights
+    if stabilized==True:
+        p_ = np.mean(mdf['observed_indicator'])
+        w = p_ / p
+    else:
+        w = p**-1
+    return w
 
 
 def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
@@ -196,6 +199,13 @@ def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
     102     1           2       0       1
     102     2           3       0       1
     102     3           3.5     0       0
+    
+    Example)
+    >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',t_start='ts',t_end='te',event='D')
+    >>>ipc_data['t'] = ipc_data['te']
+    >>>ipc_data['t2'] = ipc_data['t']**2
+    >>>ipc_data['t3'] = ipc_data['t']**3
+    >>>zepid.ipw.ipcw(df=ipc_data,idvar='pid',model_denominator='var1 + t + t2 + t3',model_numerator='t + t2 + t3')
     '''
     cf = df.copy()
     print('Numerator model:')
@@ -209,8 +219,13 @@ def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
     w = cf['cn'] / cf['cd']
     return w    
 
+
 def ipcw_prep(df,idvar,t_start,t_end,event):
-    '''Function to prepare the data to an appropriate format for the function ipcw()'''
+    '''Function to prepare the data to an appropriate format for the function ipcw()
+
+    Example)
+    >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',t_start='ts',t_end='te',event='D')
+    '''
     #Need to pull this from other specific code I have previously written
 
 
