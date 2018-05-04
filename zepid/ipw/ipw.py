@@ -227,10 +227,12 @@ def ipcw_prep(df,idvar,t_start,t_end,event):
     >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',t_start='ts',t_end='te',event='D')
     '''
     #Need to pull this from other specific code I have previously written
+    print('Not implemented yet')
 
 
 def ipw_fitter(constant_weights=True):
     #Future function to fit IP models (either GEE or weighted KM/NA/AJ models)
+    print('Not implemented yet')
 
 
 class diagnostic:

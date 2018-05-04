@@ -37,6 +37,21 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     
     Example)
     >>>zepid.RelRisk(df=data,exposure='X',outcome='D')
+    +-----+-------+-------+
+    |     |   D=1 |   D=0 |
+    +=====+=======+=======+
+    | E=1 |    27 |   104 |
+    +-----+-------+-------+
+    | E=0 |    12 |    67 |
+    +-----+-------+-------+
+    ----------------------------------------------------------------------
+    Risk exposed: 0.206
+    Risk unexposed: 0.152
+    ----------------------------------------------------------------------
+    Relative Risk: 1.357
+    95.0% two-sided CI: ( 0.73 ,  2.522 )
+    Confidence Limit Ratio:  3.456
+    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -69,6 +84,21 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     
     Example)
     >>>zepid.RiskDiff(df=data,exposure='X',outcome='D')
+    +-----+-------+-------+
+    |     |   D=1 |   D=0 |
+    +=====+=======+=======+
+    | E=1 |    27 |   104 |
+    +-----+-------+-------+
+    | E=0 |    12 |    67 |
+    +-----+-------+-------+
+    ----------------------------------------------------------------------
+    Risk exposed: 0.206
+    Risk unexposed: 0.152
+    ----------------------------------------------------------------------
+    Risk Difference: 0.054
+    95.0%  two-sided CI: ( -0.052 ,  0.16 )
+    Confidence Limit Difference:  0.211
+    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -101,6 +131,14 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     
         Example)
     >>>zepid.NNT(df=data,exposure='X',outcome='D')
+    ----------------------------------------------------------------------
+    Risk Difference:  0.054
+    ----------------------------------------------------------------------
+    Number Needed to Harm:  18.447 
+
+    95.0% two-sided CI: 
+    NNH  6.252 to infinity to NNT  19.408
+    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -132,6 +170,21 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
     
     Example)
     >>>zepid.OddsRatio(df=data,exposure='X',outcome='D')
+    +-----+-------+-------+
+    |     |   D=1 |   D=0 |
+    +=====+=======+=======+
+    | E=1 |    27 |   104 |
+    +-----+-------+-------+
+    | E=0 |    12 |    67 |
+    +-----+-------+-------+
+    ----------------------------------------------------------------------
+    Odds exposed: 0.26
+    Odds unexposed: 0.179
+    ----------------------------------------------------------------------
+    Odds Ratio: 1.45
+    95.0% two-sided CI: ( 0.687 ,  3.057 )
+    Confidence Limit Ratio:  4.447
+    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -165,7 +218,22 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >>>zepid.IncRateRatio(df=data,exposure='X',outcome='D',time='time')
+    >>>zepid.IncRateRatio(df=data,exposure='X',outcome='D',time='t')
+    +-----+-------+---------------+
+    |     |   D=1 |   Person-time |
+    +=====+=======+===============+
+    | E=1 |    27 |       769.291 |
+    +-----+-------+---------------+
+    | E=0 |    12 |       447.089 |
+    +-----+-------+---------------+
+    ----------------------------------------------------------------------
+    Incidence Rate exposed: 0.035
+    Incidence Rate unexposed: 0.027
+    ----------------------------------------------------------------------
+    Incidence Rate Ratio: 1.308
+    95.0% two-sided CI: ( 0.662 ,  2.581 )
+    Confidence Limit Ratio:  3.896
+    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -197,7 +265,22 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >>>zepid.IncRateDiff(df=data,exposure='X',outcome='D',time='time')
+    >>>zepid.IncRateDiff(df=data,exposure='X',outcome='D',time='t')
+    +-----+-------+---------------+
+    |     |   D=1 |   Person-time |
+    +=====+=======+===============+
+    | E=1 |    27 |       769.291 |
+    +-----+-------+---------------+
+    | E=0 |    12 |       447.089 |
+    +-----+-------+---------------+
+    ----------------------------------------------------------------------
+    Incidence Rate exposed: 0.035
+    Incidence Rate unexposed: 0.027
+    ----------------------------------------------------------------------
+    Incidence Rate Difference: 0.008
+    95.0% two-sided CI: ( -0.012 ,  0.028 )
+    Confidence Limit Difference:  0.04
+    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
@@ -225,6 +308,16 @@ def ACR(df,exposure,outcome,decimal=3):
 
     Example)
     >>>zepid.ACR(df=data,exposure='X',outcome='D')
+    +-----+-------+-------+
+    |     |   D=1 |   D=0 |
+    +=====+=======+=======+
+    | E=1 |    27 |   104 |
+    +-----+-------+-------+
+    | E=0 |    12 |    67 |
+    +-----+-------+-------+
+    ----------------------------------------------------------------------
+    ACR:  0.034
+    ----------------------------------------------------------------------
     '''
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
     b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
@@ -247,6 +340,16 @@ def PAF(df,exposure, outcome,decimal=3):
     
     Example)
     >>>zepid.PAF(df=data,exposure='X',outcome='D')
+    +-----+-------+-------+
+    |     |   D=1 |   D=0 |
+    +=====+=======+=======+
+    | E=1 |    27 |   104 |
+    +-----+-------+-------+
+    | E=0 |    12 |    67 |
+    +-----+-------+-------+
+    ----------------------------------------------------------------------
+    PAF:  0.182
+    ----------------------------------------------------------------------
     '''
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
     b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
@@ -280,7 +383,35 @@ def IC(df,exposure,outcome,modifier,adjust=None,decimal=5):
         -Number of decimals to display in result. Default is 3
     
     Example)
-    >>>zepid.IC(df=data,exposure='X',outcome='D',modifier='Z',adjust='var1 + var2') 
+    >>>zepid.IC(df=data,exposure='X',outcome='D',modifier='Z',adjust='var1 + var2')
+                     Generalized Linear Model Regression Results                  
+    ==============================================================================
+    Dep. Variable:                      D   No. Observations:                  210
+    Model:                            GLM   Df Residuals:                      204
+    Model Family:                Binomial   Df Model:                            5
+    Link Function:               identity   Scale:                             1.0
+    Method:                          IRLS   Log-Likelihood:                -97.450
+    Date:                Thu, 03 May 2018   Deviance:                       194.90
+    Time:                        18:46:13   Pearson chi2:                     198.
+    No. Iterations:                    79                                         
+    ==============================================================================
+                     coef    std err          z      P>|z|      [0.025      0.975]
+    ------------------------------------------------------------------------------
+    Intercept      0.6101      0.542      1.125      0.260      -0.453       1.673
+    X              0.2049      0.056      3.665      0.000       0.095       0.314
+    Z              0.1580      0.049      3.207      0.001       0.061       0.255
+    E1M1          -0.2105      0.086     -2.447      0.014      -0.379      -0.042
+    var1        7.544e-05    6.7e-05      1.125      0.260    -5.6e-05       0.000
+    var2          -0.0248      0.022     -1.125      0.260      -0.068       0.018
+    ==============================================================================
+
+    ----------------------------------------------------------------------
+    Interaction Contrast
+    ----------------------------------------------------------------------
+
+    IC:		-0.21047
+    95% CI:		(-0.37908, -0.04186)
+    ----------------------------------------------------------------------
     '''
     df.loc[((df[exposure]==1)&(df[modifier]==1)),'E1M1'] = 1
     df.loc[((df[exposure]!=1)|(df[modifier]!=1)),'E1M1'] = 0
@@ -288,12 +419,11 @@ def IC(df,exposure,outcome,modifier,adjust=None,decimal=5):
     if adjust == None:
         eq = outcome + ' ~ '+ exposure + ' + ' + modifier + ' + E1M1'
     else:
-        eq = outcome + ' ~ '+ exposure + ' + ' + modifier + ' + E1M1' + adjust
+        eq = outcome + ' ~ '+ exposure + ' + ' + modifier + ' + E1M1 + ' + adjust
     f = sm.families.family.Binomial(sm.families.links.identity)
     model = smf.glm(eq,df,family=f).fit()
     print(model.summary())
     ic = model.params['E1M1']
-    print(ic)
     lcl = model.conf_int().loc['E1M1'][0]
     ucl = model.conf_int().loc['E1M1'][1]
     print('\n----------------------------------------------------------------------')
@@ -304,7 +434,7 @@ def IC(df,exposure,outcome,modifier,adjust=None,decimal=5):
     print('----------------------------------------------------------------------')
 
 
-def ICR(df,exposure,outcome,modifier,adjust='',regression='log',ci='delta',b_sample=1000,alpha=0.05,decimal=5):
+def ICR(df,exposure,outcome,modifier,adjust=None,regression='log',ci='delta',b_sample=1000,alpha=0.05,decimal=5):
     '''Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial 
     or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, 
     modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression 
@@ -356,13 +486,15 @@ def ICR(df,exposure,outcome,modifier,adjust='',regression='log',ci='delta',b_sam
     df.loc[((df[exposure]==1)&(df[modifier]==1)),'E1M1'] = 1
     df.loc[((df[exposure]!=1)|(df[modifier]!=1)),'E1M1'] = 0
     df.loc[((df[exposure].isnull())|(df[modifier].isnull())),'E1M1'] = np.nan
-    model = outcome + ' ~ E1M0 + E0M1 + E1M1' + adjust
     if regression == 'logit':
         f = sm.families.family.Binomial(sm.families.links.logit)
         print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
     elif regression == 'log':
         f = sm.families.family.Binomial(sm.families.links.log)
-    eq = outcome + ' ~ E1M0 + E0M1 + E1M1' + adjust
+    if adjust == None:
+        eq = outcome + ' ~ E1M0 + E0M1 + E1M1'
+    else:
+        eq = outcome + ' ~ E1M0 + E0M1 + E1M1 + ' + adjust
     model = smf.glm(eq,df,family=f).fit()
     print(model.summary())
     em10 = math.exp(model.params['E1M0'])
@@ -516,15 +648,18 @@ def StandMeanDiff(df,binary,continuous,decimal=3):
         -Number of decimal places to display. Default is 3
     
     Example)
-    zepid.StandMeanDiff(df=data,binary='X',continuous='var1')
+    >>>zepid.StandMeanDiff(df=data,binary='X',continuous='var1')
+    ----------------------------------------------------------------------
+    Standardized Mean Difference: 1.078
+    ----------------------------------------------------------------------
     '''
-    v0 = df.loc[df[binary]==0].shape[0]
-    v1 = df.loc[df[binary]==1].shape[0]
+    v0 = df.loc[df[binary]==0]
+    v1 = df.loc[df[binary]==1]
     m0 = np.mean(v0[continuous])
     m1 = np.mean(v1[continuous])
     sd0 = np.std(v0[continuous])
     sd1 = np.std(v1[continuous])
-    stand_mean_diff(n1=v0,n2=v1,mean1=m0,mean2=m1,sd1=sd0,sd2=sd1,decimal=decimal)
+    stand_mean_diff(n1=v0.shape[0],n2=v1.shape[0],mean1=m0,mean2=m1,sd1=sd0,sd2=sd1,decimal=decimal)
 
 
 def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
@@ -555,7 +690,14 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
          Default is False, providing an unrestricted spline
     
     Example)
-    >zepid.spline(df=data,var='var1',n_knots=4,knots=[18,30,50,65],term=2,restricted=True)
+    >>>zepid.spline(df=data,var='var1',n_knots=4,term=2,restricted=True)
+           rspline0     rspline1   rspline2
+    0   9839.409066  1234.154601   2.785600
+    1    446.391437     0.000000   0.000000
+    2   7107.550298   409.780251   0.000000
+    3   4465.272901     7.614501   0.000000
+    4  10972.041543  1655.208555  52.167821
+    ..          ...          ...        ...
     '''
     if knots == None:
         if n_knots == 1:

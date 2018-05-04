@@ -89,7 +89,7 @@ Contents:
          |-trapezoidal(): generates a trapezoidal distribution of values
          |-delta_beta(): conducts a delta-beta analysis
 '''
-from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,datex,StandMeanDiff,survival_upper_lower
+from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,StandMeanDiff
 
 from .calc import calc
 from .graphics import graphics 
