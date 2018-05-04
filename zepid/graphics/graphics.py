@@ -259,8 +259,8 @@ class effectmeasure_plot:
 
 
 
-def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=None,ylims=None,loess_value=0.5,
-                   legend=True,model_results=True,loess=True,points=False):
+def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=None,ylims=None,loess_value=0.25,
+                   legend=True,model_results=True,loess=True,points=False,discrete=False):
     '''Creates a LOESS plot to aid in functional form assessment for continuous variables.
     Plots can be created for binary and continuous outcomes. Default options are set to create
     a functional form plot for a binary outcome. To convert to a continuous outcome, 
@@ -300,26 +300,45 @@ def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=No
         -Whether to plot the LOESS curve along with the functional form. Default is True
     points:
         -Whether to plot the data points, where size is relative to the number of observations. Default is False
+    discrete:
+        -If your data is truly continuous, leave setting to bin the dat. Will automatically bin observations into categories
+         for generation of the LOESS curve. If you data is discrete, you can set this to True to use your actual values. 
+         If you get a perfect SeparationError from statsmodels, it means you might have to reshift your categories. 
     
     Example)
     >>>data['var1_sq'] = data['var1']**2
     >>>zepid.graphics.func_form_plot(df=data,outcome='D',var='var1',f_form='var1 + var1_sq')
     '''
+    #Copying out the dataframe to a new object we will manipulate a bit
     rf = df.copy()
-    rf = rf.dropna().sort_values(by=[var,outcome]).reset_index()
+    rf = rf.dropna(subset=[var,outcome]).sort_values(by=[var,outcome]).reset_index()
     print('Warning: missing observations of model variables are dropped')
-    print(int(len(df)-len(rf)),' observations were dropped from the functional form assessment')
+    print(int(df.shape[0]-rf.shape[0]),' observations were dropped from the functional form assessment')
+    
+    #Functional form for the model
     if f_form == None:
         f_form = var 
     else:
         pass 
+    
+    #Binning continuous variable into categories to get "General" functional form
+    if discrete == False:
+        categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
+        rf['vbin'] = pd.qcut(rf[var],q=categories,duplicates='drop').cat.codes
+    else:
+        rf['vbin'] = rf[var]
+    
+    #Generating Models
     if link_dist == None:
         link_dist = sm.families.family.Binomial(sm.families.links.logit)
     else:
         pass 
     if (loess == True) | (points == True):
         if outcome_type=='binary':
-            djm = smf.glm(outcome+'~ C('+var+')',rf,family=link_dist).fit()
+            if discrete == False:
+                djm = smf.glm(outcome+'~ C(vbin)',rf,family=link_dist).fit()
+            else:
+                djm = smf.glm(outcome+'~ C('+var+')',rf,family=link_dist).fit()
             djf = djm.get_prediction(rf).summary_frame()        
             dj = pd.concat([rf,djf],axis=1)
             dj.sort_values(var,inplace=True)
@@ -346,28 +365,31 @@ def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=No
     fff = ffm.get_prediction(rf).summary_frame()
     ff = pd.concat([rf,fff],axis=1)
     ff.sort_values(var,inplace=True)
+    
+    #Generating plot for functional form
+    ax = plt.gca()
     if points == True:
         if outcome_type == 'continuous':
-            plt.scatter(pf[var],pf[outcome],s=[ 100*(n/max(pf[var])) for n in pf[var]],color='gray',label='Data point')
+            ax.scatter(pf[var],pf[outcome],s=[ 100*(n/np.max(pf[var])) for n in pf[var]],color='gray',label='Data point')
         else:
-            plt.scatter(pf[var],pf['mean'],s=[100*(n/max(pf[var])) for n in pf[var]],color='gray',label='Data point')
-    plt.fill_between(ff[var],ff['mean_ci_upper'],ff['mean_ci_lower'],alpha=0.1,color='blue',label='95% CI')
-    plt.plot(ff[var],ff['mean'],'-',color='blue',label='Regression')
+            ax.scatter(pf[var],pf['mean'],s=[100*(n/np.max(pf[var])) for n in pf[var]],color='gray',label='Data point')
+    ax.fill_between(ff[var],ff['mean_ci_upper'],ff['mean_ci_lower'],alpha=0.1,color='blue',label='95% CI')
+    ax.plot(ff[var],ff['mean'],'-',color='blue',label='Regression')
     if loess == True:
-        plt.plot(lowess_x,lowess_y,'--',color='red',linewidth=1,label='LOESS')  
-    plt.xlabel(var)
+        ax.plot(lowess_x,lowess_y,'--',color='red',linewidth=1,label='LOESS')  
+    ax.set_xlabel(var)
     if outcome_type=='binary':
-        plt.ylabel('Probability')
+        ax.set_ylabel('Probability')
     else:
-        plt.ylabel(outcome)
+        ax.set_ylabel(outcome)
     if legend == True:
-        plt.legend()
-    plt.ylim(ylims)
-    plt.show()
+        ax.legend()
+    ax.set_ylim(ylims)
+    return ax
 
 
 
-def pvalue_plot(point,se,color='b',fill=True,null=0):
+def pvalue_plot(point,se,color='b',fill=True,null=0,alpha=None):
     '''Creates a plot of the p-value distribution based on a point estimate and standard error. 
     I find this plot to be useful to explain p-values and how much evidence weight you have in a 
     specific value. I think it is useful to explain what exactly a p-value tells you. Note that this
@@ -389,7 +411,7 @@ def pvalue_plot(point,se,color='b',fill=True,null=0):
         -The main value to compare to. The default is zero
     
     Example)
-    >>>zepid.graphics.pvalue_plot(point=-0.1,se=0.05)
+    >>>zepid.graphics.pvalue_plot(point=-0.1,se=0.061,alpha=0.025)
     '''
     if point <= null:
         lower = (point - 3 * se)
@@ -414,7 +436,36 @@ def pvalue_plot(point,se,color='b',fill=True,null=0):
     ax.vlines(null,0,1,colors='k')
     ax.set_xlim([lower,upper])
     ax.set_ylim([0,1])
-    ax.set_xlabel(xlabel)
     ax.set_ylabel('P-value')
+    if alpha != None:
+        ax.hlines(alpha,lower,upper)
     return ax 
 
+
+def spaghetti_plot(df,idvar,variable,time):
+    '''Create a spaghetti plot by an ID variable. A spaghetti plot can be useful for visualizing 
+    trends or looking at longitudinal data patterns for individuals all at once.
+    
+    Returns matplotlib axes
+    
+    df:
+        -pandas dataframe containing variables of interest
+    idvar:
+        -ID variable for observations. This should indicate the group or individual followed over 
+         the time variable
+    variable:
+        -Variable of interest to see how it varies over time
+    time:
+        -Time or other variable in which the variable variation occurs
+    
+    Example)
+    >>>zepid.graphics.spaghetti_plot(df,idvar='pid',variable='v',time='t')
+    '''
+    ax = plt.gca()
+    for i in df[idvar].unique():
+        s = df.loc[df[idvar]==i].copy()
+        s.sort_values(time,ascending=False)
+        ax.plot(s[time],s[variable])
+    ax.set_xlabel(time)
+    ax.set_ylabel(variable)
+    return ax
