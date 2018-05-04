@@ -747,3 +747,140 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
         raise ValueError('restricted must be set to either True or False')
 
 
+def Table1(df,cols,variable_type,continuous_measure='median',strat_by=None,decimal=3):
+    '''Code to automatically generate a descriptive table of your study population (often referred to as a
+    Table 1). Personally, I hate copying SAS/R/Python output from the interpreter to an Excel or other 
+    spreadsheet software. This code will generate a pandas dataframe object. This object will be a formatted
+    table which can be exported as a CSV, opened in Excel, then final formatting changes/renaming can be done.
+    Variables with np.nan values are counted as missing
+    
+    Categorical variables will be divided into the unique numbers and have a percent calculated. Additionally,
+    missing data will be counted (but is not included in the percent). Additionally, a single categorical variable
+    can be used to present the results
+    
+    Continuous variables either have median/IQR or mean/SE calculated depending on what is requested. Missing are
+    counted as a separate category
+    
+    Returns a pandas dataframe object containing a formatted Table 1. It is not recommended that this table is used
+    in any part of later analysis, since is id difficult to parse through the table. This function is only meant to
+    reduce the amount of copying from output needed.
+    
+    df:
+        -pandas dataframe object containing all variables of interest
+    cols:
+        -list of columns of variable names to include in the table. Ex) ['X',var1','var2']
+    variable_types:
+        -list of strings indicating the variable types. Ex) ['category','continuous','continuous']
+         Options
+            'category'      :   variable with categories only
+            'continuous'    :   continuous variable
+    continuous_measure:
+        -Whether to use the medians or the means. Default is median
+         Options
+            'median'    :   returns medians and IQR for continuous variables
+            'mean'      :   returns means and SE for continuous variables
+    strat_by:
+        -What categorical variable to stratify by. Default is None (no stratification)
+    decimal:
+        -Number of decimals to display in the table. Default is 3
+    
+    Example)
+    >>>var_types = ['category','category','continuous','continuous','continuous']
+    >>>zepid.Table1(df=data,cols=['X','Z','var1','var2','var3'],variable_type=var_types,strat_by='D')
+    _                                D=0                             D=1 
+    __                           % / IQR           n             % / IQR          n  
+    
+    Variable                                                               
+    TOTAL                                 310.000000                      74.000000 
+    X        1.0                0.608187  104.000000            0.692308  27.000000
+             0.0                0.391813   67.000000            0.307692  12.000000  
+             Missing                      139.000000                      35.000000 
+    Z        1.0                0.722581  224.000000            0.635135  47.000000
+             0.0                0.277419   86.000000            0.364865  27.000000
+             Missing                        0.000000                       0.000000
+    var1              [468.231, 525.312]  497.262978  [481.959, 538.964] 507.286133
+             Missing                        0.000000                       0.000000
+    var2                [24.454, 25.731]   25.058982      [24.1, 25.607]  24.816898
+             Missing                        0.000000                       0.000000
+    var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
+             Missing                        0.000000                       
+    >>>_.to_csv('path/filename.csv')
+    '''
+    #Unstratificed Table 1
+    if strat_by==None:
+        rlist = []
+        for i in cols:
+            vn = cols.index(i)
+            if continuous_measure == 'median':
+                if variable_type[vn] == 'continuous':
+                    rf = pd.DataFrame({'n / Median':[np.median(df[i].dropna()),df[i].isna().sum()], 
+                            '% / IQR':[np.percentile(df[i].dropna(),[25,75]).round(decimals=decimal),'']},index=['','Missing'])
+                if variable_type[vn] == 'category':
+                    x = df[i].value_counts()
+                    m = df[i].isna().sum()
+                    rf = pd.DataFrame({'n / Median':x, '% / IQR':x / x.sum()})
+                    rf = rf.append(pd.DataFrame({'n / Median':m,'% / IQR':''},index=['Missing']))
+            elif continuous_measure == 'mean':
+                if variable_type[vn] == 'continuous':
+                    rf = pd.DataFrame({'n / Mean':[np.mean(df[i].dropna()),df[i].isna().sum()], 
+                            '% / SE':[np.std(df[i].dropna()).round(decimals=decimal),'']},index=['','Missing'])
+                if variable_type[vn] == 'category':
+                    x = df[i].value_counts(dropna=False)
+                    y = df[i].value_counts(dropna=False)
+                    rf = pd.DataFrame({'n / Mean':x, '% / SE':y / y.sum()})
+            else:
+                raise ValueError('median or mean must be specified')
+            rlist.append(rf)
+        srf = pd.concat(rlist, keys=cols, names=['Variable'])
+        if continuous_measure == 'median':
+            return srf[['n / Median','% / IQR']]
+        if continuous_measure == 'mean':
+            return srf[['n / Mean','% / SE']]
+    
+    #Stratified Table 1
+    if strat_by!=None:
+        v = df[strat_by].dropna().unique()
+        slist = []
+        nlist = []
+        for j in v:
+            sf = df.loc[df[strat_by]==j].copy()
+            rlist = []
+            for i in cols:
+                vn = cols.index(i)
+                if continuous_measure == 'median':
+                    if variable_type[vn] == 'continuous':
+                        rf = pd.DataFrame({'n / Median':[np.median(sf[i].dropna()),sf[i].isna().sum()], 
+                            '% / IQR':[np.percentile(sf[i].dropna(),[25,75]).round(decimals=decimal),'']},index=['','Missing'])
+                    if variable_type[vn] == 'category':
+                        x = sf[i].value_counts()
+                        m = sf[i].isna().sum()
+                        rf = pd.DataFrame({'n / Median':x, '% / IQR':x / x.sum()})
+                        rf = rf.append(pd.DataFrame({'n / Median':m,'% / IQR':''},index=['Missing']))
+                if continuous_measure == 'mean':
+                    if variable_type[vn] == 'continuous':
+                        rf = pd.DataFrame({'n / Mean':[np.mean(sf[i].dropna()),sf[i].isna().sum()], 
+                            '% / SE':[np.std(sf[i].dropna()).round(decimals=decimal),'']},index=['','Missing'])
+                    if variable_type[vn] == 'category':
+                        x = sf[i].value_counts()
+                        m = sf[i].isna().sum()
+                        rf = pd.DataFrame({'n / Mean':x, '% / SE':x / x.sum()})
+                        rf = rf.append(pd.DataFrame({'n / Mean':m,'% / SE':''},index=['Missing']))
+                rlist.append(rf)
+            if continuous_measure == 'median':
+                c = pd.DataFrame({'n / Median':len(sf),'% / IQR':''},index=[''])
+            if continuous_measure == 'mean':
+                c = pd.DataFrame({'n / Mean':len(sf),'% / SE':''},index=[''])
+            rff = pd.concat([c] + rlist, keys=['TOTAL']+cols, names=['Variable'],axis=0)
+            slist.append(rff)
+            if continuous_measure == 'median':
+                nlist.append((strat_by+'='+str(j),'% / IQR'))
+            if continuous_measure == 'mean':
+                nlist.append((strat_by+'='+str(j),'% / SE'))
+            nlist.append((strat_by+'='+str(j),'n'))
+        index = pd.MultiIndex.from_tuples(nlist, names=['_', '__'])
+        srf = pd.concat(slist, keys=cols, names=['Variable'],axis=1)
+        srf.columns = index
+        return srf
+
+
+

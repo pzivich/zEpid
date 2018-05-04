@@ -29,6 +29,7 @@ Contents:
     |-Sensitivity(): calculate sensitivity from pandas dataframe
     |-Specificity(): calculate specificity from pandas dataframe
     |-spline(): generate spline terms for continuous variable in pandas dataframe
+    |-Table1(): generate a pandas dataframe set up as a Table 1 to export to a csv
     |
     |___calc
     |    |
@@ -89,7 +90,7 @@ Contents:
          |-trapezoidal(): generates a trapezoidal distribution of values
          |-delta_beta(): conducts a delta-beta analysis
 '''
-from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,StandMeanDiff
+from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,StandMeanDiff,Table1
 
 from .calc import calc
 from .graphics import graphics 

@@ -37,6 +37,59 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
+def risk_ci(events,total,alpha=0.05,decimal=3):
+    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Risk. Note
+    relies on the Central Limit Theorem, so there must be at least 5 events 
+    and 5 no events. Exact methods currently not available
+    
+    events:
+        -Number of events/outcomes that occurred
+    total:
+        -total number of subjects that could have experienced the event
+    alpha:
+        -Alpha level. Default is 0.05
+    decimal:
+        -Number of decimal places to display. Default is 3 decimal places
+    
+    Example)
+    >>>zepid.calc.risk_ci(25,145)
+    '''
+    risk = events/total
+    c = 1 - alpha/2
+    zalpha = norm.ppf(c,loc=0,scale=1)
+    se = math.sqrt((risk*(1-risk)) / total)
+    lower = risk - zalpha*se
+    upper = risk + zalpha*se
+    print('Risk: '+str(round(risk,decimal))+', ',str(round(100*(1-alpha),1))+'% CI: ('+
+          str(round(lower,decimal))+', '+str(round(upper,decimal))+')')    
+
+
+def ir_ci(events,time,alpha=0.05,decimal=3):
+    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
+        
+    events:
+        -number of events/outcomes that occurred
+    time:
+        -total person-time contributed in this group
+    alpha:
+        -alpha level. Default is 0.05
+    decimal:
+        -amount of decimal places to display. Default is 3 decimal places
+    
+    Example)
+    >>>zepid.calc.ir_ci(25,436)
+    '''
+    c = 1 - alpha/2
+    ir = events/time
+    zalpha = norm.ppf(c,loc=0,scale=1)
+    se = math.sqrt(1 / events)
+    lower = ir - zalpha*se
+    upper = ir + zalpha*se
+    print('Incidence rate: '+str(round(ir,decimal))+', '+str(round(100*(1-alpha),1))+'% CI: ('+
+          str(round(lower,decimal))+', '+str(round(upper,decimal))+')')
+
+
+
 def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     '''Calculates the Risk Ratio from count data.
     
@@ -75,12 +128,15 @@ def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     if print_result == True:
         print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
-        print('Risk exposed:',round(r1,decimal))
-        print('Risk unexposed:',round(r0,decimal))
+        print('Exposed')
+        risk_ci(a,a+b,alpha=alpha,decimal=decimal)
+        print('Unexposed')
+        risk_ci(c,c+d,alpha=alpha,decimal=decimal)
         print('----------------------------------------------------------------------')
         print('Relative Risk:',round(relrisk,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+        print('Standard Error: ',round(SE,decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return relrisk 
@@ -123,12 +179,15 @@ def rd(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     if print_result == True:
         print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
-        print('Risk exposed:',round(r1,decimal))
-        print('Risk unexposed:',round(r0,decimal))
+        print('Exposed')
+        risk_ci(a,a+b,alpha=alpha,decimal=decimal)
+        print('Unexposed')
+        risk_ci(c,c+d,alpha=alpha,decimal=decimal)
         print('----------------------------------------------------------------------')
         print('Risk Difference:',round(riskdiff,decimal))	
         print(str(round(100*(1-alpha),1))+'%  two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
         print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
+        print('Standard Error: ',round(SE,decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return riskdiff
@@ -246,6 +305,7 @@ def oddsratio(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False
         print('Odds Ratio:',round(oddsr,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+        print('Standard Error: ',round(SE,decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return oddsr
@@ -289,12 +349,15 @@ def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     if print_result == True:
         print(tabulate([['E=1',a,T1],['E=0',c,T2]],headers=['','D=1','Person-time'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
-        print('Incidence Rate exposed:',round(irate1,decimal))
-        print('Incidence Rate unexposed:',round(irate2,decimal))
+        print('Exposed')
+        ir_ci(a,T1,alpha=alpha,decimal=decimal)
+        print('Unexposed')
+        ir_ci(c,T2,alpha=alpha,decimal=decimal)
         print('----------------------------------------------------------------------')
         print('Incidence Rate Ratio:',round(irr,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
+        print('Standard Error: ',round(SE,decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return irr
@@ -337,12 +400,15 @@ def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
     if print_result == True:
         print(tabulate([['E=1',a,T1],['E=0',c,T2]],headers=['','D=1','Person-time'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
-        print('Incidence Rate exposed:',round(rated1,decimal))
-        print('Incidence Rate unexposed:',round(rated2,decimal))
+        print('Exposed')
+        ir_ci(a,T1,alpha=alpha,decimal=decimal)
+        print('Unexposed')
+        ir_ci(c,T2,alpha=alpha,decimal=decimal)
         print('----------------------------------------------------------------------')
         print('Incidence Rate Difference:',round(ird,decimal))	
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
         print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
+        print('Standard Error: ',round(SE,decimal))
         print('----------------------------------------------------------------------')
     if return_result == True:
         return ird
@@ -431,60 +497,6 @@ def odds_to_prop(odds):
     return prop
 
     
-def risk_ci(events,total,alpha=0.05,decimal=3):
-    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Risk. Note
-    relies on the Central Limit Theorem, so there must be at least 5 events 
-    and 5 no events. Exact methods currently not available
-    
-    events:
-        -Number of events/outcomes that occurred
-    total:
-        -total number of subjects that could have experienced the event
-    alpha:
-        -Alpha level. Default is 0.05
-    decimal:
-        -Number of decimal places to display. Default is 3 decimal places
-    
-    Example)
-    >>>zepid.calc.risk_ci(25,145)
-    '''
-    risk = events/total
-    c = 1 - alpha/2
-    zalpha = norm.ppf(c,loc=0,scale=1)
-    se = math.sqrt((risk*(1-risk)) / total)
-    lower = risk - zalpha*se
-    upper = risk + zalpha*se
-    print('Risk: ',round(risk,decimal))
-    print(str(c)+'% CI: (',round(lower,decimal),', ',round(upper,decimal),')')    
-
-
-def ir_ci(events,time,alpha=0.05,return_result=False,decimal=3):
-    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
-        
-    events:
-        -number of events/outcomes that occurred
-    time:
-        -total person-time contributed in this group
-    alpha:
-        -alpha level. Default is 0.05
-    decimal:
-        -amount of decimal places to display. Default is 3 decimal places
-    
-    Example)
-    >>>zepid.calc.ir_ci(25,436)
-    '''
-    c = 1 - alpha/2
-    ir = events/time
-    zalpha = norm.ppf(c,loc=0,scale=1)
-    se = math.sqrt(1 / events)
-    lower = ir - zalpha*se
-    upper = ir + zalpha*se
-    print('IR: ',round(ir,decimal))
-    print('95% CI: (',round(lower,decimal),', ',round(upper,decimal),')')
-    if return_result == True:
-        return ir
-    
-
 def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
     '''Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation 
     of results. For a full discussion and how to interpret the estimate and p-value, see Rosenthal & Rubin.
