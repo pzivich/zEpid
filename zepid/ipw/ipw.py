@@ -7,9 +7,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
-import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 
 def propensity_score(df,model,mresult=True):
     '''Generate propensity scores (probability) based on the model input. Uses logistic regression model 
@@ -71,12 +69,12 @@ def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,sta
     >>>zepid.ipw.iptw(df=data,treatment='X',model_denominator='Z + var1 + var2')
     '''
     #Generating probabilities of treatment by covariates
-    pd = propensity_score(df,treatment + ' ~ ' + model_denominator)
+    pde = propensity_score(df,treatment + ' ~ ' + model_denominator)
     twdf = pd.DataFrame()
-    twdf['t'] = self.data[treatment].copy()
-    twdf['pd'] = pd
+    twdf['t'] = df[treatment].copy()
+    twdf['pde'] = pde
     if return_probability == True:
-        return twdf.pd
+        return twdf.pde
     
     #Generating Stabilized Weights if Requested
     if stabilized==True:
@@ -89,15 +87,15 @@ def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,sta
         
         #Stabilizing to population (compares all exposed to unexposed)
         if standardize == 'population':
-            twdf['w'] = np.where(twdf['t']==1, (twdf['pn'] / twdf['pd']), ((1-twdf['pn']) / (1-twdf['pd'])))
+            twdf['w'] = np.where(twdf['t']==1, (twdf['pn'] / twdf['pde']), ((1-twdf['pn']) / (1-twdf['pde'])))
             twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
         elif standardize == 'exposed':
-            twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pd']/(1-twdf['pd'])) * ((1-twdf['pn'])/twdf['pn'])))
+            twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pde']/(1-twdf['pde'])) * ((1-twdf['pn'])/twdf['pn'])))
             twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
         elif standardize == 'unexposed':
-            twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pd'])/twdf['pd']) * (twdf['pn']/(1-twdf['pn']))), 1)
+            twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pde'])/twdf['pde']) * (twdf['pn']/(1-twdf['pn']))), 1)
             twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         else:
             raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
@@ -106,15 +104,15 @@ def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,sta
     else:
         #Stabilizing to population (compares all exposed to unexposed)
         if standardize == 'population':
-            twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pd'], 1 / (1-twdf['pd']))
+            twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pde'], 1 / (1-twdf['pde']))
             twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
         elif standardize == 'exposed':
-            twdf['w'] = np.where(twdf['t']==1, 1, (twdf['pd']/(1-twdf['pd'])))
+            twdf['w'] = np.where(twdf['t']==1, 1, (twdf['pde']/(1-twdf['pde'])))
             twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
         elif standardize == 'unexposed':
-            twdf['w'] = np.where(twdf['t']==1, ((1-twdf['pd'])/twdf['pd']), 1)
+            twdf['w'] = np.where(twdf['t']==1, ((1-twdf['pde'])/twdf['pde']), 1)
             twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         else:
             raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
@@ -142,7 +140,7 @@ def ipmw(df,missing,model,stabilized=True):
         -Whether to return the stabilized or unstabilized IPMW. Default is to return stabilized weights
         
     Example)
-    >>>zepid.ipw.ipmw(df=data,missing='X',model_denominator='Z + var1 + var2')
+    >>>zepid.ipw.ipmw(df=data,missing='X',model='Z + var3')
     '''
     #Generating indicator for Missing data
     mdf = df.copy()
@@ -150,7 +148,7 @@ def ipmw(df,missing,model,stabilized=True):
     mdf.loc[mdf[missing].notnull(),'observed_indicator'] = 1
     
     #Generating probability of being observed based on model
-    p = propensity_score(self.data,'obs ~ '+model)
+    p = propensity_score(mdf,'observed_indicator ~ '+model)
     
     #Generating weights
     if stabilized==True:
@@ -159,6 +157,52 @@ def ipmw(df,missing,model,stabilized=True):
     else:
         w = p**-1
     return w
+
+
+def ipcw_prep(df,idvar,time,event):
+    '''Function to prepare the data to an appropriate format for the function ipcw(). It breaks the dataset into 
+    single observations for event one unit increase in time. It prepares the dataset to be eligible for IPCW calculation. 
+    If your datasets is already in a long format, there is not need for this conversion
+    
+    Returns:
+    cid     t_start     t_end   event   uncensored    ...
+    101     0           1       0       1
+    101     1           2       0       1
+    101     2           2.1     1       1
+    102     0           1       0       1
+    102     1           2       0       1
+    102     2           3       0       1
+    102     3           3.5     0       0
+    
+    df:
+        -pandas dataframe to convert into a long format
+    idvar:
+        -ID variable to retain for observations
+    
+    
+    Example)
+    >>>data['pid'] = data.index
+    >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',t_start='ts',t_end='te',event='D')
+    '''
+    cf = df.copy()
+    
+    #Copying observations over times
+    cf['t_int'] = cf[time].astype(int)
+    lf = pd.DataFrame(np.repeat(cf.values,cf['t_int']+1,axis=0),columns=cf.columns)
+    lf['tpoint'] = lf.groupby(idvar)['t_int'].cumcount()
+    lf['tdiff'] =  lf[time] - (lf['tpoint'])
+    lf.loc[lf['tdiff']>=1,'delta_indicator_zepid'] = 0
+    lf.loc[((lf['tdiff']<=1)&(lf[event]==0)),'delta_indicator_zepid'] = 0
+    lf.loc[((lf['tdiff']<=1)&(lf[event]==1)),'delta_indicator_zepid'] = 1
+    lf['t_enter'] = lf['tpoint']
+    lf['t_out'] = np.where(lf['tdiff']<1,lf[time],lf['t_enter']+1)
+    lf['uncensored'] = np.where(((lf[idvar] != lf[idvar].shift(-1)) & (lf['delta_indicator_zepid']==0)),1,0)
+    
+    #Cleaning up the edited dataframe to return to user
+    lf.drop(columns=[event],inplace=True)
+    lf.rename(columns={"delta_indicator_zepid":event},inplace=True)
+    lf.drop(columns=['tdiff','tpoint','t_int','t'],inplace=True)
+    return lf 
 
 
 def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
@@ -201,11 +245,11 @@ def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
     102     3           3.5     0       0
     
     Example)
-    >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',t_start='ts',t_end='te',event='D')
-    >>>ipc_data['t'] = ipc_data['te']
+    >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',time='t',event='D')
+    >>>ipc_data['t'] = ipc_data['t_enter']
     >>>ipc_data['t2'] = ipc_data['t']**2
     >>>ipc_data['t3'] = ipc_data['t']**3
-    >>>zepid.ipw.ipcw(df=ipc_data,idvar='pid',model_denominator='var1 + t + t2 + t3',model_numerator='t + t2 + t3')
+    >>>zepid.ipw.ipcw(df=ipc_data,idvar='pid',model_denominator='var1 + var2 + t + t2 + t3',model_numerator='t + t2 + t3')
     '''
     cf = df.copy()
     print('Numerator model:')
@@ -220,60 +264,59 @@ def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
     return w    
 
 
-def ipcw_prep(df,idvar,t_start,t_end,event):
-    '''Function to prepare the data to an appropriate format for the function ipcw()
+class iptw_weight_diagnostic:
+    '''Class containing diagnostic tools for IPTW. It is recommended that IPTW diagnostics are done before 
+    fitting the IPTW. 
 
-    Example)
-    >>>ipc_data = zepid.ipw.ipcw_prep(df=data,idvar='pid',t_start='ts',t_end='te',event='D')
-    '''
-    #Need to pull this from other specific code I have previously written
-    print('Not implemented yet')
-
-
-def ipw_fitter(constant_weights=True):
-    #Future function to fit IP models (either GEE or weighted KM/NA/AJ models)
-    print('Not implemented yet')
-
-
-class diagnostic:
-    '''Class containing diagnostic tools for IPW. It is recommended that IPW
-    diagnostics are done before fitting the IPW. Class accepts only an IPW 
-    object as input. Therefore, an IPW model must be constructed before using 
-    this class and its corresponding functions.
-    
     Balance diagnostics
-        p_hist()
-            -Graphical display of weights by actual treatment
-        p_boxplot()
-            -Graphical display of weights by actual treatment
-    Positivity diagnostics
         positivity()
             -Only valid for stabilized IPTW
+        standardized_diff()
     '''
-    def __init__(self,ipw,weight,probability):
-        self.data = ipw.data
+    def __init__(self,df,weight):
+        self.data = df
         self.w = weight
-        self.p = probability
+
+    def positivity(self,decimal=3):
+        '''Use this to assess whether positivity is a valid assumption. Note that this should only be used for 
+        stabilized weights generated from IPTW. This diagnostic method is based on recommendations from 
+        Cole SR & Hernan MA (2008). For more information, see the following paper:
+        Cole SR, Hernan MA. Constructing inverse probability weights for marginal structural models. 
+        American Journal of Epidemiology 2008; 168(6):656–664.
+        
+        decimal:
+            -number of decimal places to display. Default is three
+        '''
+        avg = np.mean(self.data[self.w].dropna())
+        mx = np.max(self.data[self.w].dropna())
+        mn = np.min(self.data[self.w].dropna())
+        sd = np.std(self.data[self.w].dropna())
+        print('----------------------------------------------------------------------')
+        print('IPW Diagnostic for positivity')
+        print('If the mean of the weights is far from either the min or max, this may\n indicate the model is mispecified or positivity is violated')
+        print('Standard deviation can help in IPTW model selection')
+        print('----------------------------------------------------------------------')
+        print('Mean weight:\t\t\t',round(avg,decimal))
+        print('Standard Deviation:\t\t',round(sd,decimal))
+        print('Minimum weight:\t\t\t',round(mn,decimal))
+        print('Maximum weight:\t\t\t',round(mx,decimal))
+        print('----------------------------------------------------------------------')
 
     def standardized_diff(self,treatment,var,var_type='binary',decimal=3):
-        '''Compute the standardized differences for the IP weights by treatment. 
-        Note that this can be used to compare both mean(continuous variable) and
-        proportions (binary variable) between baseline variables. To compare interactions
-        and higher-order moments of continuous variables, calculate a corresponding 
-        variable then simply put in this new variable as the variable of interest 
-        regarding balance. Note that comparing the mean of squares of continuous variables
+        '''Compute the standardized differences for the IP weights by treatment. Note that this can be used to compare 
+        both mean(continuous variable) and proportions (binary variable) between baseline variables. To compare interactions
+        and higher-order moments of continuous variables, calculate a corresponding variable then simply put in this new 
+        variable as the variable of interest regarding balance. Note that comparing the mean of squares of continuous variables
         is akin to comparing the variances between the treatment groups.
         
         treatment:
-            -Column name for variable that is regarded as the treatment. Currently, 
-             only binary (0,1) treatments are supported
+            -Column name for variable that is regarded as the treatment
         var:
-            -Column name for variable of interest regarding balanced by weights. 
-             Variable can be binary (0,1) or continuous. If continuous, var_type option 
-             must be changed
+            -Column name for variable of interest regarding balanced by weights. Variable can be binary (0,1) or continuous. 
+             If continuous, var_type option must be changed
         var_type:
-            -The type of variable in the var option. Default is binary. For continuous variables
-             var_type must be specified as 'continuous' 
+            -The type of variable in the var option. Default is binary. For continuous variables var_type must be specified as 
+             'continuous' 
         decimal:
             -Number of decimal places to display in result
         '''
@@ -318,15 +361,31 @@ class diagnostic:
         print('----------------------------------------------------------------------')
         print('Weighted SMD: \t',round(wsmd,decimal))
         print('----------------------------------------------------------------------')
+
+
+class iptw_probability_diagnostic:
+    '''Class containing diagnostic tools for IPTW. It is recommended that IPTW diagnostics are done before 
+    fitting the IPTW.
     
-    def p_hist(self,treatment): #add KWARGS about color...
-        '''Generates a histogram that can be used to check whether positivity may be violated 
-        qualitatively. Note input probability variable, not the weight
+    Balance diagnostics
+        p_hist()
+            -Graphical display of weights by actual treatment
+        p_boxplot()
+            -Graphical display of weights by actual treatment
+    '''
+    def __init__(self,df,probability):
+        if ((np.max(df[probability]>1)) | (np.min(df[probability]<0))):
+            raise ValueError('Input column must be probability')
+        self.data = df
+        self.p = probability
+    
+    def p_hist(self,treatment):
+        '''Generates a histogram that can be used to check whether positivity may be violated qualitatively. Note 
+        input probability variable, not the weight!
         
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
         '''
-        import matplotlib.pyplot as plt
         plt.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',color='b',alpha=0.8)
         plt.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',color='r',alpha=0.5)
         plt.xlabel('Probability')
@@ -335,43 +394,16 @@ class diagnostic:
         plt.show()
     
     def p_boxplot(self,treatment):
-        '''Generates a stratified boxplot that can be used to visually check whether positivity
-        may be violated, qualitatively. Note input probability, not the weight
+        '''Generates a stratified boxplot that can be used to visually check whether positivity may be violated, qualitatively. 
+        Note input probability, not the weight!
         
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
         '''
-        import matplotlib.pyplot as plt
-        boxes = self.data.loc[self.data[treatment]==1][self.p].dropna(), self.data.loc[self.data[treatment]==0][self.p].dropna()
+        boxes = (self.data.loc[self.data[treatment]==1][self.p].dropna(), self.data.loc[self.data[treatment]==0][self.p].dropna())
         labs = ['Treat = 1','Treat = 0']
         meanpointprops = dict(marker='D', markeredgecolor='black',markerfacecolor='black')
         plt.boxplot(boxes,labels=labs,meanprops=meanpointprops,showmeans=True)
         plt.ylabel('Probability')
         plt.show()
     
-    def positivity(self,decimal=3):
-        '''Use this to assess whether positivity is a valid assumption. Note that this
-        should only be used for stabilized weights generated from IPTW. This diagnostic method
-        is based on recommendations from Cole SR & Hernan MA (2008). For more information, see the
-        following paper:
-        
-        Cole SR, Hernan MA. Constructing inverse probability weights for marginal structural models. 
-        American Journal of Epidemiology 2008; 168(6):656–664.
-        
-        decimal:
-            -number of decimal places to display. Default is three
-        '''
-        avg = np.mean(self.data[self.w].dropna())
-        mx = np.max(self.data[self.w].dropna())
-        mn = np.min(self.data[self.w].dropna())
-        sd = np.std(self.data[self.w].dropna())
-        print('----------------------------------------------------------------------')
-        print('IPW Diagnostic for positivity')
-        print('If the mean of the weights is far from either the min or max, this may\n indicate the model is mispecified or positivity is violated')
-        print('Standard deviation can help in IPTW model selection')
-        print('----------------------------------------------------------------------')
-        print('Mean weight:\t\t',round(avg,decimal))
-        print('Standard Deviation:\t\t',round(sd,decimal))
-        print('Minimum weight:\t\t\t',round(mn,decimal))
-        print('Maximum weight:\t\t\t',round(mx,decimal))
-        print('----------------------------------------------------------------------')
