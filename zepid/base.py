@@ -8,13 +8,10 @@ import statsmodels.formula.api as smf
 from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
 from statsmodels.nonparametric.smoothers_lowess import lowess
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from tabulate import tabulate
 from zepid.calc.calc import rr,rd,nnt,oddsratio,ird,irr,acr,paf,stand_mean_diff
 
-def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def RelRisk(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
     this function. 
     
@@ -61,7 +58,7 @@ def RelRisk(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_re
     rr(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
  
 
-def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def RiskDiff(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this 
     function. 
     
@@ -108,7 +105,7 @@ def RiskDiff(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_r
     rd(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
-def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def NNT(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on 
     Altman, DG (BMJ 1998). Missing data is ignored by this function. 
     
@@ -148,7 +145,7 @@ def NNT(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result
     nnt(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
-def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def OddsRatio(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored by this function. 
 
     WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). 
@@ -194,7 +191,7 @@ def OddsRatio(df,exposure,outcome,alpha=0.05,decimal=3,print_result=True,return_
     oddsratio(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
-def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def IncRateRatio(df, exposure, outcome, time, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval. 
     Missing data is ignored by this function. 
 
@@ -243,7 +240,7 @@ def IncRateRatio(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True
     irr(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
-def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def IncRateDiff(df, exposure, outcome, time, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Produces the estimate of the Incidence Rate Difference with a (1-alpha)*100% confidence interval.
     Missing data is ignored by this function. 
     
@@ -290,7 +287,7 @@ def IncRateDiff(df,exposure,outcome,time,alpha=0.05,decimal=3,print_result=True,
     ird(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
  
 
-def ACR(df,exposure,outcome,decimal=3):
+def ACR(df, exposure, outcome, decimal=3):
     '''Produces the estimated Attributable Community Risk (ACR). ACR is also known as Population Attributable 
     Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used to 
     clarify differences in the formulas. Missing data is ignored by this function. 
@@ -326,7 +323,7 @@ def ACR(df,exposure,outcome,decimal=3):
     acr(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
-def PAF(df,exposure, outcome,decimal=3):
+def PAF(df, exposure, outcome, decimal=3):
     '''Produces the estimated Population Attributable Fraction. Missing data is ignored by this function. 
     
     WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
@@ -358,7 +355,7 @@ def PAF(df,exposure, outcome,decimal=3):
     paf(a=a,b=b,c=c,d=d,decimal=decimal)
 
 
-def IC(df,exposure,outcome,modifier,adjust=None,decimal=5):
+def IC(df, exposure, outcome, modifier, adjust=None, decimal=3):
     '''Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear 
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1}, 
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit 
@@ -434,7 +431,7 @@ def IC(df,exposure,outcome,modifier,adjust=None,decimal=5):
     print('----------------------------------------------------------------------')
 
 
-def ICR(df,exposure,outcome,modifier,adjust=None,regression='log',ci='delta',b_sample=1000,alpha=0.05,decimal=5):
+def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delta', b_sample=1000, alpha=0.05, decimal=5):
     '''Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial 
     or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, 
     modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression 
@@ -546,7 +543,7 @@ def ICR(df,exposure,outcome,modifier,adjust=None,regression='log',ci='delta',b_s
     print('----------------------------------------------------------------------')
 
 
-def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def Sensitivity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Generates the Sensitivity and (1-alpha)% confidence interval, comparing test results to disease status 
     from pandas dataframe
 
@@ -589,7 +586,7 @@ def Sensitivity(df,test,disease,alpha=0.05,decimal=3,print_result=True,return_re
         return sens
 
 
-def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def Specificity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Generates the Specificity and (1-alpha)% confidence interval, comparing test results to disease status 
     from pandas dataframe
 
@@ -632,7 +629,7 @@ def Specificity(test,disease,alpha=0.05,decimal=3,print_result=True,return_resul
         return spec
 
 
-def StandMeanDiff(df,binary,continuous,decimal=3):
+def StandMeanDiff(df, binary, continuous, decimal=3):
     '''Calculates the standardized mean difference (SMD) of a continuous variable stratified by a binary variable (0,1). 
     This can be used to assess for collinearity between the continuous and binary variables of interest. A SMD greater 
     than 2 suggests potential collinearity issues. It does NOT mean that there will be collinearity issues in the full 
@@ -662,7 +659,7 @@ def StandMeanDiff(df,binary,continuous,decimal=3):
     stand_mean_diff(n1=v0.shape[0],n2=v1.shape[0],mean1=m0,mean2=m1,sd1=sd0,sd2=sd1,decimal=decimal)
 
 
-def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
+def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     '''Creates spline dummy variables based on either user specified knot locations or automatically
     determines knot locations based on percentiles. Options are available to set the number of knots, 
     location of knots (value), term (linear, quadratic, etc.), and restricted/unrestricted.
@@ -747,7 +744,7 @@ def spline(df,var,n_knots=3,knots=None,term=1,restricted=False):
         raise ValueError('restricted must be set to either True or False')
 
 
-def Table1(df,cols,variable_type,continuous_measure='median',strat_by=None,decimal=3):
+def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
     '''Code to automatically generate a descriptive table of your study population (often referred to as a
     Table 1). Personally, I hate copying SAS/R/Python output from the interpreter to an Excel or other 
     spreadsheet software. This code will generate a pandas dataframe object. This object will be a formatted

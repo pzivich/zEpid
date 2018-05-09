@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-def risk_ci(events,total,alpha=0.05,decimal=3):
+def risk_ci(events, total, alpha=0.05, decimal=3):
     '''Calculate two-sided (1-alpha)% Wald Confidence interval of Risk. Note
     relies on the Central Limit Theorem, so there must be at least 5 events 
     and 5 no events. Exact methods currently not available
@@ -57,14 +57,14 @@ def risk_ci(events,total,alpha=0.05,decimal=3):
     risk = events/total
     c = 1 - alpha/2
     zalpha = norm.ppf(c,loc=0,scale=1)
-    se = math.sqrt((risk*(1-risk)) / total)
+    se = math.sqrt( events*(total-events) / (total**2 * (total - 1)) )
     lower = risk - zalpha*se
     upper = risk + zalpha*se
     print('Risk: '+str(round(risk,decimal))+', ',str(round(100*(1-alpha),1))+'% CI: ('+
           str(round(lower,decimal))+', '+str(round(upper,decimal))+')')    
 
 
-def ir_ci(events,time,alpha=0.05,decimal=3):
+def ir_ci(events, time, alpha=0.05, decimal=3):
     '''Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
         
     events:
@@ -82,7 +82,7 @@ def ir_ci(events,time,alpha=0.05,decimal=3):
     c = 1 - alpha/2
     ir = events/time
     zalpha = norm.ppf(c,loc=0,scale=1)
-    se = math.sqrt(1 / events)
+    se = math.sqrt(events / (time**2))
     lower = ir - zalpha*se
     upper = ir + zalpha*se
     print('Incidence rate: '+str(round(ir,decimal))+', '+str(round(100*(1-alpha),1))+'% CI: ('+
@@ -90,7 +90,7 @@ def ir_ci(events,time,alpha=0.05,decimal=3):
 
 
 
-def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def rr(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Calculates the Risk Ratio from count data.
     
     a:
@@ -134,7 +134,7 @@ def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         risk_ci(c,c+d,alpha=alpha,decimal=decimal)
         print('----------------------------------------------------------------------')
         print('Relative Risk:',round(relrisk,decimal))
-        print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
+        print(str(round(100*(1-alpha),1))+'% two-sided CI: ('+str(round(math.exp(lcl),decimal)),',',str(round(math.exp(ucl),decimal))+')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
         print('Standard Error: ',round(SE,decimal))
         print('----------------------------------------------------------------------')
@@ -142,7 +142,7 @@ def rr(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         return relrisk 
 
 
-def rd(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def rd(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Calculates the Risk Difference from count data.
     
     a:
@@ -192,7 +192,7 @@ def rd(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
     if return_result == True:
         return riskdiff
 
-def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def nnt(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Calculates the Number Needed to Treat from count data
     
     a:
@@ -261,7 +261,7 @@ def nnt(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
         return nnt 
 
 
-def oddsratio(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def oddsratio(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Calculates the Odds Ratio from count data
 
     a:
@@ -311,7 +311,7 @@ def oddsratio(a,b,c,d,alpha=0.05,decimal=3,print_result=True,return_result=False
         return oddsr
 
     
-def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def irr(a, c, T1, T2, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Calculates the Incidence Rate Ratio from count data
     
     a:
@@ -363,7 +363,7 @@ def irr(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
         return irr
 
 
-def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
+def ird(a, c, T1, T2, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Calculates the Incidence Rate Difference from count data
 
     a:
@@ -414,7 +414,7 @@ def ird(a,c,T1,T2,alpha=0.05,decimal=3,print_result=True,return_result=False):
         return ird
 
 
-def acr(a,b,c,d,decimal=3):
+def acr(a, b, c, d, decimal=3):
     '''Calculates the estimated Attributable Community Risk (ACR) from count data. ACR is also 
     known as Population Attributable Risk. Since this is commonly confused with the population 
     attributable fraction, the name ACR is used to clarify differences in the formulas
@@ -443,7 +443,7 @@ def acr(a,b,c,d,decimal=3):
     print('ACR: ',round(acr,decimal))
     print('----------------------------------------------------------------------')
 
-def paf(a,b,c,d,decimal=3):
+def paf(a, b, c, d, decimal=3):
     '''Calculates the Population Attributable Fraction from count data
     
     a:
@@ -497,7 +497,7 @@ def odds_to_prop(odds):
     return prop
 
     
-def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
+def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     '''Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation 
     of results. For a full discussion and how to interpret the estimate and p-value, see Rosenthal & Rubin.
     
@@ -546,7 +546,7 @@ def counternull_pvalue(estimate,lcl,ucl,sided='two',alpha=0.05,decimal=3):
     print('----------------------------------------------------------------------')
 
 
-def semibayes(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,alpha=0.05,decimal=3):
+def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=False, alpha=0.05, decimal=3):
     '''A simple Bayesian Analysis. Note that this analysis assumes normal distribution for the 
     continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340)
     
@@ -632,7 +632,7 @@ def semibayes(prior_mean,prior_lcl,prior_ucl,mean,lcl,ucl,ln_transform=False,alp
     print('----------------------------------------------------------------------')
 
 
-def ppv_conv(sensitivity,specificity,prevalence):
+def ppv_conv(sensitivity, specificity, prevalence):
     '''Generates the Positive Predictive Value from designated Sensitivity, Specificity, and Prevalence.  
     Returns the positive predictive value
 
@@ -654,7 +654,7 @@ def ppv_conv(sensitivity,specificity,prevalence):
     return ppv
 
 
-def npv_conv(sensitivity,specificity,prevalence):
+def npv_conv(sensitivity, specificity, prevalence):
     '''Generates the Negative Predictive Value from designated Sensitivity, Specificity, and Prevalence.  
     Returns the negative predictive value
 
@@ -676,7 +676,7 @@ def npv_conv(sensitivity,specificity,prevalence):
     return npv
 
 
-def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity,specificity,population=10000,decimal=3):
+def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitivity, specificity, population=10000, decimal=3):
     '''Compares the cost of sensivitiy/specificity of screening criteria to treating the entire population 
     as test-negative and test-positive. The lowest per capita cost is considered the ideal choice. Note that
     this function only provides relative costs
@@ -752,7 +752,7 @@ def screening_cost_analyzer(cost_miss_case,cost_false_pos,prevalence,sensitivity
 
 
 
-def stand_mean_diff(n1,n2,mean1,mean2,sd1,sd2,decimal=3):
+def stand_mean_diff(n1, n2, mean1, mean2, sd1, sd2, decimal=3):
     '''Calculates the standardized mean difference (SMD) of a continuous variable stratified by a binary 
     variable. This can be used to assess for collinearity between the continuous and binary variables of interest.
     A SMD greater than 2 suggests potential collinearity issues. It does NOT mean that there will be collinearity 

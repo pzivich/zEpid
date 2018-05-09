@@ -1,3 +1,22 @@
+'''Calculators for various inverse probability weights. Current inclusions are inverse probability of 
+treatment weights, inverse probability of missingness weights, inverse probability of censoring weights.
+Predicted probabilites are generated throug logistic regression. Plans for the future include allowing the
+user to specify the model to generate predicted probabilities. Diagnostics are also available for inverse 
+probability of treatment weights.
+
+Contents:
+-propensity_score(): generate probabilities/propensity scores via logit model
+-iptw(): calculate inverse probability of treament weights
+-ipmw(): calculate inverse probability of missing weights
+-ipcw_prep(): transform data into long format compatible with ipcw()
+-ipcw(): calculate inverse probability of censoring weights
+-ipt_weight_diagnostic(): generate diagnostics for IPTW
+    |-positivity(): diagnostic values for positivity issues
+    |-standardized_diff(): calculates the standardized differences of IP weights
+-ipt_probability_diagnostic(): generate diagnostics for treatment propensity scores
+    |-p_boxplot():generate boxplot of probabilities by exposure
+    |-p_hist(): generates histogram of probabilities by exposure
+'''
 import warnings
 import math 
 import numpy as np
@@ -9,7 +28,7 @@ from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
 import matplotlib.pyplot as plt
 
-def propensity_score(df,model,mresult=True):
+def propensity_score(df, model, mresult=True):
     '''Generate propensity scores (probability) based on the model input. Uses logistic regression model 
     to calculate
     
@@ -34,7 +53,8 @@ def propensity_score(df,model,mresult=True):
     return pd.Series(p)
 
 
-def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,standardize='population',return_probability=False):
+def iptw(df,treatment, model_denominator, model_numerator=None, stabilized=True, standardize='population',
+         return_probability=False):
     '''Calculates the weight for inverse probability of treatment weights through logistic regression. 
     Function can return either stabilized or unstabilized weights. Stabilization is based on model_numerator.
     Default is just to calculate the prevalence of the treatment in the population.
@@ -122,7 +142,7 @@ def iptw(df,treatment,model_denominator,model_numerator=None,stabilized=True,sta
     
 
 
-def ipmw(df,missing,model,stabilized=True):
+def ipmw(df, missing, model, stabilized=True):
     '''Calculates the weight for inverse probability of missing weights using logistic regression. 
     Function automatically codes a missingness indicator (based on np.nan), so data can be directly
     input.
@@ -159,7 +179,7 @@ def ipmw(df,missing,model,stabilized=True):
     return w
 
 
-def ipcw_prep(df,idvar,time,event):
+def ipcw_prep(df, idvar, time, event):
     '''Function to prepare the data to an appropriate format for the function ipcw(). It breaks the dataset into 
     single observations for event one unit increase in time. It prepares the dataset to be eligible for IPCW calculation. 
     If your datasets is already in a long format, there is not need for this conversion
@@ -205,7 +225,7 @@ def ipcw_prep(df,idvar,time,event):
     return lf 
 
 
-def ipcw(df,idvar,model_denominator,model_numerator,stabilized=True):
+def ipcw(df, idvar, model_denominator, model_numerator, stabilized=True):
     '''Calculate the inverse probability of censoring weights (IPCW). Note that this function will 
     only operate as expected when a valid dataframe is input. For a valid style of dataframe, see 
     below or the documentation for ipcw_data_converter(). IPCW is calculated via logistic regression
@@ -273,11 +293,11 @@ class iptw_weight_diagnostic:
             -Only valid for stabilized IPTW
         standardized_diff()
     '''
-    def __init__(self,df,weight):
+    def __init__(self, df, weight):
         self.data = df
         self.w = weight
 
-    def positivity(self,decimal=3):
+    def positivity(self, decimal=3):
         '''Use this to assess whether positivity is a valid assumption. Note that this should only be used for 
         stabilized weights generated from IPTW. This diagnostic method is based on recommendations from 
         Cole SR & Hernan MA (2008). For more information, see the following paper:
@@ -302,7 +322,7 @@ class iptw_weight_diagnostic:
         print('Maximum weight:\t\t\t',round(mx,decimal))
         print('----------------------------------------------------------------------')
 
-    def standardized_diff(self,treatment,var,var_type='binary',decimal=3):
+    def standardized_diff(self, treatment, var, var_type='binary', decimal=3):
         '''Compute the standardized differences for the IP weights by treatment. Note that this can be used to compare 
         both mean(continuous variable) and proportions (binary variable) between baseline variables. To compare interactions
         and higher-order moments of continuous variables, calculate a corresponding variable then simply put in this new 
@@ -373,13 +393,13 @@ class iptw_probability_diagnostic:
         p_boxplot()
             -Graphical display of weights by actual treatment
     '''
-    def __init__(self,df,probability):
+    def __init__(self, df, probability):
         if ((np.max(df[probability]>1)) | (np.min(df[probability]<0))):
             raise ValueError('Input column must be probability')
         self.data = df
         self.p = probability
     
-    def p_hist(self,treatment):
+    def p_hist(self, treatment):
         '''Generates a histogram that can be used to check whether positivity may be violated qualitatively. Note 
         input probability variable, not the weight!
         
@@ -393,7 +413,7 @@ class iptw_probability_diagnostic:
         plt.legend()
         plt.show()
     
-    def p_boxplot(self,treatment):
+    def p_boxplot(self, treatment):
         '''Generates a stratified boxplot that can be used to visually check whether positivity may be violated, qualitatively. 
         Note input probability, not the weight!
         

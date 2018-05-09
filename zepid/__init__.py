@@ -4,7 +4,9 @@ ________________________________________________________________________________
 |       zEPID package: making epidemiology with Python e-z                                  |
 |                                                                                           |
 | This package is to provide easy to use tools to aid in epidemiological analyses. A full   |
-| applied guide to the entire package is available at: https://github.com/pzivich/zepid     |
+| applied guide to the entire package is available at:                                      |
+|       https://github.com/pzivich/Python-for-Epidemiologists                               |
+|                                                                                           |
 | Current contents include:                                                                 |
 |       -Basics tools for pandas dataframes and summary data                                |
 |       -Useful graphics                                                                    |
@@ -61,28 +63,17 @@ Contents:
     |
     |___ipw
     |    |
-    |    |-ipw(): generate probabilities/propensity scores via logistic regression
-    |    |__iptw(): class for inverse probability of treament weights
-    |    |     |-weight(): generate IPT weights 
-    |    |     |-merge_weights(): merge weights from another IPW model
-    |    |     |-fit(): fit an IPTW model via GEE or weighted Kaplan Meier
-    |    |
-    |    |__ipmw(): class for inverse probability of missing weights
-    |    |     |-weight(): generate IPM weights
-    |    |     |-merge_weights(): merge weights from another IPW model
-    |    |     |-fit(): fit an IPMW model via GEE or weighted Kaplan Meier
-    |    |  
-    |    |__ipcw(): class for inverse probability of censoring weights
-    |    |     |-longdata_converter(): convert a wide survival dataset to a long format
-    |    |     |-weight(): generate IPC weights 
-    |    |     |-merge_weights(): merge weights from another IPW model
-    |    |     |-fit(): fit an IPCW model via weighted Kaplan-Meier
-    |    |
-    |    |__diagnostic
+    |    |-propensity_score(): generate probabilities/propensity scores via logit model
+    |    |-iptw(): calculate inverse probability of treament weights
+    |    |-ipmw(): calculate inverse probability of missing weights
+    |    |-ipcw_prep(): transform data into long format compatible with ipcw()
+    |    |-ipcw(): calculate inverse probability of censoring weights
+    |    |__ipt_weight_diagnostic(): generate diagnostics for IPTW
+    |    |    |-positivity(): diagnostic values for positivity issues
+    |    |    |-standardized_diff(): calculates the standardized differences of IP weights
+    |    |__ipt_probability_diagnostic(): generate diagnostics for treatment propensity scores
     |         |-p_boxplot():generate boxplot of probabilities by exposure
     |         |-p_hist(): generates histogram of probabilities by exposure
-    |         |-positivity(): diagnostic values for positivity issues
-    |         |-standardized_diff(): calculates the standardized differences of IP weights
     |    
     |___sens_analysis
          |

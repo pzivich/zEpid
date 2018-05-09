@@ -1,12 +1,14 @@
 '''Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
 are implemented. Uses matplotlib to generate graphics. Future inclusions include forest plots
 
+Contents:
 -func_form_plot(): generate a functional form plot
 -effectmeasure_plot(): create an effect measure plot class
     |-labels(): change the labels, scale, reference line for plot
     |-colors(): change the colors and point shapes for plot
     |-plot(): generate the effect measure plot 
 -pvalue_plot(): generate a p-value distribution plot
+
 
 Example of how and effect measure plot is displayed:
         _____________________________________________      Measure     % CI 
@@ -19,8 +21,6 @@ Example of how and effect measure plot is displayed:
         #           #           #           #
 '''
 
-import warnings
-import math 
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
@@ -93,7 +93,7 @@ class effectmeasure_plot:
     >>>x.colors(pointcolor='r') #changing the point colors to red 
     >>>x.plot(t_adjuster=0.13) #generating the effect measure plot 
     '''
-    def __init__(self,label,effect_measure,lcl,ucl):
+    def __init__(self, label, effect_measure, lcl, ucl):
         '''Initializes effectmeasure_plot with desired data to plot. All lists should be the same 
         length. If a blank space is desired in the plot, add an empty character object (' ') to 
         each list at the desired point.
@@ -135,7 +135,7 @@ class effectmeasure_plot:
         self.pc = 'k'
         self.linec = 'gray'
     
-    def labels(self,**kwargs):
+    def labels(self, **kwargs):
         '''Function to change the labels of the outputted table. Additionally, the scale and reference
         value can be changed. 
         
@@ -159,7 +159,7 @@ class effectmeasure_plot:
         if 'center' in kwargs:
             self.center = kwargs['center']
     
-    def colors(self,**kwargs):
+    def colors(self, **kwargs):
         '''Function to change colors and shapes. 
         
         Accepts the following keyword arguments:
@@ -182,7 +182,7 @@ class effectmeasure_plot:
         if 'pointcolor' in kwargs:
             self.pc = kwargs['pointcolor']
     
-    def plot(self,t_adjuster=0.01,decimal=3,size=3,max_value=None,min_value=None):
+    def plot(self, t_adjuster=0.01, decimal=3, size=3, max_value=None, min_value=None):
         '''Generates the matplotlib effect measure plot with the default or specified attributes. 
         The following variables can be used to further fine-tune the effect measure plot
         
@@ -259,8 +259,8 @@ class effectmeasure_plot:
 
 
 
-def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=None,ylims=None,loess_value=0.25,
-                   legend=True,model_results=True,loess=True,points=False,discrete=False):
+def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_dist=None, ylims=None, loess_value=0.25,
+                   legend=True, model_results=True, loess=True, points=False, discrete=False):
     '''Creates a LOESS plot to aid in functional form assessment for continuous variables.
     Plots can be created for binary and continuous outcomes. Default options are set to create
     a functional form plot for a binary outcome. To convert to a continuous outcome, 
@@ -389,7 +389,7 @@ def func_form_plot(df,outcome,var,f_form=None,outcome_type='binary',link_dist=No
 
 
 
-def pvalue_plot(point,se,color='b',fill=True,null=0,alpha=None):
+def pvalue_plot(point, se, color='b', fill=True, null=0, alpha=None):
     '''Creates a plot of the p-value distribution based on a point estimate and standard error. 
     I find this plot to be useful to explain p-values and how much evidence weight you have in a 
     specific value. I think it is useful to explain what exactly a p-value tells you. Note that this
@@ -442,7 +442,7 @@ def pvalue_plot(point,se,color='b',fill=True,null=0,alpha=None):
     return ax 
 
 
-def spaghetti_plot(df,idvar,variable,time):
+def spaghetti_plot(df, idvar, variable, time):
     '''Create a spaghetti plot by an ID variable. A spaghetti plot can be useful for visualizing 
     trends or looking at longitudinal data patterns for individuals all at once.
     

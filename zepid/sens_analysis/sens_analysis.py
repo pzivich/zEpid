@@ -1,3 +1,11 @@
+'''Tools for sensitivity analyses. I still need to read Lash & Fox to integrate more tools
+for multiple bias analysis. This branch is still very much a work in progress. The goal is 
+to simplify sensitivity analyses, in the hopes they become more common in publications
+
+-rr_corr(): generates a corrected RR based on RR of confounder and probabilities confounder
+-trapezoidal(): generates a trapezoidal distribution of values
+-delta_beta(): conducts a delta-beta (change in estimate) analysis
+'''
 import warnings
 import math 
 import numpy as np
@@ -12,7 +20,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-def rr_corr(rr_obs,rr_conf,p1,p0):
+def rr_corr(rr_obs, rr_conf, p1, p0):
     '''Simple Sensitivity analysis calculator for Risk Ratios. Estimates the impact of 
     an unmeasured confounder on the results of a conducted study. Observed RR comes from 
     the data analysis, while the RR between the unmeasured confounder and the outcome should
@@ -38,7 +46,7 @@ def rr_corr(rr_obs,rr_conf,p1,p0):
     return rr_adj
 
 
-def trapezoidal(mini,mode1,mode2,maxi,size=100000,seed=None):
+def trapezoidal(mini, mode1, mode2, maxi, size=100000, seed=None):
     '''Creates trapezoidal distribution based on Fox & Lash 2005. This function 
     can be used to generate distributions of probabilities and effect measures for
     sensitivity analyses. It is particularly useful when used in conjunction with 
@@ -71,7 +79,8 @@ def trapezoidal(mini,mode1,mode2,maxi,size=100000,seed=None):
     return tzf['v']
 
 
-def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomial(sm.families.links.logit),group=False,groupvar=''):
+def delta_beta(df, eq, beta, model='glm', standardized=False, match='',
+               family=sm.families.family.Binomial(sm.families.links.logit), group=False, groupvar=''):
     '''Delta-beta is a sensitivity analysis that tracks the change in the beta estimate(s) of interest 
     when a single observation is excluded from the dataframe for all the observations. This function 
     uses statsmodels to calculate betas. All observations and the difference in estimates is stored 
@@ -95,6 +104,9 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
          variable names of beta(s) of interest
     model:
         -Whether to use GLM or GEE. Default is GLM
+    stardardized:
+        -Default is to generate delta-betas. If specified as True, will generated standardized delta-betas,
+         (delta-beta / standard error)
     match:
         -Variable to match observations on for a GEE model
     group:
@@ -108,6 +120,8 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
     '''
     if type(beta) is not list:
         raise ValueError("Input 'beta' must be a list object")
+    
+    #Setting up model
     if model=='glm':
         fmodel = smf.glm(eq,df,family=family).fit()
     elif model=='gee':
@@ -117,6 +131,8 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
             fmodel = smf.gee(eq,df,match,family=family).fit()
     else:
         raise ValueError('Please specify a supported model')
+    
+    #For non-grouped data
     dbr = {}
     if group == False:
         for i in range(len(df)):
@@ -132,6 +148,8 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
                 for b in beta:
                     dbr.setdefault(b,[]).append(np.nan)
         rf = pd.DataFrame.from_dict(dbr)
+    
+    #For grouped data 
     if group == True:
         if groupvar == '':
             raise ValueError('Must specify group variable to drop observations by')
@@ -148,8 +166,14 @@ def delta_beta(df,eq,beta,model='glm',match='',family=sm.families.family.Binomia
                 for b in beta:
                     dbr.setdefault(b,[]).append(np.nan)
         rf = pd.DataFrame.from_dict(dbr)
+    
+    #Extracting beta's and calculating the delta-beta
     for b in beta:
-        rf[b] -= fmodel.params[b]
+        if standardized == False:
+            rf[b] -= fmodel.params[b]
+        if standardized == True:
+            rf[b] -= fmodel.params[b] 
+            #Add in division by SE 
     return rf
 
 
