@@ -1,3 +1,4 @@
+![zepid](docs/images/zepid_logo.png)
 # zepid
 
 If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github (https://github.com/pzivich), email (gmail: zepidpy), or twitter (@zepidpy).
