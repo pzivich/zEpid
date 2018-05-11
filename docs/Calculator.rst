@@ -178,6 +178,7 @@ Converting odds to proportions, and proportions to odds
 
 .. code:: python
     zepid.calc.odds_to_prop(1.1)
+
     
 zepid.calc.prop_to_odds(0.2)
 
@@ -187,3 +188,7 @@ Standardized Mean Difference
 .. code:: python
     zepid.calc.stand_mean_diff(93,87,1.3,1.6,0.14,0.32)
 
+
+If you have additional items you believe would make a good addition to 
+the calculator functions, or *zEpid* in general, please reach out to us
+on GitHub
