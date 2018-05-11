@@ -139,7 +139,7 @@ them to the set sensitivity / specificity of the screening criteria
 Which returns the following results
 
 
-..code::
+.. code::
 
    ----------------------------------------------------------------------
    NOTE: When calculating costs, be sure to consult experts in health
@@ -178,7 +178,7 @@ Counternull p-values
 
 Converting odds to proportions, and proportions to odds
 
-.. code:: python
+.. code-block:: python
 
     zepid.calc.odds_to_prop(1.1)
     
