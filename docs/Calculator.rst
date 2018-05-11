@@ -6,7 +6,7 @@ Calculator
 =====================================
 
 *zEpid* includes some basic calculations which can be called directly
-from the ```calc``` branch. Functions within this branch are generally 
+from the ``calc`` branch. Functions within this branch are generally 
 used in other functions.
 
 Measure of Association/Effect
@@ -25,6 +25,7 @@ Risk ratio
 Which will return the following
 
 .. code::
+
     +-----+-------+-------+
     |     |   D=1 |   D=0 |
     +=====+=======+=======+
@@ -137,6 +138,7 @@ them to the set sensitivity / specificity of the screening criteria
 
 Which returns the following results
 
+
 ..code::
 
    ----------------------------------------------------------------------
@@ -181,6 +183,7 @@ Converting odds to proportions, and proportions to odds
     zepid.calc.odds_to_prop(1.1)
     
 zepid.calc.prop_to_odds(0.2)
+
 
 
 Standardized Mean Difference
