@@ -19,11 +19,19 @@ various functions. Current features include:
 Contents:
 -------------------------------------
 
+.. toctree::
+  :maxdepth: 2
 
-Installation
+  Measures
+  Calculator
+  Graphics
+  Inverse Probability Weights
+  Sensitivity Analyses
+
+Installation:
 ------------------------------
 
-Dependencies are from the typical Python data-stack: Numpy, Pandas, Scipy, and optionally Matplotlib. Install using:
+Dependencies are from the typical Python data-stack: Numpy, Pandas, Scipy, Statsmodels, and Matplotlib. Addtionally, it requires Tabulate, so nice looking tables can be easily generated. Install using:
 
 Source code and Issue Tracker
 ------------------------------
@@ -33,4 +41,6 @@ Please report bugs, issues, and feature extensions there.
 
 For a simplified guide to Python 3.x tailored to epidemiologists, check out my
 online guide on GitHub as well: `pzivich/Python-for-Epidemiologists <https://github.com/pzivich/Python-for-Epidemiologists/>`_
+
+Also feel free to contact us via email (gmail: zepidpy) or Twitter (@zepidpy)
 
