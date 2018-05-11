@@ -178,9 +178,12 @@ Counternull p-values
 
 Converting odds to proportions, and proportions to odds
 
-.. code-block:: python
+.. code:: python
 
     zepid.calc.odds_to_prop(1.1)
+
+.. code:: python
+
     
 zepid.calc.prop_to_odds(0.2)
 
