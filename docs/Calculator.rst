@@ -176,11 +176,13 @@ Counternull p-values
 
     zepid.calc.counternull_pvalue(estimate=0.1,lcl=-0.01,ucl=0.2)
 
-Converting odds to proportions, and proportions to odds
+Converting odds to proportions
 
 .. code:: python
 
     zepid.calc.odds_to_prop(1.1)
+
+Converting proportions to odds
 
 .. code:: python
 
