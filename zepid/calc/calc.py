@@ -37,10 +37,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-def risk_ci(events, total, alpha=0.05, decimal=3):
-    '''Calculate two-sided (1-alpha)% Wald Confidence interval of Risk. Note
+def risk_ci(events, total, alpha=0.05, decimal=3,confint='wald'):
+    '''Calculate two-sided (1-alpha)% Confidence interval of Risk. Note
     relies on the Central Limit Theorem, so there must be at least 5 events 
-    and 5 no events. Exact methods currently not available
+    and 5 nonevents
     
     events:
         -Number of events/outcomes that occurred
@@ -50,6 +50,10 @@ def risk_ci(events, total, alpha=0.05, decimal=3):
         -Alpha level. Default is 0.05
     decimal:
         -Number of decimal places to display. Default is 3 decimal places
+    confint:
+        -Type of confidence interval to generate. Current options are 
+            wald
+            hypergeometric
     
     Example)
     >>>zepid.calc.risk_ci(25,145)
@@ -57,9 +61,17 @@ def risk_ci(events, total, alpha=0.05, decimal=3):
     risk = events/total
     c = 1 - alpha/2
     zalpha = norm.ppf(c,loc=0,scale=1)
-    se = math.sqrt( events*(total-events) / (total**2 * (total - 1)) )
-    lower = risk - zalpha*se
-    upper = risk + zalpha*se
+    if confint == 'wald':
+        lr = math.log(risk/(1-risk))
+        sd = math.sqrt((1/events) + (1/(total-events)))
+        lower = 1 / (1 + math.exp(-1*(lr - zalpha*sd)))
+        upper = 1 / (1 + math.exp(-1*(lr + zalpha*sd)))
+    elif confint == 'hypergeometric':
+        sd = math.sqrt( events*(total-events) / (total**2 * (total - 1)) )
+        lower = risk - zalpha*sd
+        upper = risk + zalpha*sd
+    else:
+        raise ValueError('Please specify a valid confidence interval')
     print('Risk: '+str(round(risk,decimal))+', ',str(round(100*(1-alpha),1))+'% CI: ('+
           str(round(lower,decimal))+', '+str(round(upper,decimal))+')')    
 
@@ -133,11 +145,11 @@ def rr(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False
         print('Unexposed')
         risk_ci(c,c+d,alpha=alpha,decimal=decimal)
         print('----------------------------------------------------------------------')
-        print('Relative Risk:',round(relrisk,decimal))
+        print('Risk Ratio:',round(relrisk,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: ('+str(round(math.exp(lcl),decimal)),',',str(round(math.exp(ucl),decimal))+')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-        print('Standard Error: ',round(SE,decimal))
-        print('----------------------------------------------------------------------')
+        print('Standard Deviation: ',round(SE,decimal))
+        print('----------------------------------------------------------------------\n')
     if return_result == True:
         return relrisk 
 
@@ -187,8 +199,8 @@ def rd(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False
         print('Risk Difference:',round(riskdiff,decimal))	
         print(str(round(100*(1-alpha),1))+'%  two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
         print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
-        print('Standard Error: ',round(SE,decimal))
-        print('----------------------------------------------------------------------')
+        print('Standard Deviation: ',round(SE,decimal))
+        print('----------------------------------------------------------------------\n')
     if return_result == True:
         return riskdiff
 
@@ -256,7 +268,7 @@ def nnt(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=Fals
             print('NNT ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
         else:
             print('NNH ',round(abs(lcl),decimal),' to ',round(abs(ucl),decimal))
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
     if return_result == True:
         return nnt 
 
@@ -305,8 +317,8 @@ def oddsratio(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_resul
         print('Odds Ratio:',round(oddsr,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-        print('Standard Error: ',round(SE,decimal))
-        print('----------------------------------------------------------------------')
+        print('Standard Deviation: ',round(SE,decimal))
+        print('----------------------------------------------------------------------\n')
     if return_result == True:
         return oddsr
 
@@ -357,8 +369,8 @@ def irr(a, c, T1, T2, alpha=0.05, decimal=3, print_result=True, return_result=Fa
         print('Incidence Rate Ratio:',round(irr,decimal))
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(math.exp(lcl),decimal),', ',round(math.exp(ucl),decimal),')')
         print('Confidence Limit Ratio: ',round(((math.exp(ucl))/(math.exp(lcl))),decimal))
-        print('Standard Error: ',round(SE,decimal))
-        print('----------------------------------------------------------------------')
+        print('Standard Deviation: ',round(SE,decimal))
+        print('----------------------------------------------------------------------\n')
     if return_result == True:
         return irr
 
@@ -408,8 +420,8 @@ def ird(a, c, T1, T2, alpha=0.05, decimal=3, print_result=True, return_result=Fa
         print('Incidence Rate Difference:',round(ird,decimal))	
         print(str(round(100*(1-alpha),1))+'% two-sided CI: (',round(lcl,decimal),', ',round(ucl,decimal),')')
         print('Confidence Limit Difference: ',round((ucl-lcl),decimal))
-        print('Standard Error: ',round(SE,decimal))
-        print('----------------------------------------------------------------------')
+        print('Standard Deviation: ',round(SE,decimal))
+        print('----------------------------------------------------------------------\n')
     if return_result == True:
         return ird
 
@@ -441,7 +453,7 @@ def acr(a, b, c, d, decimal=3):
     print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
     print('----------------------------------------------------------------------')
     print('ACR: ',round(acr,decimal))
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
 
 def paf(a, b, c, d, decimal=3):
     '''Calculates the Population Attributable Fraction from count data
@@ -468,7 +480,7 @@ def paf(a, b, c, d, decimal=3):
     print(tabulate([['E=1',a,b],['E=0',c,d]],headers=['','D=1','D=0'],tablefmt='grid'))
     print('----------------------------------------------------------------------')
     print('PAF: ',round(paf,decimal))
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
     
 
 def prop_to_odds(prop):
@@ -543,7 +555,7 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
         print('Lower one-sided counternull p-value: ',round(lowerp,decimal))
     else:
         print('Two-sided counternull p-value: ',round(twosip,decimal))
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
 
 
 def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=False, alpha=0.05, decimal=3):
@@ -629,7 +641,7 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     print('----------------------------------------------------------------------')
     print('Posterior Estimate: ',round(post_mean,decimal))
     print(str(round((1-alpha)*100,1))+'% Posterior Probability Interval: (',round(post_lcl,decimal),', ',round(post_ucl,decimal),')')
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
 
 
 def ppv_conv(sensitivity, specificity, prevalence):
@@ -748,7 +760,7 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
         print('Screening program is cost efficient')
     if ((pc_t_cost<pc_ct_cost)&(pc_t_cost<pc_nt_cost)):
         print('Treating everyone as test-positive is least costly')
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
 
 
 
@@ -782,6 +794,6 @@ def stand_mean_diff(n1, n2, mean1, mean2, sd1, sd2, decimal=3):
     smd = abs(((mean1 - mean2) / pooled_sd))
     print('----------------------------------------------------------------------')
     print('Standardized Mean Difference: '+str(round(smd,decimal)))
-    print('----------------------------------------------------------------------')
+    print('----------------------------------------------------------------------\n')
 
 

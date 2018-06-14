@@ -11,7 +11,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from tabulate import tabulate
 from zepid.calc.calc import rr,rd,nnt,oddsratio,ird,irr,acr,paf,stand_mean_diff
 
-def RelRisk(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def RiskRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
     this function. 
     
@@ -23,6 +23,8 @@ def RelRisk(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, ret
         -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+    reference:
+        -reference category for comparisons
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
     decimal:
@@ -33,32 +35,23 @@ def RelRisk(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, ret
         -Whether to return the RR as a object. Default is False
     
     Example)
-    >>>zepid.RelRisk(df=data,exposure='X',outcome='D')
-    +-----+-------+-------+
-    |     |   D=1 |   D=0 |
-    +=====+=======+=======+
-    | E=1 |    27 |   104 |
-    +-----+-------+-------+
-    | E=0 |    12 |    67 |
-    +-----+-------+-------+
-    ----------------------------------------------------------------------
-    Risk exposed: 0.206
-    Risk unexposed: 0.152
-    ----------------------------------------------------------------------
-    Relative Risk: 1.357
-    95.0% two-sided CI: ( 0.73 ,  2.522 )
-    Confidence Limit Ratio:  3.456
-    ----------------------------------------------------------------------
+    >>>zepid.RiskRatio(df=data,exposure='X',outcome='D')
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
-    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
-    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
-    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
-    rr(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+    c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
+    vals = set(df[exposure].dropna().unique())
+    vals.remove(reference)
+    for i in vals:
+        print('======================================================================')
+        print('Comparing '+exposure+'='+str(i)+' to '+exposure+'='+str(reference))
+        print('======================================================================')
+        a = df.loc[(df[exposure]==i)&(df[outcome]==1)].shape[0]
+        b = df.loc[(df[exposure]==i)&(df[outcome]==0)].shape[0]
+        rr(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
  
 
-def RiskDiff(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def RiskDiff(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this 
     function. 
     
@@ -70,6 +63,8 @@ def RiskDiff(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, re
         -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+    reference:
+        -reference category for comparisons
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
@@ -81,31 +76,22 @@ def RiskDiff(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, re
     
     Example)
     >>>zepid.RiskDiff(df=data,exposure='X',outcome='D')
-    +-----+-------+-------+
-    |     |   D=1 |   D=0 |
-    +=====+=======+=======+
-    | E=1 |    27 |   104 |
-    +-----+-------+-------+
-    | E=0 |    12 |    67 |
-    +-----+-------+-------+
-    ----------------------------------------------------------------------
-    Risk exposed: 0.206
-    Risk unexposed: 0.152
-    ----------------------------------------------------------------------
-    Risk Difference: 0.054
-    95.0%  two-sided CI: ( -0.052 ,  0.16 )
-    Confidence Limit Difference:  0.211
-    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
-    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
-    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
-    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
-    rd(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+    c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
+    vals = set(df[exposure].dropna().unique())
+    vals.remove(reference)
+    for i in vals:
+        print('======================================================================')
+        print('Comparing '+exposure+'='+str(i)+' to '+exposure+'='+str(reference))
+        print('======================================================================')
+        a = df.loc[(df[exposure]==i)&(df[outcome]==1)].shape[0]
+        b = df.loc[(df[exposure]==i)&(df[outcome]==0)].shape[0]
+        rd(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
-def NNT(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def NNT(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on 
     Altman, DG (BMJ 1998). Missing data is ignored by this function. 
     
@@ -117,6 +103,8 @@ def NNT(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_
         -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+    reference:
+        -reference category for comparisons
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
@@ -128,24 +116,22 @@ def NNT(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_
     
         Example)
     >>>zepid.NNT(df=data,exposure='X',outcome='D')
-    ----------------------------------------------------------------------
-    Risk Difference:  0.054
-    ----------------------------------------------------------------------
-    Number Needed to Harm:  18.447 
-
-    95.0% two-sided CI: 
-    NNH  6.252 to infinity to NNT  19.408
-    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
-    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
-    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
-    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
-    nnt(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+    c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
+    vals = set(df[exposure].dropna().unique())
+    vals.remove(reference)
+    for i in vals:
+        print('======================================================================')
+        print('Comparing '+exposure+'='+str(i)+' to '+exposure+'='+str(reference))
+        print('======================================================================')
+        a = df.loc[(df[exposure]==i)&(df[outcome]==1)].shape[0]
+        b = df.loc[(df[exposure]==i)&(df[outcome]==0)].shape[0]
+        nnt(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
-def OddsRatio(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def OddsRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored by this function. 
 
     WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no). 
@@ -156,6 +142,8 @@ def OddsRatio(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, r
         -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
     outcome:
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+    reference:
+        -reference category for comparisons
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
@@ -167,31 +155,22 @@ def OddsRatio(df, exposure, outcome, alpha=0.05, decimal=3, print_result=True, r
     
     Example)
     >>>zepid.OddsRatio(df=data,exposure='X',outcome='D')
-    +-----+-------+-------+
-    |     |   D=1 |   D=0 |
-    +=====+=======+=======+
-    | E=1 |    27 |   104 |
-    +-----+-------+-------+
-    | E=0 |    12 |    67 |
-    +-----+-------+-------+
-    ----------------------------------------------------------------------
-    Odds exposed: 0.26
-    Odds unexposed: 0.179
-    ----------------------------------------------------------------------
-    Odds Ratio: 1.45
-    95.0% two-sided CI: ( 0.687 ,  3.057 )
-    Confidence Limit Ratio:  4.447
-    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
-    b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
-    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
-    d = df.loc[(df[exposure]==0)&(df[outcome]==0)].shape[0]
-    oddsratio(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+    c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
+    d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
+    vals = set(df[exposure].dropna().unique())
+    vals.remove(reference)
+    for i in vals:
+        print('======================================================================')
+        print('Comparing '+exposure+'='+str(i)+' to '+exposure+'='+str(reference))
+        print('======================================================================')
+        a = df.loc[(df[exposure]==i)&(df[outcome]==1)].shape[0]
+        b = df.loc[(df[exposure]==i)&(df[outcome]==0)].shape[0]
+        oddsratio(a=a,b=b,c=c,d=d,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
 
 
-def IncRateRatio(df, exposure, outcome, time, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def IncRateRatio(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval. 
     Missing data is ignored by this function. 
 
@@ -205,6 +184,8 @@ def IncRateRatio(df, exposure, outcome, time, alpha=0.05, decimal=3, print_resul
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     time:
         -column name of person-time contributed by each individual. Must all be greater than 0
+    reference:
+        -reference category for comparisons
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
@@ -216,31 +197,22 @@ def IncRateRatio(df, exposure, outcome, time, alpha=0.05, decimal=3, print_resul
     
     Example)
     >>>zepid.IncRateRatio(df=data,exposure='X',outcome='D',time='t')
-    +-----+-------+---------------+
-    |     |   D=1 |   Person-time |
-    +=====+=======+===============+
-    | E=1 |    27 |       769.291 |
-    +-----+-------+---------------+
-    | E=0 |    12 |       447.089 |
-    +-----+-------+---------------+
-    ----------------------------------------------------------------------
-    Incidence Rate exposed: 0.035
-    Incidence Rate unexposed: 0.027
-    ----------------------------------------------------------------------
-    Incidence Rate Ratio: 1.308
-    95.0% two-sided CI: ( 0.662 ,  2.581 )
-    Confidence Limit Ratio:  3.896
-    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
-    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
-    time_a = df.loc[df[exposure]==1][time].sum()
-    time_c = df.loc[df[exposure]==0][time].sum()
-    irr(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+    c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
+    time_c = df.loc[df[exposure]==reference][time].sum()
+    vals = set(df[exposure].dropna().unique())
+    vals.remove(reference)
+    for i in vals:
+        print('======================================================================')
+        print('Comparing '+exposure+'='+str(i)+' to '+exposure+'='+str(reference))
+        print('======================================================================')
+        a = df.loc[(df[exposure]==i)&(df[outcome]==1)].shape[0]
+        time_a = df.loc[df[exposure]==i][time].sum()
+        irr(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
     
 
-def IncRateDiff(df, exposure, outcome, time, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def IncRateDiff(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Produces the estimate of the Incidence Rate Difference with a (1-alpha)*100% confidence interval.
     Missing data is ignored by this function. 
     
@@ -252,6 +224,8 @@ def IncRateDiff(df, exposure, outcome, time, alpha=0.05, decimal=3, print_result
         -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
     time:
         -column name of person-time contributed by individual. Must be greater than 0
+    reference:
+        -reference category for comparisons
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
@@ -263,28 +237,19 @@ def IncRateDiff(df, exposure, outcome, time, alpha=0.05, decimal=3, print_result
     
     Example)
     >>>zepid.IncRateDiff(df=data,exposure='X',outcome='D',time='t')
-    +-----+-------+---------------+
-    |     |   D=1 |   Person-time |
-    +=====+=======+===============+
-    | E=1 |    27 |       769.291 |
-    +-----+-------+---------------+
-    | E=0 |    12 |       447.089 |
-    +-----+-------+---------------+
-    ----------------------------------------------------------------------
-    Incidence Rate exposed: 0.035
-    Incidence Rate unexposed: 0.027
-    ----------------------------------------------------------------------
-    Incidence Rate Difference: 0.008
-    95.0% two-sided CI: ( -0.012 ,  0.028 )
-    Confidence Limit Difference:  0.04
-    ----------------------------------------------------------------------
     '''
     zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
-    c = df.loc[(df[exposure]==0)&(df[outcome]==1)].shape[0]
-    time_a = df.loc[df[exposure]==1][time].sum()
-    time_c = df.loc[df[exposure]==0][time].sum()
-    ird(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
+    c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
+    time_c = df.loc[df[exposure]==reference][time].sum()
+    vals = set(df[exposure].dropna().unique())
+    vals.remove(reference)
+    for i in vals:
+        print('======================================================================')
+        print('Comparing '+exposure+'='+str(i)+' to '+exposure+'='+str(reference))
+        print('======================================================================')
+        a = df.loc[(df[exposure]==i)&(df[outcome]==1)].shape[0]
+        time_a = df.loc[df[exposure]==i][time].sum()
+        ird(a=a,c=c,T1=time_a,T2=time_c,alpha=alpha,decimal=decimal,print_result=print_result,return_result=return_result)
  
 
 def ACR(df, exposure, outcome, decimal=3):
@@ -431,7 +396,7 @@ def IC(df, exposure, outcome, modifier, adjust=None, decimal=3):
     print('----------------------------------------------------------------------')
 
 
-def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delta', b_sample=1000, alpha=0.05, decimal=5):
+def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delta', b_sample=200, alpha=0.05, decimal=5):
     '''Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial 
     or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, 
     modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression 
@@ -512,9 +477,11 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
         icr_lcl = icr - zalpha*math.sqrt(varICR)
         icr_ucl = icr + zalpha*math.sqrt(varICR)
     elif ci == 'bootstrap':
+        print('Running bootstrap... please wait...')
         bse_icr = []
         ul = 1 - alpha/2
         ll = 0 + alpha/2
+        warnings.filterwarnings("ignore")
         for i in range(b_sample):
             dfs = df.sample(n=df.shape[0],replace=True)
             try:
@@ -525,6 +492,7 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
                 bse_icr.append(sigma)
             except:
                 bse_icr.append(np.nan)
+        warnings.filterwarnings("always")
         bsdf = pd.DataFrame()
         bsdf['sigma'] = bse_icr
         lsig,usig = bsdf['sigma'].dropna().quantile(q=[ll,ul])
@@ -860,19 +828,19 @@ def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, 
                     if variable_type[vn] == 'category':
                         x = sf[i].value_counts()
                         m = sf[i].isna().sum()
-                        rf = pd.DataFrame({'n / Mean':x, '% / SE':x / x.sum()})
-                        rf = rf.append(pd.DataFrame({'n / Mean':m,'% / SE':''},index=['Missing']))
+                        rf = pd.DataFrame({'n / Mean':x, '% / SD':x / x.sum()})
+                        rf = rf.append(pd.DataFrame({'n / Mean':m,'% / SD':''},index=['Missing']))
                 rlist.append(rf)
             if continuous_measure == 'median':
                 c = pd.DataFrame({'n / Median':len(sf),'% / IQR':''},index=[''])
             if continuous_measure == 'mean':
-                c = pd.DataFrame({'n / Mean':len(sf),'% / SE':''},index=[''])
+                c = pd.DataFrame({'n / Mean':len(sf),'% / SD':''},index=[''])
             rff = pd.concat([c] + rlist, keys=['TOTAL']+cols, names=['Variable'],axis=0)
             slist.append(rff)
             if continuous_measure == 'median':
                 nlist.append((strat_by+'='+str(j),'% / IQR'))
             if continuous_measure == 'mean':
-                nlist.append((strat_by+'='+str(j),'% / SE'))
+                nlist.append((strat_by+'='+str(j),'% / SD'))
             nlist.append((strat_by+'='+str(j),'n'))
         index = pd.MultiIndex.from_tuples(nlist, names=['_', '__'])
         srf = pd.concat(slist, keys=cols, names=['Variable'],axis=1)

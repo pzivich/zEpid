@@ -17,7 +17,7 @@ ________________________________________________________________________________
 Contents:
   zepid 
     |
-    |-RelRisk(): calculate risk ratio from pandas dataframe
+    |-RiskRatio(): calculate risk ratio from pandas dataframe
     |-RiskDiff(): calculate risk difference from pandas dataframe
     |-NNT(): calcualte the number needed to treat from pandas dataframe
     |-OddsRatio(): calculate the odds ratio from pandas dataframe
@@ -81,7 +81,7 @@ Contents:
          |-trapezoidal(): generates a trapezoidal distribution of values
          |-delta_beta(): conducts a delta-beta analysis
 '''
-from .base import RelRisk,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,StandMeanDiff,Table1
+from .base import RiskRatio,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,Sensitivity,Specificity,spline,StandMeanDiff,Table1
 
 from .calc import calc
 from .graphics import graphics 

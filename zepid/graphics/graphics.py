@@ -182,7 +182,7 @@ class effectmeasure_plot:
         if 'pointcolor' in kwargs:
             self.pc = kwargs['pointcolor']
     
-    def plot(self, t_adjuster=0.01, decimal=3, size=3, max_value=None, min_value=None):
+    def plot(self,figsize=(3,3), t_adjuster=0.01, decimal=3, size=3, max_value=None, min_value=None):
         '''Generates the matplotlib effect measure plot with the default or specified attributes. 
         The following variables can be used to further fine-tune the effect measure plot
         
@@ -227,7 +227,7 @@ class effectmeasure_plot:
                 mini = round(((pd.to_numeric(self.df['LCL'])).min() - 0.05),2) #setting x-axis minimum
         else:
             mini = min_value
-        plt.figure(figsize=(size*2,size*1)) #blank figure
+        plt.figure(figsize=figsize) #blank figure
         gspec = gridspec.GridSpec(1, 6) #sets up grid
         plot = plt.subplot(gspec[0, 0:4]) #plot of data
         tabl = plt.subplot(gspec[0, 4:]) # table of OR & CI 
@@ -255,7 +255,7 @@ class effectmeasure_plot:
         tabl.axis('off');tb.auto_set_font_size(False);tb.set_fontsize(12)
         for key,cell in tb.get_celld().items():
             cell.set_linewidth(0)
-        plt.show()
+        return plot
 
 
 
