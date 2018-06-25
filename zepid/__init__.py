@@ -87,3 +87,5 @@ from .calc import calc
 from .graphics import graphics 
 from .ipw import ipw
 from .sens_analysis import sens_analysis
+
+from .version import __version__

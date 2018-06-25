@@ -1,0 +1,5 @@
+include README.md 
+include LICENSE.txt
+include MANIFEST.in
+
+recursive-include zepid *
