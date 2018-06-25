@@ -12,7 +12,7 @@ If you have any requests for items to be included, please contact me and I will 
 ## Dependencies:
 pandas >= 0.18.0, numpy, statsmodels >= 0.7.0, matplotlib >= 2.0, scipy, tabulate
 
-##Installing:
+## Installing:
 You can install zepid using `pip install zepid` for UNIX and `python -m pip install zepid` for Windows from the Command Line
 
 # Module Features:
