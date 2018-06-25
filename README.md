@@ -1,16 +1,21 @@
 ![zepid](docs/images/zepid_logo.png)
 # zepid
 
-If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github (https://github.com/pzivich), email (gmail: zepidpy), or twitter (@zepidpy).
-
 zepid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The purpose of this package is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be generated through various functions. For a sample walkthrough of what this package is capable of, please look to the introduction to Python 3 for epidemiologists at https://github.com/pzivich/Python-for-Epidemiologists
 
 Just a few highlights to provide: basic epidemiology calculations, easily create functional form assessment plots, easily create effectmeasure plots, generate and conduct diagnostic tests on inverse probability weight.
 
-# Dependencies
+If you have any requests for items to be included, please contact me and I will work on adding any requested features. You can contact me either through github (https://github.com/pzivich), email (gmail: zepidpy), or twitter (@zepidpy).
+
+# Installation
+
+## Dependencies:
 pandas >= 0.18.0, numpy, statsmodels >= 0.7.0, matplotlib >= 2.0, scipy, tabulate
 
-# Module Overall Structure / Features:
+##Installing:
+You can install zepid using `pip install zepid` for UNIX and `python -m pip install zepid` for Windows from the Command Line
+
+# Module Features:
     |
     |-RiskRatio(): calculate risk ratio from pandas dataframe
     |-RiskDiff(): calculate risk difference from pandas dataframe
