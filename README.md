@@ -8,11 +8,11 @@ zepid is an epidemiology analysis package, providing easy to use tools for epide
 Just a few highlights to provide: basic epidemiology calculations, easily create functional form assessment plots, easily create effectmeasure plots, generate and conduct diagnostic tests on inverse probability weight.
 
 # Dependencies
-pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifelines >= 0.14.0, tabulate
+pandas >= 0.18.0, numpy, statsmodels >= 0.7.0, matplotlib >= 2.0, scipy, tabulate
 
 # Module Overall Structure / Features:
     |
-    |-RelRisk(): calculate risk ratio from pandas dataframe
+    |-RiskRatio(): calculate risk ratio from pandas dataframe
     |-RiskDiff(): calculate risk difference from pandas dataframe
     |-NNT(): calcualte the number needed to treat from pandas dataframe
     |-OddsRatio(): calculate the odds ratio from pandas dataframe
@@ -59,28 +59,17 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
     |
     |___ipw
     |    |
-    |    |-ipw(): generate probabilities/propensity scores via logistic regression
-    |    |__iptw(): class for inverse probability of treament weights
-    |    |     |-weight(): generate IPT weights 
-    |    |     |-merge_weights(): merge weights from another IPW model
-    |    |     |-fit(): fit an IPTW model via GEE or weighted Kaplan Meier
-    |    |
-    |    |__ipmw(): class for inverse probability of missing weights
-    |    |     |-weight(): generate IPM weights
-    |    |     |-merge_weights(): merge weights from another IPW model
-    |    |     |-fit(): fit an IPMW model via GEE or weighted Kaplan Meier
-    |    |  
-    |    |__ipcw(): class for inverse probability of censoring weights
-    |    |     |-longdata_converter(): convert a wide survival dataset to a long format
-    |    |     |-weight(): generate IPC weights 
-    |    |     |-merge_weights(): merge weights from another IPW model
-    |    |     |-fit(): fit an IPCW model via weighted Kaplan-Meier
-    |    |
-    |    |__diagnostic
+    |    |-propensity_score(): generate probabilities/propensity scores via logit model
+    |    |-iptw(): calculate inverse probability of treament weights
+    |    |-ipmw(): calculate inverse probability of missing weights
+    |    |-ipcw_prep(): transform data into long format compatible with ipcw()
+    |    |-ipcw(): calculate inverse probability of censoring weights
+    |    |__ipt_weight_diagnostic(): generate diagnostics for IPTW
+    |    |    |-positivity(): diagnostic values for positivity issues
+    |    |    |-standardized_diff(): calculates the standardized differences of IP weights
+    |    |__ipt_probability_diagnostic(): generate diagnostics for treatment propensity scores
     |         |-p_boxplot():generate boxplot of probabilities by exposure
     |         |-p_hist(): generates histogram of probabilities by exposure
-    |         |-positivity(): diagnostic values for positivity issues
-    |         |-standardized_diff(): calculates the standardized differences of IP weights
     |    
     |___sens_analysis
          |
@@ -88,10 +77,3 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.8.0, matplotlib, scipy >= 1.0.0, lifel
          |-trapezoidal(): generates a trapezoidal distribution of values
          |-delta_beta(): conducts a delta-beta analysis
 
-# Future Inclusions:
-    Augmented IPW
-    Forest plot
-    Mathematical Modeling tools
-
-# TODO items for me:
--Update docs, finish verifications
