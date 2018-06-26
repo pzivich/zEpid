@@ -53,59 +53,59 @@ Number needed to Treat
 
 .. code:: python
 
-    zepid.calc.nnt(12,25,193,253)
+   zepid.calc.nnt(12,25,193,253)
 
 Odds Ratio
 
 .. code:: python
 
-    zepid.calc.oddr(12,25,193,253)
+   zepid.calc.oddr(12,25,193,253)
 
 Incidence Rate Ratio
 
 .. code:: python
 
-    zepid.calc.rr(12,25,1093,2310)
+   zepid.calc.rr(12,25,1093,2310)
 
 .. code::
 
-    +-----+-------+---------------+
-    |     |   D=1 |   Person-time |
-    +=====+=======+===============+
-    | E=1 |    12 |          1093 |
-    +-----+-------+---------------+
-    | E=0 |    25 |          2310 |
-    +-----+-------+---------------+
-    ----------------------------------------------------------------------
-    Exposed
-    Incidence rate: 0.011, 95.0% CI: (0.005, 0.017)
-    Unexposed
-    Incidence rate: 0.011, 95.0% CI: (0.007, 0.015)
-    ----------------------------------------------------------------------
-    Incidence Rate Difference: 0.0
-    95.0% two-sided CI: ( -0.007 ,  0.008 )
-    Confidence Limit Difference:  0.015
-    Standard Error:  0.004
-    ----------------------------------------------------------------------
+   +-----+-------+---------------+
+   |     |   D=1 |   Person-time |
+   +=====+=======+===============+
+   | E=1 |    12 |          1093 |
+   +-----+-------+---------------+
+   | E=0 |    25 |          2310 |
+   +-----+-------+---------------+
+   ----------------------------------------------------------------------
+   Exposed
+   Incidence rate: 0.011, 95.0% CI: (0.005, 0.017)
+   Unexposed
+   Incidence rate: 0.011, 95.0% CI: (0.007, 0.015)
+   ----------------------------------------------------------------------
+   Incidence Rate Difference: 0.0
+   95.0% two-sided CI: ( -0.007 ,  0.008 )
+   Confidence Limit Difference:  0.015
+   Standard Error:  0.004
+   ----------------------------------------------------------------------
 
 Incidence Rate Ratio
 
 .. code:: python
 
-    zepid.calc.irr(12,25,1093,2310)
+   zepid.calc.irr(12,25,1093,2310)
 
 Attributable Community Risk
 
 .. code:: python
 
-    zepid.calc.acr(12,25,193,253)
+   zepid.calc.acr(12,25,193,253)
 
 
 Population Attributable Fraction
 
 .. code:: python
 
-    zepid.calc.paf(12,25,193,253)
+   zepid.calc.paf(12,25,193,253)
 
 
 Test Calculations
@@ -115,16 +115,16 @@ Aside from measures of association, *zEpid* also supports some calculations rega
 
 .. code:: python
 
-    zepid.calc.ppv_conv(sensitivity=0.7,specificity=0.9,prevalence=0.1)
+   zepid.calc.ppv_conv(sensitivity=0.7,specificity=0.9,prevalence=0.1)
 
-    zepid.calc.npv_conv(sensitivity=0.7,specificity=0.9,prevalence=0.1)
+   zepid.calc.npv_conv(sensitivity=0.7,specificity=0.9,prevalence=0.1)
 
 
 Additionally, there is a function which allows comparisons of the relative costs of a screening program. The screening program compares two extremes (everyone is considered as test positive, everyone is considered as test negative) and compares them to the set sensitivity / specificity of the screening criteria
 
 .. code:: python
 
-    zepid.calc.screening_cost_analyzer(cost_miss_case=2,cost_false_pos=1,prevalence=0.1,sensitivity=0.7,specificity=0.9)
+   zepid.calc.screening_cost_analyzer(cost_miss_case=2,cost_false_pos=1,prevalence=0.1,sensitivity=0.7,specificity=0.9)
 
 
 Which returns the following results
@@ -164,20 +164,21 @@ Counternull p-values
 
 .. code:: python
 
-    zepid.calc.counternull_pvalue(estimate=0.1,lcl=-0.01,ucl=0.2)
+   zepid.calc.counternull_pvalue(estimate=0.1,lcl=-0.01,ucl=0.2)
 
 Converting odds to proportions
 
 .. code:: python
 
-    zepid.calc.odds_to_prop(1.1)
+   zepid.calc.odds_to_prop(1.1)
 
 
 Converting proportions to odds
 
 .. code:: python
-    
-zepid.calc.prop_to_odds(0.2)
+ 
+
+   zepid.calc.prop_to_odds(0.2)
 
 
 
@@ -185,7 +186,7 @@ Standardized Mean Difference
 
 .. code:: python
 
-    zepid.calc.stand_mean_diff(93,87,1.3,1.6,0.14,0.32)
+   zepid.calc.stand_mean_diff(93,87,1.3,1.6,0.14,0.32)
 
 
 If you have additional items you believe would make a good addition to the calculator functions, or *zEpid* in general, please reach out to us on GitHub
