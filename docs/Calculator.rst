@@ -5,21 +5,16 @@
 Calculator
 =====================================
 
-*zEpid* includes some basic calculations which can be called directly
-from the ``calc`` branch. Functions within this branch are generally 
-used in other functions.
+*zEpid* includes some basic calculations which can be called directly from the ``calc`` branch. Functions within this branch are generally used in other functions.
 
 Measure of Association/Effect
 '''''''''''''''''''''''''''''''''
 
-Basic summary measures can be calculated directly when using *zEpid*.
-To obtain the following measures of association/effect, you can 
-directly call the following calculations
+Basic summary measures can be calculated directly when using *zEpid*. To obtain the following measures of association/effect, you can  directly call the following calculations
 
 Risk ratio
 
 .. code:: python
-
     zepid.calc.rr(12,25,193,253)
 
 Which will return the following
@@ -115,10 +110,7 @@ Population Attributable Fraction
 Test Calculations
 '''''''''''''''''''''''''''''''''
 
-Aside from measures of association, *zEpid* also supports some 
-calculations regarding sensitivity and specificity. Using set sensitivity /
-specificity / prevalence, either the positive predictive value or the 
-negative predictive value can be generated as follows
+Aside from measures of association, *zEpid* also supports some calculations regarding sensitivity and specificity. Using set sensitivity / specificity / prevalence, either the positive predictive value or the negative predictive value can be generated as follows
 
 .. code:: python
 
@@ -126,10 +118,8 @@ negative predictive value can be generated as follows
 
     zepid.calc.npv_conv(sensitivity=0.7,specificity=0.9,prevalence=0.1)
 
-Additionally, there is a function which allows comparisons of the relative costs
-of a screening program. The screening program compares two extremes (everyone is 
-considered as test positive, everyone is considered as test negative) and compares
-them to the set sensitivity / specificity of the screening criteria
+
+Additionally, there is a function which allows comparisons of the relative costs of a screening program. The screening program compares two extremes (everyone is considered as test positive, everyone is considered as test negative) and compares them to the set sensitivity / specificity of the screening criteria
 
 .. code:: python
 
@@ -161,8 +151,7 @@ Which returns the following results
    ----------------------------------------------------------------------
    ----------------------------------------------------------------------
 
-From these results, we would conclude that our test is a cost-effective 
-strategy.
+From these results, we would conclude that our test is a cost-effective strategy.
 
 
 Other calculations
@@ -182,10 +171,10 @@ Converting odds to proportions
 
     zepid.calc.odds_to_prop(1.1)
 
+
 Converting proportions to odds
 
 .. code:: python
-
     
 zepid.calc.prop_to_odds(0.2)
 
@@ -198,6 +187,4 @@ Standardized Mean Difference
     zepid.calc.stand_mean_diff(93,87,1.3,1.6,0.14,0.32)
 
 
-If you have additional items you believe would make a good addition to 
-the calculator functions, or *zEpid* in general, please reach out to us
-on GitHub
+If you have additional items you believe would make a good addition to the calculator functions, or *zEpid* in general, please reach out to us on GitHub
