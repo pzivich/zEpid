@@ -15,30 +15,31 @@ Basic summary measures can be calculated directly when using *zEpid*. To obtain 
 Risk ratio
 
 .. code:: python
-    zepid.calc.rr(12,25,193,253)
+
+   zepid.calc.rr(12,25,193,253)
 
 Which will return the following
 
 .. code::
 
-    +-----+-------+-------+
-    |     |   D=1 |   D=0 |
-    +=====+=======+=======+
-    | E=1 |    12 |    25 |
-    +-----+-------+-------+
-    | E=0 |   193 |   253 |
-    +-----+-------+-------+
-    ----------------------------------------------------------------------
-    Exposed
-    Risk: 0.324,  95.0% CI: (0.171, 0.477)
-    Unexposed
-    Risk: 0.433,  95.0% CI: (0.387, 0.479)
-    ----------------------------------------------------------------------
-    Relative Risk: 0.749
-    95.0% two-sided CI: (0.465 , 1.208)
-    Confidence Limit Ratio:  2.596
-    Standard Error:  0.243
-    ----------------------------------------------------------------------
+   +-----+-------+-------+
+   |     |   D=1 |   D=0 |
+   +=====+=======+=======+
+   | E=1 |    12 |    25 |
+   +-----+-------+-------+
+   | E=0 |   193 |   253 |
+   +-----+-------+-------+
+   ----------------------------------------------------------------------
+   Exposed
+   Risk: 0.324,  95.0% CI: (0.171, 0.477)
+   Unexposed
+   Risk: 0.433,  95.0% CI: (0.387, 0.479)
+   ----------------------------------------------------------------------
+   Relative Risk: 0.749
+   95.0% two-sided CI: (0.465 , 1.208)
+   Confidence Limit Ratio:  2.596
+   Standard Error:  0.243
+   ----------------------------------------------------------------------
 
 Similarly the following estimates can be generated as follows:
 
@@ -46,7 +47,7 @@ Risk Difference
 
 .. code:: python
 
-    zepid.calc.rd(12,25,193,253)
+   zepid.calc.rd(12,25,193,253)
 
 Number needed to Treat
 
