@@ -57,9 +57,7 @@ Other measures currently implemented included risk difference, number needed to 
 .. code:: python
 
    ze.RiskDiff(df,exposure='art',outcome='dead')
-   
-ze.NNT(df,exposure='art',outcome='dead')
-
+   ze.NNT(df,exposure='art',outcome='dead')
    ze.OddsRatio(df,exposure='art',outcome='dead')
 
 
@@ -68,9 +66,7 @@ Additionally, incidence rate measures (ratio and difference) are available as we
 .. code:: python
 
    ze.IncRateRatio(df,exposure='art',outcome='dead',time='t')
-   
-ze.IncRateDiff(df,exposure='art',outcome='dead',time='t')
-
+   ze.IncRateDiff(df,exposure='art',outcome='dead',time='t')
 
 The following output is produced for the ``IncRateRatio``
 
