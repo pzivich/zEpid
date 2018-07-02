@@ -84,6 +84,8 @@ Contents:
 from .base import (RiskRatio,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR,PAF,IC,ICR,
                     Sensitivity,Specificity,spline,StandMeanDiff,Table1)
 
+from .datasets import load_sample_data
+
 import zepid.calc
 import zepid.graphics 
 import zepid.ipw

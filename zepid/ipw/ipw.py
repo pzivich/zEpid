@@ -413,12 +413,13 @@ class iptw_probability_diagnostic:
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
         '''
-        plt.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',color='b',alpha=0.8)
-        plt.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',color='r',alpha=0.5)
-        plt.xlabel('Probability')
-        plt.ylabel('Number of observations')
-        plt.legend()
-        plt.show()
+        ax = plt.gca()
+        ax.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',color='b',alpha=0.8)
+        ax.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',color='r',alpha=0.5)
+        ax.set_xlabel('Probability')
+        ax.set_ylabel('Number of observations')
+        ax.legend()
+        return ax
     
     def p_boxplot(self, treatment):
         '''Generates a stratified boxplot that can be used to visually check whether positivity may be violated, qualitatively. 
@@ -430,7 +431,8 @@ class iptw_probability_diagnostic:
         boxes = (self.data.loc[self.data[treatment]==1][self.p].dropna(), self.data.loc[self.data[treatment]==0][self.p].dropna())
         labs = ['Treat = 1','Treat = 0']
         meanpointprops = dict(marker='D', markeredgecolor='black',markerfacecolor='black')
-        plt.boxplot(boxes,labels=labs,meanprops=meanpointprops,showmeans=True)
-        plt.ylabel('Probability')
-        plt.show()
+        ax = plt.gca()
+        ax.boxplot(boxes,labels=labs,meanprops=meanpointprops,showmeans=True)
+        ax.set_ylabel('Probability')
+        return ax
     

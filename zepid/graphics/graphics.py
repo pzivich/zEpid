@@ -128,7 +128,7 @@ class effectmeasure_plot:
             self.df['UCL_dif'] = (pd.to_numeric(self.df['UCL'])) - (pd.to_numeric(self.df['OR']))
         self.em = 'OR'
         self.ci = '95% CI'
-        self.scale = 'log'
+        self.scale = 'linear'
         self.center = 1
         self.errc = 'dimgrey'
         self.shape = 'd'
@@ -324,9 +324,9 @@ def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_di
     #Binning continuous variable into categories to get "General" functional form
     if discrete == False:
         categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
-        print('A total of '+str(categories)+''' were created. If you would like to influence the number of 
-              categories the spline is fit to, do the following\n\tIncrease: multiply by a constant >1 \n\t
-              Decrease: multiply by a contast <1 and >0''')
+        print('''A total of '''+str(categories)+''' categories were created. If you would like to influence the 
+               number of categories the spline is fit to, do the following\n\tIncrease: multiply by a constant >1 \n\t
+               Decrease: multiply by a contast <1 and >0''')
         rf['vbin'] = pd.qcut(rf[var],q=categories,duplicates='drop').cat.codes
     else:
         rf['vbin'] = rf[var]
@@ -392,8 +392,8 @@ def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_di
 
 
 
-def pvalue_plot(point, se, color='b', fill=True, null=0, alpha=None):
-    '''Creates a plot of the p-value distribution based on a point estimate and standard error. 
+def pvalue_plot(point, sd, color='b', fill=True, null=0, alpha=None):
+    '''Creates a plot of the p-value distribution based on a point estimate and standard deviation. 
     I find this plot to be useful to explain p-values and how much evidence weight you have in a 
     specific value. I think it is useful to explain what exactly a p-value tells you. Note that this
     plot only works for measures on a linear scale (i.e. it will plot exp(log(RR)) incorrectly). It also
@@ -404,7 +404,7 @@ def pvalue_plot(point, se, color='b', fill=True, null=0, alpha=None):
     
     point:
         -point estimate. Must be on a linear scale (RD / log(RR))
-    se:
+    sd:
         -standard error of the estimate. Must for linear scale (SE(RD) / SE(log(RR)))
     color:
         -change color of p-value plot 
@@ -414,28 +414,28 @@ def pvalue_plot(point, se, color='b', fill=True, null=0, alpha=None):
         -The main value to compare to. The default is zero
     
     Example)
-    >>>zepid.graphics.pvalue_plot(point=-0.1,se=0.061,alpha=0.025)
+    >>>zepid.graphics.pvalue_plot(point=-0.1,sd=0.061,alpha=0.025)
     '''
     if point <= null:
-        lower = (point - 3 * se)
-        if (point + 3*se) < 0:
-            upper = point + 3*se
+        lower = (point - 3 * sd)
+        if (point + 3*sd) < 0:
+            upper = point + 3*sd
         else:
-            upper = null + 3*se
+            upper = null + 3*sd
     if point > null:
-        upper = (point + 3 * se)
-        if (point - 3*se) > 0:
-            lower = null - 3*se
+        upper = (point + 3 * sd)
+        if (point - 3*sd) > 0:
+            lower = null - 3*sd
         else:
-            lower = point - 3*se
+            lower = point - 3*sd
     ax = plt.gca()
     x1 = np.linspace(lower,point,100)
     x2 = np.linspace(point,upper,100)
-    ax.plot(x2,2*(1 - norm.cdf(x2,loc=point,scale=se)),c=color)
-    ax.plot(x1,2*norm.cdf(x1,loc=point,scale=se),c=color)
+    ax.plot(x2,2*(1 - norm.cdf(x2,loc=point,scale=sd)),c=color)
+    ax.plot(x1,2*norm.cdf(x1,loc=point,scale=sd),c=color)
     if fill == True:
-        ax.fill_between(x2,2*(1 - norm.cdf(x2,loc=point,scale=se)),color=color,alpha=0.2)
-        ax.fill_between(x1,2*norm.cdf(x1,loc=point,scale=se),color=color,alpha=0.2)
+        ax.fill_between(x2,2*(1 - norm.cdf(x2,loc=point,scale=sd)),color=color,alpha=0.2)
+        ax.fill_between(x1,2*norm.cdf(x1,loc=point,scale=sd),color=color,alpha=0.2)
     ax.vlines(null,0,1,colors='k')
     ax.set_xlim([lower,upper])
     ax.set_ylim([0,1])
@@ -472,3 +472,66 @@ def spaghetti_plot(df, idvar, variable, time):
     ax.set_xlabel(time)
     ax.set_ylabel(variable)
     return ax
+
+
+def ROC_curve(df, true, probability, youden_index=True):
+    '''Generate a Receiver Operator Curve from true values and predicted probabilities.
+    
+    Returns matplotlib axes
+    
+    df:
+        -pandas dataframe containing variables of interest
+    true:
+        -the true designation of the outcome (1, 0)
+    probability:
+        -predicted probabilities for the outcome
+    youden_index:
+        -Whether to calculate Youden's index. Youden's index maximizes both sensitivity and specificity.
+         The formula finds the maximum of (sensitivity + specificity - 1)
+    '''
+    sens = []
+    fpr = []
+    threshold = []
+    tf = df[[probability,true]].copy()
+    if tf.isnull().values.sum() != 0:
+        raise ValueError('ROC curve cannot handle missing data for probability or true values')
+    
+    #Getting all possible cutpoints
+    values = (list(np.unique(tf[probability])))
+    values = [0] + values + [1]
+    #Going through all the cutpoints and calculating Sensitivity and 1-Specificity
+    for v in list(reversed(values)):
+        threshold.append(v)
+        prediction = np.where(tf[probability]>=v,1,0)
+        se = prediction[tf[true]==1].mean()
+        sens.append(se)
+        sp = prediction[tf[true]==0].mean()
+        fpr.append(sp)
+    
+    #If requested, calculate Youden's Index
+    if youden_index == True:
+        spec = [1-i for i in fpr]
+        youdens = []
+        for i,j in zip(sens,spec):
+            youdens.append(i+j-1)
+        ind = np.argmax(youdens)
+        print('----------------------------------------------------------------------')
+        print("Youden's Index: ",threshold[ind])
+        print("Predictive values at Youden's Index")
+        print("\tSensitivity: ",sens[ind])
+        print("\tSpecificity: ",spec[ind])
+        print('----------------------------------------------------------------------')
+
+    #Creating ROC plot
+    ax = plt.gca()
+    ax.plot(fpr,sens,color='blue')
+    ax.plot([0,1],[0,1],color='gray',linestyle='--')
+    if youden_index == True:
+        ax.text(0.65,0.35,"Youden's Index:\n      "+str(round(threshold[ind],5)))
+    ax.set_xlim([-0.01,1.01])
+    ax.set_ylim([-0.01,1.01])
+    ax.set_ylabel('Sensitivity')
+    ax.set_xlabel('1 -Specificity')
+    return ax
+
+

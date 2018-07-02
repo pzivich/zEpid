@@ -31,14 +31,14 @@ You can install zepid using `pip install zepid` for UNIX and `python -m pip inst
     |-Sensitivity(): calculate sensitivity from pandas dataframe
     |-Specificity(): calculate specificity from pandas dataframe
     |-spline(): generate spline terms for continuous variable in pandas dataframe
-    |-survival_lower_upper(): generate pandas dataframes for upper/lower survival analysis
+    |-Table1(): generate a pandas dataframe set up as a Table 1 to export to a csv
     |
     |___calc
     |    |
     |    |-rr(): calculate risk ratio from summary data 
     |    |-rd(): calculate risk difference from summary data 
     |    |-nnt(): calculate number needed to treat from summary data 
-    |    |-oddr(): calculate odds ratio from summary data 
+    |    |-oddsratio(): calculate odds ratio from summary data 
     |    |-ird(): calculate incidence rate difference from summary data 
     |    |-irr(): calculate incidence rate ratio from summary data 
     |    |-acr(): calculate attributable community risk from summary data 
@@ -57,10 +57,9 @@ You can install zepid using `pip install zepid` for UNIX and `python -m pip inst
     |    |
     |    |-func_form_plot(): generate a functional form plot
     |    |-effectmeasure_plot(): create an effect measure plot
-    |    |      |-labels(): change the labels, scale, reference line for plot
-    |    |      |-colors(): change the colors and point shapes for plot
-    |    |      |-plot(): generate the effect measure plot 
-    |    |-pvalue_plot(): generate a p-value distribution plot
+    |           |-labels(): change the labels, scale, reference line for plot
+    |           |-colors(): change the colors and point shapes for plot
+    |           |-plot(): generate the effect measure plot 
     |
     |___ipw
     |    |
