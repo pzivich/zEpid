@@ -94,7 +94,7 @@ One important note is that ``zepid.graphics.func_form_plot`` returns a ``matplot
    plt.vlines(55,0,0.85,colors='gray',linestyles='--')
    plt.show()
 
-.. image:: imaes/zepid_fform4.png
+.. image:: images/zepid_fform4.png
 
 Non-Discrete Variables
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -212,3 +212,7 @@ Some general notes about the above code: (1) for blank y-axis labels, a blank st
 There are other optional arguments to adjust the plot (colors of points/point shape/etc.). Take a look through the function documentation for available options. One unfortunate consequence of how the plot is currently generated, there is not option to directly edit the plot outside of the function. This is for future work/revisions to the code.
 
 *NOTE* There is one part of the effect measure plot that is not particularly pretty. In the ``plot()`` function there is an option argument ``t_adjuster``. This argument changes the alignment of the table so that the table aligns properly with the plot values. I have NOT figured out a way to do this automatically. Currently, ``t_adjuster`` must be changed by the user manually to find a good table alignment. I recommend using changes of ``0.005`` in ``t_adjuster`` until a good alignment is found. Additionally, sometimes the plot will be squished. To fix this, the plot size can be changes by the ``fisize`` argument
+
+Receiver-Operator Curves
+====================================
+ROC curves allow visualization of the relation between sensitivity and specificity. This will be added in version 0.1.3

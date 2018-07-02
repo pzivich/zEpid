@@ -478,26 +478,26 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
         icr_ucl = icr + zalpha*math.sqrt(varICR)
     elif ci == 'bootstrap':
         print('Running bootstrap... please wait...')
-        bse_icr = []
-        ul = 1 - alpha/2
-        ll = 0 + alpha/2
-        warnings.filterwarnings("ignore")
-        for i in range(b_sample):
-            dfs = df.sample(n=df.shape[0],replace=True)
-            try:
-                bmodel = smf.glm(eq,dfs,family=f).fit()
-                em_bexpect = math.exp(bmodel.params['E1M0']) + math.exp(bmodel.params['E0M1']) - 1
-                bicr = math.exp(bmodel.params['E1M1']) - em_bexpect
-                sigma = bicr - icr
-                bse_icr.append(sigma)
-            except:
-                bse_icr.append(np.nan)
-        warnings.filterwarnings("always")
-        bsdf = pd.DataFrame()
-        bsdf['sigma'] = bse_icr
-        lsig,usig = bsdf['sigma'].dropna().quantile(q=[ll,ul])
-        icr_lcl = lsig + icr
-        icr_ucl = usig + icr
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            bse_icr = []
+            ul = 1 - alpha/2
+            ll = 0 + alpha/2
+            for i in range(b_sample):
+                dfs = df.sample(n=df.shape[0],replace=True)
+                try:
+                    bmodel = smf.glm(eq,dfs,family=f).fit()
+                    em_bexpect = math.exp(bmodel.params['E1M0']) + math.exp(bmodel.params['E0M1']) - 1
+                    bicr = math.exp(bmodel.params['E1M1']) - em_bexpect
+                    sigma = bicr - icr
+                    bse_icr.append(sigma)
+                except:
+                    bse_icr.append(np.nan)
+            bsdf = pd.DataFrame()
+            bsdf['sigma'] = bse_icr
+            lsig,usig = bsdf['sigma'].dropna().quantile(q=[ll,ul])
+            icr_lcl = lsig + icr
+            icr_ucl = usig + icr
     else:
         raise ValueError('Please specify a supported confidence interval type')
     print('\n----------------------------------------------------------------------')

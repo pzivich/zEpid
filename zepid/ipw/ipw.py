@@ -98,48 +98,49 @@ def iptw(df,treatment, model_denominator, model_numerator='1', stabilized=True, 
     twdf = pd.DataFrame()
     twdf['t'] = df[treatment]
     twdf['pde'] = pde
-    if return_probability == True:
-        return twdf.pde
 
-    else:
-        #Generating Stabilized Weights if Requested
-        if stabilized==True:
-            #Calculating probabilities for numerator, default goes to Pr(A=a)
-            pn = propensity_score(df,treatment + ' ~ ' + model_numerator,mresult=print_model_results)
-            twdf['pn'] = pn
-            
-            #Stabilizing to population (compares all exposed to unexposed)
-            if standardize == 'population':
-                twdf['w'] = np.where(twdf['t']==1, (twdf['pn'] / twdf['pde']), ((1-twdf['pn']) / (1-twdf['pde'])))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pde']/(1-twdf['pde'])) * ((1-twdf['pn'])/twdf['pn'])))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pde'])/twdf['pde']) * (twdf['pn']/(1-twdf['pn']))), 1)
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            else:
-                raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
-            
-        #Generating Unstabilized Weights if Requested
+    #Generating Stabilized Weights if Requested
+    if stabilized==True:
+        #Calculating probabilities for numerator, default goes to Pr(A=a)
+        pn = propensity_score(df,treatment + ' ~ ' + model_numerator,mresult=print_model_results)
+        twdf['pnu'] = pn
+        
+        #Stabilizing to population (compares all exposed to unexposed)
+        if standardize == 'population':
+            twdf['w'] = np.where(twdf['t']==1, (twdf['pnu'] / twdf['pde']), ((1-twdf['pnu']) / (1-twdf['pde'])))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            twdf['w'] = np.where(twdf['t']==1, 1, ((twdf['pde']/(1-twdf['pde'])) * ((1-twdf['pnu'])/twdf['pnu'])))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        elif standardize == 'unexposed':
+            twdf['w'] = np.where(twdf['t']==1, (((1-twdf['pde'])/twdf['pde']) * (twdf['pnu']/(1-twdf['pnu']))), 1)
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
         else:
-            #Stabilizing to population (compares all exposed to unexposed)
-            if standardize == 'population':
-                twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pde'], 1 / (1-twdf['pde']))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif standardize == 'exposed':
-                twdf['w'] = np.where(twdf['t']==1, 1,  ((1-twdf['pde'])/twdf['pde']))
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            elif standardize == 'unexposed':
-                twdf['w'] = np.where(twdf['t']==1,(twdf['pde']/(1-twdf['pde'])), 1)
-                twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
-            else:
-                raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
-        return twdf.w
+            raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
+        
+    #Generating Unstabilized Weights if Requested
+    else:
+        #Stabilizing to population (compares all exposed to unexposed)
+        if standardize == 'population':
+            twdf['w'] = np.where(twdf['t']==1, 1 / twdf['pde'], 1 / (1-twdf['pde']))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            twdf['w'] = np.where(twdf['t']==1, 1,  ((1-twdf['pde'])/twdf['pde']))
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        #Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        elif standardize == 'unexposed':
+            twdf['w'] = np.where(twdf['t']==1,(twdf['pde']/(1-twdf['pde'])), 1)
+            twdf.loc[(twdf['t']!=1)&(twdf['t']!=0),'w'] = np.nan
+        else:
+            raise ValueError('Please specify one of the currently supported weighting schemes: population, exposed, unexposed')
+    if (return_probability == True) and (model_numerator!='1'):
+        return twdf[['pde','pnu']]
+    if (return_probability == True):
+        return twdf['pde']
+    return twdf.w
     
     
 
@@ -230,7 +231,7 @@ def ipcw_prep(df, idvar, time, event):
     return lf 
 
 
-def ipcw(df, idvar, model_denominator, model_numerator, stabilized=True,print_model_results=True):
+def ipcw(df, uncensored, idvar, model_denominator, model_numerator, stabilized=True,print_model_results=True):
     '''Calculate the inverse probability of censoring weights (IPCW). Note that this function will 
     only operate as expected when a valid dataframe is input. For a valid style of dataframe, see 
     below or the documentation for ipcw_data_converter(). IPCW is calculated via logistic regression
@@ -241,6 +242,9 @@ def ipcw(df, idvar, model_denominator, model_numerator, stabilized=True,print_mo
         -pandas DataFrame object containing all the variables of interest. This object must be sorted
          and have a variable called 'uncensored' indicating if an individual remained uncensored for that
          time period. It is highly recommended that ipcw_prep() is used prior to this function
+    uncensored:
+        -column label for indicator that variable is uncensored. Must be 0,1 with 1 indicating an individual
+         was NOT censored over that time period
     idvar:
         -Variable indicating a unique identifier for each individual followed over time
     model_denominator:
@@ -258,8 +262,6 @@ def ipcw(df, idvar, model_denominator, model_numerator, stabilized=True,print_mo
 
     Important notes/limitations:
     1) The dataframe MUST be sorted by ID and ascending time. If not, generated weights will be incorrect
-    2) An indicator variable called 'uncensored' must be generated for the function. This can be accomplished
-       by the ipcw_prep() function
 
     Input data format:
     cid     t_start     t_end   event   uncensored    ...
@@ -276,13 +278,13 @@ def ipcw(df, idvar, model_denominator, model_numerator, stabilized=True,print_mo
     >>>ipc_data['t'] = ipc_data['t_enter']
     >>>ipc_data['t2'] = ipc_data['t']**2
     >>>ipc_data['t3'] = ipc_data['t']**3
-    >>>zepid.ipw.ipcw(df=ipc_data,idvar='pid',model_denominator='var1 + var2 + t + t2 + t3',model_numerator='t + t2 + t3')
+    >>>zepid.ipw.ipcw(df=ipc_data,uncensored='uncensored',idvar='pid',model_denominator='var1 + var2 + t',model_numerator='t')
     '''
     cf = df.copy()
     print('Numerator model:')
-    cf['pn'] = propensity_score(cf,'uncensored ~ ' + model_numerator,mresult=print_model_results)
+    cf['pn'] = propensity_score(cf,uncensored + ' ~ ' + model_numerator,mresult=print_model_results)
     print('Denominator model:')
-    cf['pd'] = propensity_score(cf,'uncensored ~ ' + model_denominator,mresult=print_model_results)
+    cf['pd'] = propensity_score(cf,uncensored + ' ~ ' + model_denominator,mresult=print_model_results)
     cf['cn'] = cf.groupby(idvar)['pn'].cumprod()
     cf['cd'] = cf.groupby(idvar)['pd'].cumprod()
     

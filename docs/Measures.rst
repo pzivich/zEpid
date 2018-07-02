@@ -179,14 +179,10 @@ Are you tired of copying your Table 1 results from raw output to an Excel docume
 
 .. code:: python
 
-   columns = ['art','dead','age0','cd40']
- #list of columns of interest
-   vars_type = ['category','category','continuous','continuous']
- #list of variable types
+   columns = ['art','dead','age0','cd40'] #list of columns of interest
+   vars_type = ['category','category','continuous','continuous'] #list of variable types
    table = ze.Table1(df,columns,vars_type)
-   
-table.to_csv('table1.csv')
- #outputting dataframe as a CSV
+   table.to_csv('table1.csv') #outputting dataframe as a CSV
 
 
 The default summary statistics for continuous variables is the median/interquartile range. Mean/standard deviation can be specified like the following
