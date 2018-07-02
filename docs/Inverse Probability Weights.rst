@@ -237,7 +237,7 @@ Using ``lifelines`` we can estimate the risk functions via a weighted Kaplan Mei
   plt.legend()
   plt.show()
 
-.. image:: images/zepid_msm.png
+.. image:: images/zepid_msm1.png
 
 IP Censoring Weights
 ====================================
