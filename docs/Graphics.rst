@@ -215,4 +215,50 @@ There are other optional arguments to adjust the plot (colors of points/point sh
 
 Receiver-Operator Curves
 ====================================
-ROC curves allow visualization of the relation between sensitivity and specificity. This will be added in version 0.1.3
+Receiver-Operator Curves (ROC) are a fundamental tool for diagnosing the sensitivity and specificity of a test over a variety of thresholds. ROC curves can be generated for predicted probabilities from a model or different diagnostics thresholds (ex. ALT to predict infections). In this example, we will predict the probability of death among the sample data set. First, we will need to get some predicted probabilities. We will use ``statsmodels`` to build a simple predictive model and obtain predicted probabilities.
+
+.. code:: python
+
+   import matplotlib.pyplot as plt 
+   import statsmodels.api as sm 
+   import statsmodels.formula.api as smf 
+   from statsmodels.genmod.families import family,links
+
+   df = ze.load_sample_data(timevary=False)
+   f = sm.families.family.Binomial(sm.families.links.logit) 
+   df['age0_sq'] = df['age0']**2
+   df['cd40sq'] = df['cd40']**2
+   model = 'dead ~ art + age0 + age0_sq + cd40 + cd40sq + dvl0 + male'
+   m = smf.glm(model,df,family=f).fit()
+   df['predicted'] = m.predict(df)
+
+Now with predicted probabilities, we can generate a ROC plot
+
+.. code:: python
+
+   ze.graphics.ROC_curve(df,true='dead',probability='predicted')
+   plt.tight_layout()
+   plt.title('Receiver-Operator Curve')
+   plt.show()
+
+.. image:: images/zepid_roc.png
+
+Which generates the following plot. For this plot the Youden's Index is also calculated by default. The following output is printed to the console
+
+.. code:: python
+
+ ----------------------------------------------------------------------
+ Youden's Index:  0.15328818469754796
+ Predictive values at Youden's Index 
+ 	Sensitivity:  0.6739130434782609
+	Specificity:  0.6857142857142857
+ ----------------------------------------------------------------------
+
+Youden's index is defined as 
+
+.. math:: 
+
+  Youden = Sensitivity + Specificity - 1
+
+Where Youden's index is the value that maximizes the above. Basically, it balances sensitivity and specificity. You can learn more from https://en.wikipedia.org/wiki/Youden%27s_J_statistic
+
