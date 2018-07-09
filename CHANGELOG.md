@@ -1,5 +1,9 @@
 ### Change logs
 
+#### 0.1.4
+Updates: Added dynamic risk plot
+Fixes: Added user option to allow late entries for ipcw_prep()
+
 #### 0.1.3
 Updates: added ROC curve generator to graphics, allows user-specification of censoring indicator to ipcw,
 
