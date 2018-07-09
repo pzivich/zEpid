@@ -215,6 +215,7 @@ There are other optional arguments to adjust the plot (colors of points/point sh
 
 Receiver-Operator Curves
 ====================================
+<<<<<<< HEAD
 Receiver-Operator Curves (ROC) are a fundamental tool for diagnosing the sensitivity and specificity of a test over a variety of thresholds. ROC curves can be generated for predicted probabilities from a model or different diagnostics thresholds (ex. ALT to predict infections). In this example, we will predict the probability of death among the sample data set. First, we will need to get some predicted probabilities. We will use ``statsmodels`` to build a simple predictive model and obtain predicted probabilities.
 
 .. code:: python
@@ -261,4 +262,13 @@ Youden's index is defined as
   Youden = Sensitivity + Specificity - 1
 
 Where Youden's index is the value that maximizes the above. Basically, it balances sensitivity and specificity. You can learn more from https://en.wikipedia.org/wiki/Youden%27s_J_statistic
+
+=======
+
+
+
+Dynamic Risk Plots
+====================================
+Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For an example, see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/
+To see how *zEpid* implements this, see http://zepid.readthedocs.io/en/latest/Inverse%20Probability%20Weights.html#time-varying
 

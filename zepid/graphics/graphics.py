@@ -32,6 +32,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.ticker as mticker
 
 class effectmeasure_plot:
     '''Used to generate effect measure plots. effectmeasure plot accepts four list type objects.
@@ -532,6 +533,69 @@ def ROC_curve(df, true, probability, youden_index=True):
     ax.set_ylim([-0.01,1.01])
     ax.set_ylabel('Sensitivity')
     ax.set_xlabel('1 -Specificity')
+    return ax
+
+
+def dyanmic_risk_plot(risk_exposed,risk_unexposed,measure='RD',loess=True,loess_value=0.25,point_color='darkblue',
+    line_color='b',scale='linear'):
+    '''Creates a plot of risk measures over time. See Cole et al. "Estimation of standardized risk difference and ratio
+    in a competing risks framework: application to injection drug use and progression to AIDS after initiation of 
+    antiretroviral therapy." Am J Epidemiol. 2015 for an example of this plot
+    
+    risk_exposed:
+        -pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' 
+         where 'timeline' is the time. If you directly output the 1 - survival_function_ from 
+         lifelines.KaplanMeierFitter(), this should create a valid input
+    risk_unexposed:
+        -pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' 
+         where 'timeline' is the time
+    measure:
+        -whether to generate the risk difference (RD) or risk ratio (RR). Default is 'RD'
+    loess:
+        -whether to generate LOESS curve fit to the calculated points. Default is True
+    loess_value:
+        -fraction of values to fit LOESS curve to. Default is 0.25
+    point_color:
+        -color of the points
+    line_color:
+        -color of the LOESS line generated and plotted
+    scale:
+        -change the y-axis scale. Options are 'linear' (default) or 'log'. 'log' is only a valid option for 
+         Risk Ratio plots
+    '''
+    re = risk_exposed.drop_duplicates(keep='first').iloc[:,0].rename('exposed').reset_index()
+    ru = risk_unexposed.drop_duplicates(keep='first').iloc[:,0].rename('unexposed').reset_index()
+    r = pd.merge(re,ru,how='outer',left_on='timeline',right_on='timeline').sort_values(by='timeline')
+    r.ffill(inplace=True)
+    if measure == 'RD':
+        r['m'] = r['exposed'] - r['unexposed']
+    elif measure == 'RR':
+        r['m'] = r['exposed'] / r['unexposed']
+    else:
+        raise ValueError('Only "RD" and "RR" are currently supported')
+
+    #Generating the plot
+    ax = plt.gca()
+    ax.plot(r['timeline'],r['m'],'o',c=point_color)
+    if loess == True:
+        l = lowess(list(r['m']),list(r['timeline']),frac=loess_value)
+        lowess_x = list(zip(*l))[0]
+        lowess_y = list(zip(*l))[1]
+        ax.plot(lowess_x,lowess_y,'-',c=line_color,linewidth=4)
+    if measure == 'RD':
+        ax.hlines(0,0,np.max(r['timeline']),linewidth=0.5)
+        ax.set_ylabel('Risk Difference')
+    if measure == 'RR':
+        ax.hlines(1,0,np.max(r['timeline']+5),linewidth=0.5)
+        ax.set_ylabel('Risk Ratio')
+        if scale == 'log':
+            #ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+            ax.set_yscale('log',basex=np.e)
+            ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
+            ax.yaxis.get_major_formatter().set_scientific(False)
+            ax.yaxis.get_major_formatter().set_useOffset(False)
+    ax.set_xlabel('Time')
+    ax.set_xlim([0,np.max(r['timeline'])+5])
     return ax
 
 
