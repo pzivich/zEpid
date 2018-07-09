@@ -239,6 +239,28 @@ Using ``lifelines`` we can estimate the risk functions via a weighted Kaplan Mei
 
 .. image:: images/zepid_msm1.png
 
+We can also use in a built-in graphic function to generate dynamic risk difference/ratio plots are discussed in https://academic.oup.com/aje/article/181/4/246/122265 and demonstrated in https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/ Essentially, this plot allows us to visualize how the risk difference or risk ratio changes over time. To use this function, we obtain the risk estimates for our exposed and unexposed groups from the ``lifelines`` Kaplan Meier curves.
+
+.. code:: python
+
+  a = 1 - kme.survival_function_
+  b = 1 - kmu.survival_function_
+  ze.graphics.dyanmic_risk_plot(a,b)
+  plt.show()
+
+.. image:: images/zepid_msm_rd.png
+
+By default, the function returns the risk difference plot. You can also request a risk ratio plot. Here is the risk ratio plot, with the point and line colors changed
+
+.. code:: python
+
+  ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkred',line_color='r',scale='log')
+  plt.show()
+
+.. image:: image/zepid_msm_rr.png
+
+This concludes the section on inverse probability of treatment weights
+
 IP Censoring Weights
 ====================================
 Continuing with the previous example and weights, we will not calculate the inverse probability of censoring weights (IPCW) to relax the assumption that censored individuals are missing completely at random. While the included data set has an indicator for those who were censored, we will instead use the IPCW preparation function. This function formats the data properly for the ``ipcw()`` function. To implement it, we do the following:

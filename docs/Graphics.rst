@@ -215,4 +215,10 @@ There are other optional arguments to adjust the plot (colors of points/point sh
 
 Receiver-Operator Curves
 ====================================
-ROC curves allow visualization of the relation between sensitivity and specificity. This will be added in version 0.1.3
+
+
+
+Dynamic Risk Plots
+====================================
+Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For an example, see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/
+To see how *zEpid* implements this, see http://zepid.readthedocs.io/en/latest/Inverse%20Probability%20Weights.html#time-varying

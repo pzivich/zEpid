@@ -32,6 +32,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.ticker as mticker
 
 class effectmeasure_plot:
     '''Used to generate effect measure plots. effectmeasure plot accepts four list type objects.
@@ -588,7 +589,11 @@ def dyanmic_risk_plot(risk_exposed,risk_unexposed,measure='RD',loess=True,loess_
         ax.hlines(1,0,np.max(r['timeline']+5),linewidth=0.5)
         ax.set_ylabel('Risk Ratio')
         if scale == 'log':
+            #ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
             ax.set_yscale('log',basex=np.e)
+            ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
+            ax.yaxis.get_major_formatter().set_scientific(False)
+            ax.yaxis.get_major_formatter().set_useOffset(False)
     ax.set_xlabel('Time')
     ax.set_xlim([0,np.max(r['timeline'])+5])
     return ax

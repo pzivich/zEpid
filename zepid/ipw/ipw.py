@@ -17,6 +17,7 @@ Contents:
     |-p_boxplot():generate boxplot of probabilities by exposure
     |-p_hist(): generates histogram of probabilities by exposure
 '''
+
 import warnings
 import math 
 import numpy as np
@@ -184,7 +185,7 @@ def ipmw(df, missing, model, stabilized=True,print_model_results=True):
     return w
 
 
-def ipcw_prep(df, idvar, time, event):
+def ipcw_prep(df, idvar, time, event, enter=None):
     '''Function to prepare the data to an appropriate format for the function ipcw(). It breaks the dataset into 
     single observations for event one unit increase in time. It prepares the dataset to be eligible for IPCW calculation. 
     If your datasets is already in a long format, there is not need for this conversion
@@ -203,7 +204,13 @@ def ipcw_prep(df, idvar, time, event):
         -pandas dataframe to convert into a long format
     idvar:
         -ID variable to retain for observations
-    
+    time: 
+        -Last follow-up visit for participant
+    event:
+        -indicator of whether participant had the event (1 is yes, 0 is no)
+    enter:
+        -entry time for the participant. Default is None, which means all participants are assumed
+         to enter at time zero. Input should be column name of entrance time
     
     Example)
     >>>data['pid'] = data.index
@@ -212,23 +219,27 @@ def ipcw_prep(df, idvar, time, event):
     cf = df.copy()
     
     #Copying observations over times
-    cf['t_int'] = cf[time].astype(int)
-    lf = pd.DataFrame(np.repeat(cf.values,cf['t_int']+1,axis=0),columns=cf.columns)
-    lf['tpoint'] = lf.groupby(idvar)['t_int'].cumcount()
-    lf['tdiff'] =  lf[time] - lf['tpoint']
-    lf = lf.loc[lf['tdiff']!=0].copy() #gets rid of censored at absolute time point (ex. censored at time 10)
-    lf.loc[lf['tdiff']>1,'delta_indicator_zepid'] = 0
-    lf.loc[((lf['tdiff']<=1)&(lf[event]==0)),'delta_indicator_zepid'] = 0
-    lf.loc[((lf['tdiff']<=1)&(lf[event]==1)),'delta_indicator_zepid'] = 1
-    lf['t_enter'] = lf['tpoint']
-    lf['t_out'] = np.where(lf['tdiff']<1,lf[time],lf['t_enter']+1)
-    lf['uncensored'] = np.where((lf[idvar] != lf[idvar].shift(-1)) & (lf['delta_indicator_zepid']==0),0,1)
+    cf['t_int_zepid'] = cf[time].astype(int)
+    lf = pd.DataFrame(np.repeat(cf.values,cf['t_int_zepid']+1,axis=0),columns=cf.columns)
+    lf['tpoint_zepid'] = lf.groupby(idvar)['t_int_zepid'].cumcount()
+    lf['tdiff_zepid'] =  lf[time] - lf['tpoint_zepid']
+    lf = lf.loc[lf['tdiff_zepid']!=0].copy() #gets rid of censored at absolute time point (ex. censored at time 10)
+    lf.loc[lf['tdiff_zepid']>1,'delta_indicator_zepid'] = 0
+    lf.loc[((lf['tdiff_zepid']<=1)&(lf[event]==0)),'delta_indicator_zepid'] = 0
+    lf.loc[((lf['tdiff_zepid']<=1)&(lf[event]==1)),'delta_indicator_zepid'] = 1
+    lf['t_enter_zepid'] = lf['tpoint_zepid']
+    lf['t_out_zepid'] = np.where(lf['tdiff_zepid']<1,lf[time],lf['t_enter_zepid']+1)
+    lf['uncensored_zepid'] = np.where((lf[idvar] != lf[idvar].shift(-1)) & (lf['delta_indicator_zepid']==0),0,1)
+    
+    #Removing blocks of observations that would have occurred before entrance into the sample
+    if enter != None:
+        lf = lf.loc[lf['t_enter_zepid']>=lf[enter]].copy()
 
     #Cleaning up the edited dataframe to return to user
     lf.drop(columns=[event],inplace=True)
-    lf.rename(columns={"delta_indicator_zepid":event},inplace=True)
-    lf.drop(columns=['tdiff','tpoint','t_int','t'],inplace=True)
-    return lf 
+    lf.drop(columns=['tdiff_zepid','tpoint_zepid','t_int_zepid',time,enter],inplace=True)
+    lf.rename(columns={"delta_indicator_zepid":event,'t_enter_zepid':'t_enter','t_out_zepid':'t_out'},inplace=True)
+    return lf
 
 
 def ipcw(df, uncensored, idvar, model_denominator, model_numerator, stabilized=True,print_model_results=True):
