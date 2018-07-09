@@ -257,7 +257,7 @@ By default, the function returns the risk difference plot. You can also request 
   ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkred',line_color='r',scale='log')
   plt.show()
 
-.. image:: image/zepid_msm_rr.png
+.. image:: images/zepid_msm_rr.png
 
 This concludes the section on inverse probability of treatment weights
 
