@@ -255,9 +255,22 @@ By default, the function returns the risk difference plot. You can also request 
 .. code:: python
 
   ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkred',line_color='r',scale='log')
+  plt.yticks([0.4,0.6,0.8,1,2,4,6])
+
   plt.show()
 
 .. image:: images/zepid_msm_rr.png
+
+You can also request a log-transformed RR
+
+.. code:: python
+  
+ ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkgreen',line_color='g',scale='log-transform')
+ plt.savefig('C:/Users/zivic/Python 
+ plt.show()
+
+.. image:: images/zepid_msm_rr2.png
+
 
 This concludes the section on inverse probability of treatment weights
 

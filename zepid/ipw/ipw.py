@@ -236,11 +236,12 @@ def ipcw_prep(df, idvar, time, event, enter=None):
         lf = lf.loc[lf['t_enter_zepid']>=lf[enter]].copy()
 
     #Cleaning up the edited dataframe to return to user
-    if enter != None:
+    if enter == None:
         lf.drop(columns=['tdiff_zepid','tpoint_zepid','t_int_zepid',time,event],inplace=True)
     else:
         lf.drop(columns=['tdiff_zepid','tpoint_zepid','t_int_zepid',time,event,enter],inplace=True)
-    lf.rename(columns={"delta_indicator_zepid":event,'t_enter_zepid':'t_enter','t_out_zepid':'t_out'},inplace=True)
+    lf.rename(columns={"delta_indicator_zepid":event,'uncensored_zepid':'uncensored','t_enter_zepid':'t_enter',
+              't_out_zepid':'t_out'},inplace=True)
     return lf
 
 
