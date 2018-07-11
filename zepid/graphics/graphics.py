@@ -560,8 +560,8 @@ def dyanmic_risk_plot(risk_exposed,risk_unexposed,measure='RD',loess=True,loess_
     line_color:
         -color of the LOESS line generated and plotted
     scale:
-        -change the y-axis scale. Options are 'linear' (default) or 'log'. 'log' is only a valid option for 
-         Risk Ratio plots
+        -change the y-axis scale. Options are 'linear' (default), 'log', 'log-transform'. 'log' and 'log-transform'
+         is only a valid option for Risk Ratio plots
     '''
     re = risk_exposed.drop_duplicates(keep='first').iloc[:,0].rename('exposed').reset_index()
     ru = risk_unexposed.drop_duplicates(keep='first').iloc[:,0].rename('unexposed').reset_index()
@@ -571,6 +571,8 @@ def dyanmic_risk_plot(risk_exposed,risk_unexposed,measure='RD',loess=True,loess_
         r['m'] = r['exposed'] - r['unexposed']
     elif measure == 'RR':
         r['m'] = r['exposed'] / r['unexposed']
+        if scale == 'log-transform':
+            r['m'] = np.log(r['m'])
     else:
         raise ValueError('Only "RD" and "RR" are currently supported')
 
@@ -583,19 +585,23 @@ def dyanmic_risk_plot(risk_exposed,risk_unexposed,measure='RD',loess=True,loess_
         lowess_y = list(zip(*l))[1]
         ax.plot(lowess_x,lowess_y,'-',c=line_color,linewidth=4)
     if measure == 'RD':
-        ax.hlines(0,0,np.max(r['timeline']),linewidth=0.5)
+        ax.hlines(0,0,np.max(r['timeline']+0.5),linewidth=1.5)
         ax.set_ylabel('Risk Difference')
     if measure == 'RR':
-        ax.hlines(1,0,np.max(r['timeline']+5),linewidth=0.5)
-        ax.set_ylabel('Risk Ratio')
-        if scale == 'log':
-            #ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+        if scale == 'log-transform':
+            ax.hlines(0,0,np.max(r['timeline']+0.5),linewidth=1.5)
+            ax.set_ylabel('ln(Risk Ratio)')
+        elif scale == 'log':
+            ax.set_ylabel('Risk Ratio')
             ax.set_yscale('log',basex=np.e)
             ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
             ax.yaxis.get_major_formatter().set_scientific(False)
             ax.yaxis.get_major_formatter().set_useOffset(False)
+            ax.hlines(1,0,np.max(r['timeline']+0.5),linewidth=1.5)
+        else:
+            ax.hlines(1,0,np.max(r['timeline']+0.5),linewidth=1.5)
     ax.set_xlabel('Time')
-    ax.set_xlim([0,np.max(r['timeline'])+5])
+    ax.set_xlim([0,np.max(r['timeline'])+0.5])
     return ax
 
 
