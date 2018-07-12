@@ -98,6 +98,17 @@ For the boxplot, the predicted probabilities should overlap largely between the 
 
 .. image:: images/zepid_iptwhist.png
 
+An alternative to the histogram is a density plot generated via ``scipy`` Gaussian kernel. This is implemented via the following code
+
+.. code:: python
+
+   dp.p_kde(treatment='art')
+   plt.xlim([0,1])
+   plt.show()
+
+.. image:: images/zepid_iptdensity.png
+
+
 As for IPTW diagnostics, they are implemented through the ``iptw_weight_diagnostic`` class. The class is initiated as follows
 
 .. code:: python

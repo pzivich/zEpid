@@ -22,7 +22,7 @@ import warnings
 import math 
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
+from scipy import stats
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import family
@@ -422,18 +422,64 @@ class iptw_probability_diagnostic:
         self.data = df
         self.p = probability
     
-    def p_hist(self, treatment):
-        '''Generates a histogram that can be used to check whether positivity may be violated qualitatively. Note 
-        input probability variable, not the weight!
+    def p_hist(self, treatment,bins=None,color_e='b',color_u='r'):
+        '''Generates a normalized histogram that can be used to check whether positivity may be violated qualitatively.
+        Note input probability variable, not the weight!
         
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
+        bins:
+            -Number of bins to generate the histograms with. Default is matplotlib's default number of bins
+        color_e:
+            -color of the line/area for the treated group. Default is Blue
+        color_u:
+            -color of the line/area for the treated group. Default is Red
         '''
         ax = plt.gca()
-        ax.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',color='b',alpha=0.8)
-        ax.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',color='r',alpha=0.5)
+        if bins == None:
+            ax.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',color=color_e,alpha=0.8,normed=True)
+            ax.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',color=color_u,alpha=0.5,normed=True)
+        else:
+            ax.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',bins=bins,color=color_e,alpha=0.8,normed=True)
+            ax.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',bins=bins,color=color_u,alpha=0.5,normed=True)            
         ax.set_xlabel('Probability')
         ax.set_ylabel('Number of observations')
+        ax.legend()
+        return ax
+
+    def p_kde(self,treatment,bw_method='scott',fill=True,color_e='b',color_u='r'):
+        '''Generates a density plot that can be used to check whether positivity may be violated qualitatively. Note
+        input probability variable, not the weight! The kernel density used is SciPy's Gaussian kernel. Either Scott's
+        Rule or Silverman's Rule can be implemented.
+        
+        This is an alternative to the p_hist() function. I would recommend this over p_hist() generally since it makes
+        a nicer looking plot. 
+
+        treatment:
+            -Binary variable that indicates treatment. Must be coded as 0,1
+        bw_method:
+            -method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+        fill:
+            -whether to color the area under the density curves. Default is true
+        color_e:
+            -color of the line/area for the treated group. Default is Blue
+        color_u:
+            -color of the line/area for the treated group. Default is Red
+        '''
+        #Getting Gaussian Kernel Density
+        x = np.linspace(0,1,10000)
+        density_t = stats.kde.gaussian_kde(self.data.loc[self.data[treatment]==1][self.p].dropna(),bw_method=bw_method)
+        density_u = stats.kde.gaussian_kde(self.data.loc[self.data[treatment]==0][self.p].dropna(),bw_method=bw_method)
+
+        #Creating density plot
+        ax = plt.gca()
+        if fill == True:
+            ax.fill_between(x,density_t(x),color=color_e,alpha=0.2,label=None)
+            ax.fill_between(x,density_u(x),color=color_u,alpha=0.2,label=None)
+        ax.plot(x, density_t(x),color=color_e,label='Treat = 1')
+        ax.plot(x, density_u(x),color=color_u,label='Treat = 0')
+        ax.set_xlabel('Probability')
+        ax.set_ylabel('Density')
         ax.legend()
         return ax
     
