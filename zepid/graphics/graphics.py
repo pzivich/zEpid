@@ -322,22 +322,21 @@ def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_di
     else:
         pass 
     
-    #Binning continuous variable into categories to get "General" functional form
-    if discrete == False:
-        categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
-        print('''A total of '''+str(categories)+''' categories were created. If you would like to influence the 
-               number of categories the spline is fit to, do the following\n\tIncrease: multiply by a constant >1 \n\t
-               Decrease: multiply by a contast <1 and >0''')
-        rf['vbin'] = pd.qcut(rf[var],q=categories,duplicates='drop').cat.codes
-    else:
-        rf['vbin'] = rf[var]
-    
     #Generating Models
     if link_dist == None:
         link_dist = sm.families.family.Binomial(sm.families.links.logit)
     else:
         pass 
     if (loess == True) | (points == True):
+        #Binning continuous variable into categories to get "General" functional form
+        if discrete == False:
+            categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
+            print('''A total of '''+str(categories)+''' categories were created. If you would like to influence the 
+                   number of categories the spline is fit to, do the following\n\tIncrease: multiply by a constant >1 \n\t
+                   Decrease: multiply by a contast <1 and >0''')
+            rf['vbin'] = pd.qcut(rf[var],q=categories,duplicates='drop').cat.codes
+        else:
+            rf['vbin'] = rf[var]
         if outcome_type=='binary':
             if discrete == False:
                 djm = smf.glm(outcome+'~ C(vbin)',rf,family=link_dist).fit()
