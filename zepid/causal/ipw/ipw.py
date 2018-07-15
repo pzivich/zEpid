@@ -22,18 +22,14 @@ import warnings
 import math 
 import numpy as np
 import pandas as pd
-from scipy import stats
+from scipy.stats import norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
 import matplotlib.pyplot as plt
 
-warnings.warn('''Depreciation: ipw module will be removed in 0.2. This module
-    is depreciated in favor of the causal module, which contains several causal
-    methods. To call ipw, use zepid.causal.ipw instead''') 
-
-def _propensity_score(df, model, mresult=True):
+def propensity_score(df, model, mresult=True):
     '''Generate propensity scores (probability) based on the model input. Uses logistic regression model 
     to calculate
     
@@ -99,7 +95,7 @@ def iptw(df,treatment, model_denominator, model_numerator='1', stabilized=True, 
     >>>zepid.ipw.iptw(df=data,treatment='X',model_denominator='Z + var1 + var2')
     '''
     #Generating probabilities of treatment by covariates
-    pde = _propensity_score(df,treatment + ' ~ ' + model_denominator,mresult=print_model_results)
+    pde = propensity_score(df,treatment + ' ~ ' + model_denominator,mresult=print_model_results)
     twdf = pd.DataFrame()
     twdf['t'] = df[treatment]
     twdf['pde'] = pde
@@ -107,7 +103,7 @@ def iptw(df,treatment, model_denominator, model_numerator='1', stabilized=True, 
     #Generating Stabilized Weights if Requested
     if stabilized==True:
         #Calculating probabilities for numerator, default goes to Pr(A=a)
-        pn = _propensity_score(df,treatment + ' ~ ' + model_numerator,mresult=print_model_results)
+        pn = propensity_score(df,treatment + ' ~ ' + model_numerator,mresult=print_model_results)
         twdf['pnu'] = pn
         
         #Stabilizing to population (compares all exposed to unexposed)
@@ -178,7 +174,7 @@ def ipmw(df, missing, model, stabilized=True,print_model_results=True):
     mdf.loc[mdf[missing].notnull(),'observed_indicator'] = 1
     
     #Generating probability of being observed based on model
-    p = _propensity_score(mdf,'observed_indicator ~ '+model,mresult=print_model_results)
+    p = propensity_score(mdf,'observed_indicator ~ '+model,mresult=print_model_results)
     
     #Generating weights
     if stabilized==True:
@@ -300,9 +296,9 @@ def ipcw(df, uncensored, idvar, model_denominator, model_numerator, stabilized=T
     '''
     cf = df.copy()
     print('Numerator model:')
-    cf['pn'] = _propensity_score(cf,uncensored + ' ~ ' + model_numerator,mresult=print_model_results)
+    cf['pn'] = propensity_score(cf,uncensored + ' ~ ' + model_numerator,mresult=print_model_results)
     print('Denominator model:')
-    cf['pd'] = _propensity_score(cf,uncensored + ' ~ ' + model_denominator,mresult=print_model_results)
+    cf['pd'] = propensity_score(cf,uncensored + ' ~ ' + model_denominator,mresult=print_model_results)
     cf['cn'] = cf.groupby(idvar)['pn'].cumprod()
     cf['cd'] = cf.groupby(idvar)['pd'].cumprod()
     
@@ -425,40 +421,19 @@ class iptw_probability_diagnostic:
             raise ValueError('Input column must be probability')
         self.data = df
         self.p = probability
-
-    def p_kde(self,treatment,bw_method='scott',fill=True,color_e='b',color_u='r'):
-        '''Generates a density plot that can be used to check whether positivity may be violated qualitatively. Note
-        input probability variable, not the weight! The kernel density used is SciPy's Gaussian kernel. Either Scott's
-        Rule or Silverman's Rule can be implemented.
+    
+    def p_hist(self, treatment):
+        '''Generates a histogram that can be used to check whether positivity may be violated qualitatively. Note 
+        input probability variable, not the weight!
         
-        This is an alternative to the p_hist() function. I would recommend this over p_hist() generally since it makes
-        a nicer looking plot. 
-
         treatment:
             -Binary variable that indicates treatment. Must be coded as 0,1
-        bw_method:
-            -method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
-        fill:
-            -whether to color the area under the density curves. Default is true
-        color_e:
-            -color of the line/area for the treated group. Default is Blue
-        color_u:
-            -color of the line/area for the treated group. Default is Red
         '''
-        #Getting Gaussian Kernel Density
-        x = np.linspace(0,1,10000)
-        density_t = stats.kde.gaussian_kde(self.data.loc[self.data[treatment]==1][self.p].dropna(),bw_method=bw_method)
-        density_u = stats.kde.gaussian_kde(self.data.loc[self.data[treatment]==0][self.p].dropna(),bw_method=bw_method)
-
-        #Creating density plot
         ax = plt.gca()
-        if fill == True:
-            ax.fill_between(x,density_t(x),color=color_e,alpha=0.2,label=None)
-            ax.fill_between(x,density_u(x),color=color_u,alpha=0.2,label=None)
-        ax.plot(x, density_t(x),color=color_e,label='Treat = 1')
-        ax.plot(x, density_u(x),color=color_u,label='Treat = 0')
+        ax.hist(self.data.loc[self.data[treatment]==1][self.p].dropna(),label='Treat = 1',color='b',alpha=0.8)
+        ax.hist(self.data.loc[self.data[treatment]==0][self.p].dropna(),label='Treat = 0',color='r',alpha=0.5)
         ax.set_xlabel('Probability')
-        ax.set_ylabel('Density')
+        ax.set_ylabel('Number of observations')
         ax.legend()
         return ax
     

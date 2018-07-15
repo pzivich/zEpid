@@ -61,20 +61,25 @@ Contents:
     |           |-colors(): change the colors and point shapes for plot
     |           |-plot(): generate the effect measure plot 
     |
-    |___ipw
-    |    |
-    |    |-propensity_score(): generate probabilities/propensity scores via logit model
-    |    |-iptw(): calculate inverse probability of treament weights
-    |    |-ipmw(): calculate inverse probability of missing weights
-    |    |-ipcw_prep(): transform data into long format compatible with ipcw()
-    |    |-ipcw(): calculate inverse probability of censoring weights
-    |    |__ipt_weight_diagnostic(): generate diagnostics for IPTW
-    |    |    |-positivity(): diagnostic values for positivity issues
-    |    |    |-standardized_diff(): calculates the standardized differences of IP weights
-    |    |__ipt_probability_diagnostic(): generate diagnostics for treatment propensity scores
-    |         |-p_boxplot():generate boxplot of probabilities by exposure
-    |         |-p_hist(): generates histogram of probabilities by exposure
-    |    
+    |___ Causal
+    |     |
+    |     |-gformula
+    |     |     |
+    |     |     |-TimeFixedGFormula(): time fixed implementation of the g-formula
+    |     |-ipw
+    |           |
+    |           |-propensity_score(): generate probabilities/propensity scores via logit model
+    |           |-iptw(): calculate inverse probability of treament weights
+    |           |-ipmw(): calculate inverse probability of missing weights
+    |           |-ipcw_prep(): transform data into long format compatible with ipcw()
+    |           |-ipcw(): calculate inverse probability of censoring weights
+    |           |__ipt_weight_diagnostic(): generate diagnostics for IPTW
+    |               |    |-positivity(): diagnostic values for positivity issues
+    |               |    |-standardized_diff(): calculates the standardized differences of IP weights
+    |               |__ipt_probability_diagnostic(): generate diagnostics for treatment propensity scores
+    |                    |-p_boxplot():generate boxplot of probabilities by exposure
+    |                    |-p_hist(): generates histogram of probabilities by exposure
+    |   
     |___sens_analysis
          |
          |-rr_corr(): generates a corrected RR based on RR of confounder and probabilities confounder
@@ -87,8 +92,10 @@ from .base import (RiskRatio,RiskDiff,NNT,OddsRatio,IncRateRatio,IncRateDiff,ACR
 from .datasets import load_sample_data
 
 import zepid.calc
-import zepid.graphics 
-import zepid.ipw
+import zepid.graphics
+import zepid.ipw #removed as part of v0.2.0
+import zepid.causal.ipw #will add gformula and doublyrobust here when done
+import zepid.causal.gformula
 import zepid.sensitivity_analysis
 
 from .version import __version__
