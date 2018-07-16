@@ -593,7 +593,7 @@ def dyanmic_risk_plot(risk_exposed,risk_unexposed,measure='RD',loess=True,loess_
             ax.set_ylabel('ln(Risk Ratio)')
         elif scale == 'log':
             ax.set_ylabel('Risk Ratio')
-            ax.set_yscale('log',basex=np.e)
+            ax.set_yscale('log')
             ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
             ax.yaxis.get_major_formatter().set_scientific(False)
             ax.yaxis.get_major_formatter().set_useOffset(False)
