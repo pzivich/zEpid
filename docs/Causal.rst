@@ -11,11 +11,12 @@ G-Computation Algorithm Formula
 ==============================================
 The g-computation algorithm, also referred to as g-formula, is a method to obtain marginal estimates of various treatment comparisons (Robins 1986). For some introductions to the utility and usage of the g-formula, I recommend reading:
 
-Snowden JM et al. (2011) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3105284/
 
-Keil AP et al. (2014) https://www.ncbi.nlm.nih.gov/pubmed/25140837
+`Snowden JM et al. 2011 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3105284/>`_
 
-Westreich D et al. (2012) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3641816/
+`Keil AP et al. 2014 <https://www.ncbi.nlm.nih.gov/pubmed/25140837>`_
+
+`Westreich D et al. 2012 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3641816/>`_
 
 Currently, all implementations of the g-formula in *zEpid* are parametric implementations that use ``statsmodels`` logistic regression for binary outcomes and ``statsmodels`` linear regression for continuous outcomes. 
 
@@ -109,7 +110,7 @@ To get confidence intervals for our estimate, we need to use a bootstrap. Curren
   for i in range(500):
       dfs = df.sample(n=df.shape[0],replace=True)
       g = TimeFixedGFormula(dfs,exposure='art',outcome='dead')
-      g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_results=False)
+      g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_results=False)
       g.fit(treatment='all')
       r_all = g.marginal_outcome
       g.fit(treatment='none')
@@ -122,7 +123,7 @@ To get confidence intervals for our estimate, we need to use a bootstrap. Curren
   print('RR 95% CI:',np.percentile(rr_results,q=[2.5,97.5]))
 
 
-**NOTE** You will definitely want to use the ``print_results=False`` option in the ``outcome_model()``, otherwise 500 logistic regression results will be printed to your terminal. It is likely this will take at least several seconds to run, if not longer. Remember that it is fitting 500 logistic regression models to 500 bootstrapped sample to generate the confidence intervals.
+**NOTE** You will definitely want to use the ``print_model_results=False`` option in the ``outcome_model()``, otherwise 500 logistic regression results will be printed to your terminal. It is likely this will take at least several seconds to run, if not longer. Remember that it is fitting 500 logistic regression models to 500 bootstrapped sample to generate the confidence intervals.
 
 Multivariate Exposures
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -446,6 +447,82 @@ IP Missingness Weights
 ---------------------------------
 Guide is coming soon
 
+
 Doubly Robust
 ==============================
-Coming soon ...
+Simply put, a doubly robust estimator combines estimates from two statistical models (one for the exposure and one for the outcome) together. This has a nice property for investigators. As long as one of the specified statistical models (either the exposure or the outcome) is correct in a causal identifiable way, then the doubly robust estimate will be consistent. Essentially, you get two "tries" at the correct model form rather than just one. The doubly robust estimators do not avoid the common causal identification assumptions, and still require the use of causal graphs.
+
+For further discussion on the doubly robust estimator, see 
+
+`Robins J et al 2007 <https://arxiv.org/abs/0804.2965>`_
+
+`Glynn AN and Quinn KM 2009 <https://www.cambridge.org/core/journals/political-analysis/article/div-classtitlean-introduction-to-the-augmented-inverse-propensity-weighted-estimatordiv/4B1B8301E46F4432C4DCC91FE20780DB>`_
+
+`Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_
+
+`Keil AP et al 2018 <https://www.ncbi.nlm.nih.gov/pubmed/29394330>`_
+
+
+Simple Double-Robust
+-------------------------
+The doubly robust estimator described by `Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_ is implemented in *zEpid* through the ``SimpleDoubleRobust`` class. This is referred to as simple, since it does *not* handle missing data or other complex issues. Additionally, it only handles a binary exposure and binary outcome.
+
+To obtain the double robust estimate, we first do all our background data preparation, then initialize the ``SimpleDoubleRobust`` with the pandas dataframe, exposure column name, and outcome column name.
+
+.. code:: python
+
+  import zepid as ze
+  from zepid.causal.doublyrobust import SimpleDoubleRobust
+  df = ze.load_sample_data(timevary=False)
+  df[['cd4_rs1','cd4_rs2']] = ze.spline(df,'cd40',n_knots=3,term=2,restricted=True)
+  df[['age_rs1','age_rs2']] = ze.spline(df,'age0',n_knots=3,term=2,restricted=True)
+
+  sdr = SimpleDoubleRobust(df,exposure='art',outcome='dead')
+
+After initialized, we need to fit an exposure model and an outcome model, as such
+
+.. code:: python
+
+  sdr.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  sdr.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+If at least one of these models is not fit, the ``fit()`` option will generate an error saying that both models must be fit before the double-robust estimates can be produced.
+
+After both an exposure and outcome model are fit, we can estimate the double robust model via the ``fit()`` option
+
+.. code:: python
+
+  sdr.fit()
+
+After the ``fit()`` is run, the ``SimpleDoubleRobust`` class gains the following attributes; ``riskdiff`` corresponding to the risk difference, ``riskratio`` corresponding to the risk ratio, and the function ``summary()`` which prints both estimates. Running ``sdr.summary()`` gives us the following results
+
+.. code:: python
+
+  ----------------------------------------------------------------------
+  Risk Difference:  -0.0674
+  Risk Ratio:  0.5918
+  ----------------------------------------------------------------------
+
+
+Confidence Intervals
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+As recommended, confidence intervals should be obtained from a non-parametric bootstrap. As will other methods, it is important to specify ``print_model_results=False`` in the model statements. Otherwise, each fit model of the bootstrap will be printed to the terminal. The bootstrap can be implemented by the following the general structure of the below code
+
+.. code:: python
+
+  rd = []
+  rr = []
+  for i in range(500):
+      dfs = df.sample(n=df.shape[0],replace=True)
+      s = SimpleDoubleRobust(dfs,exposure='art',outcome='dead')
+      s.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_results=False)
+      s.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_result=False)
+      s.fit()
+      rd.append(s.riskdiff)
+      rr.append(s.riskratio)
+
+
+  print('RD 95% CI: ',np.percentile(rd,q=[2.5,97.5]))
+  print('RR 95% CI: ',np.percentile(rr,q=[2.5,97.5]))
+
+Again, this code may take a little while to run since 1000 regression models are fit (500 exposure models, 500 outcome models).
