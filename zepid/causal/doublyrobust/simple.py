@@ -8,11 +8,11 @@ from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
 from zepid.causal.ipw import propensity_score
 
-class SimpleDoublyRobust:
+class SimpleDoubleRobust:
     '''Implementation of a simple doubly robust estimator as described in Funk et al. American Journal
     of Epidemiology 2011;173(7):761-767. The exact formulas used are available in Table 1 and Equation 1.
     Properties of the doubly robust estimator are often misunderstood, so we direct the reader to 
-    Keil et al. AJE 2018;187(4):891-892. SimplyDoublyRobust only supports a binary exposure and binary
+    Keil et al. AJE 2018;187(4):891-892. SimplyDoubleRobust only supports a binary exposure and binary
     outcome. Also this model does not deal with missing data or time varying exposures
     
     df:
@@ -30,33 +30,33 @@ class SimpleDoublyRobust:
         self._fit_outcome_model = False
         self._generated_ci = False
     
-    def exposure_model(self,model,mresult=True):
+    def exposure_model(self,model,print_model_results=True):
         '''Used to specify the propensity score model. Model used to predict the exposure via a 
         logistic regression model
         
         model:
             -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
-        mresult:
+        print_model_results:
             -Whether to print the fitted model results. Default is True (prints results)
         '''
         self._exp_model = self._exposure + ' ~ '+ model
-        self.df['ps'] = propensity_score(self.df,self._exp_model,mresult=mresult)
+        self.df['ps'] = propensity_score(self.df,self._exp_model,mresult=print_model_results)
         self._fit_exposure_model = True
         
-    def outcome_model(self,model,mresult=True):
+    def outcome_model(self,model,print_model_results=True):
         '''Used to specify the outcome model. Model used to predict the outcome via a logistic
         regression model
         
         model:
             -Independent variables to predict the outcome. Example) 'var1 + var2 + var3 + var4'
-        mresult:
+        print_model_results:
             -Whether to print the fitted model results. Default is True (prints results)
         '''
 
         self._out_model = self._outcome + ' ~ '+ model
         f = sm.families.family.Binomial(sm.families.links.logit) 
         log = smf.glm(self._out_model,self.df,family=f).fit()
-        if mresult == True:
+        if print_model_results == True:
             print('\n----------------------------------------------------------------')
             print('MODEL: '+self._out_model)
             print('-----------------------------------------------------------------')
@@ -96,6 +96,9 @@ class SimpleDoublyRobust:
     def summary(self,decimal=4):
         '''Prints a summary of the results for the doubly robust estimator. 
         '''
+        if ((self._fit_exposure_model == False) or (self._fit_exposure_model == False)):
+            raise ValueError('The exposure and outcome models must be specified before the double robust estimate can be generated')
+
         print('----------------------------------------------------------------------')
         print('Risk Difference: ',round(self.riskdiff,decimal))
         print('Risk Ratio: ',round(self.riskratio,decimal))

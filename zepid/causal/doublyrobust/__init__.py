@@ -1,4 +1,4 @@
-from .simple import SimpleDoublyRobust
+from .Simple import SimpleDoubleRobust
 
 
     
