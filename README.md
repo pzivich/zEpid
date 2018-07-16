@@ -34,12 +34,20 @@ Uses matplotlib in the background to generate some useful plots. Implemented plo
 
 http://zepid.readthedocs.io/en/latest/Graphics.html
 
-## Inverse Probability Weights
-Calculate a variety of inverse probability weights. Current implementation includes; IP Treatment W, IP Censoring W, IP Missing W.
+## Causal
+Causal is a new branch that houses all the causal inference methods implemented. 
 
+http://zepid.readthedocs.io/en/latest/Causal.html
+
+#### G-Computation Algorithm
+Current implementation includes; time-fixed exposure parametric g-formula
+
+#### Inverse Probability Weights 
+Current implementation includes; IP Treatment W, IP Censoring W, IP Missing W.
+
+#### Double-Robust Estimators
+Current implementation includes the estimator described by Funk et al 2011 AJE
 Diagnostics are also available for IPTW
-
-http://zepid.readthedocs.io/en/latest/Inverse%20Probability%20Weights.html
 
 ## Sensitivity Analyses
 Includes trapezoidal distribution generator, corrected Risk Ratio
