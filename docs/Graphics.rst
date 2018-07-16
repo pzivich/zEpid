@@ -139,17 +139,6 @@ Which produces the following plot
 
 .. image:: images/zepid_pvalue1.png
 
-If we want to add a horizontal line indicating where the distribution crosses an alpha of 0.05 (corresponds to 95% confidence intervals), we can add the following optional argument
-
-.. code:: python
-
-   ze.graphics.pvalue_plot(point=-0.049,sd=0.042,alpha=0.05)
-   plt.show()
-
-Which results in the following plot
-
-.. image:: images/zepid_pvalue2.png
-
 Similar to the functional form plots, a ``matplotlib`` object is returned, so we can stack multiple p-value plots together. For this example, we will imagine a systematic review was conducted and resulted in a summary point risk difference of ``-0.062`` and a standard deviation of ``0.0231``. We can use the p-value plots to compare results between our data and the systematic review
 
 .. code:: python
@@ -263,12 +252,41 @@ Youden's index is defined as
 
 Where Youden's index is the value that maximizes the above. Basically, it balances sensitivity and specificity. You can learn more from https://en.wikipedia.org/wiki/Youden%27s_J_statistic
 
-=======
-
-
 
 Dynamic Risk Plots
 ====================================
-Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For an example, see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/
-To see how *zEpid* implements this, see http://zepid.readthedocs.io/en/latest/Inverse%20Probability%20Weights.html#time-varying
+Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For a published example, see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/ and discussed in https://academic.oup.com/aje/article/181/4/246/122265  
 
+For this example, we will borrow our results from our IPTW marginal structural model, discussed in the Causal page. We will used the fitted survival functions to obtain the risk estimates for our exposed and unexposed groups. These were generated from the ``lifelines`` Kaplan Meier curves.
+
+.. code:: python
+
+  a = 1 - kme.survival_function_
+  b = 1 - kmu.survival_function_
+  ze.graphics.dyanmic_risk_plot(a,b)
+  plt.show()
+
+.. image:: images/zepid_msm_rd.png
+
+By default, the function returns the risk difference plot. You can also request a risk ratio plot. Here is the risk ratio plot, with the point and line colors changed
+
+.. code:: python
+
+  ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkred',line_color='r',scale='log')
+  plt.yticks([0.4,0.6,0.8,1,2,4,6])
+
+  plt.show()
+
+.. image:: images/zepid_msm_rr.png
+
+You can also request a log-transformed RR
+
+.. code:: python
+  
+ ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkgreen',line_color='g',scale='log-transform')
+ plt.savefig('C:/Users/zivic/Python 
+ plt.show()
+
+.. image:: images/zepid_msm_rr2.png
+
+This concludes the section on implemented graphics in *zEpid*. If you have additional items you believe would make a good addition to the graphic functions, or *zEpid* in general, please reach out to us on GitHub or Twitter (@zepidpy)

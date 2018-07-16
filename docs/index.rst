@@ -4,34 +4,34 @@
 zEpid
 =====================================
 
-*zEpid* is an epidemiology analysis package, providing easy to 
-use tools for epidemiologists coding in python3. The purpose of 
-this package is to provide a toolset to make epidemiology e-z. 
-A variety of calculations and plots can be generated through 
-various functions. Current features include:
+*zEpid* is an epidemiology analysis toolkit, providing easy to use tools for epidemiologists coding in python3. The purpose of this package is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be generated through various functions. Current features include:
 
 -  Basic epidemiology calculations on pandas dataframes (RR, RD, IRD, etc.)
 -  Summary measure calculations 
--  Graphics plots (functional form plots, effect measure plots)
+-  Graphics (functional form plots, effect measure plots, ROC curves, etc.)
+-  G-computation algorithm
 -  Inverse-probability weights
+-  Doubly Robust estimators
 -  Sensitivity analysis tools
 
 Contents:
 -------------------------------------
 
 .. toctree::
-  :maxdepth: 2
+  :maxdepth: 3
 
   Measures
   Calculator
   Graphics
-  Inverse Probability Weights
+  Causal
   Sensitivity Analyses
 
 Installation:
 ------------------------------
 
 Dependencies are from the typical Python data-stack: Numpy, Pandas, Scipy, Statsmodels, and Matplotlib. Addtionally, it requires Tabulate, so nice looking tables can be easily generated. Install using:
+
+``pip install zepid``
 
 Source code and Issue Tracker
 ------------------------------
