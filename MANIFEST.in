@@ -1,5 +1,8 @@
 include README.md 
 include LICENSE.txt
 include MANIFEST.in
+include zepid/datasets/data.txt
 
 recursive-include zepid *
+
+recursive-exclude * *.py[co]
