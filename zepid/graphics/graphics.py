@@ -26,7 +26,6 @@ import pandas as pd
 from scipy.stats import norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib
@@ -34,7 +33,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.ticker as mticker
 
-class effectmeasure_plot:
+class EffectMeasurePlot:
     '''Used to generate effect measure plots. effectmeasure plot accepts four list type objects.
     effectmeasure_plot is initialized with the associated names for each line, the point estimate, 
     the lower confidence limit, and the upper confidence limit.
