@@ -1,1 +1,4 @@
-from .ipw import propensity_score,iptw,ipmw,ipcw_prep,ipcw,iptw_weight_diagnostic,iptw_probability_diagnostic
+from .utils import propensity_score
+from .IPTW import IPTW
+from .IPMW import IPMW
+from .IPCW import IPCW
