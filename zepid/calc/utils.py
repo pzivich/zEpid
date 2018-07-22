@@ -1,27 +1,3 @@
-'''Useful calculations for summary / count data. Association measures, confidence intervals, diagnostics, and
-other useful calculations are available here.
-
-Contents:
--rr(): calculate risk ratio from summary data
--rd(): calculate risk difference from summary data
--nnt(): calculate number needed to treat from summary data
--oddsratio(): calculate odds ratio from summary data
--ird(): calculate incidence rate difference from summary data
--irr(): calculate incidence rate ratio from summary data
--acr(): calculate attributable community risk from summary data
--paf(): calculate population attributable fraction from summary data
--risk_ci(): calculate risk confidence interval
--ir_ci(): calculate incidence rate confidence interval
--stand_mean_diff(): calculate standardized mean difference
--odds_to_prop(): convert odds to proportion
--prop_to_odds(): convert proportion to odds
--ppv_conv(): calculate positive predictive value
--npv_conv(): calculate negative predictive value
--screening_cost_analyzer(): calculate relative costs of screening program
--counternull_pvalue(): calculate counternull p-value
--semibayes(): calculate a semi Bayesian estimate
-'''
-
 import warnings
 import math
 from tabulate import tabulate
@@ -653,7 +629,131 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     print('----------------------------------------------------------------------\n')
 
 
-def ppv_conv(sensitivity, specificity, prevalence):
+def sensitivity(detected, cases, alpha=0.05, decimal=3, confint='wald', print_result=True, return_result=False):
+    """
+    Calculate the Sensitivity from number of detected cases and the number of total true cases.
+
+    detected:
+        -number of true cases detected via testing criteria
+    cases:
+        -total number of true/actual cases
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    decimal:
+        -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the RR as a object. Default is False
+    """
+    if (detected < 0) or (cases < 0):
+        raise ValueError('All numbers must be positive')
+    if detected > cases:
+        raise ValueError('Detected true cases must be less than or equal to the total number of cases')
+    if cases <= 5:
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+    sens = detected / cases
+    zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
+    if confint == 'wald':
+        ls = math.log(sens / (1 - sens))
+        sd = math.sqrt((1 / detected) + (1 / (cases - detected)))
+        lower = 1 / (1 + math.exp(-1 * (ls - zalpha * sd)))
+        upper = 1 / (1 + math.exp(-1 * (ls + zalpha * sd)))
+    elif confint == 'hypergeometric':
+        sd = math.sqrt(detected * (cases - detected) / (cases ** 2 * (cases - 1)))
+        lower = sens - zalpha * sd
+        upper = sens + zalpha * sd
+    else:
+        raise ValueError('Please specify a valid confidence interval')
+    if print_result == True:
+        print('Sensitivity: ' + str(round(sens, decimal)) + ', ', str(round(100 * (1 - alpha), 1)) + '% CI: (' +
+              str(round(lower, decimal)) + ', ' + str(round(upper, decimal)) + ')')
+    if return_result == True:
+        return sens
+
+
+def specificity(detected, noncases, alpha=0.05, decimal=3, confint='wald', print_result=True, return_result=False):
+    """
+    Calculate the Sensitivity from number of detected cases and the number of total true cases.
+
+    detected:
+        -number of false cases detected via testing criteria
+    cases:
+        -total number of true/actual noncases
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    decimal:
+        -amount of decimal points to display. Default is 3
+    confint:
+        -type of confidence interval to generate
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the RR as a object. Default is False
+    """
+    if (detected < 0) or (noncases < 0):
+        raise ValueError('All numbers must be positive')
+    if detected > noncases:
+        raise ValueError('Detected true cases must be less than or equal to the total number of cases')
+    if noncases <= 5:
+        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+    spec = 1 - (detected / noncases)
+    zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
+    if confint == 'wald':
+        ls = math.log(spec / (1 - spec))
+        sd = math.sqrt((1 / detected) + (1 / (noncases - detected)))
+        lower = 1 / (1 + math.exp(-1 * (ls - zalpha * sd)))
+        upper = 1 / (1 + math.exp(-1 * (ls + zalpha * sd)))
+    elif confint == 'hypergeometric':
+        sd = math.sqrt(detected * (noncases - detected) / (noncases ** 2 * (cases - 1)))
+        lower = spec - zalpha * sd
+        upper = spec + zalpha * sd
+    else:
+        raise ValueError('Please specify a valid confidence interval')
+    if print_result:
+        print('Specificity: ' + str(round(spec, decimal)) + ', ', str(round(100 * (1 - alpha), 1)) + '% CI: (' +
+              str(round(lower, decimal)) + ', ' + str(round(upper, decimal)) + ')')
+    if return_result:
+        return spec
+
+
+def diagnostics(a, b, c, d, alpha=0.05, decimal=3, confint='wald', print_result=True, return_result=False):
+    """
+    Calculate the diagnostic criteria (sensitivity and specificity) for summary data
+
+    a:
+        -count of true cases with a positive test
+    b:
+        -count of true cases with a negative test
+    c:
+        -count of true non-cases with a positive test
+    d:
+        -count of true non-cases with a negative test
+    alpha:
+        -alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    decimal:
+        -amount of decimal points to display. Default is 3
+    print_result:
+        -whether to print the results. Default is True
+    return_result:
+        -whether to return the calculated sensitivity and specificity as a tuple. Default is False
+    """
+    if ((a < 0) | (b < 0) | (c < 0) | (d < 0)):
+        raise ValueError('All numbers must be positive')
+    if print_result:
+        print(tabulate([['T+', a, b], ['T-', c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        sensitivity(a, a+b, alpha=alpha, decimal=decimal, confint=confint, print_result=True)
+        print('----------------------------------------------------------------------')
+        specificity(c, c+d, alpha=alpha, decimal=decimal, confint=confint, print_result=True)
+        print('----------------------------------------------------------------------')
+    if return_result:
+        se = sensitivity(a, a+b, print_result=False, return_result=True)
+        sp = specificity(c, c+d, print_result=False, return_result=True)
+        return se, sp
+
+
+def ppv_converter(sensitivity, specificity, prevalence):
     '''Generates the Positive Predictive Value from designated Sensitivity, Specificity, and Prevalence.
     Returns the positive predictive value
 
@@ -675,7 +775,7 @@ def ppv_conv(sensitivity, specificity, prevalence):
     return ppv
 
 
-def npv_conv(sensitivity, specificity, prevalence):
+def npv_converter(sensitivity, specificity, prevalence):
     '''Generates the Negative Predictive Value from designated Sensitivity, Specificity, and Prevalence.
     Returns the negative predictive value
 

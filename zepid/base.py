@@ -5,11 +5,9 @@ import pandas as pd
 from scipy.stats import norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
-from statsmodels.nonparametric.smoothers_lowess import lowess
 from tabulate import tabulate
-from zepid.calc.calc import rr,rd,nnt,oddsratio,ird,irr,acr,paf,stand_mean_diff
+from zepid.calc.utils import rr,rd,nnt,oddsratio,ird,irr,acr,paf,stand_mean_diff,sensitivity,specificity
 
 def RiskRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
     '''Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by 
@@ -37,7 +35,6 @@ def RiskRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_r
     Example)
     >>>zepid.RiskRatio(df=data,exposure='X',outcome='D')
     '''
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
     d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
     vals = set(df[exposure].dropna().unique())
@@ -77,7 +74,6 @@ def RiskDiff(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_re
     Example)
     >>>zepid.RiskDiff(df=data,exposure='X',outcome='D')
     '''
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
     d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
     vals = set(df[exposure].dropna().unique())
@@ -117,7 +113,6 @@ def NNT(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=
         Example)
     >>>zepid.NNT(df=data,exposure='X',outcome='D')
     '''
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
     d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
     vals = set(df[exposure].dropna().unique())
@@ -156,7 +151,6 @@ def OddsRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_r
     Example)
     >>>zepid.OddsRatio(df=data,exposure='X',outcome='D')
     '''
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
     d = df.loc[(df[exposure]==reference)&(df[outcome]==0)].shape[0]
     vals = set(df[exposure].dropna().unique())
@@ -198,7 +192,6 @@ def IncRateRatio(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3
     Example)
     >>>zepid.IncRateRatio(df=data,exposure='X',outcome='D',time='t')
     '''
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
     time_c = df.loc[df[exposure]==reference][time].sum()
     vals = set(df[exposure].dropna().unique())
@@ -238,7 +231,6 @@ def IncRateDiff(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3,
     Example)
     >>>zepid.IncRateDiff(df=data,exposure='X',outcome='D',time='t')
     '''
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
     c = df.loc[(df[exposure]==reference)&(df[outcome]==1)].shape[0]
     time_c = df.loc[df[exposure]==reference][time].sum()
     vals = set(df[exposure].dropna().unique())
@@ -268,18 +260,6 @@ def ACR(df, exposure, outcome, decimal=3):
     decimal:
         -amount of decimal points to display. Default is 3
 
-    Example)
-    >>>zepid.ACR(df=data,exposure='X',outcome='D')
-    +-----+-------+-------+
-    |     |   D=1 |   D=0 |
-    +=====+=======+=======+
-    | E=1 |    27 |   104 |
-    +-----+-------+-------+
-    | E=0 |    12 |    67 |
-    +-----+-------+-------+
-    ----------------------------------------------------------------------
-    ACR:  0.034
-    ----------------------------------------------------------------------
     '''
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
     b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
@@ -300,18 +280,6 @@ def PAF(df, exposure, outcome, decimal=3):
     decimal:
         -amount of decimal points to display. Default is 3
     
-    Example)
-    >>>zepid.PAF(df=data,exposure='X',outcome='D')
-    +-----+-------+-------+
-    |     |   D=1 |   D=0 |
-    +=====+=======+=======+
-    | E=1 |    27 |   104 |
-    +-----+-------+-------+
-    | E=0 |    12 |    67 |
-    +-----+-------+-------+
-    ----------------------------------------------------------------------
-    PAF:  0.182
-    ----------------------------------------------------------------------
     '''
     a = df.loc[(df[exposure]==1)&(df[outcome]==1)].shape[0]
     b = df.loc[(df[exposure]==1)&(df[outcome]==0)].shape[0]
@@ -512,7 +480,7 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
 
 
 def Sensitivity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    '''Generates the Sensitivity and (1-alpha)% confidence interval, comparing test results to disease status 
+    '''Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
     from pandas dataframe
 
     WARNING: Disease & Test must be coded as (1: yes, 0:no)
@@ -530,28 +498,21 @@ def Sensitivity(df, test, disease, alpha=0.05, decimal=3, print_result=True, ret
     print_result:
         -Whether to print the results. Default is True
     return_result:
-        -Whether to return the RR as a object. Default is False.
+        -Whether to return the calculated sensitivity. Default is False.
     
     Example)
     >zepid.Sensitivity(df=data,test='test_disease',disease='true_disease')
     '''
     a = df.loc[(df[test]==1)&(df[disease]==1)].shape[0]
     b = df.loc[(df[test]==1)&(df[disease]==0)].shape[0]
-    c = df.loc[(df[test]==0)&(df[disease]==1)].shape[0]
-    d = df.loc[(df[test]==0)&(df[disease]==0)].shape[0]
-    sens = a/(a+c)
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    se = math.sqrt((sens*(1-sens)) / (a+c))
-    lower = sens - zalpha*se
-    upper = sens + zalpha*se
     if print_result == True:
-        print(tabulate([["T+",a,b],["T-",c,d]],headers=['','D+','D-'],tablefmt='grid'))
+        print(tabulate([["T+",a,b]],headers=['','D+','D-'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
-        print('Sensitivity: ',(round(sens,decimal)*100),'%','\n')
-        print(str(round(100*(1-alpha)))+'% two-sided CI: (',round(lower,decimal),', ',round(upper,decimal),')')
+        sensitivity(a, a+b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
         print('----------------------------------------------------------------------')
     if return_result == True:
-        return sens
+        se = sensitivity(a, a+b, print_result=False, return_result=True)
+        return se
 
 
 def Specificity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
@@ -573,28 +534,58 @@ def Specificity(df, test, disease, alpha=0.05, decimal=3, print_result=True, ret
     print_result:
         -Whether to print the results. Default is True
     return_result:
-        -Whether to return the RR as a object. Default is False.
+        -Whether to return the calculated specificity. Default is False.
     
     Example)
     >zepid.Specificity(df=data,test='test_disease',disease='true_disease')    
+    '''
+    c = df.loc[(df[test]==0)&(df[disease]==1)].shape[0]
+    d = df.loc[(df[test]==0)&(df[disease]==0)].shape[0]
+    if print_result:
+        print(tabulate([["T-",c,d]],headers=['','D+','D-'],tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        specificity(c, c+d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
+        print('----------------------------------------------------------------------')
+    if return_result:
+        sp = specificity(c, c+d, print_result=False, return_result=True)
+        return sp
+
+def Diagnostics(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
+    '''
+    Generates the Sensitivity, Specificity and corresponding (1-alpha)% confidence intervals, comparing test results
+    to disease status from pandas dataframe
+
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
+
+    test:
+        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        positive test for the individual
+    disease:
+        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+         has the outcome
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    decimal:
+        -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the calculates sensitivity and specificity. Default is False.
     '''
     a = df.loc[(df[test]==1)&(df[disease]==1)].shape[0]
     b = df.loc[(df[test]==1)&(df[disease]==0)].shape[0]
     c = df.loc[(df[test]==0)&(df[disease]==1)].shape[0]
     d = df.loc[(df[test]==0)&(df[disease]==0)].shape[0]
-    spec = d/(d+b)
-    zalpha = norm.ppf((1-alpha/2),loc=0,scale=1)
-    se = math.sqrt((spec*(1-spec)) / (b+d))
-    lower = spec - zalpha*se
-    upper = spec + zalpha*se
-    if print_result == True:
-        print(tabulate([["T+",a,b],["T-",c,d]],headers=['','D+','D-'],tablefmt='grid'))
+    if print_result:
+        print(tabulate([["T+",a,b], ["T-",c,d]],headers=['','D+','D-'],tablefmt='grid'))
         print('----------------------------------------------------------------------')
-        print('Specificity: ',(round(spec,decimal)*100),'%','\n')
-        print(str(round(100*(1-alpha)))+'% two-sided CI: (',round(lower,decimal),', ',round(upper,decimal),')')
+        sensitivity(a, a+b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
+        specificity(c, c+d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
         print('----------------------------------------------------------------------')
-    if return_result == True:
-        return spec
+    if return_result:
+        se = sensitivity(a, a+b, print_result=False, return_result=True)
+        sp = specificity(c, c+d, print_result=False, return_result=True)
+        return se, sp
 
 
 def StandMeanDiff(df, binary, continuous, decimal=3):
