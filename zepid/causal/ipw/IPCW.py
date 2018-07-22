@@ -4,9 +4,10 @@ import pandas as pd
 
 from .utils import propensity_score
 
+# TODO update docs
+# TODO rerun for website
 
 class IPCW:
-    # TODO update documentation
     """
     Generate inverse probability of censoring weights
     """

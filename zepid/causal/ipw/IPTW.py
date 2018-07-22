@@ -7,24 +7,14 @@ from .utils import propensity_score
 
 
 # TODO check StandardDifference
+# TODO update docs
+# TODO rerun for website
 
 class IPTW:
     """
     Calculates the weight for inverse probability of treatment weights through logistic regression.
     Both stabilized or unstabilized weights are implemented. Default is just to calculate the prevalence
     of the treatment in the population.
-
-    Example)
-    >>>import zepid as ze
-    >>>df = ze.load_sample_data(timevary=False) #basic data preparation
-    >>>df[['cd4_rs1','cd4_rs2']] = ze.spline(df,'cd40',n_knots=3,term=2,restricted=True)
-    >>>df[['age_rs1','age_rs2']] = ze.spline(df,'age0',n_knots=3,term=2,restricted=True)
-    >>>
-    >>>from zepid.causal.ipw import IPTW
-    >>>model = 'male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-    >>>ipt = IPTW(df, treatment='art', stabilized=True)
-    >>>ipt.regression_models(model)
-    >>>ipt.fit()
 
     """
 

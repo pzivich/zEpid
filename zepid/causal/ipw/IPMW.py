@@ -1,6 +1,8 @@
 import numpy as np
 from .utils import propensity_score
 
+# TODO write documentation
+# TODO create an example for the website
 
 class IPMW():
     """
