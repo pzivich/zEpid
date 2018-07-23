@@ -1,10 +1,7 @@
-import warnings
-import math 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import family
 from statsmodels.genmod.families import links
 from zepid.causal.ipw import propensity_score
 
@@ -29,6 +26,10 @@ class SimpleDoubleRobust:
         self._fit_exposure_model = False
         self._fit_outcome_model = False
         self._generated_ci = False
+        self.riskdiff = None
+        self.riskratio = None
+        self._exp_model = None
+        self._out_model = None
     
     def exposure_model(self,model,print_model_results=True):
         '''Used to specify the propensity score model. Model used to predict the exposure via a 
@@ -40,9 +41,10 @@ class SimpleDoubleRobust:
             -Whether to print the fitted model results. Default is True (prints results)
         '''
         self._exp_model = self._exposure + ' ~ '+ model
-        self.df['ps'] = propensity_score(self.df,self._exp_model,mresult=print_model_results)
+        fitmodel = propensity_score(self.df, self._exp_model, mresult=print_model_results)
+        self.df['ps'] = fitmodel.predict(self.df)
         self._fit_exposure_model = True
-        
+
     def outcome_model(self,model,print_model_results=True):
         '''Used to specify the outcome model. Model used to predict the outcome via a logistic
         regression model
@@ -56,7 +58,7 @@ class SimpleDoubleRobust:
         self._out_model = self._outcome + ' ~ '+ model
         f = sm.families.family.Binomial(sm.families.links.logit) 
         log = smf.glm(self._out_model,self.df,family=f).fit()
-        if print_model_results == True:
+        if print_model_results:
             print('\n----------------------------------------------------------------')
             print('MODEL: '+self._out_model)
             print('-----------------------------------------------------------------')
@@ -77,17 +79,20 @@ class SimpleDoubleRobust:
         be run, otherwise only point estimates will be generated
         '''
         if ((self._fit_exposure_model == False) or (self._fit_exposure_model == False)):
-            raise ValueError('The exposure and outcome models must be specified before the doubly robust estimate can be generated')
+            raise ValueError('The exposure and outcome models must be specified before the doubly robust estimate can '
+                             'be generated')
         
         #Doubly robust estimator for exposed
         self.df['dr1'] = np.where(self.df[self._exposure]==1,
-                                  ((self.df[self._outcome])/self.df['ps']) - (((self.df['pY1'] * (1 - self.df['ps'])) / (self.df['ps']))),
+                                  ((self.df[self._outcome])/self.df['ps']) - (((self.df['pY1'] * (1 - self.df['ps']))
+                                                                               / (self.df['ps']))),
                                   self.df['pY1'])
         
         #Doubly robust estimator for unexposed
         self.df['dr0'] = np.where(self.df[self._exposure]==0,
                                   (self.df['pY0']),
-                                  ((self.df[self._outcome])/(1 - self.df['ps']) - (((self.df['pY0']) * (self.df['ps'])) / (1 - self.df['ps']))))
+                                  ((self.df[self._outcome])/(1 - self.df['ps']) - (((self.df['pY0']) * (self.df['ps']))
+                                                                                   / (1 - self.df['ps']))))
         
         #Generating estimates for the risk difference and risk ratio
         self.riskdiff = np.mean(self.df['dr1']) - np.mean(self.df['dr0'])
@@ -96,11 +101,12 @@ class SimpleDoubleRobust:
     def summary(self,decimal=4):
         '''Prints a summary of the results for the doubly robust estimator. 
         '''
-        if ((self._fit_exposure_model == False) or (self._fit_exposure_model == False)):
-            raise ValueError('The exposure and outcome models must be specified before the double robust estimate can be generated')
+        if (self._fit_exposure_model == False) or (self._fit_exposure_model == False):
+            raise ValueError('The exposure and outcome models must be specified before the double robust estimate can '
+                             'be generated')
 
         print('----------------------------------------------------------------------')
-        print('Risk Difference: ',round(self.riskdiff,decimal))
-        print('Risk Ratio: ',round(self.riskratio,decimal))
+        print('Risk Difference: ', round(float(self.riskdiff), decimal))
+        print('Risk Ratio: ', round(float(self.riskratio), decimal))
         print('----------------------------------------------------------------------')
 
