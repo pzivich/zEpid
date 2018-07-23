@@ -1,25 +1,15 @@
-'''Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
+"""
+Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
 are implemented. Uses matplotlib to generate graphics. Future inclusions include forest plots
 
 Contents:
--func_form_plot(): generate a functional form plot
--effectmeasure_plot(): create an effect measure plot class
-    |-labels(): change the labels, scale, reference line for plot
-    |-colors(): change the colors and point shapes for plot
-    |-plot(): generate the effect measure plot 
--pvalue_plot(): generate a p-value distribution plot
-
-
-Example of how and effect measure plot is displayed:
-        _____________________________________________      Measure     % CI 
-        |                                           |
-    1   |        --------o-------                   |       x        n, 2n
-        |                                           |
-    2   |                   ----o----               |       w        m, 2m
-        |                                           | 
-        |___________________________________________|
-        #           #           #           #
-'''
+Functional form assessment- func_form_plot()
+Forest plot/ effect measure plot- EffectMeasurePlot()
+P-value distribution plot- pvalue_plot()
+Spaghetti plot- spaghetti_plot()
+Receiver-Operator Curve- roc()
+Dynamic risk plot- dynamic_risk_plot()
+"""
 
 import numpy as np
 import pandas as pd
@@ -474,7 +464,7 @@ def spaghetti_plot(df, idvar, variable, time):
     return ax
 
 
-def ROC_curve(df, true, probability, youden_index=True):
+def roc(df, true, probability, youden_index=True):
     '''Generate a Receiver Operator Curve from true values and predicted probabilities.
     
     Returns matplotlib axes
