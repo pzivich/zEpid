@@ -5,12 +5,9 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 
-
-# TODO update documentation
-# TODO create example and website example
-# TODO figure out how to get this to work with E722
+# TODO website example
 # TODO variance for continuous covariates
-# TODO add restriction option to covariates
+
 
 class TimeVaryGFormula:
     """Time-varying implementation of the g-formula, also referred to as the g-computation
@@ -26,17 +23,18 @@ class TimeVaryGFormula:
                  age is 25 or older and are females
                  ex) treatment="((g['age0']>=25) & (g['male']==0))
     
-    Currently, only supports a binary exposure and a binary outcome. Uses a logistic regression
-    model to predict outcomes via statsmodels. See Keil et al. (2014) for a good description of 
-    the time-varying g-formula. See http://zepid.readthedocs.io/en/latest/ for an example 
-    (highly recommended)
+    Currently, only supports a binary exposure and a binary outcome. Uses a logistic regression model to predict
+    exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the time-varying
+    g-formula. See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
     
     IMPORTANT CONSIDERATIONS:
     1) TimeVaryGFormula increases by time unit increase of one. Your input dataset should reflect this
     2) Only binary exposures and binary outcomes are supported
-    3) Only binary and continuous covariates are supported
+    3) Binary and continuous covariates are supported
     4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
     5) Fit the natural course model first and compare to the observed data. They should be similar
+    6) Check to make sure the predicted values are reasonable. If not, you may need to code in restrictions into
+        'restriction', 'recode', or 'in_recode' statements in the fitted models
     
     Inputs:
     df:
@@ -75,8 +73,12 @@ class TimeVaryGFormula:
         
         model:
             -variables to include in the model for predicting the outcome. Must be contained within the input
-             pandas dataframe when initialized. Format is the same as the functional form,
-             i.e. 'var1 + var2 + var3 + var4'
+             pandas dataframe when initialized. Format is the same as the functional form
+             Example) 'var1 + var2 + var3 + var4'
+        restriction:
+            -used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
+             model fitting. The pandas dataframe must be referred to as 'g'
+             Example) "g['art']==1"
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
@@ -99,6 +101,10 @@ class TimeVaryGFormula:
             -variables to include in the model for predicting the outcome. Must be contained within the input
              pandas dataframe when initialized. Format is the same as the functional form,
              i.e. 'var1 + var2 + var3 + var4'
+        restriction:
+            -used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
+             model fitting. The pandas dataframe must be referred to as 'g'
+             Example) "g['art']==1"
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
@@ -111,7 +117,8 @@ class TimeVaryGFormula:
             print(self.out_model.summary())
         self._outcome_model_fit = True
 
-    def add_covariate_model(self, label, covariate, model, recode=None, var_type='binary', print_results=True):
+    def add_covariate_model(self, label, covariate, model, restriction=None, recode=None, var_type='binary',
+                            print_results=True):
         """
         Build the model for the specified covariate. This is to deal with time-varying confounders.
         Does NOT have to be specified, unlike the exposure and outcome models. The order in which these
@@ -128,12 +135,16 @@ class TimeVaryGFormula:
             -variables to include in the model for predicting the outcome. Must be contained within the input
              pandas dataframe when initialized. Format is the same as the functional form,
              i.e. 'var1 + var2 + var3 + var4'
+        restriction:
+            -used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
+             model fitting. The pandas dataframe must be referred to as 'g'
+             Example) "g['art']==1"
         recode:
             -This variable is vitally important for various functional forms implemented later in models. This
              is used to run some background code to recreate functional forms as the g-formula is fit via fit()
              For an example, let's say we have age but we want the functional form to be cubic. For this, we 
              would set the recode="g['']" Similar to TimeFixedGFormula, 'g' must be specified as the data frame 
-             object with the corresponding indeces. Also lines of executable code should end with ';', so Python
+             object with the corresponding indexes. Also lines of executable code should end with ';', so Python
              knows that the line ends there. My apologies for this poor solution... I am working on a better way
         var_type:
             -type of variable that the covariate is. Current options include 'binary' or 'continuous'
@@ -144,6 +155,9 @@ class TimeVaryGFormula:
             raise ValueError('Label must be an integer')
 
         # Building predictive model
+        g = self.gf.copy()
+        if restriction is not None:
+            g = g.loc[eval(restriction)].copy()
         if var_type == 'binary':
             linkdist = sm.families.family.Binomial(sm.families.links.logit)
         elif var_type == 'continuous':
@@ -151,7 +165,7 @@ class TimeVaryGFormula:
         else:
             raise ValueError('Only binary or continuous covariates are currently supported')
 
-        m = smf.glm(covariate + ' ~ ' + model, self.gf, family=linkdist)
+        m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
         f = m.fit()
         if print_results:
             print(f.summary())
