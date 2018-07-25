@@ -686,18 +686,18 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     for i in range(len(pts)):
         colnames.append('spline'+str(i))
         sf['ref'+str(i)] = (sf[var] - pts[i])**term
-        sf['spline'+str(i)] = [j if x > pts[i] else 0 for x,j in zip(sf[var],sf['ref'+str(i)])]
-        sf.loc[sf[var].isnull(),'spline'+str(i)] = np.nan
-    if restricted == False:
+        sf['spline'+str(i)] = np.where(sf[var] > pts[i], sf['ref'+str(i)], 0)
+        sf['spline'+str(i)] = np.where(sf[var].isnull(), np.nan, sf['ref'+str(i)])
+    if restricted is False:
         return sf[colnames]
-    elif restricted == True:
+    elif restricted is True:
         rsf = sf.copy()
         colnames = []
         for i in range(len(pts)-1):
             colnames.append('rspline'+str(i))
-            rsf['ref'+str(i)] = (rsf['spline'+str(i)] - rsf['spline'+str(len(pts)-1)])
-            rsf['rspline'+str(i)] = [j if x > pts[i] else 0 for x,j in zip(rsf[var],rsf['ref'+str(i)])]
-            rsf.loc[rsf[var].isnull(),'rspline'+str(i)] = np.nan
+            rsf['ref'+str(i)] = rsf['spline'+str(i)] - rsf['spline'+str(len(pts)-1)]
+            rsf['rspline'+str(i)] = np.where(rsf[var] > pts[i], rsf['ref'+str(i)], 0)
+            rsf['rspline'+str(i)] = np.where(rsf[var].isnull(), np.nan, rsf['ref'+str(i)])
         return rsf[colnames]
     else:
         raise ValueError('restricted must be set to either True or False')
