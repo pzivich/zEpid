@@ -9,6 +9,8 @@ from statsmodels.genmod.families import links
 # TODO update documentation
 # TODO create example and website example
 # TODO figure out how to get this to work with E722
+# TODO variance for continuous covariates
+# TODO add restriction option to covariates
 
 class TimeVaryGFormula:
     """Time-varying implementation of the g-formula, also referred to as the g-computation
@@ -48,7 +50,8 @@ class TimeVaryGFormula:
     """
 
     def __init__(self, df, idvar, exposure, outcome, time_in, time_out):
-        warnings.warn("This implementation is experimental at this state. I wouldn't use it yet")
+        warnings.warn("This implementation is experimental at this state. I wouldn't use it yet. Specifically, "
+                      "the variance for continuous covariates is arbitrary (and not correct for your application)")
         self.gf = df.copy()
         self.idvar = idvar
         self.exposure = exposure
@@ -66,7 +69,7 @@ class TimeVaryGFormula:
         self._covariate_recode = []
         self.predicted_outcomes = None
 
-    def exposure_model(self, model, print_results=True):
+    def exposure_model(self, model, restriction=None, print_results=True):
         """Build the model for the exposure. This must be specified before the fit function. If it is not,
         an error will be raised.
         
@@ -77,13 +80,16 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
+        g = self.gf.copy()
+        if restriction is not None:
+            g = g.loc[eval(restriction)].copy()
         linkdist = sm.families.family.Binomial(sm.families.links.logit)
-        self.exp_model = smf.glm(self.exposure + ' ~ ' + model, self.gf, family=linkdist).fit()
+        self.exp_model = smf.glm(self.exposure + ' ~ ' + model, g, family=linkdist).fit()
         if print_results:
             print(self.exp_model.summary())
         self._exposure_model_fit = True
 
-    def outcome_model(self, model, print_results=True):
+    def outcome_model(self, model, restriction, print_results=True):
         """Build the model for the outcome. This must be specified before the fit function. If it is not,
         an error will be raised.
         
@@ -96,8 +102,11 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
+        g = self.gf.copy()
+        if restriction is not None:
+            g = g.loc[eval(restriction)].copy()
         linkdist = sm.families.family.Binomial(sm.families.links.logit)
-        self.out_model = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist).fit()
+        self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
         if print_results:
             print(self.out_model.summary())
         self._outcome_model_fit = True
@@ -190,14 +199,6 @@ class TimeVaryGFormula:
 
         # Background preparations
         gs[self.outcome] = 0
-        if type(treatment) == list:
-            raise ValueError('Only binary exposures are currently supported by TimeVaryGFormula')
-        elif treatment == 'all':
-            gs[self.exposure] = 1
-        elif treatment == 'none':
-            gs[self.exposure] = 0
-        else:
-            pass  # keep same initial treatments if no difference
 
         # getting maximum time steps to run g-formula
         if t_max is None:
@@ -206,13 +207,15 @@ class TimeVaryGFormula:
         # fitting g-formula piece by piece
         g = gs.copy()
         for i in range(int(t_max)):
-            # select out last observation that has not had outcome yet
-            # g = gs.loc[(gs[self.outcome] == 0) & (gs.groupby('uid_g_zepid').cumcount()==i)].copy()
+            if (i != 0) and (lags is not None):
+                g.drop(columns=list(lags.values()), inplace=True)
+                g.rename(columns=lags, inplace=True)
             g = g.loc[g[self.outcome] == 0].copy()
             g[self.time_in] = i
             if in_recode is not None:
                 exec(in_recode)
-            # predict all other covariates
+
+            # predict time-varying covariates
             if len(self._covariate_models) != 0:
                 for j in (sorted(range(len(self._covariate_model_index)),
                                  key=self._covariate_model_index.__getitem__)):
@@ -220,42 +223,40 @@ class TimeVaryGFormula:
                     if self._covariate_type[j] == 'binary':
                         g[self._covariate[j]] = np.random.binomial(1, g[self._covariate[j] + 'pred'], size=g.shape[0])
                     if self._covariate_type[j] == 'continuous':
-                        if hasattr((self._covariate_models[j]), "bse"):  # used to deal with statsmodels upcoming change
-                            np.random.normal(loc=g[self._covariate[j] + 'pred'],
-                                             scale=0.4141,  # TODO variance
-                                             size=g.shape[0])
+                        if hasattr((self._covariate_models[j]), "bse"):  # used to deal with statsmodels change
+                            g[self._covariate[j]] = np.random.normal(loc=g[self._covariate[j] + 'pred'],
+                                                                     scale=69,  # TODO variance
+                                                                     size=g.shape[0])
                         else:
-                            np.random.normal(loc=g[self._covariate[j] + 'pred'],
-                                             scale=self._covariate_models[j].stand_errors[self._covariate[j]],
-                                             size=g.shape[0])
+                            g[self._covariate[j]] = np.random.normal(loc=g[self._covariate[j] + 'pred'],
+                                                                     scale=69,
+                                                                     size=g.shape[0])
                     exec(self._covariate_recode[j])
+
             # predict exposure when customized treatments
-            if (treatment == 'all') or (treatment == 'none'):
-                pass
+            if treatment == 'all':
+                g[self.exposure] = 1
+            elif treatment == 'none':
+                g[self.exposure] = 0
             elif treatment == 'natural':
                 g[self.exposure + 'pred'] = self.exp_model.predict(g)
                 g[self.exposure] = np.random.binomial(1, g[self.exposure + 'pred'], size=g.shape[0])
             else:  # custom exposure pattern
+                g[self.exposure + 'pred'] = self.exp_model.predict(g)
+                g[self.exposure] = np.random.binomial(1, g[self.exposure + 'pred'], size=g.shape[0])
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
+
             # predict outcome
             g['pevent_zepid'] = self.out_model.predict(g)
             g[self.outcome] = np.random.binomial(1, g['pevent_zepid'], size=g.shape[0])
-            if lags is not None:
-                for k, v in lags.items():  # creates lagged variables based on the predictions
-                    g[v] = g[k]
-            # update time
             g[self.time_out] = i + 1
 
             # APPEND SIMULATED DATA
             gs = gs.append(g, ignore_index=True, sort=False)
-            # gs.sort_values(by=['uid_g_zepid', self.time_in], inplace=True)
 
         # so the append loop adds an extra, so we need to drop that extra
         gs.dropna(subset=['pevent_zepid'], inplace=True)
-
-        # Below will allow full data to be returned. Currently prevent to reduce memory
-        # self.predicted_data_full = gs.sort_values(by=['uid_g_zepid',self.time_in]).reset_index(drop=True)
         # Gains new attributes
-        self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in,
-                                      self.time_out]].sort_values(by=['uid_g_zepid',
+        self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
+                                     self._covariate].sort_values(by=['uid_g_zepid',
                                                                       self.time_in]).reset_index(drop=True)
