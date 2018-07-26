@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from pkg_resources import resource_filename
 
@@ -7,8 +8,9 @@ def load_sample_data(timevary):
     is used for all examples on zepid.readthedocs.io and part of my
     other repository Python-for-Epidemiologists
 
-    timevary=True produces a repeated follow-up data set
-    timevary=False produces a single observation per subject
+    timevary:
+        True    -produces a repeated follow-up data set
+        False   -produces a single observation per subject
 
     Variables:
     -id: participant unique ID (multiple observations per person)
@@ -26,17 +28,19 @@ def load_sample_data(timevary):
     -dead: indicator for death at end of follow-up period (1 = yes)
     -t: total time contributed
     '''
-    cols = ['id','enter','out','male','age0','cd40','dvl0','cd4','dvl','art','drop','dead']
-    df = pd.read_csv(resource_filename('zepid','datasets/data.txt'),
-                     delim_whitespace=True,header=None,names=cols,index_col=False)
-    df.sort_values(by=['id','enter'],inplace=True)
-    if timevary == True:
+    cols = ['id', 'enter', 'out', 'male', 'age0', 'cd40', 'dvl0', 'cd4', 'dvl', 'art', 'drop', 'dead']
+    df = pd.read_csv(resource_filename('zepid', 'datasets/data.txt'),
+                     delim_whitespace=True, header=None, names=cols, index_col=False)
+    df.sort_values(by=['id', 'enter'], inplace=True)
+    if timevary is True:
         return df
     else:
-        dfi = df.loc[df.groupby('id').cumcount()==0][['id','male','age0','cd40','dvl0','art']].copy()
-        dfo = df.loc[df.id != df.id.shift(-1)][['id','dead','drop','out']].copy()
-        dff = pd.merge(dfi,dfo,left_on='id',right_on='id')
-        dff.rename(columns={'out':'t'},inplace=True)
+        dfi = df.loc[df.groupby('id').cumcount()==0][['id', 'male', 'age0', 'cd40', 'cd4', 'dvl0', 'art']].copy()
+        dfo = df.loc[df.id != df.id.shift(-1)][['id', 'dead', 'drop', 'out']].copy()
+        dfo.loc[dfo['drop'] == 1, 'dead'] = np.nan
+        dff = pd.merge(dfi, dfo, left_on='id', right_on='id')
+        dff.rename(columns={'out':'t'}, inplace=True)
+        dff.drop(columns=['drop'], inplace=True)
         return dff
 
 
