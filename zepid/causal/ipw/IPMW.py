@@ -27,7 +27,7 @@ class IPMW():
         :param stabilized: whether to return the stabilized or unstabilized IPMW.
             Default is to return stabilized weights
         """
-        if np.sum(df.loc[df[missing_variable].isnull()]) == 0:
+        if df.loc[df[missing_variable].isnull()][missing_variable].shape[0] == 0:
             raise ValueError('IPMW requires that missing data is coded as np.nan')
         self.df = df.copy()
         self.missing = missing_variable
@@ -46,7 +46,8 @@ class IPMW():
         :param print_model_results: whether to print the model results. Default is True
         :return: adds Weight attribute to IPMW class
         """
-        p = propensity_score(self.df, 'observed_indicator ~ ' + model, mresult=print_model_results)
+        mod = propensity_score(self.df, 'observed_indicator ~ ' + model, mresult=print_model_results)
+        p = mod.predict(self.df)
         if self.stabilized:
             p_ = np.mean(self.df['observed_indicator'])
             w = p_ / p

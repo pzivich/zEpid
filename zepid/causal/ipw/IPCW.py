@@ -113,7 +113,7 @@ class IPCW:
         print('Check for dataframe')
         print('\tEvents in input:', np.sum(cf[event]))
         print('\tEvents in output:', np.sum(lf[event]))
-        print('\tCensor in input:', cf.shape[0] - np.sum(cf[event]))
+        print('\tCensor in input:', cf.dropna(subset=[event]).shape[0] - np.sum(cf[event]))
         print('\tCensor in output:', lf.shape[0] - np.sum(lf.uncensored))
         if enter is None:
             print('\tTotal t input:', np.sum(cf[time]))
