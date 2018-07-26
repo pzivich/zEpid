@@ -4,8 +4,6 @@ import pandas as pd
 
 from .utils import propensity_score
 
-# TODO update docs
-# TODO rerun for website
 
 class IPCW:
     """
@@ -21,13 +19,19 @@ class IPCW:
         IPC weights are calculated via logistic regression and weights are cumulative products per unique ID. IPCW can
         be used to correct for missing at random data by the generated model in weighted Kaplan-Meier curves
 
-        :param df: pandas DataFrame object containing all the variables of interest
-        :param idvar: variable indicating a unique identifier for each individual followed over time
-        :param time: column containing the observation time
-        :param event:
-        :param flat_df:
-        :param enter:
-        :param warn:
+        df:
+            -pandas DataFrame object containing all the variables of interest
+        idvar:
+            -variable indicating a unique identifier for each individual
+        time:
+            -column name for the ending observation time
+        event:
+            -column name for the event of interest
+        flat_df:
+            -whether the input dataframe only contains a single row per participant. If so, the flat dataframe is
+             converted to a long dataframe. Default is False (for multiple rows per person)
+        enter:
+            -time participant began being observed. Default is None. This option is only important when flat_df=True
         """
         if np.sum(df[time].isnull()) > 0:
             raise ValueError('Time is missing for at least one individual in the dataset. They must be removed before '
@@ -52,12 +56,15 @@ class IPCW:
     def regression_models(self, model_denominator, model_numerator, print_model_results=True):
         """
 
-        :param model_denominator: statsmodels glm format for modeling data. Only predictor variables for the
-            denominator (variables determined to be related to censoring). All variables included in the numerator,
-            should be included in the denominator. Ex) 'var1 + var2 + var3 + t_start + t_squared'
-        :param model_numerator: statsmodels glm format for modeling data. Only includes predictor variables for the
-            numerator. In general, time is included in the numerator. Example) 't_start + t_squared'
-        :param print_model_results: whether to print the model results. Default is True
+        model_denominator:
+            -statsmodels glm format for modeling data. Only predictor variables for the denominator (variables
+             determined to be related to censoring). All variables included in the numerator, should be included in the
+             denominator. Ex) 'var1 + var2 + var3 + t_start + t_squared'
+        model_numerator:
+            -statsmodels glm format for modeling data. Only includes predictor variables for the numerator. In general,
+             time is included in the numerator. Example) 't_start + t_squared'
+        print_model_results:
+            -whether to print the model results. Default is True
         """
         nmodel = propensity_score(self.df, 'uncensored ~ ' + model_numerator, mresult=print_model_results)
         self.df['numer'] = nmodel.predict(self.df)
@@ -67,6 +74,10 @@ class IPCW:
         self.df['cdenom'] = self.df.groupby(self.idvar)['denom'].cumprod()
 
     def fit(self):
+        """
+        Generate the IPC Weights for each observation period for each observation. The calculated weights can be
+        accessed through the Weights attribute
+        """
         self.df['ipcw'] = self.df['cnumer'] / self.df['cdenom']
         self.Weight = self.df['ipcw']
 
@@ -75,14 +86,17 @@ class IPCW:
         Function to prepare the data to an appropriate format for the IPCW class. It breaks the dataset into
         single observations for event one unit increase in time.
 
-        :param cf: pandas dataframe to convert into a long format
-        :param idvar: ID variable to retain for observations
-        :param time: Last follow-up visit for participant
-        :param event: indicator of whether participant had the event (1 is yes, 0 is no)
-        :param enter: entry time for the participant. Default is None, which means all participants are assumed
-            to enter at time zero. Input should be column name of entrance time
-        :param warn: whether to generate warning for user
-        :return:
+        cf:
+            -pandas dataframe to convert into a long format
+        idvar:
+            -ID variable to retain for observations
+        time:
+            -last follow-up visit for participant
+        event:
+            -indicator of whether participant had the event (1 is yes, 0 is no)
+        enter:
+            -entry time for the participant. Default is None, which means all participants are assumed
+             to enter at time zero. Input should be column name of entrance time
         """
         # Copying observations over times
         cf['t_int_zepid'] = cf[time].astype(int)
