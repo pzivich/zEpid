@@ -6,17 +6,23 @@
 Graphics
 '''''''''''''''''''''''''''''''''
 
-
-Several different graphics are implemented through *zEpid* and include the following; functional form assessment, p-value plots, spaghetti plots, and effect measure plots (forest plots)
+Several different graphics are implemented through *zEpid* and include the following; functional form assessment,
+p-value plots, spaghetti plots, and effect measure plots (forest plots)
 
 Functional Form Assessment
 ====================================
+One important part of every analysis that includes a continuous exposure/confounder is a functional form assessment.
+There are two elements involved in a functional form assessment; graphical (qualitative) and statistical
+(quantitative). *zEpid* makes both of these analyses to implement.
 
-One important part of every analysis that includes a continuous exposure/confounder is a functional form assessment. There are two elements involved in a functional form assessment; graphical (qualitative) and statistical (quantitative). *zEpid* makes both of these analyses to implement. 
+Here is what the function does in the background; the input continuous data is divided into categories (discrete
+categories if ``discrete=True`` or into automatically binned categories ``discrete=False``), a GLM is fit to these
+discrete categories through ``statsmodels``, a GLM is fit to the functional form requested via ``statsmodels``, the
+``statsmodels`` results are printed to the console, and a functional form plot is created (with various options).
 
-Here is what the function does in the background; the input continuous data is divided into categories (discrete categories if ``discrete=True`` or into automatically binned categories ``discrete=False``), a GLM is fit to these discrete categories through ``statsmodels``, a GLM is fit to the functional form requested via ``statsmodels``, the ``statsmodels`` results are printed to the console, and a functional form plot is created (with various options). 
-
-We will now go through some examples. We will look at baseline age (discrete variable) within the data that comes with *zEpid* First, we will do some data preparation for later functional form options. We will create a squared term and a restricted quadratic spline term (using zepid)
+We will now go through some examples. We will look at baseline age (discrete variable) within the data that comes
+with *zEpid* First, we will do some data preparation for later functional form options. We will create a squared term
+and a restricted quadratic spline term (using zepid)
 
 .. code:: python
 
@@ -61,16 +67,24 @@ In the console, the following results will be printed
 
 .. image:: images/zepid_fform1.png
 
-In the image, the blue line corresponds to the regression line and the shaded blue region is the 95% confidence intervals. The red-dashed line is the ``statsmodels`` generated LOWESS curve. The LOWESS curve has the following options; remove from the plot (``loess=False``), determine the extent of surrounding that contributes to the LOWESS curve at each point (``loess_value``). Note that ``loess_value`` must be a value between ``0`` and ``1``. Aside from the LOESS curve, the discrete category model results can be displayed on the plot as well. Point sizes reflect the amount of data at each point. Repeating the above code, but with ``points=True``, we obtain the following plot
+In the image, the blue line corresponds to the regression line and the shaded blue region is the 95% confidence
+intervals. The red-dashed line is the ``statsmodels`` generated LOWESS curve. The LOWESS curve has the following
+options; remove from the plot (``loess=False``), determine the extent of surrounding that contributes to the LOWESS
+curve at each point (``loess_value``). Note that ``loess_value`` must be a value between ``0`` and ``1``. Aside from
+the LOESS curve, the discrete category model results can be displayed on the plot as well. Point sizes reflect the
+amount of data at each point. Repeating the above code, but with ``points=True``, we obtain the following plot
 
 .. image:: images/zepid_fform2.png
 
-In this plot, we can see that there are less individuals in the younger age categories and some individuals between ``55-60`` who have a probability of `1` for the outcome (death).
+In this plot, we can see that there are less individuals in the younger age categories and some individuals between
+``55-60`` who have a probability of `1` for the outcome (death).
 
 Quadratic
 ^^^^^^^^^^^
 
-To implement other functional forms besides linear terms, the optional ``f_form`` argument must be supplied. Note that any terms specified in the ``f_form`` argument must be part of the data set. We can assess a quadratic functional form like the following
+To implement other functional forms besides linear terms, the optional ``f_form`` argument must be supplied. Note that
+any terms specified in the ``f_form`` argument must be part of the data set. We can assess a quadratic functional form
+like the following
 
 .. code:: python
 
@@ -84,7 +98,9 @@ The ``f_form`` argument is used to specify any functional form variables that ar
 Spline
 ^^^^^^^^^^^
 
-One important note is that ``zepid.graphics.func_form_plot`` returns a ``matplotlib`` object. What this means is that further items can be added to the plot. We will show the functionality of this through the spline example. We will add dashed lines on our plot to designate where the spline knots are located
+One important note is that ``zepid.graphics.func_form_plot`` returns a ``matplotlib`` object. What this means is that
+further items can be added to the plot. We will show the functionality of this through the spline example. We will add
+dashed lines on our plot to designate where the spline knots are located
 
 .. code::
 
@@ -98,7 +114,11 @@ One important note is that ``zepid.graphics.func_form_plot`` returns a ``matplot
 
 Non-Discrete Variables
 ^^^^^^^^^^^^^^^^^^^^^^^
-For non-discrete variables (indicated by ``discrete=False``, the default), that data is binned into categories automatically. The number of categories is determined via the maximum value minus the minimum divided by 5. If more categories are desired, then the continuous variable can be multiplied by some constant greater than 1. Conversely, if less categories are desired, then the continuous variable can be multiplied by some constant between 0 and 1. In this example we will look at ``cd40`` which corresponds to baseline viral load. 
+For non-discrete variables (indicated by ``discrete=False``, the default), that data is binned into categories
+automatically. The number of categories is determined via the maximum value minus the minimum divided by 5. If more
+categories are desired, then the continuous variable can be multiplied by some constant greater than 1. Conversely, if
+less categories are desired, then the continuous variable can be multiplied by some constant between 0 and 1. In this
+example we will look at ``cd40`` which corresponds to baseline viral load.
 
 .. code:: python
 
@@ -114,7 +134,8 @@ If we use the current values, the number of categories is indicated in the conso
        Increase: multiply by a constant >1
        Decrease: multiply by a contast <1 and >0
 
-We can see that ``statsmodels`` has an overflow issue in some exponential. We can decrease the number of categories within ``cd40`` to see if that fixes this. We will decrease the number of categories by multiplying by ``0.25``.
+We can see that ``statsmodels`` has an overflow issue in some exponential. We can decrease the number of categories
+within ``cd40`` to see if that fixes this. We will decrease the number of categories by multiplying by ``0.25``.
 
 .. code:: python
 
@@ -124,11 +145,18 @@ We can see that ``statsmodels`` has an overflow issue in some exponential. We ca
 
 Now only ``24`` categories are created and it removes the overflow issue.
 
-This concludes the section on functional form assessment. My hope is that this makes functional form assessment much easier for users and makes coding much easier/faster. My future plans for this function would be to allow users to specify the colors in the plot, however this is not implemented yet
+This concludes the section on functional form assessment. My hope is that this makes functional form assessment much
+easier for users and makes coding much easier/faster. My future plans for this function would be to allow users to
+specify the colors in the plot, however this is not implemented yet
 
 P-value Plot
 ====================================
-As described and shown in *Epidemiology* 2nd Edition by K. Rothman, this function is meant to plot the p-value distribution for a variable. From this distribution, p-values and confidence intervals can be visualized to compare or contrast results. Note that this functionality only works for linear variables (i.e. Risk Difference and log(Risk Ratio)). Returning to our results from the Measures section, we will look at plots of the Risk Difference. From ``ze.RiskDiff(df,exposure='art',outcome='dead')``,  we obtain a point estimate of ``-0.049`` and a standard deviation of ``0.042``. We generate the P-value plot from the following code
+As described and shown in *Epidemiology* 2nd Edition by K. Rothman, this function is meant to plot the p-value
+distribution for a variable. From this distribution, p-values and confidence intervals can be visualized to compare or
+contrast results. Note that this functionality only works for linear variables (i.e. Risk Difference and log(Risk
+Ratio)). Returning to our results from the Measures section, we will look at plots of the Risk Difference. From
+``ze.RiskDiff(df,exposure='art',outcome='dead')``,  we obtain a point estimate of ``-0.049`` and a standard deviation
+of ``0.042``. We generate the P-value plot from the following code
 
 .. code:: python
 
@@ -139,7 +167,10 @@ Which produces the following plot
 
 .. image:: images/zepid_pvalue1.png
 
-Similar to the functional form plots, a ``matplotlib`` object is returned, so we can stack multiple p-value plots together. For this example, we will imagine a systematic review was conducted and resulted in a summary point risk difference of ``-0.062`` and a standard deviation of ``0.0231``. We can use the p-value plots to compare results between our data and the systematic review
+Similar to the functional form plots, a ``matplotlib`` object is returned, so we can stack multiple p-value plots
+together. For this example, we will imagine a systematic review was conducted and resulted in a summary point risk
+difference of ``-0.062`` and a standard deviation of ``0.0231``. We can use the p-value plots to compare results
+between our data and the systematic review
 
 .. code:: python
 
@@ -158,7 +189,8 @@ From this we can see that our results are consistent with our hypothetical syste
 
 Spaghetti Plot
 ====================================
-Spaghetti plots are a fun (sometimes useful) way to look for outliers/patterns in longitudinal data. The following is an example spaghetti plot using the longitudinal data from zepid and looking at CD4 T cell count over time.
+Spaghetti plots are a fun (sometimes useful) way to look for outliers/patterns in longitudinal data. The following is
+an example spaghetti plot using the longitudinal data from zepid and looking at CD4 T cell count over time.
 
 .. code:: python
 
@@ -168,15 +200,21 @@ Spaghetti plots are a fun (sometimes useful) way to look for outliers/patterns i
 
 .. image:: images/zepid_spaghetti.png
 
-From the spaghetti plot, we can see that in general the CD4 T cell count increase over time but there is quite a bit of fluctation
+From the spaghetti plot, we can see that in general the CD4 T cell count increase over time but there is quite a bit
+of fluctuation
 
-*NOTE* If your data set is particularly large, a spaghetti plot may take a long time to generate and may not be useful as a visualization. They are generally easiest to observe with a smaller number of participants. 
+*NOTE* If your data set is particularly large, a spaghetti plot may take a long time to generate and may not be useful
+as a visualization. They are generally easiest to observe with a smaller number of participants.
 
 Effect Measure Plots
 ====================================
-Effect measure plots are similar to forest plots. Forest plots generally summarize the of various studies and collapse the studies into a single summary measure. Effect measure plots are similar but do not use the same summary measure. For an example, I am going to replicate Figure 2 from my 2017 paper "Influenza vaccination status and outcomes among influenza-associated hospitalizations in Columbus, Ohio (2012-2015)" published in *Epidemiology and Infection*
+Effect measure plots are similar to forest plots. Forest plots generally summarize the of various studies and collapse
+the studies into a single summary measure. Effect measure plots are similar but do not use the same summary measure.
+For an example, I am going to replicate Figure 2 from my 2017 paper "Influenza vaccination status and outcomes among
+influenza-associated hospitalizations in Columbus, Ohio (2012-2015)" published in *Epidemiology and Infection*
 
-The first step to creating the effect measure plot is to create lists containing; labels, point estimates, lower confidence limits, and upper confidence limits
+The first step to creating the effect measure plot is to create lists containing; labels, point estimates, lower
+confidence limits, and upper confidence limits
 
 .. code:: python
 
@@ -186,11 +224,14 @@ The first step to creating the effect measure plot is to create lists containing
    lower = [np.nan,0.77,np.nan,np.nan,'0.80',np.nan,np.nan,'0.40',np.nan,np.nan,0.83]
    upper = [np.nan,1.15,np.nan,np.nan,1.84,np.nan,np.nan,0.85,np.nan,np.nan,1.44]
 
-Some general notes about the above code: (1) for blank y-axis labels, a blank string is indicated, (2) for blank measure/confidence intervals, ``np.nan`` is specified, (3) for floats ending with a zero, they must be input as characters. If floats that end in ``0`` (such as ``0.80``) are put into a list as a float and not a string, the floating ``0`` will be truncated from the table. Now that our data is all prepared, we can now generate our plot
+Some general notes about the above code: (1) for blank y-axis labels, a blank string is indicated, (2) for blank
+measure/confidence intervals, ``np.nan`` is specified, (3) for floats ending with a zero, they must be input as
+characters. If floats that end in ``0`` (such as ``0.80``) are put into a list as a float and not a string, the
+floating ``0`` will be truncated from the table. Now that our data is all prepared, we can now generate our plot
 
 .. code:: python
 
-   p = ze.graphics.effectmeasure_plot(label=labs,effect_measure=measure,lcl=lower,ucl=upper)
+   p = ze.graphics.EffectMeasurePlot(label=labs,effect_measure=measure,lcl=lower,ucl=upper)
    p.labels(scale='log')
    p.plot(figsize=(6.5,3),t_adjuster=0.02,max_value=2,min_value=0.38)
    plt.tight_layout()
@@ -198,14 +239,24 @@ Some general notes about the above code: (1) for blank y-axis labels, a blank st
 
 .. image:: images/zepid_effm.png
 
-There are other optional arguments to adjust the plot (colors of points/point shape/etc.). Take a look through the function documentation for available options. One unfortunate consequence of how the plot is currently generated, there is not option to directly edit the plot outside of the function. This is for future work/revisions to the code.
+There are other optional arguments to adjust the plot (colors of points/point shape/etc.). Take a look through the
+function documentation for available options. One unfortunate consequence of how the plot is currently generated, there
+is not option to directly edit the plot outside of the function. This is for future work/revisions to the code.
 
-*NOTE* There is one part of the effect measure plot that is not particularly pretty. In the ``plot()`` function there is an option argument ``t_adjuster``. This argument changes the alignment of the table so that the table aligns properly with the plot values. I have NOT figured out a way to do this automatically. Currently, ``t_adjuster`` must be changed by the user manually to find a good table alignment. I recommend using changes of ``0.005`` in ``t_adjuster`` until a good alignment is found. Additionally, sometimes the plot will be squished. To fix this, the plot size can be changes by the ``fisize`` argument
+*NOTE* There is one part of the effect measure plot that is not particularly pretty. In the ``plot()`` function there
+is an option argument ``t_adjuster``. This argument changes the alignment of the table so that the table aligns
+properly with the plot values. I have NOT figured out a way to do this automatically. Currently, ``t_adjuster`` must
+be changed by the user manually to find a good table alignment. I recommend using changes of ``0.005`` in
+``t_adjuster`` until a good alignment is found. Additionally, sometimes the plot will be squished. To fix this, the
+plot size can be changes by the ``fisize`` argument
 
 Receiver-Operator Curves
 ====================================
-<<<<<<< HEAD
-Receiver-Operator Curves (ROC) are a fundamental tool for diagnosing the sensitivity and specificity of a test over a variety of thresholds. ROC curves can be generated for predicted probabilities from a model or different diagnostics thresholds (ex. ALT to predict infections). In this example, we will predict the probability of death among the sample data set. First, we will need to get some predicted probabilities. We will use ``statsmodels`` to build a simple predictive model and obtain predicted probabilities.
+Receiver-Operator Curves (ROC) are a fundamental tool for diagnosing the sensitivity and specificity of a test over a
+variety of thresholds. ROC curves can be generated for predicted probabilities from a model or different diagnostics
+thresholds (ex. ALT to predict infections). In this example, we will predict the probability of death among the sample
+data set. First, we will need to get some predicted probabilities. We will use ``statsmodels`` to build a simple
+predictive model and obtain predicted probabilities.
 
 .. code:: python
 
@@ -226,14 +277,15 @@ Now with predicted probabilities, we can generate a ROC plot
 
 .. code:: python
 
-   ze.graphics.ROC_curve(df,true='dead',probability='predicted')
+   ze.graphics.roc(df.dropna(),true='dead',threshold='predicted')
    plt.tight_layout()
    plt.title('Receiver-Operator Curve')
    plt.show()
 
 .. image:: images/zepid_roc.png
 
-Which generates the following plot. For this plot the Youden's Index is also calculated by default. The following output is printed to the console
+Which generates the following plot. For this plot the Youden's Index is also calculated by default. The following
+output is printed to the console
 
 .. code:: python
 
@@ -250,14 +302,18 @@ Youden's index is defined as
 
   Youden = Sensitivity + Specificity - 1
 
-Where Youden's index is the value that maximizes the above. Basically, it balances sensitivity and specificity. You can learn more from https://en.wikipedia.org/wiki/Youden%27s_J_statistic
-
+Where Youden's index is the value that maximizes the above. Basically, it balances sensitivity and specificity. You can
+learn more from https://en.wikipedia.org/wiki/Youden%27s_J_statistic
 
 Dynamic Risk Plots
 ====================================
-Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For a published example, see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/ and discussed in https://academic.oup.com/aje/article/181/4/246/122265  
+Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For a published example,
+see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/ and discussed in
+https://academic.oup.com/aje/article/181/4/246/122265
 
-For this example, we will borrow our results from our IPTW marginal structural model, discussed in the Causal page. We will used the fitted survival functions to obtain the risk estimates for our exposed and unexposed groups. These were generated from the ``lifelines`` Kaplan Meier curves.
+For this example, we will borrow our results from our IPTW marginal structural model, discussed in the Causal page. We
+will used the fitted survival functions to obtain the risk estimates for our exposed and unexposed groups. These were
+generated from the ``lifelines`` Kaplan Meier curves.
 
 .. code:: python
 
@@ -268,7 +324,8 @@ For this example, we will borrow our results from our IPTW marginal structural m
 
 .. image:: images/zepid_msm_rd.png
 
-By default, the function returns the risk difference plot. You can also request a risk ratio plot. Here is the risk ratio plot, with the point and line colors changed
+By default, the function returns the risk difference plot. You can also request a risk ratio plot. Here is the risk
+ratio plot, with the point and line colors changed
 
 .. code:: python
 
@@ -289,4 +346,5 @@ You can also request a log-transformed RR
 
 .. image:: images/zepid_msm_rr2.png
 
-This concludes the section on implemented graphics in *zEpid*. If you have additional items you believe would make a good addition to the graphic functions, or *zEpid* in general, please reach out to us on GitHub or Twitter (@zepidpy)
+This concludes the section on implemented graphics in *zEpid*. If you have additional items you believe would make a
+good addition to the graphic functions, or *zEpid* in general, please reach out to us on GitHub or Twitter (@zepidpy)
