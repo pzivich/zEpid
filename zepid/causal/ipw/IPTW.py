@@ -230,11 +230,11 @@ class IPTW:
                 df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
             # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.ex] == 1, 1, ((1 - df[denominator]) / df[denominator]))
+                df['w'] = np.where(df[self.ex] == 1, 1, (df[denominator] / (1 - df[denominator])))
                 df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
             # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             else:
-                df['w'] = np.where(df[self.ex] == 1, (df[denominator] / (1 - df[denominator])), 1)
+                df['w'] = np.where(df[self.ex] == 1, ((1 - df[denominator]) / df[denominator]), 1)
                 df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
         return df['w']
 
