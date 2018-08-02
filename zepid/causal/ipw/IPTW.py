@@ -5,8 +5,6 @@ from scipy import stats
 import matplotlib.pyplot as plt
 from .utils import propensity_score
 
-# TODO check the SMR weights
-
 
 class IPTW:
     """
