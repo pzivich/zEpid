@@ -5,9 +5,6 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 
-# TODO website example
-# TODO variance for continuous covariates
-
 
 class TimeVaryGFormula:
     """Time-varying implementation of the g-formula, also referred to as the g-computation
@@ -35,7 +32,19 @@ class TimeVaryGFormula:
     5) Fit the natural course model first and compare to the observed data. They should be similar
     6) Check to make sure the predicted values are reasonable. If not, you may need to code in restrictions into
         'restriction', 'recode', or 'in_recode' statements in the fitted models
-    
+
+    Process for the g-formula monte carlo:
+        1) run lines in "in_recode"
+        2) time-varying covariates, order ascending in from "labels"
+            a) predict time-varying covariate
+            b) run lines in "recode" from "add_covariate_model()"
+        3) predict exposure / apply exposure pattern
+        4) predict outcome
+        5) run lines in "out_recode"
+        6) lag variables in "lags"
+        7) append
+        8) Repeat to t_max
+
     Inputs:
     df:
         -pandas dataframe containing the variables of interest
@@ -91,7 +100,7 @@ class TimeVaryGFormula:
             print(self.exp_model.summary())
         self._exposure_model_fit = True
 
-    def outcome_model(self, model, restriction, print_results=True):
+    def outcome_model(self, model, restriction=None, print_results=True):
         """Build the model for the outcome. This must be specified before the fit function. If it is not,
         an error will be raised.
         
@@ -180,7 +189,7 @@ class TimeVaryGFormula:
         else:
             self._covariate_recode.append(recode)
 
-    def fit(self, treatment, lags=None, sample=10000, t_max=None, in_recode=None):
+    def fit(self, treatment, lags=None, sample=10000, t_max=None, in_recode=None, out_recode=None):
         """
         Implementation of fit
         
@@ -221,9 +230,6 @@ class TimeVaryGFormula:
         # fitting g-formula piece by piece
         g = gs.copy()
         for i in range(int(t_max)):
-            if (i != 0) and (lags is not None):
-                g.drop(columns=list(lags.values()), inplace=True)
-                g.rename(columns=lags, inplace=True)
             g = g.loc[g[self.outcome] == 0].copy()
             g[self.time_in] = i
             if in_recode is not None:
@@ -264,6 +270,15 @@ class TimeVaryGFormula:
             g['pevent_zepid'] = self.out_model.predict(g)
             g[self.outcome] = np.random.binomial(1, g['pevent_zepid'], size=g.shape[0])
             g[self.time_out] = i + 1
+
+            # executing any counting code or else before appending
+            if out_recode is not None:
+                exec(out_recode)
+
+            # recreating lagged variables
+            if lags is not None:
+                g.drop(columns=list(lags.values()), inplace=True)
+                g.rename(columns=lags, inplace=True)
 
             # APPEND SIMULATED DATA
             gs = gs.append(g, ignore_index=True, sort=False)
