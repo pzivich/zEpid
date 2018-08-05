@@ -1,4 +1,1 @@
-from .Simple import SimpleDoubleRobust
-
-
-    
+from .AIPW import AIPW

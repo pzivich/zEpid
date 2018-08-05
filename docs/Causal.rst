@@ -335,13 +335,14 @@ variables, dummy variables can be used (will add list option for dummy variable 
 
 For further discussion on IPTW diagnostics, I direct you to `Austin PC and Stuart EA <https://doi.org/10.1002/sim.6607>`_
 
-Doubly Robust Estimator
-----------------------------
-Simply put, a doubly robust estimator combines estimates from two statistical models (one for the exposure and one for
-the outcome) together. This has a nice property for investigators. As long as one of the specified statistical models
-(either the exposure or the outcome) is correct in a causal identifiable way, then the doubly robust estimate will be
-consistent. Essentially, you get two "tries" at the correct model form rather than just one. The doubly robust
-estimators do not avoid the common causal identification assumptions, and still require the use of causal graphs.
+Augmented Inverse Probability Weights
+----------------------------------------
+Augmented inverse probability weight estimator is a doubly robust method. Simply put, a doubly robust estimator combines
+estimates from two statistical models (one for the exposure and one for the outcome) together. This has a nice property
+for investigators. As long as one of the specified statistical models (either the exposure or the outcome) is correct
+in a causal identifiable way, then the doubly robust estimate will be consistent. Essentially, you get two "tries" at
+the correct model form rather than just one. The doubly robust estimators do not avoid the common causal identification
+assumptions, and still require the use of causal graphs.
 
 For further discussion on doubly robust estimators, see 
 
@@ -353,23 +354,22 @@ For further discussion on doubly robust estimators, see
 
 `Keil AP et al 2018 <https://www.ncbi.nlm.nih.gov/pubmed/29394330>`_
 
-
-The doubly robust estimator described by `Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_ is
-implemented in *zEpid* through the ``SimpleDoubleRobust`` class. This is referred to as simple, since it does *not*
+The AIPW doubly robust estimator described by `Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_ is
+implemented in *zEpid* through the ``AIPW`` class. This is referred to as simple, since it does *not*
 handle missing data or other complex issues. Additionally, it only handles a binary exposure and binary outcome.
 
 To obtain the double robust estimate, we first do all our background data preparation, then initialize the
-``SimpleDoubleRobust`` with the pandas dataframe, exposure column name, and outcome column name.
+``AIPW`` with the pandas dataframe, exposure column name, and outcome column name.
 
 .. code:: python
 
   import zepid as ze
-  from zepid.causal.doublyrobust import SimpleDoubleRobust
+  from zepid.causal.doublyrobust import AIPW
   df = ze.load_sample_data(timevary=False)
   df[['cd4_rs1','cd4_rs2']] = ze.spline(df,'cd40',n_knots=3,term=2,restricted=True)
   df[['age_rs1','age_rs2']] = ze.spline(df,'age0',n_knots=3,term=2,restricted=True)
 
-  sdr = SimpleDoubleRobust(df,exposure='art',outcome='dead')
+  sdr = AIPW(df,exposure='art',outcome='dead')
 
 After initialized, we need to fit an exposure model and an outcome model, as such
 
@@ -387,7 +387,7 @@ After both an exposure and outcome model are fit, we can estimate the double rob
 
   sdr.fit()
 
-After the ``fit()`` is run, the ``SimpleDoubleRobust`` class gains the following attributes; ``riskdiff`` corresponding
+After the ``fit()`` is run, the ``AIPW`` class gains the following attributes; ``riskdiff`` corresponding
 to the risk difference, ``riskratio`` corresponding to the risk ratio, and the function ``summary()`` which prints both
 estimates. Running ``sdr.summary()`` gives us the following results
 
@@ -412,7 +412,7 @@ code
   rr = []
   for i in range(500):
       dfs = df.sample(n=df.shape[0],replace=True)
-      s = SimpleDoubleRobust(dfs,exposure='art',outcome='dead')
+      s = AIPW(dfs,exposure='art',outcome='dead')
       s.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_results=False)
       s.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_result=False)
       s.fit()
@@ -423,7 +423,8 @@ code
   print('RD 95% CI: ',np.percentile(rd,q=[2.5,97.5]))
   print('RR 95% CI: ',np.percentile(rr,q=[2.5,97.5]))
 
-Again, this code may take a little while to run since 1000 regression models are fit (500 exposure models, 500 outcome models).
+Again, this code may take a little while to run since 1000 regression models are fit (500 exposure models, 500 outcome
+models).
 
 Comparison between methods
 ----------------------------------------
@@ -432,7 +433,7 @@ these results using the ``zepid.graphics.effectmeasure_plot()`` for both Risk Di
 
 .. code:: python
 
-  labs = ['Crude','GLM','G-formula','IPTW','Double-Robust']
+  labs = ['Crude','GLM','G-formula','IPTW','AIPW']
   measure = [-0.061,np.nan,-0.092,-0.099,-0.082]
   lower = ['-0.146',np.nan,-0.159,-0.176,-0.142]
   upper = [0.025,np.nan,'-0.020',-0.022,-0.017]
@@ -442,7 +443,7 @@ these results using the ``zepid.graphics.effectmeasure_plot()`` for both Risk Di
   plt.tight_layout()
   plt.show()
 
-  labs = ['Crude','GLM','G-formula','IPTW','Double-Robust']
+  labs = ['Crude','GLM','G-formula','IPTW','AIPW']
   measure = [0.72,np.nan,0.58,0.54,0.57]
   lower = [0.39,np.nan,0.28,0.27,0.24]
   upper = [1.33,np.nan,0.93,1.06,0.95]
