@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from pkg_resources import resource_filename
 
+
 def load_sample_data(timevary):
     '''Load data that is part of the zepid package. This data set comes
     from simulated data from Jessie Edwards (thanks Jess!). This data
@@ -39,8 +40,8 @@ def load_sample_data(timevary):
         dfo = df.loc[df.id != df.id.shift(-1)][['id', 'dead', 'drop', 'out']].copy()
         dfo.loc[dfo['drop'] == 1, 'dead'] = np.nan
         dff = pd.merge(dfi, dfo, left_on='id', right_on='id')
-        dff.rename(columns={'out':'t'}, inplace=True)
-        dff.drop(columns=['drop'], inplace=True)
+        dff.rename(columns={'out': 't'}, inplace=True)
+        dff.drop('drop', axis=1, inplace=True)
         return dff
 
 

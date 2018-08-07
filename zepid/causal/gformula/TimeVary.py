@@ -271,11 +271,11 @@ class TimeVaryGFormula:
 
             # recreating lagged variables
             if lags is not None:
-                g.drop(columns=list(lags.values()), inplace=True)
+                g.drop(list(lags.values()), axis=1, inplace=True)
                 g.rename(columns=lags, inplace=True)
 
             # APPEND SIMULATED DATA
-            gs = gs.append(g, ignore_index=True, sort=False)
+            gs = gs.append(g, ignore_index=True)  # sort=False for 0.23.0+
 
         # so the append loop adds an extra, so we need to drop that extra
         gs.dropna(subset=['pevent_zepid'], inplace=True)

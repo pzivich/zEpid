@@ -118,9 +118,9 @@ class IPCW:
 
         # Cleaning up the edited dataframe to return to user
         if enter is None:
-            lf.drop(columns=['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event], inplace=True)
+            lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event], axis=1, inplace=True)
         else:
-            lf.drop(columns=['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event, enter], inplace=True)
+            lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event, enter], axis=1, inplace=True)
         lf.rename(columns={"delta_indicator_zepid": event, 'uncensored_zepid': 'uncensored', 't_enter_zepid': 't_enter',
                            't_out_zepid': 't_out'}, inplace=True)
         warnings.warn('Please verify the long dataframe was generated correctly')

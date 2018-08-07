@@ -741,17 +741,17 @@ def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, 
             vn = cols.index(i)
             if continuous_measure == 'median':
                 if variable_type[vn] == 'continuous':
-                    rf = pd.DataFrame({'n / Median': [np.median(df[i].dropna()), df[i].isna().sum()],
+                    rf = pd.DataFrame({'n / Median': [np.median(df[i].dropna()), df[i].isnull().sum()],
                                        '% / IQR': [np.percentile(df[i].dropna(), [25, 75]).round(decimals=decimal),
                                                    '']}, index=['', 'Missing'])
                 if variable_type[vn] == 'category':
                     x = df[i].value_counts()
-                    m = df[i].isna().sum()
+                    m = df[i].isnull().sum()
                     rf = pd.DataFrame({'n / Median': x, '% / IQR': x / x.sum()})
                     rf = rf.append(pd.DataFrame({'n / Median': m, '% / IQR': ''}, index=['Missing']))
             elif continuous_measure == 'mean':
                 if variable_type[vn] == 'continuous':
-                    rf = pd.DataFrame({'n / Mean': [np.mean(df[i].dropna()), df[i].isna().sum()],
+                    rf = pd.DataFrame({'n / Mean': [np.mean(df[i].dropna()), df[i].isnull().sum()],
                                        '% / SE': [np.std(df[i].dropna()).round(decimals=decimal), '']},
                                       index=['', 'Missing'])
                 if variable_type[vn] == 'category':
@@ -779,22 +779,22 @@ def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, 
                 vn = cols.index(i)
                 if continuous_measure == 'median':
                     if variable_type[vn] == 'continuous':
-                        rf = pd.DataFrame({'n / Median': [np.median(sf[i].dropna()), sf[i].isna().sum()],
+                        rf = pd.DataFrame({'n / Median': [np.median(sf[i].dropna()), sf[i].isnull().sum()],
                                            '% / IQR': [np.percentile(sf[i].dropna(), [25, 75]).round(decimals=decimal),
                                                        '']}, index=['', 'Missing'])
                     if variable_type[vn] == 'category':
                         x = sf[i].value_counts()
-                        m = sf[i].isna().sum()
+                        m = sf[i].isnull().sum()
                         rf = pd.DataFrame({'n / Median': x, '% / IQR': x / x.sum()})
                         rf = rf.append(pd.DataFrame({'n / Median': m, '% / IQR': ''}, index=['Missing']))
                 if continuous_measure == 'mean':
                     if variable_type[vn] == 'continuous':
-                        rf = pd.DataFrame({'n / Mean': [np.mean(sf[i].dropna()), sf[i].isna().sum()],
+                        rf = pd.DataFrame({'n / Mean': [np.mean(sf[i].dropna()), sf[i].isnull().sum()],
                                            '% / SE': [np.std(sf[i].dropna()).round(decimals=decimal), '']},
                                           index=['', 'Missing'])
                     if variable_type[vn] == 'category':
                         x = sf[i].value_counts()
-                        m = sf[i].isna().sum()
+                        m = sf[i].isnull().sum()
                         rf = pd.DataFrame({'n / Mean': x, '% / SD': x / x.sum()})
                         rf = rf.append(pd.DataFrame({'n / Mean': m, '% / SD': ''}, index=['Missing']))
                 rlist.append(rf)
