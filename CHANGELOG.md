@@ -3,14 +3,16 @@
 #### 0.2.0
 **BIG CHANGES**:
 
-IPW all moved to zepid.causal.ipw
+IPW all moved to zepid.causal.ipw. zepid.ipw is no longer supported
 
 IPTW, IPCW, IPMW are now their own classes rather than functions. This was done since diagnostics are easier for IPTW 
-and the user can items directly from the models this way.
+and the user can access items directly from the models this way.
 
-effect_measure_plot() is now EffectMeasurePlot()
+Addition of TimeVaryGFormula to fit the g-formula for time-varying exposures/confounders
 
-ROC_curve() is now roc(). Also 'probability' was changed to 'threshold', since it allows any continuous variable for 
+effect_measure_plot() is now EffectMeasurePlot() to conform to PEP
+
+ROC_curve() is now roc(). Also 'probability' was changed to 'threshold', since it now allows any continuous variable for 
 threshold determinations
 
 **MINOR CHANGES**:
@@ -20,11 +22,25 @@ Added sensitivity analysis as proposed by Fox et al. 2005 (MonteCarloRR)
 Updated Sensitivity and Specificity functionality. Added Diagnostics, which calculates
 both sensitivity and specificity. 
 
-Updated dynamic risk plots to avoid merging warning. Input timeline is converted to a integer (x100000), merged, then back converted
-
-Added ...
+Updated dynamic risk plots to avoid merging warning. Input timeline is converted to a integer (x100000), merged, then 
+back converted
 
 Updated spline to use np.where rather than list comprehension
+
+Summary data calculators are now within zepid.calc.utils
+
+**FUTURE CHANGES**:
+
+All pandas effect/association measure calculations will be migrating from functions to classes in a future version. 
+This will better meet PEP syntax guidelines and allow users to extract elements/print results. Still deciding on the 
+setup for this... No changes are coming to summary measure calculators (aside from possibly name changes). Intended as 
+part of v0.3.0
+
+Addition of Targeted Maximum Likelihood Estimation (TMLE). No current timeline developed
+
+Addition of IPW for Interference settings. No current timeline but hopefully before 2018 ends
+
+Further conforming to PEP guidelines (my bad)
 
 #### 0.1.6
 Removed histogram option from IPTW in favor of kernel density. Since histograms are easy to generate with matplotlib, just dropped the entire option.

@@ -7,7 +7,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 from tabulate import tabulate
-from zepid.calc.utils import rr, rd, nnt, oddsratio, ird, irr, acr, paf, stand_mean_diff, sensitivity, specificity
+from zepid.calc.utils import rr, rd, nnt, oddsratio, ird, irr, acr, paf, sensitivity, specificity
 
 
 def RiskRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
@@ -191,9 +191,6 @@ def IncRateRatio(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3
         -Whether to print the results. Default is True
     return_result:
         -Whether to return the RR as a object. Default is False
-
-    Example)
-    >>>zepid.IncRateRatio(df=data,exposure='X',outcome='D',time='t')
     """
     c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
     time_c = df.loc[df[exposure] == reference][time].sum()
@@ -205,7 +202,7 @@ def IncRateRatio(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3
         print('======================================================================')
         a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
         time_a = df.loc[df[exposure] == i][time].sum()
-        irr(a=a, c=c, T1=time_a, T2=time_c, alpha=alpha, decimal=decimal, print_result=print_result,
+        irr(a=a, c=c, t1=time_a, t2=time_c, alpha=alpha, decimal=decimal, print_result=print_result,
             return_result=return_result)
 
 
@@ -232,9 +229,6 @@ def IncRateDiff(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3,
         -Whether to print the results. Default is True
     return_result:
         -Whether to return the RR as a object. Default is False
-
-    Example)
-    >>>zepid.IncRateDiff(df=data,exposure='X',outcome='D',time='t')
     """
     c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
     time_c = df.loc[df[exposure] == reference][time].sum()
@@ -246,7 +240,7 @@ def IncRateDiff(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3,
         print('======================================================================')
         a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
         time_a = df.loc[df[exposure] == i][time].sum()
-        ird(a=a, c=c, T1=time_a, T2=time_c, alpha=alpha, decimal=decimal, print_result=print_result,
+        ird(a=a, c=c, t1=time_a, t2=time_c, alpha=alpha, decimal=decimal, print_result=print_result,
             return_result=return_result)
 
 
@@ -593,36 +587,6 @@ def Diagnostics(df, test, disease, alpha=0.05, decimal=3, print_result=True, ret
         se = sensitivity(a, a + b, print_result=False, return_result=True)
         sp = specificity(c, c + d, print_result=False, return_result=True)
         return se, sp
-
-
-def StandMeanDiff(df, binary, continuous, decimal=3):
-    """Calculates the standardized mean difference (SMD) of a continuous variable stratified by a binary variable (0,1).
-    This can be used to assess for collinearity between the continuous and binary variables of interest. A SMD greater
-    than 2 suggests potential collinearity issues. It does NOT mean that there will be collinearity issues in the full
-    model though.
-
-    df:
-        -pandas dataframe containing variables of interest
-    binary:
-        -column name of binary variable. Must be coded as (0,1)
-    continuous:
-        -column name of continuous variable of interest
-    decimal:
-        -Number of decimal places to display. Default is 3
-
-    Example)
-    >>>zepid.StandMeanDiff(df=data,binary='X',continuous='var1')
-    ----------------------------------------------------------------------
-    Standardized Mean Difference: 1.078
-    ----------------------------------------------------------------------
-    """
-    v0 = df.loc[df[binary] == 0]
-    v1 = df.loc[df[binary] == 1]
-    m0 = np.mean(v0[continuous])
-    m1 = np.mean(v1[continuous])
-    sd0 = np.std(v0[continuous])
-    sd1 = np.std(v1[continuous])
-    stand_mean_diff(n1=v0.shape[0], n2=v1.shape[0], mean1=m0, mean2=m1, sd1=sd0, sd2=sd1, decimal=decimal)
 
 
 def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):

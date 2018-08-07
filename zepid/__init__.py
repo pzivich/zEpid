@@ -41,7 +41,7 @@ Example)
 See http://zepid.readthedocs.io/en/latest/ for a full guide through all the package features
 """
 from .base import (RiskRatio, RiskDiff, NNT, OddsRatio, IncRateRatio, IncRateDiff, ACR, PAF, IC, ICR,
-                   Sensitivity, Specificity, Diagnostics, spline, StandMeanDiff, Table1)
+                   Sensitivity, Specificity, Diagnostics, spline, Table1)
 from .datasets import load_sample_data
 
 import zepid.calc
