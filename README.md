@@ -59,9 +59,8 @@ Current implementation includes; time-fixed exposure g-formula and time-varying 
 #### Inverse Probability Weights 
 Current implementation includes; IP Treatment W, IP Censoring W, IP Missing W. Diagnostics are also available for IPTW
 
-#### Double-Robust Estimators
-Current implementation includes the estimator described by Funk et al 2011 AJE. Referred to as augmented inverse 
-probability weights
+#### Augmented Inverse Probability Weights
+Current implementation includes the estimator described by Funk et al 2011 AJE
 
 ## Sensitivity Analyses
 Includes trapezoidal distribution generator, corrected Risk Ratio
