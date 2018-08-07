@@ -42,8 +42,8 @@ class TimeVaryGFormula:
         4) predict outcome
         5) run lines in "out_recode"
         6) lag variables in "lags"
-        7) append
-        8) Repeat to t_max
+        7) append current-time rows to full dataframe
+        8) Repeat till t_max is met
 
     Inputs:
     df:
@@ -169,12 +169,12 @@ class TimeVaryGFormula:
             g = g.loc[eval(restriction)].copy()
         if var_type == 'binary':
             linkdist = sm.families.family.Binomial(sm.families.links.logit)
+            m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
         elif var_type == 'continuous':
-            linkdist = sm.families.family.Gaussian(sm.families.links.identity)
+            m = smf.gls(covariate + ' ~ ' + model, g)
         else:
             raise ValueError('Only binary or continuous covariates are currently supported')
 
-        m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
         f = m.fit()
         if print_results:
             print(f.summary())
@@ -228,6 +228,7 @@ class TimeVaryGFormula:
             t_max = np.max(self.gf[self.time_out])
 
         # fitting g-formula piece by piece
+        gs['continuous_standerror'] = np.random.normal(size=gs.shape[0])
         g = gs.copy()
         for i in range(int(t_max)):
             g = g.loc[g[self.outcome] == 0].copy()
@@ -243,14 +244,9 @@ class TimeVaryGFormula:
                     if self._covariate_type[j] == 'binary':
                         g[self._covariate[j]] = np.random.binomial(1, g[self._covariate[j] + 'pred'], size=g.shape[0])
                     if self._covariate_type[j] == 'continuous':
-                        if hasattr((self._covariate_models[j]), "bse"):  # used to deal with statsmodels change
-                            g[self._covariate[j]] = np.random.normal(loc=g[self._covariate[j] + 'pred'],
-                                                                     scale=69,  # TODO variance
-                                                                     size=g.shape[0])
-                        else:
-                            g[self._covariate[j]] = np.random.normal(loc=g[self._covariate[j] + 'pred'],
-                                                                     scale=69,
-                                                                     size=g.shape[0])
+                        g[self._covariate[j]] = np.random.normal(loc=g[self._covariate[j] + 'pred'],
+                                                                 scale=np.std(self._covariate_models[j].resid),
+                                                                 size=g.shape[0])
                     exec(self._covariate_recode[j])
 
             # predict exposure when customized treatments
