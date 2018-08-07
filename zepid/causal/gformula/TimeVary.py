@@ -57,8 +57,6 @@ class TimeVaryGFormula:
     """
 
     def __init__(self, df, idvar, exposure, outcome, time_in, time_out):
-        warnings.warn("This implementation is experimental at this state. I wouldn't use it yet. Specifically, "
-                      "the variance for continuous covariates is arbitrary (and not correct for your application)")
         self.gf = df.copy()
         self.idvar = idvar
         self.exposure = exposure
