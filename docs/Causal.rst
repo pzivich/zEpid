@@ -627,7 +627,7 @@ form for the entrance times. Syntax is also similar.
         lags={'art': 'lag_art',
               'cd4': 'lag_cd4',
               'dvl': 'lag_dvl'},
-        sample=10000,
+        sample=50000,
         t_max=None,
         in_recode=("g['enter_sq'] = g['enter']**2;"
                    "g['enter_cu'] = g['enter']**3"))
@@ -676,7 +676,7 @@ treatment patterns and the corresponding Kaplan Meier fitting.
         lags={'art': 'lag_art',
               'cd4': 'lag_cd4',
               'dvl': 'lag_dvl'},
-        sample=10000,
+        sample=50000,
         t_max=None,
         in_recode=("g['enter_sq'] = g['enter']**2;"
                    "g['enter_cu'] = g['enter']**3"))
@@ -689,7 +689,7 @@ treatment patterns and the corresponding Kaplan Meier fitting.
         lags={'art': 'lag_art',
               'cd4': 'lag_cd4',
               'dvl': 'lag_dvl'},
-        sample=10000,
+        sample=50000,
         t_max=None,
         in_recode=("g['enter_sq'] = g['enter']**2;"
                    "g['enter_cu'] = g['enter']**3"))
@@ -702,7 +702,7 @@ treatment patterns and the corresponding Kaplan Meier fitting.
         lags={'art': 'lag_art',
               'cd4': 'lag_cd4',
               'dvl': 'lag_dvl'},
-        sample=10000,
+        sample=50000,
         t_max=None,
         in_recode=("g['enter_sq'] = g['enter']**2;"
                    "g['enter_cu'] = g['enter']**3"))
@@ -730,6 +730,11 @@ Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 To obtain confidence intervals, nonparametric bootstrapping should be used. Take note that this will take awhile to
 finish (especially if a high number of resampling is used).
+
+As of version 0.2.0, TimeVaryGFormula is slower than SAS. I am working on speeding up TimeVaryGFormula to be competitive
+but this is going to take time. My next plan is to look into Cython. Hopefully, giving me a speed boost. If you are
+interested in optimization problems or have some experience, please contact me on GitHub. I am happy to have all the help
+I can get.
 
 Inverse Probability of Treatment Weights
 ------------------------------------------
