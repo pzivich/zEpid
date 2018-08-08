@@ -1,9 +1,12 @@
-import warnings
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
+from zepid.calc import odds_to_prop
+
+
+# Speed testing the g-formula
 
 
 class TimeVaryGFormula:
@@ -207,6 +210,7 @@ class TimeVaryGFormula:
             -on the fly recoding of variables done before the loop starts. Needed to do any kind of functional
              forms for entry times
         """
+        from datetime import datetime
         if self._exposure_model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the exposure model must be specified')
         if self._outcome_model_fit is False:
@@ -226,25 +230,26 @@ class TimeVaryGFormula:
             t_max = np.max(self.gf[self.time_out])
 
         # fitting g-formula piece by piece
-        gs['continuous_standerror'] = np.random.normal(size=gs.shape[0])
+        mc_simulated_data = []
         g = gs.copy()
+        g['Intercept'] = 1
+        if len(self._covariate_models) != 0:
+            cov_model_order = (sorted(range(len(self._covariate_model_index)),
+                                      key=self._covariate_model_index.__getitem__))
+            run_cov = True
+        else:
+            run_cov = False
         for i in range(int(t_max)):
-            g = g.loc[g[self.outcome] == 0].copy()
+            g = g.loc[g[self.outcome] == 0].reset_index(drop=True).copy()
             g[self.time_in] = i
             if in_recode is not None:
                 exec(in_recode)
 
             # predict time-varying covariates
-            if len(self._covariate_models) != 0:
-                for j in (sorted(range(len(self._covariate_model_index)),
-                                 key=self._covariate_model_index.__getitem__)):
-                    g[self._covariate[j] + 'pred'] = self._covariate_models[j].predict(g)
-                    if self._covariate_type[j] == 'binary':
-                        g[self._covariate[j]] = np.random.binomial(1, g[self._covariate[j] + 'pred'], size=g.shape[0])
-                    if self._covariate_type[j] == 'continuous':
-                        g[self._covariate[j]] = np.random.normal(loc=g[self._covariate[j] + 'pred'],
-                                                                 scale=np.std(self._covariate_models[j].resid),
-                                                                 size=g.shape[0])
+            if run_cov:
+                for j in cov_model_order:
+                    g[self._covariate[j]] = self._predict(df=g, model=self._covariate_models[j],
+                                                          variable=self._covariate_type[j])
                     exec(self._covariate_recode[j])
 
             # predict exposure when customized treatments
@@ -253,16 +258,13 @@ class TimeVaryGFormula:
             elif treatment == 'none':
                 g[self.exposure] = 0
             elif treatment == 'natural':
-                g[self.exposure + 'pred'] = self.exp_model.predict(g)
-                g[self.exposure] = np.random.binomial(1, g[self.exposure + 'pred'], size=g.shape[0])
+                g[self.exposure] = self._predict(df=g, model=self.exp_model, variable='binary')
             else:  # custom exposure pattern
-                g[self.exposure + 'pred'] = self.exp_model.predict(g)
-                g[self.exposure] = np.random.binomial(1, g[self.exposure + 'pred'], size=g.shape[0])
+                g[self.exposure] = self._predict(df=g, model=self.exp_model, variable='binary')
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
             # predict outcome
-            g['pevent_zepid'] = self.out_model.predict(g)
-            g[self.outcome] = np.random.binomial(1, g['pevent_zepid'], size=g.shape[0])
+            g[self.outcome] = self._predict(df=g, model=self.out_model, variable='binary')
             g[self.time_out] = i + 1
 
             # executing any counting code or else before appending
@@ -271,15 +273,29 @@ class TimeVaryGFormula:
 
             # recreating lagged variables
             if lags is not None:
-                g.drop(list(lags.values()), axis=1, inplace=True)
-                g.rename(columns=lags, inplace=True)
+                for k, v in lags.items():
+                    g[v] = g[k]
 
-            # APPEND SIMULATED DATA
-            gs = gs.append(g, ignore_index=True)  # sort=False for 0.23.0+
+            # append simulated data
+            mc_simulated_data.append(g)
 
-        # so the append loop adds an extra, so we need to drop that extra
-        gs.dropna(subset=['pevent_zepid'], inplace=True)
-        # Gains new attributes
+        gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
         self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
                                      self._covariate].sort_values(by=['uid_g_zepid',
                                                                       self.time_in]).reset_index(drop=True)
+
+    def _predict(self, df, model, variable):
+        """
+        This predict method gains me a small ammount of increased speed each time a model is fit, compared to
+        statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
+        """
+        pp = df.mul(model.params).sum(axis=1)
+        # pp = model.predict(df) # statsmodels.predict() is slower than what I use here
+        if variable == 'binary':
+            pp = odds_to_prop(np.exp(pp))  # assumes a logit model!
+            pred = np.random.binomial(1, pp, size=len(pp))
+        elif variable == 'continuous':
+            pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
+        else:
+            raise ValueError('That option is not supported')
+        return pred
