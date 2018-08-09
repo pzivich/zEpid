@@ -1,5 +1,17 @@
 ### Change logs
 
+#### v0.3.0
+**BIG CHANGES**:
+
+To conform with PEP and for clarity, all association/effect measures on a pandas dataframe are now class statements. This makes them distinct from the summary data calculators. Additionally, it allows users to access any part of the results now, unlike the previous implementation. The SD can be pulled from the corresponds results dataframe. Please see the updated webiste for how to use the class statements.
+
+Name changes within the calculator branch. With the shift of the dataframe calculations to classes, now these functions are given more descriptive names. Additionally, all functions now return a list of the point estimate, SD, lower CL, upper CL. Please see the website for all the new function names
+
+
+#### 0.2.1
+TimeVaryGFormula speed-up: some background optimization to speed up TimeVaryGFormula. Changes include: pd.concat() 
+rather than pd.append() each loop (from 22 to 8 seconds in some testing). 
+
 #### 0.2.0
 **BIG CHANGES**:
 
