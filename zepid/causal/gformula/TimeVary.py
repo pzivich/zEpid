@@ -6,9 +6,6 @@ from statsmodels.genmod.families import links
 from zepid.calc import odds_to_prop
 
 
-# TODO switch from pandas to NumPy for speed, cython for loop
-
-
 class TimeVaryGFormula:
     """Time-varying implementation of the g-formula, also referred to as the g-computation
     algorithm formula. This implementation has four options for the treatment courses:
@@ -93,6 +90,10 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
+        if ('np.' in model) or ('*' in model) or (':' in model) or ('**' in model) or ('I(' in model):
+            raise ValueError('Due to the need to speed up some background processes, certain patsy process are not '
+                             'supported. Please make sure to recode all variables for the regression models, the '
+                             'input dataframe, and all the recodes during the Monte Carlo loop')
         g = self.gf.copy()
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
@@ -119,6 +120,10 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
+        if ('np.' in model) or ('*' in model) or (':' in model) or ('**' in model) or ('I(' in model):
+            raise ValueError('Due to the need to speed up some background processes, certain patsy process are not '
+                             'supported. Please make sure to recode all variables for the regression models, the '
+                             'input dataframe, and all the recodes during the Monte Carlo loop')
         g = self.gf.copy()
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
@@ -162,6 +167,10 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
+        if ('np.' in model) or ('*' in model) or (':' in model) or ('**' in model) or ('I(' in model):
+            raise ValueError('Due to the need to speed up some background processes, certain patsy process are not '
+                             'supported. Please make sure to recode all variables for the regression models, the '
+                             'input dataframe, and all the recodes during the Monte Carlo loop')
         if type(label) is not int:
             raise ValueError('Label must be an integer')
 
@@ -298,10 +307,14 @@ class TimeVaryGFormula:
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
         """
+        # Commented out lines are compatible with patsy/statsmodels BUT is much slower
         if variable == 'binary':
             pred = np.random.binomial(1,
                                       odds_to_prop(np.exp(df.mul(model.params).sum(axis=1))),
                                       size=df.shape[0])
+            # model.predict(df),
+            # size=df.shape[0])
         else:
             pred = df.mul(model.params).sum(axis=1).add(se*np.random.normal(loc=0, scale=1, size=df.shape[0]))
+            # pred = model.predict(df).add(se*np.random.normal(loc=0, scale=1, size=df.shape[0]))
         return pred
