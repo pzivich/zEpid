@@ -3,11 +3,15 @@ import math
 from tabulate import tabulate
 from scipy.stats import norm
 
+# TODO update documentation (on what it returns)
 
-def risk_ci(events, total, alpha=0.05, decimal=3, confint='wald'):
+
+def risk_ci(events, total, alpha=0.05, confint='wald'):
     """Calculate two-sided (1-alpha)% Confidence interval of Risk. Note
     relies on the Central Limit Theorem, so there must be at least 5 events
     and 5 nonevents
+
+    Returns a list of  risk, lower CL, upper CL, SE
 
     events:
         -Number of events/outcomes that occurred
@@ -15,8 +19,6 @@ def risk_ci(events, total, alpha=0.05, decimal=3, confint='wald'):
         -total number of subjects that could have experienced the event
     alpha:
         -Alpha level. Default is 0.05
-    decimal:
-        -Number of decimal places to display. Default is 3 decimal places
     confint:
         -Type of confidence interval to generate. Current options are
             wald
@@ -35,13 +37,14 @@ def risk_ci(events, total, alpha=0.05, decimal=3, confint='wald'):
         lower = risk - zalpha * sd
         upper = risk + zalpha * sd
     else:
-        raise ValueError('Please specify a valid confidence interval')
-    print('Risk: ' + str(round(risk, decimal)) + ', ', str(round(100 * (1 - alpha), 1)) + '% CI: (' +
-          str(round(lower, decimal)) + ', ' + str(round(upper, decimal)) + ')')
+        raise ValueError('Only wald and hypergeometric confidence intervals are currently supported')
+    return risk, lower, upper, sd
 
 
-def ir_ci(events, time, alpha=0.05, decimal=3):
+def incidence_rate_ci(events, time, alpha=0.05):
     """Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
+
+    Returns a list of lower CL, incidence rate, upper CL
 
     events:
         -number of events/outcomes that occurred
@@ -49,21 +52,20 @@ def ir_ci(events, time, alpha=0.05, decimal=3):
         -total person-time contributed in this group
     alpha:
         -alpha level. Default is 0.05
-    decimal:
-        -amount of decimal places to display. Default is 3 decimal places
     """
     c = 1 - alpha / 2
     ir = events / time
     zalpha = norm.ppf(c, loc=0, scale=1)
-    se = math.sqrt(events / (time ** 2))
-    lower = ir - zalpha * se
-    upper = ir + zalpha * se
-    print('Incidence rate: ' + str(round(ir, decimal)) + ', ' + str(round(100 * (1 - alpha), 1)) + '% CI: (' +
-          str(round(lower, decimal)) + ', ' + str(round(upper, decimal)) + ')')
+    sd = math.sqrt(events / (time ** 2))
+    lower = ir - zalpha * sd
+    upper = ir + zalpha * sd
+    return ir, lower, upper, sd
 
 
-def rr(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def risk_ratio(a, b, c, d, alpha=0.05):
     """Calculates the Risk Ratio from count data.
+
+    Returns a list of lower CL, risk ratio, upper CL
 
     a:
         -count of exposed individuals with outcome
@@ -75,12 +77,6 @@ def rr(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False
         -count of unexposed individuals without outcome
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True, which prints the results
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (a < 0) or (b < 0) or (c < 0) or (d < 0):
         raise ValueError('All numbers must be positive')
@@ -90,30 +86,17 @@ def rr(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False
     r1 = a / (a + b)
     r0 = c / (c + d)
     relrisk = r1 / r0
-    SE = math.sqrt((1 / a) - (1 / (a + b)) + (1 / c) - (1 / (c + d)))
+    sd = math.sqrt((1 / a) - (1 / (a + b)) + (1 / c) - (1 / (c + d)))
     lnrr = math.log(relrisk)
-    lcl = lnrr - (zalpha * SE)
-    ucl = lnrr + (zalpha * SE)
-    if print_result:
-        print(tabulate([['E=1', a, b], ['E=0', c, d]], headers=['', 'D=1', 'D=0'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Exposed')
-        risk_ci(a, a + b, alpha=alpha, decimal=decimal)
-        print('Unexposed')
-        risk_ci(c, c + d, alpha=alpha, decimal=decimal)
-        print('----------------------------------------------------------------------')
-        print('Risk Ratio:', round(relrisk, decimal))
-        print(str(round(100 * (1 - alpha), 1)) + '% two-sided CI: (' + str(round(math.exp(lcl), decimal)), ',',
-              str(round(math.exp(ucl), decimal)) + ')')
-        print('Confidence Limit Ratio: ', round(((math.exp(ucl)) / (math.exp(lcl))), decimal))
-        print('Standard Deviation: ', round(SE, decimal))
-        print('----------------------------------------------------------------------\n')
-    if return_result:
-        return relrisk
+    lcl = math.exp(lnrr - (zalpha * sd))
+    ucl = math.exp(lnrr + (zalpha * sd))
+    return relrisk, lcl, ucl, sd
 
 
-def rd(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def risk_difference(a, b, c, d, alpha=0.05):
     """Calculates the Risk Difference from count data.
+
+    Returns a list of lower CL, risk difference, upper CL
 
     a:
         -count of exposed individuals with outcome
@@ -125,12 +108,6 @@ def rd(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False
         -count of unexposed individuals without outcome
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (a < 0) or (b < 0) or (c < 0) or (d < 0):
         raise ValueError('All numbers must be positive')
@@ -140,29 +117,16 @@ def rd(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
-    SE = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
-    lcl = riskdiff - (zalpha * SE)
-    ucl = riskdiff + (zalpha * SE)
-    if print_result:
-        print(tabulate([['E=1', a, b], ['E=0', c, d]], headers=['', 'D=1', 'D=0'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Exposed')
-        risk_ci(a, a + b, alpha=alpha, decimal=decimal)
-        print('Unexposed')
-        risk_ci(c, c + d, alpha=alpha, decimal=decimal)
-        print('----------------------------------------------------------------------')
-        print('Risk Difference:', round(riskdiff, decimal))
-        print(str(round(100 * (1 - alpha), 1)) + '%  two-sided CI: (', round(lcl, decimal), ', ', round(ucl, decimal),
-              ')')
-        print('Confidence Limit Difference: ', round((ucl - lcl), decimal))
-        print('Standard Deviation: ', round(SE, decimal))
-        print('----------------------------------------------------------------------\n')
-    if return_result:
-        return riskdiff
+    sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
+    lcl = riskdiff - (zalpha * sd)
+    ucl = riskdiff + (zalpha * sd)
+    return riskdiff, lcl, ucl, sd
 
 
-def nnt(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def number_needed_to_treat(a, b, c, d, alpha=0.05):
     """Calculates the Number Needed to Treat from count data
+
+    Returns a list of lower CL, number needed to treat, upper CL
 
     a:
         -count of exposed individuals with outcome
@@ -174,12 +138,6 @@ def nnt(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=Fals
         -count of unexposed individuals without outcome
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (a < 0) or (b < 0) or (c < 0) or (d < 0):
         raise ValueError('All numbers must be positive')
@@ -189,46 +147,28 @@ def nnt(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=Fals
     ratiod1 = a / (a + b)
     ratiod2 = c / (c + d)
     riskdiff = ratiod1 - ratiod2
-    SE = math.sqrt(((a * b) / ((a + b)**2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
-    lcl_rd = (riskdiff - (zalpha * SE))
-    ucl_rd = (riskdiff + (zalpha * SE))
-    try:
-        NNT = 1 / riskdiff
-    except:
-        NNT = 'inf'
-    try:
+    sd = math.sqrt(((a * b) / ((a + b)**2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
+    lcl_rd = riskdiff - (zalpha * sd)
+    ucl_rd = riskdiff + (zalpha * sd)
+    if riskdiff != 0:
+        numbnt = 1 / riskdiff
+    else:
+        numbnt = 'inf'
+    if lcl_rd != 0:
         ucl = 1 / lcl_rd
-    except:
-        ucl = 'inf'
-    try:
+    else:
+        ucl = math.inf
+    if ucl_rd != 0:
         lcl = 1 / ucl_rd
-    except:
-        lcl = 'inf'
-    if print_result:
-        print('----------------------------------------------------------------------')
-        print('Risk Difference: ', round(riskdiff, decimal))
-        print('----------------------------------------------------------------------')
-        if riskdiff == 0:
-            print('Number Needed to Treat = infinite')
-        else:
-            if riskdiff > 0:
-                print('Number Needed to Harm: ', round(abs(NNT), decimal), '\n')
-            if riskdiff < 0:
-                print('Number Needed to Treat: ', round(abs(NNT), decimal), '\n')
-        print(str(round(100 * (1 - alpha), 1)) + '% two-sided CI: ')
-        if lcl_rd < 0 < ucl_rd:
-            print('NNH ', round(abs(lcl), decimal), 'to infinity to NNT ', round(abs(ucl), decimal))
-        elif 0 < lcl_rd:
-            print('NNT ', round(abs(lcl), decimal), ' to ', round(abs(ucl), decimal))
-        else:
-            print('NNH ', round(abs(lcl), decimal), ' to ', round(abs(ucl), decimal))
-    print('----------------------------------------------------------------------\n')
-    if return_result:
-        return nnt
+    else:
+        lcl = math.inf
+    return numbnt, lcl, ucl, sd
 
 
-def oddsratio(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def odds_ratio(a, b, c, d, alpha=0.05):
     """Calculates the Odds Ratio from count data
+
+    Returns a list of lower CL, odds ratio, upper CL
 
     a:
         -count of exposed individuals with outcome
@@ -240,12 +180,6 @@ def oddsratio(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_resul
         -count of unexposed individuals without outcome
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (a < 0) or (b < 0) or (c < 0) or (d < 0):
         raise ValueError('All numbers must be positive')
@@ -255,28 +189,17 @@ def oddsratio(a, b, c, d, alpha=0.05, decimal=3, print_result=True, return_resul
     or1 = a / b
     or0 = c / d
     oddsr = or1 / or0
-    SE = math.sqrt((1 / a) + (1 / b) + (1 / c) + (1 / d))
+    sd = math.sqrt((1 / a) + (1 / b) + (1 / c) + (1 / d))
     lnor = math.log(oddsr)
-    lcl = lnor - (zalpha * SE)
-    ucl = lnor + (zalpha * SE)
-    if print_result:
-        print(tabulate([['E=1', a, b], ['E=0', c, d]], headers=['', 'D=1', 'D=0'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Odds exposed:', round(or1, decimal))
-        print('Odds unexposed:', round(or0, decimal))
-        print('----------------------------------------------------------------------')
-        print('Odds Ratio:', round(oddsr, decimal))
-        print(str(round(100 * (1 - alpha), 1)) + '% two-sided CI: (', round(math.exp(lcl), decimal), ', ',
-              round(math.exp(ucl), decimal), ')')
-        print('Confidence Limit Ratio: ', round(((math.exp(ucl)) / (math.exp(lcl))), decimal))
-        print('Standard Deviation: ', round(SE, decimal))
-        print('----------------------------------------------------------------------\n')
-    if return_result:
-        return oddsr
+    lcl = math.exp(lnor - (zalpha * sd))
+    ucl = math.exp(lnor + (zalpha * sd))
+    return oddsr, lcl, ucl, sd
 
 
-def irr(a, c, t1, t2, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     """Calculates the Incidence Rate Ratio from count data
+
+    Returns a list of lower CL, incidence rate ratio, upper CL
 
     a:
         -count of exposed with outcome
@@ -288,12 +211,6 @@ def irr(a, c, t1, t2, alpha=0.05, decimal=3, print_result=True, return_result=Fa
         -person-time contributed by those who were unexposed
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (a < 0) or (c < 0) or (t1 <= 0) | (t2 <= 0):
         raise ValueError('All numbers must be positive')
@@ -302,31 +219,18 @@ def irr(a, c, t1, t2, alpha=0.05, decimal=3, print_result=True, return_result=Fa
     zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
     irate1 = a / t1
     irate2 = c / t2
-    irr = irate1 / irate2
-    SE = math.sqrt((1 / a) + (1 / c))
-    lnirr = math.log(irr)
-    lcl = lnirr - (zalpha * SE)
-    ucl = lnirr + (zalpha * SE)
-    if print_result:
-        print(tabulate([['E=1', a, t1], ['E=0', c, t2]], headers=['', 'D=1', 'Person-time'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Exposed')
-        ir_ci(a, t1, alpha=alpha, decimal=decimal)
-        print('Unexposed')
-        ir_ci(c, t2, alpha=alpha, decimal=decimal)
-        print('----------------------------------------------------------------------')
-        print('Incidence Rate Ratio:', round(irr, decimal))
-        print(str(round(100 * (1 - alpha), 1)) + '% two-sided CI: (', round(math.exp(lcl), decimal), ', ',
-              round(math.exp(ucl), decimal), ')')
-        print('Confidence Limit Ratio: ', round(((math.exp(ucl)) / (math.exp(lcl))), decimal))
-        print('Standard Deviation: ', round(SE, decimal))
-        print('----------------------------------------------------------------------\n')
-    if return_result:
-        return irr
+    irater = irate1 / irate2
+    sd = math.sqrt((1 / a) + (1 / c))
+    lnirr = math.log(irater)
+    lcl = math.exp(lnirr - (zalpha * sd))
+    ucl = math.exp(lnirr + (zalpha * sd))
+    return irater, lcl, ucl, sd
 
 
-def ird(a, c, t1, t2, alpha=0.05, decimal=3, print_result=True, return_result=False):
+def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     """Calculates the Incidence Rate Difference from count data
+
+    Returns a list of lower CL, incidence rate difference, upper CL
 
     a:
         -count of exposed with outcome
@@ -338,12 +242,6 @@ def ird(a, c, t1, t2, alpha=0.05, decimal=3, print_result=True, return_result=Fa
         -person-time contributed by those who were unexposed
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (a < 0) or (c < 0) or (t1 <= 0) or (t2 <= 0):
         raise ValueError('All numbers must be positive')
@@ -352,33 +250,20 @@ def ird(a, c, t1, t2, alpha=0.05, decimal=3, print_result=True, return_result=Fa
     zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
     rated1 = a / t1
     rated2 = c / t2
-    ird = rated1 - rated2
-    SE = math.sqrt((a / (t1**2)) + (c / (t2**2)))
-    lcl = ird - (zalpha * SE)
-    ucl = ird + (zalpha * SE)
-    if print_result:
-        print(tabulate([['E=1', a, t1], ['E=0', c, t2]], headers=['', 'D=1', 'Person-time'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        print('Exposed')
-        ir_ci(a, t1, alpha=alpha, decimal=decimal)
-        print('Unexposed')
-        ir_ci(c, t2, alpha=alpha, decimal=decimal)
-        print('----------------------------------------------------------------------')
-        print('Incidence Rate Difference:', round(ird, decimal))
-        print(str(round(100 * (1 - alpha), 1)) + '% two-sided CI: (', round(lcl, decimal), ', ', round(ucl, decimal),
-              ')')
-        print('Confidence Limit Difference: ', round((ucl - lcl), decimal))
-        print('Standard Deviation: ', round(SE, decimal))
-        print('----------------------------------------------------------------------\n')
-    if return_result:
-        return ird
+    irated = rated1 - rated2
+    sd = math.sqrt((a / (t1**2)) + (c / (t2**2)))
+    lcl = irated - (zalpha * sd)
+    ucl = irated + (zalpha * sd)
+    return irated, lcl, ucl, sd
 
 
-def acr(a, b, c, d, decimal=3):
+def attributable_community_risk(a, b, c, d, decimal=3):
     """Calculates the estimated Attributable Community Risk (ACR) from count data. ACR is also
     known as Population Attributable Risk. Since this is commonly confused with the population
     attributable fraction, the name ACR is used to clarify differences in the formulas
 
+    Return the attributable community risk
+
     a:
         -count of exposed individuals with outcome
     b:
@@ -394,16 +279,14 @@ def acr(a, b, c, d, decimal=3):
         raise ValueError('All numbers must be positive')
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
-    acr = (rt - r0)
-    print(tabulate([['E=1', a, b], ['E=0', c, d]], headers=['', 'D=1', 'D=0'], tablefmt='grid'))
-    print('----------------------------------------------------------------------')
-    print('ACR: ', round(acr, decimal))
-    print('----------------------------------------------------------------------\n')
+    return rt - r0
 
 
-def paf(a, b, c, d, decimal=3):
+def population_attributable_fraction(a, b, c, d, decimal=3):
     """Calculates the Population Attributable Fraction from count data
 
+    Returns population attribuable fraction
+
     a:
         -count of exposed individuals with outcome
     b:
@@ -419,39 +302,36 @@ def paf(a, b, c, d, decimal=3):
         raise ValueError('All numbers must be positive')
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
-    paf = (rt - r0) / rt
-    print(tabulate([['E=1', a, b], ['E=0', c, d]], headers=['', 'D=1', 'D=0'], tablefmt='grid'))
-    print('----------------------------------------------------------------------')
-    print('PAF: ', round(paf, decimal))
-    print('----------------------------------------------------------------------\n')
+    return (rt - r0) / rt
 
 
-def prop_to_odds(prop):
+def probability_to_odds(prop):
     """Convert proportion to odds. Returns the corresponding odds
+
+    Returns odds
 
     prop:
         -proportion that is desired to transform into odds
     """
-    odds = prop / (1 - prop)
-    return odds
+    return prop / (1 - prop)
 
 
-def odds_to_prop(odds):
+def odds_to_probability(odds):
     """Convert odds to proportion. Returns the corresponding proportion
+
+    Return proportion/probability
 
     odds:
         -odds that is desired to transform into a proportion
     """
-    prop = odds / (1 + odds)
-    return prop
+    return odds / (1 + odds)
 
 
 def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     """Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation
     of results. For a full discussion and how to interpret the estimate and p-value, see Rosenthal & Rubin.
 
-    Warning: Make sure that the confidence interval points put into
-    the equation match the alpha level calculation
+    NOTE: Make sure that the confidence interval points put into the equation match the alpha level calculation
 
     estimate:
         -Point estimate for result
@@ -499,6 +379,8 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     Warning: Make sure that the alpha used to generate the confidence intervals matches the alpha
     used in this calculation. Additionally, this calculation can only handle normally distributed
     priors and observed
+
+    Returns posterior lower CL, posterior mean, posterior upper CL
 
     prior_mean:
         -Prior designated point estimate
@@ -577,11 +459,14 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     print(str(round((1 - alpha) * 100, 1)) + '% Posterior Probability Interval: (', round(post_lcl, decimal), ', ',
           round(post_ucl, decimal), ')')
     print('----------------------------------------------------------------------\n')
+    return [post_lcl, post_mean, post_ucl]
 
 
-def sensitivity(detected, cases, alpha=0.05, decimal=3, confint='wald', print_result=True, return_result=False):
+def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     """
     Calculate the Sensitivity from number of detected cases and the number of total true cases.
+
+    Returns lower CL, sensitivity, upper CL
 
     detected:
         -number of true cases detected via testing criteria
@@ -589,12 +474,6 @@ def sensitivity(detected, cases, alpha=0.05, decimal=3, confint='wald', print_re
         -total number of true/actual cases
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (detected < 0) or (cases < 0):
         raise ValueError('All numbers must be positive')
@@ -615,16 +494,14 @@ def sensitivity(detected, cases, alpha=0.05, decimal=3, confint='wald', print_re
         upper = sens + zalpha * sd
     else:
         raise ValueError('Please specify a valid confidence interval')
-    if print_result:
-        print('Sensitivity: ' + str(round(sens, decimal)) + ', ', str(round(100 * (1 - alpha), 1)) + '% CI: (' +
-              str(round(lower, decimal)) + ', ' + str(round(upper, decimal)) + ')')
-    if return_result:
-        return sens
+    return sens, lower, upper, sd
 
 
-def specificity(detected, noncases, alpha=0.05, decimal=3, confint='wald', print_result=True, return_result=False):
+def specificity(detected, noncases, alpha=0.05, confint='wald'):
     """
     Calculate the Sensitivity from number of detected cases and the number of total true cases.
+
+    Returns lower CL, specifity, upper CL
 
     detected:
         -number of false cases detected via testing criteria
@@ -632,14 +509,6 @@ def specificity(detected, noncases, alpha=0.05, decimal=3, confint='wald', print
         -total number of true/actual noncases
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    confint:
-        -type of confidence interval to generate
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
     """
     if (detected < 0) or (noncases < 0):
         raise ValueError('All numbers must be positive')
@@ -660,51 +529,12 @@ def specificity(detected, noncases, alpha=0.05, decimal=3, confint='wald', print
         upper = spec + zalpha * sd
     else:
         raise ValueError('Please specify a valid confidence interval')
-    if print_result:
-        print('Specificity: ' + str(round(spec, decimal)) + ', ', str(round(100 * (1 - alpha), 1)) + '% CI: (' +
-              str(round(lower, decimal)) + ', ' + str(round(upper, decimal)) + ')')
-    if return_result:
-        return spec
-
-
-def diagnostics(a, b, c, d, alpha=0.05, decimal=3, confint='wald', print_result=True, return_result=False):
-    """
-    Calculate the diagnostic criteria (sensitivity and specificity) for summary data
-
-    a:
-        -count of true cases with a positive test
-    b:
-        -count of true cases with a negative test
-    c:
-        -count of true non-cases with a positive test
-    d:
-        -count of true non-cases with a negative test
-    alpha:
-        -alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -whether to print the results. Default is True
-    return_result:
-        -whether to return the calculated sensitivity and specificity as a tuple. Default is False
-    """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
-    if print_result:
-        print(tabulate([['T+', a, b], ['T-', c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        sensitivity(a, a+b, alpha=alpha, decimal=decimal, confint=confint, print_result=True)
-        print('----------------------------------------------------------------------')
-        specificity(c, c+d, alpha=alpha, decimal=decimal, confint=confint, print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result:
-        se = sensitivity(a, a+b, print_result=False, return_result=True)
-        sp = specificity(c, c+d, print_result=False, return_result=True)
-        return se, sp
+    return spec, lower, upper, sd
 
 
 def ppv_converter(sensitivity, specificity, prevalence):
     """Generates the Positive Predictive Value from designated Sensitivity, Specificity, and Prevalence.
+
     Returns the positive predictive value
 
     sensitivity:
@@ -726,6 +556,7 @@ def ppv_converter(sensitivity, specificity, prevalence):
 
 def npv_converter(sensitivity, specificity, prevalence):
     """Generates the Negative Predictive Value from designated Sensitivity, Specificity, and Prevalence.
+
     Returns the negative predictive value
 
     sensitivity:
@@ -745,8 +576,8 @@ def npv_converter(sensitivity, specificity, prevalence):
     return npv
 
 
-def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitivity, specificity, population=10000,
-                            decimal=3):
+def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitivity,
+                            specificity, population=10000,decimal=3):
     """Compares the cost of sensivitiy/specificity of screening criteria to treating the entire population
     as test-negative and test-positive. The lowest per capita cost is considered the ideal choice. Note that
     this function only provides relative costs

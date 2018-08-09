@@ -1,4 +1,4 @@
-from .utils import (risk_ci, ir_ci, rr, rd, nnt, oddsratio, irr, ird,
-                    acr, paf, prop_to_odds, odds_to_prop,
-                    counternull_pvalue, semibayes,
-                    ppv_converter, npv_converter, screening_cost_analyzer)
+from .utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat, odds_ratio,
+                    incidence_rate_ratio, incidence_rate_difference,attributable_community_risk,
+                    population_attributable_fraction, probability_to_odds, odds_to_probability, counternull_pvalue,
+                    semibayes, ppv_converter, npv_converter, screening_cost_analyzer)

@@ -7,124 +7,306 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 from tabulate import tabulate
-from zepid.calc.utils import rr, rd, nnt, oddsratio, ird, irr, acr, paf, sensitivity, specificity
+from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat,
+                              odds_ratio, incidence_rate_difference, incidence_rate_ratio, sensitivity, specificity)
 
 
-def RiskRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
+class RiskRatio:
     """Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by
     this function.
 
     WARNING: Exposure & Outcome must be coded as (1: yes, 0:no). Only works for binary exposures and outcomes
-
-    df:
-        -pandas dataframe containing variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
-
-    Example)
-    >>>zepid.RiskRatio(df=data,exposure='X',outcome='D')
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+
+    def __init__(self, df, exposure, outcome, reference=0, alpha=0.05):
+        """
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        # Setting up holders for results
+        label = []
+        risk = []
+        risk_lcl = []
+        risk_ucl = []
+        risk_sd = []
+        riskr = []
+        rr_lcl = []
+        rr_ucl = []
+        rr_sd = []
+        a_list = []
+        b_list = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(reference)
+        self._c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
+        label.append('Ref:'+str(reference))
+        ri, lr, ur, sd = risk_ci(events=self._c, total=(self._c + self._d), alpha=alpha)
+        risk.append(ri)
+        risk_lcl.append(lr)
+        risk_ucl.append(ur)
+        risk_sd.append(sd)
+        riskr.append(1)
+        rr_lcl.append(None)
+        rr_ucl.append(None)
+        rr_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            label.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            a_list.append(a)
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            b_list.append(b)
+            ri, lr, ur, sd = risk_ci(events=a, total=(a+b), alpha=alpha)
+            risk.append(ri)
+            risk_lcl.append(lr)
+            risk_ucl.append(ur)
+            risk_sd.append(sd)
+            rr, lrr, urr, sd = risk_ratio(a=a, b=b, c=self._c, d=self._d, alpha=alpha)
+            riskr.append(rr)
+            rr_lcl.append(lrr)
+            rr_ucl.append(urr)
+            rr_sd.append(sd)
+
+        # Setting up results
+        rf = pd.DataFrame(index=label)
+        rf['Risk'] = risk
+        rf['SD(Risk)'] = risk_sd
+        rf['Risk_LCL'] = risk_lcl
+        rf['Risk_UCL'] = risk_ucl
+        rf['RiskRatio'] = riskr
+        rf['SD(RR)'] = rr_sd
+        rf['RR_LCL'] = rr_lcl
+        rf['RR_UCL'] = rr_ucl
+        rf['CLR'] = rf['RR_UCL'] / rf['RR_LCL']
+
+        # Adding all the attributes
+        self.results = rf
+        self.risk_ratio = rf['RiskRatio']
+        self._a_list = a_list
+        self._b_list = b_list
+        self._labels = label
+        self._reference = reference
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        for a, b, l in zip(self._a_list, self._b_list, self._labels):
+            print('Comparison:'+str(self._reference)+' '+l)
+            print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        rr(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result, return_result=return_result)
+        print(self.results[['RiskRatio', 'SD(RR)', 'RR_LCL', 'RR_UCL']].round(decimals=decimal))
+        print('======================================================================')
 
 
-def RiskDiff(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this
-    function.
-
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True, which prints the results
-    return_result:
-        -Whether to return the RD as a object. Default is False
-
-    Example)
-    >>>zepid.RiskDiff(df=data,exposure='X',outcome='D')
+class RiskDifference:
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+    Documentation
+    """
+
+    def __init__(self, df, exposure, outcome, reference=0, alpha=0.05):
+        """
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        # Setting up holders for results
+        label = []
+        risk = []
+        risk_lcl = []
+        risk_ucl = []
+        risk_sd = []
+        riskd = []
+        rd_lcl = []
+        rd_ucl = []
+        rd_sd = []
+        a_list = []
+        b_list = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(reference)
+        self._c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
+        label.append('Ref:'+str(reference))
+        ri, lr, ur, sd = risk_ci(events=self._c, total=(self._c + self._d), alpha=alpha)
+        risk.append(ri)
+        risk_lcl.append(lr)
+        risk_ucl.append(ur)
+        risk_sd.append(sd)
+        riskd.append(0)
+        rd_lcl.append(None)
+        rd_ucl.append(None)
+        rd_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            label.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            a_list.append(a)
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            b_list.append(b)
+            ri, lr, ur, sd = risk_ci(events=a, total=(a+b), alpha=alpha)
+            risk.append(ri)
+            risk_lcl.append(lr)
+            risk_ucl.append(ur)
+            risk_sd.append(sd)
+            rd, lrd, urd, sd = risk_difference(a=a, b=b, c=self._c, d=self._d, alpha=alpha)
+            riskd.append(rd)
+            rd_lcl.append(lrd)
+            rd_ucl.append(urd)
+            rd_sd.append(sd)
+
+        # Setting up results
+        rf = pd.DataFrame(index=label)
+        rf['Risk'] = risk
+        rf['SD(Risk)'] = risk_sd
+        rf['Risk_LCL'] = risk_lcl
+        rf['Risk_UCL'] = risk_ucl
+        rf['RiskDiff'] = riskd
+        rf['SD(RD)'] = rd_sd
+        rf['RD_LCL'] = rd_lcl
+        rf['RD_UCL'] = rd_ucl
+        rf['CLR'] = rf['RD_UCL'] - rf['RD_LCL']
+
+        # Adding all the attributes
+        self.results = rf
+        self.risk_difference = rf['RiskDiff']
+        self._a_list = a_list
+        self._b_list = b_list
+        self._labels = label
+        self._reference = reference
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        for a, b in zip(self._a_list, self._b_list):
+            print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        rd(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result, return_result=return_result)
+        print(self.results[['RiskDiff', 'SD(RD)', 'RD_LCL', 'RD_UCL']].round(decimals=decimal))
+        print('======================================================================')
 
 
-def NNT(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
+class NNT:
+    """
+    Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
     Altman, DG (BMJ 1998). Missing data is ignored by this function.
-
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no).
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the NNT as a object. Default is False
-
-        Example)
-    >>>zepid.NNT(df=data,exposure='X',outcome='D')
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
-        print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
-        print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        nnt(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result, return_result=return_result)
+
+    def __init__(self, df, exposure, outcome, reference=0, alpha=0.05):
+        """
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        # Setting up holders for results
+        label = []
+        nnt = []
+        nnt_lcl = []
+        nnt_ucl = []
+        nnt_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(reference)
+        self._c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
+        label.append('Ref:'+str(reference))
+        nnt.append(math.inf)
+        nnt_lcl.append(None)
+        nnt_ucl.append(None)
+        nnt_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            label.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            rd, lrd, urd, sd = number_needed_to_treat(a=a, b=b, c=self._c, d=self._d, alpha=alpha)
+            nnt.append(rd)
+            nnt_lcl.append(lrd)
+            nnt_ucl.append(urd)
+            nnt_sd.append(sd)
+
+        # Setting up results
+        rf = pd.DataFrame(index=label)
+        rf['NNT'] = nnt
+        rf['NNT_LCL'] = nnt_ucl
+        rf['NNT_UCL'] = nnt_lcl
+
+        # Adding all the attributes
+        self.results = rf
+        self.number_needed_to_treat = rf['NNT']
+        self._labels = label
+        self._reference = reference
+        self.alpha = alpha
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        for i, r in self.results.iterrows():
+            if i == self._labels[0]:
+                pass
+            else:
+                print('======================================================================')
+                if r['NNT'] == math.inf:
+                    print('Number Needed to Treat = infinite')
+                else:
+                    if r['NNT'] > 0:
+                        print('Number Needed to Harm: ', round(abs(r['NNT']), decimal))
+                    if r['NNT'] < 0:
+                        print('Number Needed to Treat: ', round(abs(r['NNT']), decimal))
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: ')
+                if r['NNT_LCL'] < 0 < r['NNT_UCL']:
+                    print('NNT ', round(abs(r['NNT_LCL']), decimal), 'to infinity to NNH ',
+                          round(abs(r['NNT_UCL']), decimal))
+                elif 0 < r['NNT_LCL']:
+                    print('NNT ', round(abs(r['NNT_LCL']), decimal), ' to ', round(abs(r['NNT_UCL']), decimal))
+                else:
+                    print('NNH ', round(abs(r['NNT_LCL']), decimal), ' to ', round(abs(r['NNT_UCL']), decimal))
+                print('======================================================================')
 
 
 def OddsRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
@@ -244,46 +426,114 @@ def IncRateDiff(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3,
             return_result=return_result)
 
 
-def ACR(df, exposure, outcome, decimal=3):
-    """Produces the estimated Attributable Community Risk (ACR). ACR is also known as Population Attributable
-    Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used to
-    clarify differences in the formulas. Missing data is ignored by this function.
+def Sensitivity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
+    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
+    from pandas dataframe
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
 
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+    test:
+        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        positive test for the individual
+    disease:
+        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+         has the outcome
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the calculated sensitivity. Default is False.
+
+    Example)
+    >zepid.Sensitivity(df=data,test='test_disease',disease='true_disease')
     """
-    a = df.loc[(df[exposure] == 1) & (df[outcome] == 1)].shape[0]
-    b = df.loc[(df[exposure] == 1) & (df[outcome] == 0)].shape[0]
-    c = df.loc[(df[exposure] == 0) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == 0) & (df[outcome] == 0)].shape[0]
-    acr(a=a, b=b, c=c, d=d, decimal=decimal)
+    a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
+    b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
+    if print_result is True:
+        print(tabulate([["T+", a, b]], headers=['', 'D+', 'D-'], tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        sensitivity(a, a + b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
+        print('----------------------------------------------------------------------')
+    if return_result is True:
+        se = sensitivity(a, a + b, print_result=False, return_result=True)
+        return se
 
 
-def PAF(df, exposure, outcome, decimal=3):
-    """Produces the estimated Population Attributable Fraction. Missing data is ignored by this function.
+def Specificity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
+    """Generates the Specificity and (1-alpha)% confidence interval, comparing test results to disease status
+    from pandas dataframe
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
 
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+    test:
+        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        positive test for the individual
+    disease:
+        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+         has the outcome
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     decimal:
         -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the calculated specificity. Default is False.
+
+    Example)
+    >zepid.Specificity(df=data,test='test_disease',disease='true_disease')
     """
-    a = df.loc[(df[exposure] == 1) & (df[outcome] == 1)].shape[0]
-    b = df.loc[(df[exposure] == 1) & (df[outcome] == 0)].shape[0]
-    c = df.loc[(df[exposure] == 0) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == 0) & (df[outcome] == 0)].shape[0]
-    paf(a=a, b=b, c=c, d=d, decimal=decimal)
+    c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
+    d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
+    if print_result:
+        print(tabulate([["T-", c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        specificity(c, c + d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
+        print('----------------------------------------------------------------------')
+    if return_result:
+        sp = specificity(c, c + d, print_result=False, return_result=True)
+        return sp
+
+
+def Diagnostics(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
+    """
+    Generates the Sensitivity, Specificity and corresponding (1-alpha)% confidence intervals, comparing test results
+    to disease status from pandas dataframe
+
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
+
+    test:
+        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        positive test for the individual
+    disease:
+        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+         has the outcome
+    alpha:
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    decimal:
+        -amount of decimal points to display. Default is 3
+    print_result:
+        -Whether to print the results. Default is True
+    return_result:
+        -Whether to return the calculates sensitivity and specificity. Default is False.
+    """
+    a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
+    b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
+    c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
+    d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
+    if print_result:
+        print(tabulate([["T+", a, b], ["T-", c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
+        print('----------------------------------------------------------------------')
+        sensitivity(a, a + b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
+        specificity(c, c + d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
+        print('----------------------------------------------------------------------')
+    if return_result:
+        se = sensitivity(a, a + b, print_result=False, return_result=True)
+        sp = specificity(c, c + d, print_result=False, return_result=True)
+        return se, sp
 
 
 def IC(df, exposure, outcome, modifier, adjust=None, decimal=3):
@@ -479,116 +729,6 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
     print('----------------------------------------------------------------------')
 
 
-def Sensitivity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
-    from pandas dataframe
-
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
-
-    test:
-        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
-        positive test for the individual
-    disease:
-        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-         has the outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the calculated sensitivity. Default is False.
-
-    Example)
-    >zepid.Sensitivity(df=data,test='test_disease',disease='true_disease')
-    """
-    a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
-    b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
-    if print_result is True:
-        print(tabulate([["T+", a, b]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        sensitivity(a, a + b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result is True:
-        se = sensitivity(a, a + b, print_result=False, return_result=True)
-        return se
-
-
-def Specificity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Generates the Specificity and (1-alpha)% confidence interval, comparing test results to disease status
-    from pandas dataframe
-
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
-
-    test:
-        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
-        positive test for the individual
-    disease:
-        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-         has the outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the calculated specificity. Default is False.
-
-    Example)
-    >zepid.Specificity(df=data,test='test_disease',disease='true_disease')
-    """
-    c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
-    d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
-    if print_result:
-        print(tabulate([["T-", c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        specificity(c, c + d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result:
-        sp = specificity(c, c + d, print_result=False, return_result=True)
-        return sp
-
-
-def Diagnostics(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """
-    Generates the Sensitivity, Specificity and corresponding (1-alpha)% confidence intervals, comparing test results
-    to disease status from pandas dataframe
-
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
-
-    test:
-        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
-        positive test for the individual
-    disease:
-        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-         has the outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the calculates sensitivity and specificity. Default is False.
-    """
-    a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
-    b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
-    c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
-    d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
-    if print_result:
-        print(tabulate([["T+", a, b], ["T-", c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        sensitivity(a, a + b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        specificity(c, c + d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result:
-        se = sensitivity(a, a + b, print_result=False, return_result=True)
-        sp = specificity(c, c + d, print_result=False, return_result=True)
-        return se, sp
-
-
 def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     """Creates spline dummy variables based on either user specified knot locations or automatically
     determines knot locations based on percentiles. Options are available to set the number of knots,
@@ -616,8 +756,6 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
          than the number of knots. An unrestricted spline returns the same number of columns as the number of knots.
          Default is False, providing an unrestricted spline
 
-    Example)
-    >>>zepid.spline(df=data,var='var1',n_knots=4,term=2,restricted=True)
            rspline0     rspline1   rspline2
     0   9839.409066  1234.154601   2.785600
     1    446.391437     0.000000   0.000000
@@ -626,7 +764,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     4  10972.041543  1655.208555  52.167821
     ..          ...          ...        ...
     """
-    if knots == None:
+    if knots is None:
         if n_knots == 1:
             knots = [0.5]
         elif n_knots == 2:
@@ -675,7 +813,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
         raise ValueError('restricted must be set to either True or False')
 
 
-def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
+def table1_generator(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
     """Code to automatically generate a descriptive table of your study population (often referred to as a
     Table 1). Personally, I hate copying SAS/R/Python output from the interpreter to an Excel or other
     spreadsheet software. This code will generate a pandas dataframe object. This object will be a formatted
