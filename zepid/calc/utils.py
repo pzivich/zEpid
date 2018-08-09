@@ -155,13 +155,13 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
     else:
         numbnt = 'inf'
     if lcl_rd != 0:
-        ucl = 1 / lcl_rd
-    else:
-        ucl = math.inf
-    if ucl_rd != 0:
-        lcl = 1 / ucl_rd
+        lcl = 1 / lcl_rd
     else:
         lcl = math.inf
+    if ucl_rd != 0:
+        ucl = 1 / ucl_rd
+    else:
+        ucl = math.inf
     return numbnt, lcl, ucl, sd
 
 

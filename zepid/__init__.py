@@ -34,8 +34,8 @@ Sensitivity Analyses:
 
 See http://zepid.readthedocs.io/en/latest/ for a full guide through all the package features
 """
-from .base import (RiskRatio, RiskDifference, NNT, OddsRatio, IncRateRatio, IncRateDiff, IC, ICR,
-                   Sensitivity, Specificity, Diagnostics, spline, table1_generator)
+from .base import (RiskRatio, RiskDifference, NNT, OddsRatio, IncidenceRateRatio, IncidenceRateDifference, Sensitivity,
+                   Specificity, Diagnostics, interaction_contrast, interaction_contrast_ratio, spline, table1_generator)
 from .datasets import load_sample_data
 
 import zepid.calc
