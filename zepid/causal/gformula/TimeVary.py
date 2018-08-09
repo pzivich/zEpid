@@ -3,10 +3,11 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
-from zepid.calc import odds_to_prop
+from zepid.calc import odds_to_probability
 
 
 # Speed testing the g-formula
+# TODO add check to see if making any weird patsy formulas
 
 
 class TimeVaryGFormula:
@@ -292,7 +293,7 @@ class TimeVaryGFormula:
         pp = df.mul(model.params).sum(axis=1)
         # pp = model.predict(df) # statsmodels.predict() is slower than what I use here
         if variable == 'binary':
-            pp = odds_to_prop(np.exp(pp))  # assumes a logit model!
+            pp = odds_to_probability(np.exp(pp))  # assumes a logit model!
             pred = np.random.binomial(1, pp, size=len(pp))
         elif variable == 'continuous':
             pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
