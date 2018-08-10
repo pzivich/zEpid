@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
@@ -78,7 +77,7 @@ class AIPW:
         This function generates the estimated risk difference and risk ratio.  To view results, use AIPW.summary() For
         confidence intervals, a bootstrap procedure should be used
         """
-        if ((self._fit_exposure_model == False) or (self._fit_exposure_model == False)):
+        if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
             raise ValueError('The exposure and outcome models must be specified before the doubly robust estimate can '
                              'be generated')
 
@@ -105,7 +104,7 @@ class AIPW:
         decimal:
             -number of decimal places to display in the result
         """
-        if (self._fit_exposure_model == False) or (self._fit_exposure_model == False):
+        if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
             raise ValueError('The exposure and outcome models must be specified before the double robust estimate can '
                              'be generated')
 
