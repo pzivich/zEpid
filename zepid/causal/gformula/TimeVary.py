@@ -302,7 +302,8 @@ class TimeVaryGFormula:
                                      self._covariate].sort_values(by=['uid_g_zepid',
                                                                       self.time_in]).reset_index(drop=True)
 
-    def _predict(self, df, model, variable, se=None):
+    @staticmethod
+    def _predict(df, model, variable, se=None):
         """
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
