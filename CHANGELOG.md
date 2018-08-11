@@ -7,6 +7,7 @@ To conform with PEP and for clarity, all association/effect measures on a pandas
 
 Name changes within the calculator branch. With the shift of the dataframe calculations to classes, now these functions are given more descriptive names. Additionally, all functions now return a list of the point estimate, SD, lower CL, upper CL. Please see the website for all the new function names
 
+Addition of Targeted Maximum Likelihood Estimator as zepid.causal.doublyrobust.TMLE
 
 #### 0.2.1
 TimeVaryGFormula speed-up: some background optimization to speed up TimeVaryGFormula. Changes include: pd.concat() 

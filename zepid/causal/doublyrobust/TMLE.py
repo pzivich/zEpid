@@ -23,6 +23,9 @@ class TMLE:
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
                           "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
+        if psi != "risk difference":
+            raise ValueError('Only the additive estimate of the risk difference is currently implemented')
+        self._psi_correspond = psi
         self.df = df.copy().dropna().reset_index()
         self.alpha = alpha
         self._exposure = exposure
@@ -122,4 +125,6 @@ class TMLE:
         print('Psi: ', round(float(self.psi), decimal))
         print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' + str(round(self.confint[0], decimal)), ',',
               str(round(self.confint[1], decimal)) + ')')
+        print('----------------------------------------------------------------------')
+        print('Psi corresponds to '+self._psi_correspond)
         print('----------------------------------------------------------------------')
