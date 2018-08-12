@@ -1,5 +1,12 @@
 ### Change logs
 
+#### 0.2.1
+
+TimeVaryGFormula speed-up: some background optimization to speed up TimeVaryGFormula. Changes include: pd.concat() 
+rather than pd.append() each loop . Wrote a simple implementation of statsmodels.predict() as _predict() that speeds up 
+the process. Shuffled around some statements to execute only once rather than multiple times. In some testing, I went 
+from 22 seconds to run to 3.4 seconds
+
 #### 0.2.0
 **BIG CHANGES**:
 

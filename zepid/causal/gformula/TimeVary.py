@@ -295,7 +295,10 @@ class TimeVaryGFormula:
             # stacking simulated data in a list
             mc_simulated_data.append(g)
 
-        gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)  # concatenating all that stacked data
+        try:  # work-around for 0.23.0 update
+            gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)  # concatenating all that stacked data
+        except TypeError:
+            gs = pd.concat(mc_simulated_data, ignore_index=True)  # concatenating all that stacked data
 
         self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome,
                                       self.time_in, self.time_out] +
@@ -308,7 +311,7 @@ class TimeVaryGFormula:
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
         """
-        # Commented out lines are compatible with patsy/statsmodels BUT is much slower
+        # Commented out lines are compatible with patsy/statsmodels BUT are slower
         if variable == 'binary':
             pred = np.random.binomial(1,
                                       odds_to_prop(np.exp(df.mul(model.params).sum(axis=1))),
