@@ -9,6 +9,12 @@ Name changes within the calculator branch. With the shift of the dataframe calcu
 
 Addition of Targeted Maximum Likelihood Estimator as zepid.causal.doublyrobust.TMLE
 
+**MINOR CHANGES**:
+Added datasets from Glaubiger DL, Makuch R, Schwarz J, Levine AS, Johnson RE. Determination
+of prognostic factors and their influence on therapeutic results in patients with Ewing's sarcoma. Cancer.
+1980;45(8):2213-9 and Keil AP, Edwards JK, Richardson DB, Naimi AI, Cole SR. The parametric g-formula for time-to-event 
+data: intuition and a worked example. Epidemiology. 2014;25(6):889-97
+
 #### 0.2.1
 TimeVaryGFormula speed-up: some background optimization to speed up TimeVaryGFormula. Changes include: pd.concat() 
 rather than pd.append() each loop (from 22 to 8 seconds in some testing). 

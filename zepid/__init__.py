@@ -36,7 +36,7 @@ See http://zepid.readthedocs.io/en/latest/ for a full guide through all the pack
 """
 from .base import (RiskRatio, RiskDifference, NNT, OddsRatio, IncidenceRateRatio, IncidenceRateDifference, Sensitivity,
                    Specificity, Diagnostics, interaction_contrast, interaction_contrast_ratio, spline, table1_generator)
-from .datasets import load_sample_data
+from .datasets import load_sample_data, load_ewing_sarcoma_data, load_gvhd_data
 
 import zepid.calc
 import zepid.graphics
