@@ -10,10 +10,18 @@ Name changes within the calculator branch. With the shift of the dataframe calcu
 Addition of Targeted Maximum Likelihood Estimator as zepid.causal.doublyrobust.TMLE
 
 **MINOR CHANGES**:
-Added datasets from Glaubiger DL, Makuch R, Schwarz J, Levine AS, Johnson RE. Determination
+Added datasets from;
+
+Glaubiger DL, Makuch R, Schwarz J, Levine AS, Johnson RE. Determination
 of prognostic factors and their influence on therapeutic results in patients with Ewing's sarcoma. Cancer.
-1980;45(8):2213-9 and Keil AP, Edwards JK, Richardson DB, Naimi AI, Cole SR. The parametric g-formula for time-to-event 
+1980;45(8):2213-9 
+
+Keil AP, Edwards JK, Richardson DB, Naimi AI, Cole SR. The parametric g-formula for time-to-event 
 data: intuition and a worked example. Epidemiology. 2014;25(6):889-97
+
+Fixed spelling error for dynamic_risk_plot that I somehow missed (previously named dyanmic_risk plot...)
+
+Renamed func_form_plot to functional_form_plot (my abbreviations are bad, and version 0.3.0 should fix all this)
 
 #### 0.2.1
 TimeVaryGFormula speed-up: some background optimization to speed up TimeVaryGFormula. Changes include: pd.concat() 

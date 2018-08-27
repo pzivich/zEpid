@@ -280,7 +280,10 @@ class TimeVaryGFormula:
             # append simulated data
             mc_simulated_data.append(g)
 
-        gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
+        try:
+            gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
+        except TypeError:  # gets around pandas <0.22 error
+            gs = pd.concat(mc_simulated_data, ignore_index=True)
         self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
                                      self._covariate].sort_values(by=['uid_g_zepid',
                                                                       self.time_in]).reset_index(drop=True)
@@ -290,10 +293,10 @@ class TimeVaryGFormula:
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
         """
-        pp = df.mul(model.params).sum(axis=1)
-        # pp = model.predict(df) # statsmodels.predict() is slower than what I use here
+        # pp = df.mul(model.params).sum(axis=1)
+        pp = model.predict(df) # statsmodels.predict() is slightly slower than above, but above doesn't support patsy
         if variable == 'binary':
-            pp = odds_to_probability(np.exp(pp))  # assumes a logit model!
+            # pp = odds_to_probability(np.exp(pp))  # assumes a logit model. For non-statsmodel.predict() option
             pred = np.random.binomial(1, pp, size=len(pp))
         elif variable == 'continuous':
             pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
