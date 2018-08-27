@@ -37,7 +37,7 @@ Now that our variables are all prepared, we will look at a basic linear term for
 
 .. code:: python
 
-   ze.graphics.func_form_plot(df,outcome='dead',var='age0',discrete=True)
+   ze.graphics.functional_form_plot(df,outcome='dead',var='age0',discrete=True)
    plt.show()
 
 In the console, the following results will be printed
@@ -98,13 +98,13 @@ The ``f_form`` argument is used to specify any functional form variables that ar
 Spline
 ^^^^^^^^^^^
 
-One important note is that ``zepid.graphics.func_form_plot`` returns a ``matplotlib`` object. What this means is that
-further items can be added to the plot. We will show the functionality of this through the spline example. We will add
-dashed lines on our plot to designate where the spline knots are located
+One important note is that ``zepid.graphics.functional_form_plot`` returns a ``matplotlib`` object. What this means is
+that further items can be added to the plot. We will show the functionality of this through the spline example. We will
+add dashed lines on our plot to designate where the spline knots are located
 
 .. code::
 
-   ze.graphics.func_form_plot(df,outcome='dead',var='age0',f_form='age0 + rqs0 + rqs1',discrete=True)
+   ze.graphics.functional_form_plot(df,outcome='dead',var='age0',f_form='age0 + rqs0 + rqs1',discrete=True)
    plt.vlines(30,0,0.85,colors='gray',linestyles='--')
    plt.vlines(40,0,0.85,colors='gray',linestyles='--')
    plt.vlines(55,0,0.85,colors='gray',linestyles='--')
@@ -122,7 +122,7 @@ example we will look at ``cd40`` which corresponds to baseline viral load.
 
 .. code:: python
 
-   ze.graphics.func_form_plot(df,outcome='dead',var='cd40')
+   ze.graphics.functional_form_plot(df,outcome='dead',var='cd40')
    plt.show()
 
 If we use the current values, the number of categories is indicated in the console output as
@@ -140,7 +140,7 @@ within ``cd40`` to see if that fixes this. We will decrease the number of catego
 .. code:: python
 
    df['cd4_red'] = df['cd40']*0.25
-   ze.graphics.func_form_plot(df,outcome='dead',var='cd4_red')
+   ze.graphics.functional_form_plot(df,outcome='dead',var='cd4_red')
    plt.show()
 
 Now only ``24`` categories are created and it removes the overflow issue.
@@ -319,7 +319,7 @@ generated from the ``lifelines`` Kaplan Meier curves.
 
   a = 1 - kme.survival_function_
   b = 1 - kmu.survival_function_
-  ze.graphics.dyanmic_risk_plot(a,b)
+  ze.graphics.dynamic_risk_plot(a,b)
   plt.show()
 
 .. image:: images/zepid_msm_rd.png
@@ -329,7 +329,7 @@ ratio plot, with the point and line colors changed
 
 .. code:: python
 
-  ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkred',line_color='r',scale='log')
+  ze.graphics.dynamic_risk_plot(a,b,measure='RR',point_color='darkred',line_color='r',scale='log')
   plt.yticks([0.4,0.6,0.8,1,2,4,6])
 
   plt.show()
@@ -340,7 +340,7 @@ You can also request a log-transformed RR
 
 .. code:: python
   
- ze.graphics.dyanmic_risk_plot(a,b,measure='RR',point_color='darkgreen',line_color='g',scale='log-transform')
+ ze.graphics.dynamic_risk_plot(a,b,measure='RR',point_color='darkgreen',line_color='g',scale='log-transform')
  plt.savefig('C:/Users/zivic/Python 
  plt.show()
 
