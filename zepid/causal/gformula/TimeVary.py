@@ -252,8 +252,7 @@ class TimeVaryGFormula:
                 for j in cov_model_order:
                     g[self._covariate[j]] = self._predict(df=g,
                                                           model=self._covariate_models[j],
-                                                          variable=self._covariate_type[j],
-                                                          se=self._covariate_se[j])
+                                                          variable=self._covariate_type[j])
                     exec(self._covariate_recode[j])
 
             # predict exposure when customized treatments
@@ -292,7 +291,7 @@ class TimeVaryGFormula:
                                                                       self.time_in]).reset_index(drop=True)
 
     @staticmethod
-    def _predict(df, model, variable, se=None):
+    def _predict(df, model, variable):
         """
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
