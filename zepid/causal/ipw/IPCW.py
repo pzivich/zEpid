@@ -107,7 +107,8 @@ class IPCW:
             lf['tdiff_zepid'] != 0].copy()  # gets rid of censored at absolute time point (ex. censored at time 10)
         lf.loc[lf['tdiff_zepid'] > 1, 'delta_indicator_zepid'] = 0
         lf.loc[((lf['tdiff_zepid'] <= 1) & (lf[event] == 0)), 'delta_indicator_zepid'] = 0
-        lf.loc[((lf['tdiff_zepid'] <= 1) & (lf[event] == 1)), 'delta_indicator_zepid'] = 1
+        lf.loc[((lf['tdiff_zepid'] <= 1) & (lf[event] == 1) & (lf[idvar] != lf[idvar].shift(-1))),
+               'delta_indicator_zepid'] = 1
         lf['t_enter_zepid'] = lf['tpoint_zepid']
         lf['t_out_zepid'] = np.where(lf['tdiff_zepid'] < 1, lf[time], lf['t_enter_zepid'] + 1)
         lf['uncensored_zepid'] = np.where((lf[idvar] != lf[idvar].shift(-1)) & (lf['delta_indicator_zepid'] == 0), 0, 1)
@@ -134,8 +135,8 @@ class IPCW:
             print('\tTotal t output:', np.sum(lf.loc[(lf[idvar] != lf[idvar].shift(-1))]['t_out']))
         else:
             print('\tLate in input:', np.sum(cf[enter] != 0))
-            print('\tLate in output:', np.sum(lf.loc[((lf['t_enter'] != 0) & (lf[idvar] != lf[idvar].shift(-1)))]))
+            print('\tLate in output:', np.sum(np.where((lf['t_enter'] != 0) & (lf[idvar] != lf[idvar].shift(1)), 1, 0)))
             print('\tTotal t input:', np.sum(cf[time] - cf[enter]))
-            print('\tTotal t output:', lf.shape[0])
+            print('\tTotal t output:', np.sum(lf['t_out'] - lf['t_enter']))
         return lf
 
