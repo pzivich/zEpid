@@ -4,7 +4,7 @@
 
 Causal
 '''''''''''''''''''''''''''''''''
-*zEpid* includes several different causal method implementions. This section is sub-divided into two sections;
+*zEpid* includes several different causal method implementations. This section is sub-divided into two sections;
 time-fixed exposures and time-varying exposures.
 
 Time-Fixed Exposures
@@ -31,7 +31,7 @@ Currently, all implementations of the g-formula in *zEpid* are parametric implem
 logistic regression for binary outcomes and ``statsmodels`` linear regression for continuous outcomes.
 
 To implement the g-formula in the time fixed setting, the ``TimeFixedGFormula`` class is imported from
-``zepid.causal.gformula``. The class is initialized with the dataset of interest, the exposure, the outcome, and the
+``zepid.causal.gformula``. The class is initialized with the data set of interest, the exposure, the outcome, and the
 variable type of the outcome. Currently, only binary or continuous outcomes are implemented. Once initialized, the
 parametric outcome model is specified. After we specify the outcome model, we can obtain our marginal estimates for the
 outcome. I recommend reviewing Snowden et al 2011 for an introduction and further information.
@@ -426,10 +426,60 @@ code
 Again, this code may take a little while to run since 1000 regression models are fit (500 exposure models, 500 outcome
 models).
 
+Targeted Maximum Likelihood Estimation
+--------------------------------------------
+TMLE is a doubly robust method proposed by van der Laan
+(`van der Laan MJ, Rubin D 2006 <https://biostats.bepress.com/ucbbiostat/paper213/>`_). You can read the following
+papers for an introduction to TMLE
+
+`Gruber S, van der Laan MJ <https://biostats.bepress.com/ucbbiostat/paper252/>`_
+
+`Schuler MS, Rose S 2017 <https://www.ncbi.nlm.nih.gov/pubmed/27941068>`_
+
+Currently, only a simple TMLE is implemented. Future work will include variable selection procedures and allow
+predictions to be generated with machine learning algorithms (or other user models). For now, we will go through a
+simple (naive) TMLE.
+
+First, the data is loaded and prepared
+
+.. code:: python
+
+  df = ze.load_sample_data(False)
+  df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+
+Next, the ``zepid.causal.doublyrobust.TMLE`` class is initialized. It is initialized with the pandas dataframe
+containing the data, column name of the exposure, and column name of the outcome
+
+  from zepid.causal.doublyrobust import TMLE
+  tmle = TMLE(df, exposure='art', outcome='dead')
+
+After initialization, the exposure model and outcome models are specified. This is the same process as the Augmented
+Inverse Probability Weight fitting procedure.
+
+.. code:: python
+
+  tm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                    print_model_results=False)
+  tm.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                   print_model_results=False)
+
+After both models are specified the TMLE model can be fit. Results can be printed to the console via ``TMLE.summary()``
+
+.. code:: python
+
+  tm.fit()
+  tm.summary()
+
+I am still learning about TMLE and some of the background processes. The confidence intervals come from influence
+curves. You can see the step-by-step process of basically what ``zepid.causal.doublyrobust.TMLE`` calculates in the
+following `LINK <https://migariane.github.io/TMLE.nb.html>`_
+
+Only the risk difference is supported. I need to find more information to calculate the risk ratio
+
 Comparison between methods
 ----------------------------------------
 For fun, we can demonstrate a comparison between the different methods implemented in ``zepid.causal``. We will display
-these results using the ``zepid.graphics.effectmeasure_plot()`` for both Risk Difference and Risk Ratio
+these results using ``zepid.graphics.EffectMeasurePlot`` for both Risk Difference and Risk Ratio
 
 .. code:: python
 
