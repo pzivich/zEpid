@@ -5,7 +5,10 @@
 Calculator
 =====================================
 
-*zEpid* includes some basic calculations which can be called directly from the ``calc`` branch. Functions within this branch are generally used in other functions.
+*zEpid* includes some basic calculations which can be called directly from the ``calc`` branch. Functions within this
+branch are generally used in other functions. There were substantial changes to function names in version 0.3.0 and
+onward. All below documentation reflects version 0.3.0 and onward. For previous versions, please check previous
+documentation
 
 Measure of Association/Effect
 '''''''''''''''''''''''''''''''''
@@ -17,7 +20,7 @@ Risk ratio
 .. code:: python
 
    import zepid as ze
-   ze.calc.rr(12,25,193,253)
+   ze.calc.risk_ratio(12,25,193,253)
 
 Which will return the following
 
@@ -48,25 +51,25 @@ Risk Difference
 
 .. code:: python
 
-   ze.calc.rd(12,25,193,253)
+   ze.calc.risk_difference(12,25,193,253)
 
 Number needed to Treat
 
 .. code:: python
 
-   ze.calc.nnt(12,25,193,253)
+   ze.calc.number_needed_to_treat(12,25,193,253)
 
 Odds Ratio
 
 .. code:: python
 
-   ze.calc.oddr(12,25,193,253)
+   ze.calc.odds_ratio(12,25,193,253)
 
-Incidence Rate Ratio
+Incidence Rate Difference
 
 .. code:: python
 
-   ze.calc.ird(12,25,1093,2310)
+   ze.calc.incidence_rate_difference(12,25,1093,2310)
 
 .. code::
 
@@ -93,20 +96,20 @@ Incidence Rate Ratio
 
 .. code:: python
 
-   ze.calc.irr(12,25,1093,2310)
+   ze.calc.incidence_rate_ratio(12,25,1093,2310)
 
 Attributable Community Risk
 
 .. code:: python
 
-   ze.calc.acr(12,25,193,253)
+   ze.calc.attributable_community_risk(12,25,193,253)
 
 
 Population Attributable Fraction
 
 .. code:: python
 
-   ze.calc.paf(12,25,193,253)
+   ze.calc.population_attributable_fraction(12,25,193,253)
 
 
 Test Calculations
@@ -171,7 +174,7 @@ Converting odds to proportions
 
 .. code:: python
 
-   ze.calc.odds_to_prop(1.1)
+   ze.calc.odds_to_probability(1.1)
 
 
 Converting proportions to odds
@@ -179,15 +182,6 @@ Converting proportions to odds
 .. code:: python
  
 
-   ze.calc.prop_to_odds(0.2)
-
-
-
-Standardized Mean Difference
-
-.. code:: python
-
-   ze.calc.stand_mean_diff(93,87,1.3,1.6,0.14,0.32)
-
+   ze.calc.probability_to_odds(0.2)
 
 If you have additional items you believe would make a good addition to the calculator functions, or *zEpid* in general, please reach out to us on GitHub
