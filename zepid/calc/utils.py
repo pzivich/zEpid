@@ -1,9 +1,6 @@
 import warnings
 import math
-from tabulate import tabulate
 from scipy.stats import norm
-
-# TODO update documentation (on what it returns)
 
 
 def risk_ci(events, total, alpha=0.05, confint='wald'):
@@ -11,7 +8,7 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
     relies on the Central Limit Theorem, so there must be at least 5 events
     and 5 nonevents
 
-    Returns a list of  risk, lower CL, upper CL, SE
+    Returns (risk, lower CL, upper CL, SE)
 
     events:
         -Number of events/outcomes that occurred
@@ -44,7 +41,7 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
 def incidence_rate_ci(events, time, alpha=0.05):
     """Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
 
-    Returns a list of lower CL, incidence rate, upper CL
+    Returns (incidence rate, lower CL, upper CL, SE)
 
     events:
         -number of events/outcomes that occurred
@@ -65,7 +62,7 @@ def incidence_rate_ci(events, time, alpha=0.05):
 def risk_ratio(a, b, c, d, alpha=0.05):
     """Calculates the Risk Ratio from count data.
 
-    Returns a list of lower CL, risk ratio, upper CL
+    Returns (risk ratio, lower CL, upper CL, SE)
 
     a:
         -count of exposed individuals with outcome
@@ -96,7 +93,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
 def risk_difference(a, b, c, d, alpha=0.05):
     """Calculates the Risk Difference from count data.
 
-    Returns a list of lower CL, risk difference, upper CL
+    Returns (risk difference, lower CL, upper CL, SE)
 
     a:
         -count of exposed individuals with outcome
@@ -126,7 +123,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
 def number_needed_to_treat(a, b, c, d, alpha=0.05):
     """Calculates the Number Needed to Treat from count data
 
-    Returns a list of lower CL, number needed to treat, upper CL
+    Returns (NNT, lower CL, upper CL, SE)
 
     a:
         -count of exposed individuals with outcome
@@ -168,7 +165,7 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
 def odds_ratio(a, b, c, d, alpha=0.05):
     """Calculates the Odds Ratio from count data
 
-    Returns a list of lower CL, odds ratio, upper CL
+    Returns (Odds Ratio, lower CL, upper CL, SE)
 
     a:
         -count of exposed individuals with outcome
@@ -199,7 +196,7 @@ def odds_ratio(a, b, c, d, alpha=0.05):
 def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     """Calculates the Incidence Rate Ratio from count data
 
-    Returns a list of lower CL, incidence rate ratio, upper CL
+    Returns (incidence rate ratio, lower CL, upper CL, SE)
 
     a:
         -count of exposed with outcome
@@ -230,7 +227,7 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
 def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     """Calculates the Incidence Rate Difference from count data
 
-    Returns a list of lower CL, incidence rate difference, upper CL
+    Returns (incidence rate difference, lower CL, upper CL, SE)
 
     a:
         -count of exposed with outcome
@@ -257,12 +254,12 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     return irated, lcl, ucl, sd
 
 
-def attributable_community_risk(a, b, c, d, decimal=3):
+def attributable_community_risk(a, b, c, d):
     """Calculates the estimated Attributable Community Risk (ACR) from count data. ACR is also
     known as Population Attributable Risk. Since this is commonly confused with the population
     attributable fraction, the name ACR is used to clarify differences in the formulas
 
-    Return the attributable community risk
+    Return attributable community risk
 
     a:
         -count of exposed individuals with outcome
@@ -272,8 +269,6 @@ def attributable_community_risk(a, b, c, d, decimal=3):
         -count of exposed individuals without outcome
     d:
         -count of unexposed individuals without outcome
-    decimal:
-        -amount of decimal points to display. Default is 3
     """
     if (a < 0) or (b < 0) or (c < 0) or (d < 0):
         raise ValueError('All numbers must be positive')
@@ -282,7 +277,7 @@ def attributable_community_risk(a, b, c, d, decimal=3):
     return rt - r0
 
 
-def population_attributable_fraction(a, b, c, d, decimal=3):
+def population_attributable_fraction(a, b, c, d):
     """Calculates the Population Attributable Fraction from count data
 
     Returns population attribuable fraction
@@ -295,8 +290,6 @@ def population_attributable_fraction(a, b, c, d, decimal=3):
         -count of exposed individuals without outcome
     d:
         -count of unexposed individuals without outcome
-    decimal:
-        -amount of decimal points to display. Default is 3
     """
     if (a < 0) or (b < 0) or (c < 0) or (d < 0):
         raise ValueError('All numbers must be positive')
@@ -380,7 +373,7 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     used in this calculation. Additionally, this calculation can only handle normally distributed
     priors and observed
 
-    Returns posterior lower CL, posterior mean, posterior upper CL
+    Returns (posterior mean, posterior lower CL, posterior upper CL)
 
     prior_mean:
         -Prior designated point estimate
@@ -459,14 +452,14 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     print(str(round((1 - alpha) * 100, 1)) + '% Posterior Probability Interval: (', round(post_lcl, decimal), ', ',
           round(post_ucl, decimal), ')')
     print('----------------------------------------------------------------------\n')
-    return [post_lcl, post_mean, post_ucl]
+    return [post_mean, post_lcl, post_ucl]
 
 
 def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     """
     Calculate the Sensitivity from number of detected cases and the number of total true cases.
 
-    Returns lower CL, sensitivity, upper CL
+    Returns (sensitivity, lower CL, upper CL, SE)
 
     detected:
         -number of true cases detected via testing criteria
@@ -501,7 +494,7 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
     """
     Calculate the Sensitivity from number of detected cases and the number of total true cases.
 
-    Returns lower CL, specifity, upper CL
+    Returns (specificity, lower CL, upper CL, SE)
 
     detected:
         -number of false cases detected via testing criteria
@@ -535,7 +528,7 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
 def ppv_converter(sensitivity, specificity, prevalence):
     """Generates the Positive Predictive Value from designated Sensitivity, Specificity, and Prevalence.
 
-    Returns the positive predictive value
+    Returns positive predictive value
 
     sensitivity:
         -sensitivity of the criteria
@@ -557,7 +550,7 @@ def ppv_converter(sensitivity, specificity, prevalence):
 def npv_converter(sensitivity, specificity, prevalence):
     """Generates the Negative Predictive Value from designated Sensitivity, Specificity, and Prevalence.
 
-    Returns the negative predictive value
+    Returns negative predictive value
 
     sensitivity:
         -sensitivity of the criteria

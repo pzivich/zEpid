@@ -7,17 +7,19 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 from tabulate import tabulate
+
 from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat,
                               odds_ratio, incidence_rate_difference, incidence_rate_ratio, sensitivity, specificity)
+
 
 # TODO add plot function
 
 
 class RiskRatio:
-    """Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by
-    this function.
+    """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
+    ignored.
 
-    WARNING: Exposure & Outcome must be coded as (1: yes, 0:no). Only works for binary exposures and outcomes
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
 
     def __init__(self, reference=0, alpha=0.05):
@@ -44,6 +46,8 @@ class RiskRatio:
 
     def fit(self, df, exposure, outcome):
         """
+        Calculates the Risk Ratio
+
         df:
             -pandas dataframe containing variables of interest
         exposure:
@@ -138,19 +142,15 @@ class RiskRatio:
 
 
 class RiskDifference:
-    """
-    Documentation
+    """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
+    ignored.
+
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         reference:
-            -reference category for comparisons
+            -reference category for comparisons. Default is zero
         alpha:
             -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
@@ -171,6 +171,8 @@ class RiskDifference:
 
     def fit(self, df, exposure, outcome):
         """
+        Calculates the Risk Difference
+
         df:
             -pandas dataframe containing variables of interest
         exposure:
@@ -241,7 +243,7 @@ class RiskDifference:
 
     def summary(self, decimal=3):
         """
-        prints the summary results
+        Prints the summary results
 
         decimal:
             -amount of decimal points to display. Default is 3
@@ -265,18 +267,13 @@ class RiskDifference:
 
 
 class NNT:
-    """
-    Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
-    Altman, DG (BMJ 1998). Missing data is ignored by this function.
+    """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
+    Altman, DG (BMJ 1998). Missing data is ignored.
+
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         reference:
             -reference category for comparisons
         alpha:
@@ -298,6 +295,8 @@ class NNT:
 
     def fit(self, df, exposure, outcome):
         """
+        Calculates the NNT
+
         df:
             -pandas dataframe containing variables of interest
         exposure:
@@ -387,8 +386,9 @@ class NNT:
 
 
 class OddsRatio:
-    """
-    Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored by this function.
+    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
 
     def __init__(self, reference=0, alpha=0.05):
@@ -414,6 +414,8 @@ class OddsRatio:
 
     def fit(self, df, exposure, outcome):
         """
+        Calculates the Odds Ratio
+
         df:
             -pandas dataframe containing variables of interest
         exposure:
@@ -489,8 +491,9 @@ class OddsRatio:
 
 
 class IncidenceRateRatio:
-    """
-    Documentation
+    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
@@ -517,6 +520,8 @@ class IncidenceRateRatio:
 
     def fit(self, df, exposure, outcome, time):
         """
+        Calculate the Incidence Rate Ratio
+
         df:
             -pandas dataframe containing variables of interest
         exposure:
@@ -613,8 +618,9 @@ class IncidenceRateRatio:
 
 
 class IncidenceRateDifference:
-    """
-    Documentation
+    """Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
@@ -641,6 +647,8 @@ class IncidenceRateDifference:
 
     def fit(self, df, exposure, outcome, time):
         """
+        Calculates the Incidence Rate Difference
+
         df:
             -pandas dataframe containing variables of interest
         exposure:
@@ -756,6 +764,8 @@ class Sensitivity:
 
     def fit(self, df, test, disease):
         """
+        Calculates the Sensitivity
+
         df:
             -pandas dataframe containing variables of interest
         test:
@@ -781,7 +791,7 @@ class Sensitivity:
 
     def summary(self, decimal=3):
         """
-        prints the summary results
+        Prints the summary results
 
         decimal:
             -amount of decimal points to display. Default is 3
@@ -815,6 +825,8 @@ class Specificity:
 
     def fit(self, df, test, disease):
         """
+        Calculates the Specificity
+
         df:
             -pandas dataframe containing variables of interest
         test:
@@ -840,7 +852,7 @@ class Specificity:
 
     def summary(self, decimal=3):
         """
-        prints the summary results
+        Prints the summary results
 
         decimal:
             -amount of decimal points to display. Default is 3
@@ -855,8 +867,10 @@ class Specificity:
 
 
 class Diagnostics:
-    """
-    Estimate Sensitivity and Specificity simultaneously
+    """Generates the Sensitivity, Specificity, and the corresponding (1-alpha)% confidence intervals, comparing test
+    results to disease status from pandas dataframe
+
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
     """
     def __init__(self, alpha=0.05):
         """
@@ -875,6 +889,8 @@ class Diagnostics:
 
     def fit(self, df, test, disease):
         """
+        Calculates the Sensitivity and Specificity
+
         df:
             -pandas dataframe containing variables of interest
         test:
@@ -890,6 +906,12 @@ class Diagnostics:
         self.specificity.fit(df=df, test=test, disease=disease)
 
     def summary(self, decimal=3):
+        """
+        Prints the results
+
+        decimal:
+            -number of decimal places to display. Default is 3
+        """
         print(tabulate([['T+', self.sensitivity._a, self.sensitivity._b],
                         ['T-', self.specificity._c, self.specificity._d]],
                        headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
@@ -923,6 +945,8 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
     decimal:
         -Number of decimals to display in result. Default is 3
 
+
+    Example of Output)
                      Generalized Linear Model Regression Results
     ==============================================================================
     Dep. Variable:                      D   No. Observations:                  210
@@ -1114,6 +1138,8 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
          than the number of knots. An unrestricted spline returns the same number of columns as the number of knots.
          Default is False, providing an unrestricted spline
 
+
+    Example of Output)
            rspline0     rspline1   rspline2
     0   9839.409066  1234.154601   2.785600
     1    446.391437     0.000000   0.000000
@@ -1208,6 +1234,8 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
     decimal:
         -Number of decimals to display in the table. Default is 3
 
+
+    Example of Output)
     _                                D=0                             D=1
     __                           % / IQR           n             % / IQR          n
 
@@ -1225,10 +1253,9 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
              Missing                        0.000000                       0.000000
     var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
              Missing                        0.000000
-    >>>_.to_csv('path/filename.csv')
     """
-    # Unstratificed Table 1
-    if strat_by == None:
+    # Unstratified Table 1
+    if strat_by is None:
         rlist = []
         for i in cols:
             vn = cols.index(i)
@@ -1261,7 +1288,7 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
             return srf[['n / Mean', '% / SE']]
 
     # Stratified Table 1
-    if strat_by != None:
+    if strat_by is not None:
         v = df[strat_by].dropna().unique()
         slist = []
         nlist = []
