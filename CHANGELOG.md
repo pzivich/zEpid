@@ -1,11 +1,33 @@
 ### Change logs
 
+#### v0.3.0
+**BIG CHANGES**:
+
+To conform with PEP and for clarity, all association/effect measures on a pandas dataframe are now class statements. This makes them distinct from the summary data calculators. Additionally, it allows users to access any part of the results now, unlike the previous implementation. The SD can be pulled from the corresponds results dataframe. Please see the updated webiste for how to use the class statements.
+
+Name changes within the calculator branch. With the shift of the dataframe calculations to classes, now these functions are given more descriptive names. Additionally, all functions now return a list of the point estimate, SD, lower CL, upper CL. Please see the website for all the new function names
+
+Addition of Targeted Maximum Likelihood Estimator as zepid.causal.doublyrobust.TMLE
+
+**MINOR CHANGES**:
+Added datasets from;
+
+Glaubiger DL, Makuch R, Schwarz J, Levine AS, Johnson RE. Determination
+of prognostic factors and their influence on therapeutic results in patients with Ewing's sarcoma. Cancer.
+1980;45(8):2213-9 
+
+Keil AP, Edwards JK, Richardson DB, Naimi AI, Cole SR. The parametric g-formula for time-to-event 
+data: intuition and a worked example. Epidemiology. 2014;25(6):889-97
+
+Fixed spelling error for dynamic_risk_plot that I somehow missed (previously named dyanmic_risk plot...)
+
+Renamed func_form_plot to functional_form_plot (my abbreviations are bad, and version 0.3.0 should fix all this)
+
 #### 0.2.1
 
 TimeVaryGFormula speed-up: some background optimization to speed up TimeVaryGFormula. Changes include: pd.concat() 
-rather than pd.append() each loop . Wrote a simple implementation of statsmodels.predict() as _predict() that speeds up 
-the process. Shuffled around some statements to execute only once rather than multiple times. In some testing, I went 
-from 22 seconds to run to 3.4 seconds
+rather than pd.append() each loop . Shuffled around some statements to execute only once rather than multiple times. In 
+some testing, I went from 22 seconds to run to 3.4 seconds
 
 #### 0.2.0
 **BIG CHANGES**:

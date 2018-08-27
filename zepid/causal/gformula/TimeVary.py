@@ -3,7 +3,11 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
-from zepid.calc import odds_to_prop
+from zepid.calc import odds_to_probability
+
+
+# Speed testing the g-formula
+# TODO add check to see if making any weird patsy formulas
 
 
 class TimeVaryGFormula:
@@ -72,7 +76,6 @@ class TimeVaryGFormula:
         self._covariate = []
         self._covariate_type = []
         self._covariate_recode = []
-        self._covariate_se = []
         self.predicted_outcomes = None
 
     def exposure_model(self, model, restriction=None, print_results=True):
@@ -90,10 +93,6 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
-        if ('np.' in model) or ('*' in model) or (':' in model) or ('**' in model) or ('I(' in model):
-            raise ValueError('Due to the need to speed up some background processes, certain patsy process are not '
-                             'supported. Please make sure to recode all variables for the regression models, the '
-                             'input dataframe, and all the recodes during the Monte Carlo loop')
         g = self.gf.copy()
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
@@ -120,10 +119,6 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
-        if ('np.' in model) or ('*' in model) or (':' in model) or ('**' in model) or ('I(' in model):
-            raise ValueError('Due to the need to speed up some background processes, certain patsy process are not '
-                             'supported. Please make sure to recode all variables for the regression models, the '
-                             'input dataframe, and all the recodes during the Monte Carlo loop')
         g = self.gf.copy()
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
@@ -167,10 +162,6 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
-        if ('np.' in model) or ('*' in model) or (':' in model) or ('**' in model) or ('I(' in model):
-            raise ValueError('Due to the need to speed up some background processes, certain patsy process are not '
-                             'supported. Please make sure to recode all variables for the regression models, the '
-                             'input dataframe, and all the recodes during the Monte Carlo loop')
         if type(label) is not int:
             raise ValueError('Label must be an integer')
 
@@ -181,15 +172,12 @@ class TimeVaryGFormula:
         if var_type == 'binary':
             linkdist = sm.families.family.Binomial(sm.families.links.logit)
             m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
-            f = m.fit()
-            self._covariate_se.append(None)
         elif var_type == 'continuous':
             m = smf.gls(covariate + ' ~ ' + model, g)
-            f = m.fit()
-            self._covariate_se.append(np.std(f.resid))
         else:
             raise ValueError('Only binary or continuous covariates are currently supported')
 
+        f = m.fit()
         if print_results:
             print(f.summary())
 
@@ -244,7 +232,7 @@ class TimeVaryGFormula:
         # setting up some parts outside of Monte Carlo loop to speed things up
         mc_simulated_data = []
         g = gs.copy()
-        g['Intercept'] = 1  # this keeps intercept term for _predict()
+        g['Intercept'] = 1
         if len(self._covariate_models) != 0:
             cov_model_order = (sorted(range(len(self._covariate_model_index)),
                                       key=self._covariate_model_index.__getitem__))
@@ -295,13 +283,11 @@ class TimeVaryGFormula:
             # stacking simulated data in a list
             mc_simulated_data.append(g)
 
-        try:  # work-around for 0.23.0 update
-            gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)  # concatenating all that stacked data
-        except TypeError:
-            gs = pd.concat(mc_simulated_data, ignore_index=True)  # concatenating all that stacked data
-
-        self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome,
-                                      self.time_in, self.time_out] +
+        try:
+            gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
+        except TypeError:  # gets around pandas <0.22 error
+            gs = pd.concat(mc_simulated_data, ignore_index=True)
+        self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
                                      self._covariate].sort_values(by=['uid_g_zepid',
                                                                       self.time_in]).reset_index(drop=True)
 
@@ -311,14 +297,13 @@ class TimeVaryGFormula:
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
         """
-        # Commented out lines are compatible with patsy/statsmodels BUT are slower
+        # pp = df.mul(model.params).sum(axis=1)
+        pp = model.predict(df) # statsmodels.predict() is slightly slower than above, but above doesn't support patsy
         if variable == 'binary':
-            pred = np.random.binomial(1,
-                                      odds_to_prop(np.exp(df.mul(model.params).sum(axis=1))),
-                                      size=df.shape[0])
-            # model.predict(df),
-            # size=df.shape[0])
+            # pp = odds_to_probability(np.exp(pp))  # assumes a logit model. For non-statsmodel.predict() option
+            pred = np.random.binomial(1, pp, size=len(pp))
+        elif variable == 'continuous':
+            pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
         else:
-            pred = df.mul(model.params).sum(axis=1).add(se*np.random.normal(loc=0, scale=1, size=df.shape[0]))
-            # pred = model.predict(df).add(se*np.random.normal(loc=0, scale=1, size=df.shape[0]))
+            raise ValueError('That option is not supported')
         return pred

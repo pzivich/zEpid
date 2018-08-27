@@ -7,286 +7,921 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 from tabulate import tabulate
-from zepid.calc.utils import rr, rd, nnt, oddsratio, ird, irr, acr, paf, sensitivity, specificity
+
+from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat,
+                              odds_ratio, incidence_rate_difference, incidence_rate_ratio, sensitivity, specificity)
 
 
-def RiskRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Estimate of Relative Risk with a (1-alpha)*100% Confidence interval. Missing data is ignored by
-    this function.
+# TODO add plot function
 
-    WARNING: Exposure & Outcome must be coded as (1: yes, 0:no). Only works for binary exposures and outcomes
 
-    df:
-        -pandas dataframe containing variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
+class RiskRatio:
+    """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
+    ignored.
 
-    Example)
-    >>>zepid.RiskRatio(df=data,exposure='X',outcome='D')
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+
+    def __init__(self, reference=0, alpha=0.05):
+        """
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.reference = reference
+        self.alpha = alpha
+        self.risks = []
+        self.risk_ratio = []
+        self.results = None
+        self._a_list = []
+        self._b_list = []
+        self._c = None
+        self._d = None
+        self._labels = []
+        self._fit = False
+        self._missing_e = None
+        self._missing_d = None
+        self._missing_ed = None
+
+    def fit(self, df, exposure, outcome):
+        """
+        Calculates the Risk Ratio
+
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        """
+        # Setting up holders for results
+        risk_lcl = []
+        risk_ucl = []
+        risk_sd = []
+        rr_lcl = []
+        rr_ucl = []
+        rr_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(self.reference)
+        self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == self.reference) & (df[outcome] == 0)].shape[0]
+        self._labels.append('Ref:'+str(self.reference))
+        ri, lr, ur, sd = risk_ci(events=self._c, total=(self._c + self._d), alpha=self.alpha)
+        self.risks.append(ri)
+        risk_lcl.append(lr)
+        risk_ucl.append(ur)
+        risk_sd.append(sd)
+        self.risk_ratio.append(1)
+        rr_lcl.append(None)
+        rr_ucl.append(None)
+        rr_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            self._labels.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            self._a_list.append(a)
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            self._b_list.append(b)
+            ri, lr, ur, sd = risk_ci(events=a, total=(a+b), alpha=self.alpha)
+            self.risks.append(ri)
+            risk_lcl.append(lr)
+            risk_ucl.append(ur)
+            risk_sd.append(sd)
+            em, lcl, ucl, sd = risk_ratio(a=a, b=b, c=self._c, d=self._d, alpha=self.alpha)
+            self.risk_ratio.append(em)
+            rr_lcl.append(lcl)
+            rr_ucl.append(ucl)
+            rr_sd.append(sd)
+
+        # Getting the extent of missing data
+        self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
+        self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
+        self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+
+        # Setting up results
+        rf = pd.DataFrame(index=self._labels)
+        rf['Risk'] = self.risks
+        rf['SD(Risk)'] = risk_sd
+        rf['Risk_LCL'] = risk_lcl
+        rf['Risk_UCL'] = risk_ucl
+        rf['RiskRatio'] = self.risk_ratio
+        rf['SD(RR)'] = rr_sd
+        rf['RR_LCL'] = rr_lcl
+        rf['RR_UCL'] = rr_ucl
+        rf['CLR'] = rf['RR_UCL'] / rf['RR_LCL']
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        for a, b, l in zip(self._a_list, self._b_list, self._labels):
+            print('Comparison:'+str(self.reference)+' to '+self._labels[self._labels.index(l)+1])
+            print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        rr(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result, return_result=return_result)
+        print(self.results[['RiskRatio', 'SD(RR)', 'RR_LCL', 'RR_UCL']].round(decimals=decimal))
+        print('======================================================================')
+        print('Missing E:   ', self._missing_e)
+        print('Missing D:   ', self._missing_d)
+        print('Missing E&D: ', self._missing_ed)
+        print('======================================================================')
 
 
-def RiskDiff(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored by this
-    function.
+class RiskDifference:
+    """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
+    ignored.
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True, which prints the results
-    return_result:
-        -Whether to return the RD as a object. Default is False
-
-    Example)
-    >>>zepid.RiskDiff(df=data,exposure='X',outcome='D')
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+    def __init__(self, reference=0, alpha=0.05):
+        """
+        reference:
+            -reference category for comparisons. Default is zero
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.reference = reference
+        self.alpha = alpha
+        self.risks = []
+        self.risk_difference = []
+        self.results = None
+        self._a_list = []
+        self._b_list = []
+        self._c = None
+        self._d = None
+        self._labels = []
+        self._fit = False
+        self._missing_e = None
+        self._missing_d = None
+        self._missing_ed = None
+
+    def fit(self, df, exposure, outcome):
+        """
+        Calculates the Risk Difference
+
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        """
+        # Setting up holders for results
+        risk_lcl = []
+        risk_ucl = []
+        risk_sd = []
+        rd_lcl = []
+        rd_ucl = []
+        rd_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(self.reference)
+        self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == self.reference) & (df[outcome] == 0)].shape[0]
+        self._labels.append('Ref:' + str(self.reference))
+        ri, lr, ur, sd = risk_ci(events=self._c, total=(self._c + self._d), alpha=self.alpha)
+        self.risks.append(ri)
+        risk_lcl.append(lr)
+        risk_ucl.append(ur)
+        risk_sd.append(sd)
+        self.risk_difference.append(0)
+        rd_lcl.append(None)
+        rd_ucl.append(None)
+        rd_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            self._labels.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            self._a_list.append(a)
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            self._b_list.append(b)
+            ri, lr, ur, sd = risk_ci(events=a, total=(a + b), alpha=self.alpha)
+            self.risks.append(ri)
+            risk_lcl.append(lr)
+            risk_ucl.append(ur)
+            risk_sd.append(sd)
+            em, lcl, ucl, sd = risk_difference(a=a, b=b, c=self._c, d=self._d, alpha=self.alpha)
+            self.risk_difference.append(em)
+            rd_lcl.append(lcl)
+            rd_ucl.append(ucl)
+            rd_sd.append(sd)
+
+        # Getting the extent of missing data
+        self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
+        self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
+        self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+
+        # Setting up results
+        rf = pd.DataFrame(index=self._labels)
+        rf['Risk'] = self.risks
+        rf['SD(Risk)'] = risk_sd
+        rf['Risk_LCL'] = risk_lcl
+        rf['Risk_UCL'] = risk_ucl
+        rf['RiskDifference'] = self.risk_difference
+        rf['SD(RD)'] = rd_sd
+        rf['RD_LCL'] = rd_lcl
+        rf['RD_UCL'] = rd_ucl
+        rf['CLD'] = rf['RD_UCL'] - rf['RD_LCL']
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        Prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        for a, b, l in zip(self._a_list, self._b_list, self._labels):
+            print('Comparison:'+str(self.reference)+' to '+self._labels[self._labels.index(l)+1])
+            print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        rd(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result, return_result=return_result)
+        print(self.results[['RiskDifference', 'SD(RD)', 'RD_LCL', 'RD_UCL']].round(decimals=decimal))
+        print('======================================================================')
+        print('Missing E:   ', self._missing_e)
+        print('Missing D:   ', self._missing_d)
+        print('Missing E&D: ', self._missing_ed)
+        print('======================================================================')
 
 
-def NNT(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
+class NNT:
     """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
-    Altman, DG (BMJ 1998). Missing data is ignored by this function.
+    Altman, DG (BMJ 1998). Missing data is ignored.
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no).
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the NNT as a object. Default is False
-
-        Example)
-    >>>zepid.NNT(df=data,exposure='X',outcome='D')
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
-        print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
-        print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        nnt(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result, return_result=return_result)
+    def __init__(self, reference=0, alpha=0.05):
+        """
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.reference = reference
+        self.alpha = alpha
+        self.number_needed_to_treat = []
+        self.results = None
+        self._a_list = []
+        self._b_list = []
+        self._c = None
+        self._d = None
+        self._labels = []
+        self._fit = False
+        self._missing_e = None
+        self._missing_d = None
+        self._missing_ed = None
+
+    def fit(self, df, exposure, outcome):
+        """
+        Calculates the NNT
+
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        """
+        # Setting up holders for results
+        nnt_lcl = []
+        nnt_ucl = []
+        nnt_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(self.reference)
+        self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == self.reference) & (df[outcome] == 0)].shape[0]
+        self._labels.append('Ref:' + str(self.reference))
+        self.number_needed_to_treat.append(math.inf)
+        nnt_lcl.append(None)
+        nnt_ucl.append(None)
+        nnt_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            self._labels.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            self._a_list.append(a)
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            self._b_list.append(b)
+            em, lcl, ucl, sd = number_needed_to_treat(a=a, b=b, c=self._c, d=self._d, alpha=self.alpha)
+            self.number_needed_to_treat.append(em)
+            nnt_lcl.append(lcl)
+            nnt_ucl.append(ucl)
+            nnt_sd.append(sd)
+
+        # Getting the extent of missing data
+        self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
+        self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
+        self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+
+        # Setting up results
+        rf = pd.DataFrame(index=self._labels)
+        rf['NNT'] = self.number_needed_to_treat
+        rf['SD(RD)'] = nnt_sd
+        rf['NNT_LCL'] = nnt_lcl
+        rf['NNT_UCL'] = nnt_ucl
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        for i, r in self.results.iterrows():
+            if i == self._labels[0]:
+                pass
+            else:
+                print('======================================================================')
+                if r['NNT'] == math.inf:
+                    print('Number Needed to Treat = infinite')
+                else:
+                    if r['NNT'] > 0:
+                        print('Number Needed to Harm: ', round(abs(r['NNT']), decimal))
+                    if r['NNT'] < 0:
+                        print('Number Needed to Treat: ', round(abs(r['NNT']), decimal))
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: ')
+                if r['NNT_LCL'] < 0 < r['NNT_UCL']:
+                    print('NNT ', round(abs(r['NNT_LCL']), decimal), 'to infinity to NNH ',
+                          round(abs(r['NNT_UCL']), decimal))
+                elif 0 < r['NNT_LCL']:
+                    print('NNT ', round(abs(r['NNT_LCL']), decimal), ' to ', round(abs(r['NNT_UCL']), decimal))
+                else:
+                    print('NNH ', round(abs(r['NNT_LCL']), decimal), ' to ', round(abs(r['NNT_UCL']), decimal))
+                print('======================================================================')
+                print('======================================================================')
+                print('Missing E:   ', self._missing_e)
+                print('Missing D:   ', self._missing_d)
+                print('Missing E&D: ', self._missing_ed)
+                print('======================================================================')
 
 
-def OddsRatio(df, exposure, outcome, reference=0, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored by this function.
+class OddsRatio:
+    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no).
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
-
-    Example)
-    >>>zepid.OddsRatio(df=data,exposure='X',outcome='D')
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == reference) & (df[outcome] == 0)].shape[0]
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+
+    def __init__(self, reference=0, alpha=0.05):
+        """
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.reference = reference
+        self.alpha = alpha
+        self.odds_ratio = []
+        self.results = None
+        self._a_list = []
+        self._b_list = []
+        self._c = None
+        self._d = None
+        self._labels = []
+        self._fit = False
+        self._missing_e = None
+        self._missing_d = None
+        self._missing_ed = None
+
+    def fit(self, df, exposure, outcome):
+        """
+        Calculates the Odds Ratio
+
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        """
+        # Setting up holders for results
+        odr_lcl = []
+        odr_ucl = []
+        odr_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(self.reference)
+        self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
+        self._d = df.loc[(df[exposure] == self.reference) & (df[outcome] == 0)].shape[0]
+        self._labels.append('Ref:'+str(self.reference))
+        self.odds_ratio.append(1)
+        odr_lcl.append(None)
+        odr_ucl.append(None)
+        odr_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            self._labels.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            self._a_list.append(a)
+            b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
+            self._b_list.append(b)
+            em, lcl, ucl, sd = odds_ratio(a=a, b=b, c=self._c, d=self._d, alpha=self.alpha)
+            self.odds_ratio.append(em)
+            odr_lcl.append(lcl)
+            odr_ucl.append(ucl)
+            odr_sd.append(sd)
+
+        # Getting the extent of missing data
+        self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
+        self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
+        self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+
+        # Setting up results
+        rf = pd.DataFrame(index=self._labels)
+        rf['OddsRatio'] = self.odds_ratio
+        rf['SD(OR)'] = odr_sd
+        rf['OR_LCL'] = odr_lcl
+        rf['OR_UCL'] = odr_ucl
+        rf['CLR'] = rf['OR_UCL'] / rf['OR_LCL']
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        for a, b, l in zip(self._a_list, self._b_list, self._labels):
+            print('Comparison:'+str(self.reference)+' to '+self._labels[self._labels.index(l)+1])
+            print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['OddsRatio', 'SD(OR)', 'OR_LCL', 'OR_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
-        oddsratio(a=a, b=b, c=c, d=d, alpha=alpha, decimal=decimal, print_result=print_result,
-                  return_result=return_result)
+        print('Missing E:   ', self._missing_e)
+        print('Missing D:   ', self._missing_d)
+        print('Missing E&D: ', self._missing_ed)
+        print('======================================================================')
 
 
-def IncRateRatio(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3, print_result=True,
-                 return_result=False):
-    """Produces the estimate of the Incidence Rate Ratio with a (1-*alpha)*100% Confidence Interval.
-    Missing data is ignored by this function.
+class IncidenceRateRatio:
+    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 (1: yes, 0: no).
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    time:
-        -column name of person-time contributed by each individual. Must all be greater than 0
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    time_c = df.loc[df[exposure] == reference][time].sum()
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+    def __init__(self, reference=0, alpha=0.05):
+        """
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.reference = reference
+        self.alpha = alpha
+        self.incidence_rate = []
+        self.incidence_rate_ratio = []
+        self.results = None
+        self._a_list = []
+        self._a_time_list = []
+        self._c = None
+        self._c_time = None
+        self._labels = []
+        self._fit = False
+        self._missing_e = None
+        self._missing_d = None
+        self._missing_ed = None
+        self._missing_t = None
+
+    def fit(self, df, exposure, outcome, time):
+        """
+        Calculate the Incidence Rate Ratio
+
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        """
+        # Setting up holders for results
+        ir_lcl = []
+        ir_ucl = []
+        ir_sd = []
+        irr_lcl = []
+        irr_ucl = []
+        irr_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(self.reference)
+        self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
+        self._c_time = df.loc[df[exposure] == self.reference][time].sum()
+        self._labels.append('Ref:'+str(self.reference))
+        ri, lr, ur, sd = incidence_rate_ci(events=self._c, time=self._c_time, alpha=self.alpha)
+        self.incidence_rate.append(ri)
+        ir_lcl.append(lr)
+        ir_ucl.append(ur)
+        ir_sd.append(sd)
+        self.incidence_rate_ratio.append(1)
+        irr_lcl.append(None)
+        irr_ucl.append(None)
+        irr_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            self._labels.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            self._a_list.append(a)
+            a_t = df.loc[df[exposure] == i][time].sum()
+            self._a_time_list.append(a_t)
+            ri, lr, ur, sd = incidence_rate_ci(events=a, time=a_t, alpha=self.alpha)
+            self.incidence_rate.append(ri)
+            ir_lcl.append(lr)
+            ir_ucl.append(ur)
+            ir_sd.append(sd)
+            em, lcl, ucl, sd = incidence_rate_ratio(a=a, t1=a_t, c=self._c, t2=self._c_time, alpha=self.alpha)
+            self.incidence_rate_ratio.append(em)
+            irr_lcl.append(lcl)
+            irr_ucl.append(ucl)
+            irr_sd.append(sd)
+
+        # Getting the extent of missing data
+        self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
+        self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
+        self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+        self._missing_t = df.loc[df[time].isnull()].shape[0]
+
+        # Setting up results
+        rf = pd.DataFrame(index=self._labels)
+        rf['IncRate'] = self.incidence_rate
+        rf['SD(IncRate)'] = ir_sd
+        rf['IncRate_LCL'] = ir_lcl
+        rf['IncRate_UCL'] = ir_ucl
+        rf['IncRateRatio'] = self.incidence_rate_ratio
+        rf['SD(IRR)'] = irr_sd
+        rf['IRR_LCL'] = irr_lcl
+        rf['IRR_UCL'] = irr_ucl
+        rf['CLR'] = rf['IRR_UCL'] / rf['IRR_LCL']
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        for a, a_t, l in zip(self._a_list, self._a_time_list, self._labels):
+            print('Comparison:'+str(self.reference)+' to '+self._labels[self._labels.index(l)+1])
+            print(tabulate([['E=1', a, a_t], ['E=0', self._c, self._c_time]], headers=['', 'D=1', 'Person-time'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['IncRate', 'SD(IncRate)', 'IncRate_LCL', 'IncRate_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        time_a = df.loc[df[exposure] == i][time].sum()
-        irr(a=a, c=c, t1=time_a, t2=time_c, alpha=alpha, decimal=decimal, print_result=print_result,
-            return_result=return_result)
+        print(self.results[['IncRateRatio', 'SD(IRR)', 'IRR_LCL', 'IRR_UCL']].round(decimals=decimal))
+        print('======================================================================')
+        print('Missing E:   ', self._missing_e)
+        print('Missing D:   ', self._missing_d)
+        print('Missing E&D: ', self._missing_ed)
+        print('Missing T:   ', self._missing_t)
+        print('======================================================================')
 
 
-def IncRateDiff(df, exposure, outcome, time, reference=0, alpha=0.05, decimal=3, print_result=True,
-                return_result=False):
-    """Produces the estimate of the Incidence Rate Difference with a (1-alpha)*100% confidence interval.
-    Missing data is ignored by this function.
+class IncidenceRateDifference:
+    """Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 (1: yes, 0: no)
-
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    time:
-        -column name of person-time contributed by individual. Must be greater than 0
-    reference:
-        -reference category for comparisons
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the RR as a object. Default is False
+    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
-    c = df.loc[(df[exposure] == reference) & (df[outcome] == 1)].shape[0]
-    time_c = df.loc[df[exposure] == reference][time].sum()
-    vals = set(df[exposure].dropna().unique())
-    vals.remove(reference)
-    for i in vals:
+    def __init__(self, reference=0, alpha=0.05):
+        """
+        reference:
+            -reference category for comparisons
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.reference = reference
+        self.alpha = alpha
+        self.incidence_rate = []
+        self.incidence_rate_difference = []
+        self.results = None
+        self._a_list = []
+        self._a_time_list = []
+        self._c = None
+        self._c_time = None
+        self._labels = []
+        self._fit = False
+        self._missing_e = None
+        self._missing_d = None
+        self._missing_ed = None
+        self._missing_t = None
+
+    def fit(self, df, exposure, outcome, time):
+        """
+        Calculates the Incidence Rate Difference
+
+        df:
+            -pandas dataframe containing variables of interest
+        exposure:
+            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
+        outcome:
+            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        """
+        # Setting up holders for results
+        ir_lcl = []
+        ir_ucl = []
+        ir_sd = []
+        ird_lcl = []
+        ird_ucl = []
+        ird_sd = []
+
+        # Getting unique values and dropping reference
+        vals = set(df[exposure].dropna().unique())
+        vals.remove(self.reference)
+        self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
+        self._c_time = df.loc[df[exposure] == self.reference][time].sum()
+        self._labels.append('Ref:'+str(self.reference))
+        ri, lr, ur, sd = incidence_rate_ci(events=self._c, time=self._c_time, alpha=self.alpha)
+        self.incidence_rate.append(ri)
+        ir_lcl.append(lr)
+        ir_ucl.append(ur)
+        ir_sd.append(sd)
+        self.incidence_rate_difference.append(0)
+        ird_lcl.append(None)
+        ird_ucl.append(None)
+        ird_sd.append(None)
+
+        # Going through all the values
+        for i in vals:
+            self._labels.append(str(i))
+            a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
+            self._a_list.append(a)
+            a_t = df.loc[df[exposure] == i][time].sum()
+            self._a_time_list.append(a_t)
+            ri, lr, ur, sd = incidence_rate_ci(events=a, time=a_t, alpha=self.alpha)
+            self.incidence_rate.append(ri)
+            ir_lcl.append(lr)
+            ir_ucl.append(ur)
+            ir_sd.append(sd)
+            em, lcl, ucl, sd = incidence_rate_difference(a=a, t1=a_t, c=self._c, t2=self._c_time, alpha=self.alpha)
+            self.incidence_rate_difference.append(em)
+            ird_lcl.append(lcl)
+            ird_ucl.append(ucl)
+            ird_sd.append(sd)
+
+        # Getting the extent of missing data
+        self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
+        self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
+        self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+        self._missing_t = df.loc[df[time].isnull()].shape[0]
+
+        # Setting up results
+        rf = pd.DataFrame(index=self._labels)
+        rf['IncRate'] = self.incidence_rate
+        rf['SD(IncRate)'] = ir_sd
+        rf['IncRate_LCL'] = ir_lcl
+        rf['IncRate_UCL'] = ir_ucl
+        rf['IncRateDiff'] = self.incidence_rate_difference
+        rf['SD(IRD)'] = ird_sd
+        rf['IRD_LCL'] = ird_lcl
+        rf['IRD_UCL'] = ird_ucl
+        rf['CLD'] = rf['IRD_UCL'] - rf['IRD_LCL']
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        for a, a_t, l in zip(self._a_list, self._a_time_list, self._labels):
+            print('Comparison:'+str(self.reference)+' to '+self._labels[self._labels.index(l)+1])
+            print(tabulate([['E=1', a, a_t], ['E=0', self._c, self._c_time]], headers=['', 'D=1', 'Person-time'],
+                           tablefmt='grid'), '\n')
         print('======================================================================')
-        print('Comparing ' + exposure + '=' + str(i) + ' to ' + exposure + '=' + str(reference))
+        print(self.results[['IncRate', 'SD(IncRate)', 'IncRate_LCL', 'IncRate_UCL']].round(decimals=decimal))
         print('======================================================================')
-        a = df.loc[(df[exposure] == i) & (df[outcome] == 1)].shape[0]
-        time_a = df.loc[df[exposure] == i][time].sum()
-        ird(a=a, c=c, t1=time_a, t2=time_c, alpha=alpha, decimal=decimal, print_result=print_result,
-            return_result=return_result)
+        print(self.results[['IncRateDiff', 'SD(IRD)', 'IRD_LCL', 'IRD_UCL']].round(decimals=decimal))
+        print('======================================================================')
+        print('Missing E:   ', self._missing_e)
+        print('Missing D:   ', self._missing_d)
+        print('Missing E&D: ', self._missing_ed)
+        print('Missing T:   ', self._missing_t)
+        print('======================================================================')
 
 
-def ACR(df, exposure, outcome, decimal=3):
-    """Produces the estimated Attributable Community Risk (ACR). ACR is also known as Population Attributable
-    Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used to
-    clarify differences in the formulas. Missing data is ignored by this function.
+class Sensitivity:
+    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
+    from pandas dataframe
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
-
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    decimal:
-        -amount of decimal points to display. Default is 3
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
     """
-    a = df.loc[(df[exposure] == 1) & (df[outcome] == 1)].shape[0]
-    b = df.loc[(df[exposure] == 1) & (df[outcome] == 0)].shape[0]
-    c = df.loc[(df[exposure] == 0) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == 0) & (df[outcome] == 0)].shape[0]
-    acr(a=a, b=b, c=c, d=d, decimal=decimal)
+    def __init__(self, alpha=0.05):
+        """
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.alpha = alpha
+        self.sensitivity = None
+        self.results = None
+        self._fit = False
+        self._a = None
+        self._b = None
+
+    def fit(self, df, test, disease):
+        """
+        Calculates the Sensitivity
+
+        df:
+            -pandas dataframe containing variables of interest
+        test:
+            -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+            positive test for the individual
+        disease:
+            -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+             has the outcome
+        """
+        self._a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
+        self._b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
+        se, ls, us, sd = sensitivity(detected=self._a, cases=(self._a + self._b), alpha=self.alpha)
+        self.sensitivity = se
+
+        # Setting up results
+        rf = pd.DataFrame()
+        rf['Sensitivity'] = [se]
+        rf['SD(Se)'] = [sd]
+        rf['Se_LCL'] = [ls]
+        rf['Se_UCL'] = [us]
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        Prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        print(tabulate([['T+', self._a, self._b]], headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
+        print('======================================================================')
+        print(self.results[['Sensitivity', 'SD(Se)', 'Se_LCL', 'Se_UCL']].round(decimals=decimal))
+        print('======================================================================')
 
 
-def PAF(df, exposure, outcome, decimal=3):
-    """Produces the estimated Population Attributable Fraction. Missing data is ignored by this function.
+class Specificity:
+    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
+    from pandas dataframe
 
-    WARNING: Exposure & Outcome must be coded as 1 and 0 for this to work properly (1: yes, 0:no)
-
-    exposure:
-        -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-    outcome:
-        -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
-    decimal:
-        -amount of decimal points to display. Default is 3
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
     """
-    a = df.loc[(df[exposure] == 1) & (df[outcome] == 1)].shape[0]
-    b = df.loc[(df[exposure] == 1) & (df[outcome] == 0)].shape[0]
-    c = df.loc[(df[exposure] == 0) & (df[outcome] == 1)].shape[0]
-    d = df.loc[(df[exposure] == 0) & (df[outcome] == 0)].shape[0]
-    paf(a=a, b=b, c=c, d=d, decimal=decimal)
+    def __init__(self, alpha=0.05):
+        """
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.alpha = alpha
+        self.specificity = None
+        self.results = None
+        self._fit = False
+        self._c = None
+        self._d = None
+
+    def fit(self, df, test, disease):
+        """
+        Calculates the Specificity
+
+        df:
+            -pandas dataframe containing variables of interest
+        test:
+            -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+            positive test for the individual
+        disease:
+            -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+             has the outcome
+        """
+        self._c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
+        self._d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
+        sp, ls, us, sd = specificity(detected=self._c, noncases=(self._c + self._d), alpha=self.alpha)
+        self.specificity = sp
+
+        # Setting up results
+        rf = pd.DataFrame()
+        rf['Specificity'] = [sp]
+        rf['SD(Sp)'] = [sd]
+        rf['Sp_LCL'] = [ls]
+        rf['Sp_UCL'] = [us]
+        self.results = rf
+        self._fit = True
+
+    def summary(self, decimal=3):
+        """
+        Prints the summary results
+
+        decimal:
+            -amount of decimal points to display. Default is 3
+        """
+        if self._fit is False:
+            raise ValueError('fit() function must be completed before results can be obtained')
+
+        print(tabulate([['T-', self._c, self._d]], headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
+        print('======================================================================')
+        print(self.results[['Specificity', 'SD(Sp)', 'Sp_LCL', 'Sp_UCL']].round(decimals=decimal))
+        print('======================================================================')
 
 
-def IC(df, exposure, outcome, modifier, adjust=None, decimal=3):
+class Diagnostics:
+    """Generates the Sensitivity, Specificity, and the corresponding (1-alpha)% confidence intervals, comparing test
+    results to disease status from pandas dataframe
+
+    WARNING: Disease & Test must be coded as (1: yes, 0:no)
+    """
+    def __init__(self, alpha=0.05):
+        """
+        alpha:
+            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        """
+        self.alpha = alpha
+        self.sensitivity = None
+        self.specificity = None
+        self.results = None
+        self._fit = False
+        self._a = None
+        self._b = None
+        self._c = None
+        self._d = None
+
+    def fit(self, df, test, disease):
+        """
+        Calculates the Sensitivity and Specificity
+
+        df:
+            -pandas dataframe containing variables of interest
+        test:
+            -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+            positive test for the individual
+        disease:
+            -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+             has the outcome
+        """
+        self.sensitivity = Sensitivity(alpha=self.alpha)
+        self.sensitivity.fit(df=df, test=test, disease=disease)
+        self.specificity = Specificity(alpha=self.alpha)
+        self.specificity.fit(df=df, test=test, disease=disease)
+
+    def summary(self, decimal=3):
+        """
+        Prints the results
+
+        decimal:
+            -number of decimal places to display. Default is 3
+        """
+        print(tabulate([['T+', self.sensitivity._a, self.sensitivity._b],
+                        ['T-', self.specificity._c, self.specificity._d]],
+                       headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
+        print('======================================================================')
+        print(self.sensitivity.results[['Sensitivity', 'SD(Se)', 'Se_LCL', 'Se_UCL']].round(decimals=decimal))
+        print(self.specificity.results[['Specificity', 'SD(Sp)', 'Sp_LCL', 'Sp_UCL']].round(decimals=decimal))
+        print('======================================================================')
+
+
+def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3):
     """Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1},
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit
@@ -310,8 +945,8 @@ def IC(df, exposure, outcome, modifier, adjust=None, decimal=3):
     decimal:
         -Number of decimals to display in result. Default is 3
 
-    Example)
-    >>>zepid.IC(df=data,exposure='X',outcome='D',modifier='Z',adjust='var1 + var2')
+
+    Example of Output)
                      Generalized Linear Model Regression Results
     ==============================================================================
     Dep. Variable:                      D   No. Observations:                  210
@@ -362,8 +997,8 @@ def IC(df, exposure, outcome, modifier, adjust=None, decimal=3):
     print('----------------------------------------------------------------------')
 
 
-def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delta', b_sample=200, alpha=0.05,
-        decimal=5):
+def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delta',
+                               b_sample=200, alpha=0.05, decimal=5):
     """Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial
     or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1},
     modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression
@@ -402,9 +1037,6 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
         -Alpha level for confidence interval. Default is 0.05
     decimal:
         -Number of decimal places to display in result. Default is 3
-
-    Example)
-    >>>zepid.ICR(df=data,exposure='X',outcome='D',modifier='Z',adjust='var1 + var2')
     """
     df.loc[((df[exposure] == 1) & (df[modifier] == 0)), 'E1M0'] = 1
     df.loc[((df[exposure] != 1) | (df[modifier] != 0)), 'E1M0'] = 0
@@ -420,7 +1052,7 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
         print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
     elif regression == 'log':
         f = sm.families.family.Binomial(sm.families.links.log)
-    if adjust == None:
+    if adjust is None:
         eq = outcome + ' ~ E1M0 + E0M1 + E1M1'
     else:
         eq = outcome + ' ~ E1M0 + E0M1 + E1M1 + ' + adjust
@@ -479,116 +1111,6 @@ def ICR(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delt
     print('----------------------------------------------------------------------')
 
 
-def Sensitivity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
-    from pandas dataframe
-
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
-
-    test:
-        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
-        positive test for the individual
-    disease:
-        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-         has the outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the calculated sensitivity. Default is False.
-
-    Example)
-    >zepid.Sensitivity(df=data,test='test_disease',disease='true_disease')
-    """
-    a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
-    b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
-    if print_result is True:
-        print(tabulate([["T+", a, b]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        sensitivity(a, a + b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result is True:
-        se = sensitivity(a, a + b, print_result=False, return_result=True)
-        return se
-
-
-def Specificity(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """Generates the Specificity and (1-alpha)% confidence interval, comparing test results to disease status
-    from pandas dataframe
-
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
-
-    test:
-        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
-        positive test for the individual
-    disease:
-        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-         has the outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the calculated specificity. Default is False.
-
-    Example)
-    >zepid.Specificity(df=data,test='test_disease',disease='true_disease')
-    """
-    c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
-    d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
-    if print_result:
-        print(tabulate([["T-", c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        specificity(c, c + d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result:
-        sp = specificity(c, c + d, print_result=False, return_result=True)
-        return sp
-
-
-def Diagnostics(df, test, disease, alpha=0.05, decimal=3, print_result=True, return_result=False):
-    """
-    Generates the Sensitivity, Specificity and corresponding (1-alpha)% confidence intervals, comparing test results
-    to disease status from pandas dataframe
-
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
-
-    test:
-        -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
-        positive test for the individual
-    disease:
-        -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-         has the outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
-    decimal:
-        -amount of decimal points to display. Default is 3
-    print_result:
-        -Whether to print the results. Default is True
-    return_result:
-        -Whether to return the calculates sensitivity and specificity. Default is False.
-    """
-    a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
-    b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
-    c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
-    d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
-    if print_result:
-        print(tabulate([["T+", a, b], ["T-", c, d]], headers=['', 'D+', 'D-'], tablefmt='grid'))
-        print('----------------------------------------------------------------------')
-        sensitivity(a, a + b, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        specificity(c, c + d, alpha=alpha, decimal=decimal, confint='wald', print_result=True)
-        print('----------------------------------------------------------------------')
-    if return_result:
-        se = sensitivity(a, a + b, print_result=False, return_result=True)
-        sp = specificity(c, c + d, print_result=False, return_result=True)
-        return se, sp
-
-
 def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     """Creates spline dummy variables based on either user specified knot locations or automatically
     determines knot locations based on percentiles. Options are available to set the number of knots,
@@ -616,8 +1138,8 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
          than the number of knots. An unrestricted spline returns the same number of columns as the number of knots.
          Default is False, providing an unrestricted spline
 
-    Example)
-    >>>zepid.spline(df=data,var='var1',n_knots=4,term=2,restricted=True)
+
+    Example of Output)
            rspline0     rspline1   rspline2
     0   9839.409066  1234.154601   2.785600
     1    446.391437     0.000000   0.000000
@@ -626,7 +1148,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     4  10972.041543  1655.208555  52.167821
     ..          ...          ...        ...
     """
-    if knots == None:
+    if knots is None:
         if n_knots == 1:
             knots = [0.5]
         elif n_knots == 2:
@@ -675,7 +1197,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
         raise ValueError('restricted must be set to either True or False')
 
 
-def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
+def table1_generator(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
     """Code to automatically generate a descriptive table of your study population (often referred to as a
     Table 1). Personally, I hate copying SAS/R/Python output from the interpreter to an Excel or other
     spreadsheet software. This code will generate a pandas dataframe object. This object will be a formatted
@@ -712,9 +1234,8 @@ def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, 
     decimal:
         -Number of decimals to display in the table. Default is 3
 
-    Example)
-    >>>var_types = ['category','category','continuous','continuous','continuous']
-    >>>zepid.Table1(df=data,cols=['X','Z','var1','var2','var3'],variable_type=var_types,strat_by='D')
+
+    Example of Output)
     _                                D=0                             D=1
     __                           % / IQR           n             % / IQR          n
 
@@ -732,10 +1253,9 @@ def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, 
              Missing                        0.000000                       0.000000
     var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
              Missing                        0.000000
-    >>>_.to_csv('path/filename.csv')
     """
-    # Unstratificed Table 1
-    if strat_by == None:
+    # Unstratified Table 1
+    if strat_by is None:
         rlist = []
         for i in cols:
             vn = cols.index(i)
@@ -768,7 +1288,7 @@ def Table1(df, cols, variable_type, continuous_measure='median', strat_by=None, 
             return srf[['n / Mean', '% / SE']]
 
     # Stratified Table 1
-    if strat_by != None:
+    if strat_by is not None:
         v = df[strat_by].dropna().unique()
         slist = []
         nlist = []

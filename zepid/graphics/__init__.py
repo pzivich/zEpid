@@ -1,1 +1,1 @@
-from .graphics import func_form_plot, EffectMeasurePlot, pvalue_plot, spaghetti_plot, roc, dyanmic_risk_plot
+from .graphics import functional_form_plot, EffectMeasurePlot, pvalue_plot, spaghetti_plot, roc, dynamic_risk_plot

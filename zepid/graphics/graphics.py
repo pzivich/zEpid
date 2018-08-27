@@ -262,8 +262,8 @@ class EffectMeasurePlot:
         return plot
 
 
-def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_dist=None, ylims=None, loess_value=0.25,
-                   legend=True, model_results=True, loess=True, points=False, discrete=False):
+def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_dist=None, ylims=None,
+                         loess_value=0.4, legend=True, model_results=True, loess=True, points=False, discrete=False):
     """Creates a LOESS plot to aid in functional form assessment for continuous variables.
     Plots can be created for binary and continuous outcomes. Default options are set to create
     a functional form plot for a binary outcome. To convert to a continuous outcome,
@@ -324,21 +324,30 @@ def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_di
     else:
         pass
 
-        # Generating Models
-    if link_dist is None:
-        link_dist = sm.families.family.Binomial(sm.families.links.logit)
+    # Generating Models
+    if outcome_type == 'binary':
+        if link_dist is None:
+            link_dist = sm.families.family.Binomial(sm.families.links.logit)
+        else:
+            pass
+    elif outcome_type == 'continuous':
+        if link_dist is None:
+            link_dist = sm.families.family.Gaussian(sm.families.links.identity)
+        else:
+            pass
     else:
-        pass
+        raise ValueError('Only binary or continuous outcomes are currently supported')
 
     # Generating LOESS or points if requested
+    ax = plt.gca()
     if loess or points:
         if outcome_type == 'binary':
             if discrete is False:
                 # Binning continuous variable into categories to get "General" functional form
                 categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
-                print('''A total of ''' + str(categories) + ''' categories were created. If you would like to influence the 
-                       number of categories the spline is fit to, do the following\n\tIncrease: multiply by a constant 
-                       >1\n\tDecrease: multiply by a contast <1 and >0''')
+                print('''A total of ''' + str(categories) + ''' categories were created. If you would like to influence 
+                        the number of categories the spline is fit to, do the following\n\tIncrease: multiply by 
+                        constant >1\n\tDecrease: multiply by contast <1 and >0''')
                 rf['vbin'] = pd.qcut(rf[var], q=categories, duplicates='drop').cat.codes
                 djm = smf.glm(outcome + '~ C(vbin)', rf, family=link_dist).fit()
             else:
@@ -348,17 +357,22 @@ def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_di
             dj.sort_values(var, inplace=True)
             if points:
                 pf = dj.groupby(by=[var, 'mean']).count().reset_index()
+                ax.scatter(pf[var], pf['mean'], s=[100 * (n / np.max(pf[var])) for n in pf[var]],
+                           color='gray', label='Data point')
             if loess:
                 yl = lowess(list(dj['mean']), list(dj[var]), frac=loess_value)
                 lowess_x = list(zip(*yl))[0]
                 lowess_y = list(zip(*yl))[1]
+                ax.plot(lowess_x, lowess_y, '--', color='red', linewidth=1, label='LOESS')
         elif outcome_type == 'continuous':
             if points:
                 pf = rf.groupby(by=[var, outcome]).count().reset_index()
+                ax.scatter(pf[var], pf[outcome], color='gray', label='Data point')
             if loess:
                 yl = lowess(list(rf[outcome]), list(rf[var]), frac=loess_value)
                 lowess_x = list(zip(*yl))[0]
                 lowess_y = list(zip(*yl))[1]
+                ax.plot(lowess_x, lowess_y, '--', color='red', linewidth=1, label='LOESS')
         else:
             raise ValueError('Functional form assessment only supports binary or continuous outcomes currently')
 
@@ -373,24 +387,10 @@ def func_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_di
     ff.sort_values(var, inplace=True)
 
     # Generating plot for functional form
-    ax = plt.gca()
-    if points is True:
-        if outcome_type == 'continuous':
-            ax.scatter(pf[var], pf[outcome], s=[100 * (n / np.max(pf[var])) for n in pf[var]],
-                       color='gray', label='Data point')
-        else:
-            ax.scatter(pf[var], pf['mean'], s=[100 * (n / np.max(pf[var])) for n in pf[var]],
-                       color='gray', label='Data point')
-    ax.fill_between(ff[var], ff['mean_ci_upper'], ff['mean_ci_lower'], alpha=0.1,
-                    color='blue', label='95% CI')
+    ax.fill_between(ff[var], ff['mean_ci_upper'], ff['mean_ci_lower'], alpha=0.1, color='blue', label='95% CI')
     ax.plot(ff[var], ff['mean'], '-', color='blue', label='Regression')
-    if loess is True:
-        ax.plot(lowess_x, lowess_y, '--', color='red', linewidth=1, label='LOESS')
     ax.set_xlabel(var)
-    if outcome_type is 'binary':
-        ax.set_ylabel('Probability')
-    else:
-        ax.set_ylabel(outcome)
+    ax.set_ylabel('Outcome')
     if legend is True:
         ax.legend()
     ax.set_ylim(ylims)
@@ -540,7 +540,7 @@ def roc(df, true, threshold, youden_index=True):
     return ax
 
 
-def dyanmic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, loess_value=0.25, point_color='darkblue',
+def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, loess_value=0.25, point_color='darkblue',
                       line_color='b', scale='linear'):
     """Creates a plot of risk measures over time. See Cole et al. "Estimation of standardized risk difference and ratio
     in a competing risks framework: application to injection drug use and progression to AIDS after initiation of
