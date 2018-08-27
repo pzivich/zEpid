@@ -1,5 +1,4 @@
-# Trying to code up a TMLE here
-# Will only be very general (no SuPyLearner or any ML yet)
+# Only be very general (no SuPyLearner or any ML yet)
 
 import math
 import warnings
@@ -7,19 +6,35 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from scipy.stats import logistic, norm
-
 from statsmodels.genmod.families import links
+
 from zepid.causal.ipw import propensity_score
+
+# TODO add variable selection algorithm
+# TODO add option of ML algorithms to generate predictions
 
 
 class TMLE:
     """
-    Implementation of a simple TMLE model
+    Implementation of a simple TMLE model. It uses standard logistic regression models to calculate Psi. In the future,
+    the addition of automatic variable/model selection and addition of machine learning models will be added.
 
-    psi:
-        -What the TMLE psi estimates. Currently only Risk Difference is supported
+    This is only the base TMLE currently
     """
     def __init__(self, df, exposure, outcome, psi='risk difference', alpha = 0.05):
+        """
+
+        df:
+            -pandas dataframe containing the variables of interest
+        exposure:
+            -column label for the exposure of interest
+        outcome:
+            -column label for the outcome of interest
+        psi:
+            -What the TMLE psi estimates. Currently only Risk Difference is supported
+        alpha:
+            -alpha for confidence interval level. Default is 0.05
+        """
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
                           "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
@@ -115,7 +130,10 @@ class TMLE:
 
     def summary(self, decimal=3):
         """
-        prints summary of model results
+        Prints summary of model results
+
+        decimal:
+            -number of decimal places to display. Default is 3
         """
         if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
@@ -128,3 +146,4 @@ class TMLE:
         print('----------------------------------------------------------------------')
         print('Psi corresponds to '+self._psi_correspond)
         print('----------------------------------------------------------------------')
+
