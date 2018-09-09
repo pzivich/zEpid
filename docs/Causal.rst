@@ -196,7 +196,7 @@ intervals. This example generates confidence intervals for ART exposure on death
   for i in range(500):
       dfs = df.sample(n=df.shape[0],replace=True)
       g = TimeFixedGFormula(dfs,exposure='art',outcome='dead')
-      g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_results=False)
+      g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_results=False)
       g.fit(treatment='all')
       r_all = g.marginal_outcome
       g.fit(treatment='none')
@@ -213,7 +213,7 @@ intervals. This example generates confidence intervals for ART exposure on death
   RD 95% CI: [-0.1588601  -0.02027014]
   RR 95% CI: [0.2659243  0.87927692]
 
-**NOTE** You will definitely want to use the ``print_model_results=False`` option in the ``outcome_model()``, otherwise
+**NOTE** You will definitely want to use the ``print_results=False`` option in the ``outcome_model()``, otherwise
 500 logistic regression results will be printed to your terminal. It is likely this will take at least several seconds
 to run, if not longer. Remember that it is fitting 500 logistic regression models to 500 bootstrapped sample to
 generate the confidence intervals.
@@ -402,7 +402,7 @@ estimates. Running ``sdr.summary()`` gives us the following results
 Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 As recommended, confidence intervals should be obtained from a non-parametric bootstrap. As will other methods, it is
-important to specify ``print_model_results=False`` in the model statements. Otherwise, each fit model of the bootstrap
+important to specify ``print_results=False`` in the model statements. Otherwise, each fit model of the bootstrap
 will be printed to the terminal. The bootstrap can be implemented by the following the general structure of the below
 code
 
@@ -413,7 +413,7 @@ code
   for i in range(500):
       dfs = df.sample(n=df.shape[0],replace=True)
       s = AIPW(dfs,exposure='art',outcome='dead')
-      s.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_results=False)
+      s.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_results=False)
       s.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_result=False)
       s.fit()
       rd.append(s.riskdiff)
@@ -459,9 +459,9 @@ Inverse Probability Weight fitting procedure.
 .. code:: python
 
   tm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                    print_model_results=False)
+                    print_results=False)
   tm.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                   print_model_results=False)
+                   print_results=False)
 
 After both models are specified the TMLE model can be fit. Results can be printed to the console via ``TMLE.summary()``
 
