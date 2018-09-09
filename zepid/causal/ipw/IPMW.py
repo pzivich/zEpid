@@ -35,7 +35,7 @@ class IPMW:
         self.stabilized = stabilized
         self.Weight = None
 
-    def fit(self, model, print_model_results=True):
+    def fit(self, model, print_results=True):
         """
         Provide the regression model to generate the inverse probability of missing weights. The fitted regression
         model will be used to generate the IPW. The weights can be accessed via the IMPW.Weight attribute
@@ -43,10 +43,10 @@ class IPMW:
         model:
             -statsmodels glm format for modeling data. Independent variables should be predictive of missingness of
              variable of interest. Example) 'var1 + var2 + var3'
-        print_model_results:
+        print_results:
             -whether to print the model results. Default is True
         """
-        mod = propensity_score(self.df, 'observed_indicator ~ ' + model, mresult=print_model_results)
+        mod = propensity_score(self.df, 'observed_indicator ~ ' + model, print_results=print_results)
         p = mod.predict(self.df)
         if self.stabilized:
             p_ = np.mean(self.df['observed_indicator'])

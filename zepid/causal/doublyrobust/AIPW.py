@@ -32,33 +32,33 @@ class AIPW:
         self._exp_model = None
         self._out_model = None
 
-    def exposure_model(self, model, print_model_results=True):
+    def exposure_model(self, model, print_results=True):
         """Used to specify the propensity score model. Model used to predict the exposure via a logistic regression
         model
 
         model:
             -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
-        print_model_results:
+        print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self._exposure + ' ~ ' + model
-        fitmodel = propensity_score(self.df, self._exp_model, mresult=print_model_results)
+        fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
         self.df['ps'] = fitmodel.predict(self.df)
         self._fit_exposure_model = True
 
-    def outcome_model(self, model, print_model_results=True):
+    def outcome_model(self, model, print_results=True):
         """Used to specify the outcome model. Model used to predict the outcome via a logistic regression model
 
         model:
             -Independent variables to predict the outcome. Example) 'var1 + var2 + var3 + var4'
-        print_model_results:
+        print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
 
         self._out_model = self._outcome + ' ~ ' + model
         f = sm.families.family.Binomial(sm.families.links.logit)
         log = smf.glm(self._out_model, self.df, family=f).fit()
-        if print_model_results:
+        if print_results:
             print('\n----------------------------------------------------------------')
             print('MODEL: ' + self._out_model)
             print('-----------------------------------------------------------------')

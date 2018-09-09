@@ -57,32 +57,32 @@ class TMLE:
         self.psi = None
         self.confint = None
 
-    def exposure_model(self, model, print_model_results=True):
+    def exposure_model(self, model, print_results=True):
         """Estimation of g(A=1,W), which is Pr(A=1|W)
 
         model:
             -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
-        print_model_results:
+        print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self._exposure + ' ~ ' + model
-        fitmodel = propensity_score(self.df, self._exp_model, mresult=print_model_results)
+        fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
         self.gA1 = fitmodel.predict(self.df)
         self._fit_exposure_model = True
 
-    def outcome_model(self, model, print_model_results=True):
+    def outcome_model(self, model, print_results=True):
         """Estimation of Q(A,W), which is Pr(Y=1|A,W)
 
         model:
             -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
-        print_model_results:
+        print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
         self._out_model = self._outcome + ' ~ ' + model
         f = sm.families.family.Binomial(sm.families.links.logit)
         log = smf.glm(self._out_model, self.df, family=f).fit()
 
-        if print_model_results:
+        if print_results:
             print('\n----------------------------------------------------------------')
             print('MODEL: ' + self._out_model)
             print('-----------------------------------------------------------------')

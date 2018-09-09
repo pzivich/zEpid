@@ -38,7 +38,7 @@ class IPTW:
             raise ValueError('Please specify one of the currently supported weighting schemes: ' +
                              'population, exposed, unexposed')
 
-    def regression_models(self, model_denominator, model_numerator='1', print_model_results=True):
+    def regression_models(self, model_denominator, model_numerator='1', print_results=True):
         """
         Logistic regression model(s) for propensity score models. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
@@ -52,14 +52,14 @@ class IPTW:
              Default ('1') calculates the overall probability. In general this is recommended. If confounding
              variables are included in the numerator, they would later need to be adjusted for.
              Example) 'var1'
-        print_model_results:
+        print_results:
             -whether to print the model results from the regression models. Default is True
         """
         self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
-                                                  mresult=print_model_results)
+                                                  print_results=print_results)
         if self.stabilized is True:
             self.numerator_model = propensity_score(self.df, self.ex + ' ~ ' + model_numerator,
-                                                    mresult=print_model_results)
+                                                    print_results=print_results)
         else:
             if model_numerator != '1':
                 warnings.warn('Argument for model_numerator is only used for stabilized=True')
@@ -151,7 +151,7 @@ class IPTW:
         sd = float(np.std(self.df['iptw'].dropna()))
         print('----------------------------------------------------------------------')
         print('IPW Diagnostic for positivity')
-        print('''If the mean of the weights is far from either the min or max, this may\n indicate the model is 
+        print('''If the mean of the weights is far from either the min or max, this may\n indicate the model is
                 incorrect or positivity is violated''')
         print('Standard deviation can help in IPTW model selection')
         print('----------------------------------------------------------------------')

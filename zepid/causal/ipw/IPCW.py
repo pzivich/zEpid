@@ -53,7 +53,7 @@ class IPCW:
         self.event = event
         self.Weight = None
 
-    def regression_models(self, model_denominator, model_numerator, print_model_results=True):
+    def regression_models(self, model_denominator, model_numerator, print_results=True):
         """
 
         model_denominator:
@@ -63,12 +63,12 @@ class IPCW:
         model_numerator:
             -statsmodels glm format for modeling data. Only includes predictor variables for the numerator. In general,
              time is included in the numerator. Example) 't_start + t_squared'
-        print_model_results:
+        print_results:
             -whether to print the model results. Default is True
         """
-        nmodel = propensity_score(self.df, 'uncensored ~ ' + model_numerator, mresult=print_model_results)
+        nmodel = propensity_score(self.df, 'uncensored ~ ' + model_numerator, print_results=print_results)
         self.df['numer'] = nmodel.predict(self.df)
-        dmodel = propensity_score(self.df, 'uncensored ~ ' + model_denominator, mresult=print_model_results)
+        dmodel = propensity_score(self.df, 'uncensored ~ ' + model_denominator, print_results=print_results)
         self.df['denom'] = dmodel.predict(self.df)
         self.df['cnumer'] = self.df.groupby(self.idvar)['numer'].cumprod()
         self.df['cdenom'] = self.df.groupby(self.idvar)['denom'].cumprod()
