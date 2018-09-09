@@ -1,5 +1,12 @@
 ### Change logs
 
+#### v0.3.1
+**BIG CHANGES**:
+
+**MINOR CHANGES**:
+Updated API for printing model results to the console. All branches have been updated to 
+use ```print_results``` now. (Thanks Cameron Davidson-Pilon)
+
 #### v0.3.0
 **BIG CHANGES**:
 
