@@ -35,9 +35,10 @@ def load_sample_data(timevary):
     if timevary is True:
         return df
     else:
-        dfi = df.loc[df.groupby('id').cumcount()==0][['id', 'male', 'age0', 'cd40', 'cd4', 'dvl0', 'art']].copy()
+        dfi = df.loc[df.groupby('id').cumcount() == 0][['id', 'male', 'age0', 'cd40', 'cd4', 'dvl0', 'art']].copy()
         dfo = df.loc[df.id != df.id.shift(-1)][['id', 'dead', 'drop', 'out']].copy()
-        dfo.loc[dfo['drop'] == 1, 'dead'] = np.nan
+        dfo.loc[(dfo['drop'] == 1) & (dfo['out'] <= 45), 'dead'] = np.nan
+        dfo['dead'] = np.where((dfo['dead'] == 1) & (dfo['out'] > 45), 0, dfo['dead'])
         dff = pd.merge(dfi, dfo, left_on='id', right_on='id')
         dff.rename(columns={'out': 't'}, inplace=True)
         dff.drop('drop', axis=1, inplace=True)
