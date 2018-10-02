@@ -2,6 +2,7 @@
 
 import math
 import warnings
+import patsy
 import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -57,7 +58,7 @@ class TMLE:
         self.psi = None
         self.confint = None
 
-    def exposure_model(self, model, print_results=True):
+    def exposure_model(self, model, custom_model=None, print_results=True):
         """Estimation of g(A=1,W), which is Pr(A=1|W)
 
         model:
@@ -66,11 +67,28 @@ class TMLE:
             -Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self._exposure + ' ~ ' + model
-        fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
-        self.gA1 = fitmodel.predict(self.df)
+
+        if custom_model is None:
+            fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
+            self.gA1 = fitmodel.predict(self.df)
+
+        else:
+            try:
+                data = patsy.dmatrix(model, self.df)
+                try:
+                    self.gA1 = custom_model.predict(data)
+                except AttributeError:
+                    raise AttributeError("custom_model does not have the 'predict()' attribute")
+            except ValueError:
+                data = patsy.dmatrix(model+' - 1', self.df)
+                try:
+                    self.gA1 = custom_model.predict(data)
+                except AttributeError:
+                    raise AttributeError("custom_model does not have the 'predict()' attribute")
+
         self._fit_exposure_model = True
 
-    def outcome_model(self, model, print_results=True):
+    def outcome_model(self, model, custom_model=None, print_results=True):
         """Estimation of Q(A,W), which is Pr(Y=1|A,W)
 
         model:
@@ -79,23 +97,59 @@ class TMLE:
             -Whether to print the fitted model results. Default is True (prints results)
         """
         self._out_model = self._outcome + ' ~ ' + model
-        f = sm.families.family.Binomial(sm.families.links.logit)
-        log = smf.glm(self._out_model, self.df, family=f).fit()
 
-        if print_results:
-            print('\n----------------------------------------------------------------')
-            print('MODEL: ' + self._out_model)
-            print('-----------------------------------------------------------------')
-            print(log.summary())
+        if custom_model is None:  # Logistic Regression model for predictions
+            f = sm.families.family.Binomial(sm.families.links.logit)
+            log = smf.glm(self._out_model, self.df, family=f).fit()
 
-        self.QAW = log.predict(self.df)
+            if print_results:
+                print('\n----------------------------------------------------------------')
+                print('MODEL: ' + self._out_model)
+                print('-----------------------------------------------------------------')
+                print(log.summary())
 
-        dfx = self.df.copy()
-        dfx[self._exposure] = 1
-        self.QA1W = log.predict(dfx)
-        dfx = self.df.copy()
-        dfx[self._exposure] = 0
-        self.QA0W = log.predict(dfx)
+            self.QAW = log.predict(self.df)
+
+            dfx = self.df.copy()
+            dfx[self._exposure] = 1
+            self.QA1W = log.predict(dfx)
+            dfx = self.df.copy()
+            dfx[self._exposure] = 0
+            self.QA0W = log.predict(dfx)
+
+        else:  # Custom Model (like SuPyLearner)
+            try:  # This 'try' catches if the model does not have an intercept (patsy matrix has extra column of 1's)
+                data = patsy.dmatrix(model, self.df)
+                try:
+                    self.QAW = custom_model.predict(data)
+                except AttributeError:
+                    raise AttributeError("custom_model does not have the 'predict()' attribute")
+                dfx = self.df.copy()
+                dfx[self._exposure] = 1
+                data = patsy.dmatrix(model, dfx)
+                self.QA1W = custom_model.predict(data)
+
+                dfx = self.df.copy()
+                dfx[self._exposure] = 0
+                data = patsy.dmatrix(model, dfx)
+                self.QA0W = custom_model.predict(data)
+
+            except ValueError:
+                data = patsy.dmatrix(model + ' - 1', self.df)
+                try:
+                    self.QAW = custom_model.predict(data)
+                except AttributeError:
+                    raise AttributeError("custom_model does not have the 'predict()' attribute")
+                dfx = self.df.copy()
+                dfx[self._exposure] = 1
+                data = patsy.dmatrix(model + ' - 1', dfx)
+                self.QA1W = custom_model.predict(data)
+
+                dfx = self.df.copy()
+                dfx[self._exposure] = 0
+                data = patsy.dmatrix(model + ' - 1', dfx)
+                self.QA0W = custom_model.predict(data)
+
         self._fit_outcome_model = True
 
     def fit(self):
@@ -113,7 +167,7 @@ class TMLE:
         # Fitting logistic model with QAW offset
         f = sm.families.family.Binomial(sm.families.links.logit)
         log = sm.GLM(self.df[self._outcome], gAW, offset=self.QAW, family=f).fit()
-        self._epsilon = log.params['x1']
+        self._epsilon = log.params[0]
 
         # Getting Qn*
         # Qstar = logistic.cdf(self.QAW + self._epsilon*gAW) # I think this would allow natural course comparison
