@@ -12,7 +12,6 @@ from statsmodels.genmod.families import links
 from zepid.causal.ipw import propensity_score
 
 # TODO add variable selection algorithm
-# TODO add option of ML algorithms to generate predictions
 
 
 class TMLE:
@@ -63,6 +62,14 @@ class TMLE:
 
         model:
             -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
+        custom_model:
+            -Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
+             This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
+             any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
+             logistic regression. Please see online for an example
+             NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
+             The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
+             to unexpected estimates
         print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
@@ -73,7 +80,7 @@ class TMLE:
             self.gA1 = fitmodel.predict(self.df)
 
         else:
-            try:
+            try:  # This two-stage 'try' filters whether the data needs an intercept, then has the predict() attr
                 data = patsy.dmatrix(model, self.df)
                 try:
                     self.gA1 = custom_model.predict(data)
@@ -93,6 +100,14 @@ class TMLE:
 
         model:
             -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
+        custom_model:
+            -Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
+             This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
+             any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
+             logistic regression. Please see online for an example
+             NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
+             The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
+             to unexpected estimates
         print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
@@ -118,7 +133,7 @@ class TMLE:
             self.QA0W = log.predict(dfx)
 
         else:  # Custom Model (like SuPyLearner)
-            try:  # This 'try' catches if the model does not have an intercept (patsy matrix has extra column of 1's)
+            try:  # This 'try' catches if the model does not have an intercept (sklearn models)
                 data = patsy.dmatrix(model, self.df)
                 try:
                     self.QAW = custom_model.predict(data)
@@ -134,7 +149,7 @@ class TMLE:
                 data = patsy.dmatrix(model, dfx)
                 self.QA0W = custom_model.predict(data)
 
-            except ValueError:
+            except ValueError:  # sklearn models would be processed here since they don't have an intercept
                 data = patsy.dmatrix(model + ' - 1', self.df)
                 try:
                     self.QAW = custom_model.predict(data)
@@ -183,8 +198,7 @@ class TMLE:
         self.confint = [self.psi - zalpha * math.sqrt(varIC), self.psi + zalpha * math.sqrt(varIC)]
 
     def summary(self, decimal=3):
-        """
-        Prints summary of model results
+        """Prints summary of model results
 
         decimal:
             -number of decimal places to display. Default is 3
