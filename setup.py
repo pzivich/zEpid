@@ -27,5 +27,6 @@ setup(name='zepid',
                         'statsmodels>=0.7.0',
                         'matplotlib>=2.0',
                         'scipy',
-                        'tabulate'],
+                        'tabulate',
+                        'patsy'],
       )
