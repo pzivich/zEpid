@@ -1,9 +1,12 @@
 ### Change logs
 
 #### v0.3.1
-**BIG CHANGES**:
-
 **MINOR CHANGES**:
+
+TMLE now allows user-specified prediction models (like machine learning models). This is done by setting the option 
+argument `custom_model` to a fitted model with the `predict()` function. For a full tutorial (with SuPyLearner), see 
+the website.
+
 Updated API for printing model results to the console. All branches have been updated to 
 use ```print_results``` now. (Thanks Cameron Davidson-Pilon)
 
