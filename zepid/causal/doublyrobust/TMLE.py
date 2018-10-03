@@ -191,7 +191,7 @@ class TMLE:
         self.psi = np.mean(Qstar1 - Qstar0)
 
         # Getting influence curve
-        ic = (gAW * (self.df[self._outcome] - logistic.cdf(self.QAW)) +
+        ic = ((gAW * (self.df[self._outcome] - logistic.cdf(self.QAW))) +
               logistic.cdf(Qstar1 - Qstar0) - self.psi)
         varIC = np.var(ic) / self.df.shape[0]
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
@@ -215,3 +215,5 @@ class TMLE:
         print('Psi corresponds to '+self._psi_correspond)
         print('----------------------------------------------------------------------')
 
+
+# TODO longitudinal TMLE; estimated by E[...E[Y_n|A=abar]...] from inside out
