@@ -476,6 +476,106 @@ following `LINK <https://migariane.github.io/TMLE.nb.html>`_
 
 Only the risk difference is supported. I need to find more information to calculate the risk ratio
 
+TMLE with custom model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Still deciding if this needs to be separate from the machine learning section...
+
+TMLE with Machine Learning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+One of the great things about TMLE is the ability to incorporate Machine Learning models and return valid confidence
+intervals. I recommend reading one of van der Laan's publications or another publication detailing TMLE. The
+``zepid.causal.doublyrobust.TMLE`` class allows using machine learning models (or basically whatever model a user wants
+to use to generate predictions). The one stipulation is that the class which contains the model must have the
+``predict()`` function, which returns predict values for an array / matrix.
+
+In the following example, I will demonstrate ``zepid.causal.doublyrobust.TMLE`` with a Python implementation of
+SuperLearner (SuPyLearner). You will have to download SuPyLearner from GitHub
+(`original <https://github.com/lendle/SuPyLearner>`_ but I recommend the
+`updated <https://github.com/alexpkeil1/SuPyLearner>`_ since it removes some errors as a result of ``sklearn`` updates).
+
+First, we load the data. Additionally, I log-transform the continuous variables to make them more normal. This will make
+our machine learning models a little happier.
+
+.. code:: python
+
+  import zepid as ze
+  from zepid.causal.doublyrobust import TMLE
+
+  import numpy as np
+  import supylearner
+  from sklearn.svm import SVC
+  from sklearn.linear_model import LogisticRegression
+  from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier #Random Forest, AdaBoost
+  from sklearn.naive_bayes import GaussianNB
+
+  df = ze.load_sample_data(False).dropna()
+  df['cd40'] = np.log(df['cd40'])
+  df['age0'] = np.log(df['age0'])
+
+I will also define a function to initialize each of the machine learning models and set up SuPyLearner. For my
+implementation, I use a Support Vector Machine, L1-penalized Logistic Regression, L2-penalized Logistic Regression,
+Random Forest, AdaBoost, and Naive Bayes classifiers. These are all implemented through ``sklearn`` and more on each
+is available at their site
+
+.. code:: python
+
+  def SuPyFitter(X,y):
+      svm = SVC(kernel='linear', probability=True, random_state=101)
+      log1 = LogisticRegression(penalty='l1', random_state=201)
+      log2 = LogisticRegression(penalty='l2', random_state=103)
+      randf = RandomForestClassifier(random_state=141)
+      adaboost = AdaBoostClassifier(random_state=505)
+      bayes = GaussianNB()
+      lib = [svm, log1, log2, randf, adaboost, bayes]
+      libnames = ["SVM", "Log_L1", "Log_L2", "Random Forest", "AdaBoost", "Bayes"]
+      sl = supylearner.SuperLearner(lib, libnames, loss="nloglik", K=10)
+      sl.fit(X,y)
+      sl.summarize()
+      return sl
+
+Now that everything is set up, I can fit each of the SuPyLearner models
+
+.. code:: python
+
+  X = np.asarray(df[['male', 'age0', 'cd40', 'dvl0']])
+  y = np.asarray(df['art'])
+  sl_exp = SuPyFitter(X, y)
+
+  X = np.asarray(df[['art', 'male', 'age0', 'cd40', 'dvl0']])
+  y = np.asarray(df['dead'])
+  sl_out = SuPyFitter(X, y)
+
+Now that all our models are set up and estimated, we can fit TMLE. This is done by calling the
+``zepid.causal.doublyrobust.TMLE`` as standard. However, we add an option to both ``exposure_model`` and
+``outcome_model``. We add the option ``custom_model`` and set it equal to our fitted models. Remember that the fitted
+models **MUST** have the ``predict()`` function which returns the predicted probabilities for an array. This is true
+for SuPyLearner.
+
+One final important item to take note of is the order of the standard ``model`` argument. The order in this model
+**MUST** match the order of the previously fitted models. If it does NOT match, this can result in incorrect estimation.
+
+.. code:: python
+
+  tmle = TMLE(df, 'art', 'dead')
+  tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=sl_exp)
+  tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=sl_out)
+  tmle.fit()
+  tmle.summary()
+
+The above results in the following output
+
+.. code:: python
+
+  Psi:  -0.04
+  95.0% two-sided CI: (-0.161 , 0.08)
+  ----------------------------------------------------------------------
+  Psi corresponds to risk difference
+  ----------------------------------------------------------------------
+
+You'll notice these results are different from previous. I don't have a great explanation for this. My best guess is
+the difference in results is due to the machine learning models not fitting that great, likely a result of the small
+data set available.
+
 Comparison between methods
 ----------------------------------------
 For fun, we can demonstrate a comparison between the different methods implemented in ``zepid.causal``. We will display
