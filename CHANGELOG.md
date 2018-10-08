@@ -10,6 +10,10 @@ the website.
 Updated API for printing model results to the console. All branches have been updated to 
 use ```print_results``` now. (Thanks Cameron Davidson-Pilon)
 
+Semi-Bayesian function now calculates a check on the compatibility between the prior and data. It generates a warning 
+if a small p-value is detected (p < 0.05). The full information on this check can be read in *Modern Epidemiology* 3rd 
+edition pg340.
+
 #### v0.3.0
 **BIG CHANGES**:
 
