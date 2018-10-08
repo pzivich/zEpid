@@ -81,11 +81,6 @@ following code
 After the g-formula is fit, it gains an attribute ``marginal_outcome`` which is the expected value of Y in that
 population with the set exposure pattern.
 
-.. code::
-
-  RD =  -0.092046
-  RR =  0.54431
-
 One of the great utilities of the g-formula is being able to set custom exposure patterns / interventions. To implement
 our own custom exposure, we will call the treatment function with our specified treatment pattern. In this example, we
 will compare the situation where we treat all the females younger than 40 at baseline in our sample to the alternative
@@ -119,9 +114,6 @@ Now we can make our comparison between our custom treatment compared to the coun
   print('RD = ',r_custom - r_none)
   print('RR = ',r_custom / r_none)
 
-.. code::
-  RD = -0.00880
-  RR = 0.95643
 
 Multivariate Exposures
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,10 +201,6 @@ intervals. This example generates confidence intervals for ART exposure on death
   print('RR 95% CI:',np.percentile(rr_results,q=[2.5,97.5]))
 
 
-.. code::
-  RD 95% CI: [-0.1588601  -0.02027014]
-  RR 95% CI: [0.2659243  0.87927692]
-
 **NOTE** You will definitely want to use the ``print_results=False`` option in the ``outcome_model()``, otherwise
 500 logistic regression results will be printed to your terminal. It is likely this will take at least several seconds
 to run, if not longer. Remember that it is fitting 500 logistic regression models to 500 bootstrapped sample to
@@ -252,32 +240,8 @@ conservative) confidence interval. We will do this through ``statsmodels``
    linrisk = smf.gee('dead ~ art',df['id'],df,cov_struct=ind,family=f,weights=df['iptw']).fit()
    print(linrisk.summary())
 
-We obtain the following results
 
-.. code::
-
-                                 GEE Regression Results
-  ===================================================================================
-  Dep. Variable:                        dead   No. Observations:                  498
-  Model:                                 GEE   No. clusters:                      498
-  Method:                        Generalized   Min. cluster size:                   1
-                        Estimating Equations   Max. cluster size:                   1
-  Family:                           Binomial   Mean cluster size:                 1.0
-  Dependence structure:         Independence   Num. iterations:                     2
-  Date:                     Wed, 25 Jul 2018   Scale:                           1.000
-  Covariance type:                    robust   Time:                         15:30:19
-  ==============================================================================
-                   coef    std err          z      P>|z|      [0.025      0.975]
-  ------------------------------------------------------------------------------
-  Intercept      0.2009      0.020     10.132      0.000       0.162       0.240
-  art           -0.0987      0.039     -2.517      0.012      -0.176      -0.022
-  ==============================================================================
-  Skew:                          1.6032   Kurtosis:                       0.6197
-  Centered skew:                 0.0000   Centered kurtosis:             -3.0000
-  ==============================================================================
-
-From our IPTW analysis the risk difference is -0.084 (95% CI: -0.157, -0.011). Note that ``statsmodels`` will generate
-a ``DomainWarning`` for log-binomial or identity-binomial models.
+Note that ``statsmodels`` will generate a ``DomainWarning`` for log-binomial or identity-binomial models.
 
 In this example, IPTW are stabilized weights and weighted to reflect the entire population (comparing everyone exposed
 vs. everyone unexposed). Stabilized weights are the default. Unstabilized weights can be requested by
@@ -389,15 +353,7 @@ After both an exposure and outcome model are fit, we can estimate the double rob
 
 After the ``fit()`` is run, the ``AIPW`` class gains the following attributes; ``riskdiff`` corresponding
 to the risk difference, ``riskratio`` corresponding to the risk ratio, and the function ``summary()`` which prints both
-estimates. Running ``sdr.summary()`` gives us the following results
-
-.. code:: python
-
-  ----------------------------------------------------------------------
-  Risk Difference:  -0.0819
-  Risk Ratio:  0.5520
-  ----------------------------------------------------------------------
-
+estimates.
 
 Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -493,8 +449,7 @@ SuperLearner (SuPyLearner). You will have to download SuPyLearner from GitHub
 (`original <https://github.com/lendle/SuPyLearner>`_ but I recommend the
 `updated <https://github.com/alexpkeil1/SuPyLearner>`_ since it removes some errors as a result of ``sklearn`` updates).
 
-First, we load the data. Additionally, I log-transform the continuous variables to make them more normal. This will make
-our machine learning models a little happier.
+First, we load the data
 
 .. code:: python
 
@@ -509,8 +464,6 @@ our machine learning models a little happier.
   from sklearn.naive_bayes import GaussianNB
 
   df = ze.load_sample_data(False).dropna()
-  df['cd40'] = np.log(df['cd40'])
-  df['age0'] = np.log(df['age0'])
 
 I will also define a function to initialize each of the machine learning models and set up SuPyLearner. For my
 implementation, I use a Support Vector Machine, L1-penalized Logistic Regression, L2-penalized Logistic Regression,
@@ -566,15 +519,12 @@ The above results in the following output
 
 .. code:: python
 
-  Psi:  -0.04
-  95.0% two-sided CI: (-0.161 , 0.08)
+  Psi:  -0.072
+  95.0% two-sided CI: (-0.202 , 0.057)
   ----------------------------------------------------------------------
   Psi corresponds to risk difference
   ----------------------------------------------------------------------
 
-You'll notice these results are different from previous. I don't have a great explanation for this. My best guess is
-the difference in results is due to the machine learning models not fitting that great, likely a result of the small
-data set available.
 
 Comparison between methods
 ----------------------------------------
@@ -583,34 +533,24 @@ these results using ``zepid.graphics.EffectMeasurePlot`` for both Risk Differenc
 
 .. code:: python
 
-  labs = ['Crude','GLM','G-formula','IPTW','AIPW']
-  measure = [-0.061,np.nan,-0.092,-0.099,-0.082]
-  lower = ['-0.146',np.nan,-0.159,-0.176,-0.142]
-  upper = [0.025,np.nan,'-0.020',-0.022,-0.017]
+  labs = ['Crude','GLM','G-formula','IPTW','AIPW', 'TMLE', 'TMLE-ML']
+  measure = [-0.045, np.nan, -0.076, -0.082, -0.068, -0.079, -0.072]
+  lower = [-0.129, np.nan, -0.151, -0.156, -0.122, -0.216, -0.202]
+  upper = [0.038, np.nan, -0.001, -0.007, -0.004, 0.058, 0.057]
   p = ze.graphics.EffectMeasurePlot(label=labs,effect_measure=measure,lcl=lower,ucl=upper)
   p.labels(center=0,effectmeasure='RD')
-  p.plot(figsize=(8.25,4),t_adjuster=0.09,max_value=0.1,min_value=-0.2)
+  p.plot(figsize=(8.25,4),t_adjuster=0.09,max_value=0.1,min_value=-0.25)
   plt.tight_layout()
   plt.show()
 
-  labs = ['Crude','GLM','G-formula','IPTW','AIPW']
-  measure = [0.72,np.nan,0.58,0.54,0.57]
-  lower = [0.39,np.nan,0.28,0.27,0.24]
-  upper = [1.33,np.nan,0.93,1.06,0.95]
-  p = ze.graphics.EffectMeasurePlot(label=labs,effect_measure=measure,lcl=lower,ucl=upper)
-  p.labels(center=1,effectmeasure='RR')
-  p.plot(figsize=(7.25,3),t_adjuster=0.015,max_value=1.5,min_value=0.2)
-  plt.tight_layout()
-  plt.show()
 
 .. image:: images/zepid_effrd.png
 
-.. image:: images/zepid_effrr.png
-
-Our results are consistent between the methods with similar point estimates and largely overlapping confidence intervals.
-Note that the conditional regression model results (GLM) are not included in the plot. This is because the conditional
-regression models did not converge. This demonstrates an additional utility of these methods over standard conditional
-regression model
+Our results are fairly consistent between the methods with similar point estimates and largely overlapping confidence
+intervals. Note that the conditional regression model results (GLM) are not included in the plot. This is because the
+conditional regression models did not converge. This demonstrates an additional utility of these methods over standard
+conditional regression model. Also, the TMLE confidence intervals are much larger than the other methods. I do not have
+an explanation for this observation currently
 
 Time-Varying Exposures
 ==============================================
@@ -988,6 +928,10 @@ You can also create a dynamic risk plot, like the following. See the graphics pa
 
 .. image:: images/zepid_msm_rd.png
 
+LTMLE
+------------------------
+Coming soon, longitudinal TMLE...
+
 Other Inverse Probability Weights
 ===============================================
 There are multiple other types of inverse probability weights. Other ones currently implemented include; inverse
@@ -1013,16 +957,6 @@ the model to fit to.
 
 When ``flat_df=True``, a check for the generated dataframe is printed to the Terminal. Please use this to verify that the
 long version of the dataframe was created properly
-
-.. code::
-
-  Check for dataframe
-  Events in input: 92.0
-  Events in output: 92.0
-  Censor in input: 406.0
-  Censor in output: 406
-  Total t input: 27314.206
-  Total t output: 27314.206
 
 For the rest of this example, we will use the time-varying version of the example dataframe. For ``IPCW``, we set
 ``flat_df=False`` so no data preparation is done behind the scenes. This is the default for ``IPCW``.
