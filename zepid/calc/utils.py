@@ -365,7 +365,8 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     print('----------------------------------------------------------------------\n')
 
 
-def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=False, alpha=0.05, decimal=3):
+def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=False, alpha=0.05,
+              decimal=3, print_results=True):
     """A simple Bayesian Analysis. Note that this analysis assumes normal distribution for the
     continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340)
 
@@ -394,6 +395,8 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
         -Alpha level for confidence intervals. Default is 0.05
     decimal:
         -Number of decimal places to display. Default is three
+    print_results:
+        -Whether to print the results of the semi-Bayesian calculations. Default is True
     """
     # Transforming to log scale if ratio measure
     if ln_transform:
@@ -416,8 +419,12 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     w = 1 / var
 
     # Checking Prior
-    check = (mean - prior_mean) / ((var + prior_var) ** (1 / 2))
-    # TODO add some logic to this part to generate a warning when necessary
+    check = (mean - prior_mean) / ((var + prior_var) ** (1 / 2))  # ME3 pg340
+    approx_check = norm.sf(abs(check)) * 2
+    if approx_check < 0.05:
+        warnings.warn('The approximate homogeneity check between the prior and the data indicates the prior may be  '
+                      'incompatible with the data. Therefore, it may be misleading to summarize the results via a '
+                      'semi-Bayesian approach. Either the prior, data, or both are misleading.')
 
     # Calculating posterior
     post_mean = ((prior_mean * prior_w) + (mean * w)) / (prior_w + w)
@@ -439,19 +446,23 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
         ucl = math.exp(ucl)
 
     # Presenting Results
-    print('----------------------------------------------------------------------')
-    print('Prior Estimate: ', round(prior_mean, decimal))
-    print(str(round((1 - alpha) * 100, 1)) + '% Prior Confidence Interval: (', round(prior_lcl, decimal), ', ',
-          round(prior_ucl, decimal), ')')
-    print('----------------------------------------------------------------------')
-    print('Point Estimate: ', round(mean, decimal))
-    print(str(round((1 - alpha) * 100, 1)) + '% Confidence Interval: (', round(lcl, decimal), ', ', round(ucl, decimal),
-          ')')
-    print('----------------------------------------------------------------------')
-    print('Posterior Estimate: ', round(post_mean, decimal))
-    print(str(round((1 - alpha) * 100, 1)) + '% Posterior Probability Interval: (', round(post_lcl, decimal), ', ',
-          round(post_ucl, decimal), ')')
-    print('----------------------------------------------------------------------\n')
+    if print_results:
+        print('----------------------------------------------------------------------')
+        print('Prior-Data Compatibility Check: p =', round(approx_check, 5))
+        print('For compatibility check, small p-values indicate misleading results')
+        print('----------------------------------------------------------------------')
+        print('Prior Estimate: ', round(prior_mean, decimal))
+        print(str(round((1 - alpha) * 100, 1)) + '% Prior Confidence Interval: (', round(prior_lcl, decimal), ', ',
+              round(prior_ucl, decimal), ')')
+        print('----------------------------------------------------------------------')
+        print('Data Estimate: ', round(mean, decimal))
+        print(str(round((1 - alpha) * 100, 1)) + '% Confidence Interval: (',
+              round(lcl, decimal), ', ', round(ucl, decimal),')')
+        print('----------------------------------------------------------------------')
+        print('Posterior Estimate: ', round(post_mean, decimal))
+        print(str(round((1 - alpha) * 100, 1)) + '% Posterior Probability Interval: (', round(post_lcl, decimal), ', ',
+              round(post_ucl, decimal), ')')
+        print('----------------------------------------------------------------------\n')
     return [post_mean, post_lcl, post_ucl]
 
 
