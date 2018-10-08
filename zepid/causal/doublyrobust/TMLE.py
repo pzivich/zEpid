@@ -11,8 +11,6 @@ from statsmodels.genmod.families import links
 
 from zepid.causal.ipw import propensity_score
 
-# TODO add variable selection algorithm
-
 
 class TMLE:
     """
@@ -193,7 +191,7 @@ class TMLE:
         # Getting influence curve
         ic = ((gAW * (self.df[self._outcome] - logistic.cdf(self.QAW))) +
               logistic.cdf(Qstar1 - Qstar0) - self.psi)
-        varIC = np.var(ic) / self.df.shape[0]
+        varIC = np.var(ic, ddof=1) / self.df.shape[0]
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
         self.confint = [self.psi - zalpha * math.sqrt(varIC), self.psi + zalpha * math.sqrt(varIC)]
 
@@ -216,4 +214,5 @@ class TMLE:
         print('----------------------------------------------------------------------')
 
 
-# TODO longitudinal TMLE; estimated by E[...E[Y_n|A=abar]...] from inside out
+# TODO add HAL-TMLE
+# TODO longitudinal TMLE; estimated by E[...E[Y_n|A=abar]...] working from center to outside
