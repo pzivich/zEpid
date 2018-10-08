@@ -3,11 +3,6 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
-from zepid.calc import odds_to_probability
-
-
-# Speed testing the g-formula
-# TODO add check to see if making any weird patsy formulas
 
 
 class TimeVaryGFormula:
@@ -232,7 +227,6 @@ class TimeVaryGFormula:
         # setting up some parts outside of Monte Carlo loop to speed things up
         mc_simulated_data = []
         g = gs.copy()
-        g['Intercept'] = 1
         if len(self._covariate_models) != 0:
             cov_model_order = (sorted(range(len(self._covariate_model_index)),
                                       key=self._covariate_model_index.__getitem__))
@@ -250,8 +244,7 @@ class TimeVaryGFormula:
             # predict time-varying covariates
             if run_cov:
                 for j in cov_model_order:
-                    g[self._covariate[j]] = self._predict(df=g,
-                                                          model=self._covariate_models[j],
+                    g[self._covariate[j]] = self._predict(df=g, model=self._covariate_models[j],
                                                           variable=self._covariate_type[j])
                     exec(self._covariate_recode[j])
 
@@ -296,8 +289,8 @@ class TimeVaryGFormula:
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
         """
-        # pp = df.mul(model.params).sum(axis=1)
-        pp = model.predict(df) # statsmodels.predict() is slightly slower than above, but above doesn't support patsy
+        # pp = data.mul(model.params).sum(axis=1) # Alternative to statsmodels.predict(), but too much too implement
+        pp = model.predict(df)
         if variable == 'binary':
             # pp = odds_to_probability(np.exp(pp))  # assumes a logit model. For non-statsmodel.predict() option
             pred = np.random.binomial(1, pp, size=len(pp))
