@@ -7,7 +7,7 @@ from statsmodels.genmod.families import links
 
 
 class TimeFixedGFormula:
-    '''Time-fixed implementation of the g-formula, also referred to as the g-computation
+    """Time-fixed implementation of the g-formula, also referred to as the g-computation
     algorithm formula. This implementation has three options for the treatment courses:
 
     Key options for treatments
@@ -40,8 +40,11 @@ class TimeFixedGFormula:
         -outcome variable label / column name
     outcome_type:
         -outcome variable type. Currently only 'binary' or 'continuous' variable types are supported
-    '''
-    def __init__(self, df, exposure, outcome, outcome_type='binary'):
+    weights:
+        -weights for weighted data. Default is None, which assumes every observations has the same weight (i.e. 1)
+    """
+
+    def __init__(self, df, exposure, outcome, outcome_type='binary', weights=None):
         self.gf = df.copy()
         self.exposure = exposure
         self.outcome = outcome
@@ -50,13 +53,12 @@ class TimeFixedGFormula:
         else:
             raise ValueError('Only binary or continuous outcomes are currently supported. Please specify "binary" or '
                              '"continuous"')
+        self._weights = weights
         self.model_fit = False
 
     def outcome_model(self, model, print_results=True):
-        '''Build the model for the outcome. This is also referred to at the Q-model. This must be specified
+        """Build the model for the outcome. This is also referred to at the Q-model. This must be specified
         before the fit function. If it is not, an error will be raised.
-
-        Input:
 
         model:
             -variables to include in the model for predicting the outcome. Must be contained within the input
@@ -64,27 +66,28 @@ class TimeFixedGFormula:
              the functional form, i.e. 'var1 + var2 + var3 + var4'
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
-        '''
+        """
         if self.outcome_type == 'binary':
             linkdist = sm.families.family.Binomial(sm.families.links.logit)
         else:
             linkdist = sm.families.family.Gaussian(sm.families.links.identity)
 
         # Modeling the outcome
-        m = smf.glm(self.outcome+' ~ '+model, self.gf, family=linkdist)
-        self.outcome_model = m.fit()
+        if self._weights is None:
+            m = smf.glm(self.outcome+' ~ '+model, self.gf, family=linkdist)
+            self.outcome_model = m.fit()
+        else:
+            m = smf.gee(self.outcome+' ~ '+model, self.gf.index, self.gf, family=linkdist,
+                        weights=self.gf[self._weights])
+            self.outcome_model = m.fit()
+
+        # Printing results of the model and if any observations were dropped
         if print_results is True:
-            # Warning to make users aware that some amount of observations are dropped
-            if self.gf.shape[0] != self.outcome_model.nobs:
-                warnings.warn('Notice: ' +
-                              str(self.gf.shape[0] - self.outcome_model.nobs) +
-                              ' observations were dropped due to missing data for at least one of the variables in the '
-                              'specified regression model')
             print(self.outcome_model.summary())
         self.model_fit = True
 
     def fit(self, treatment):
-        '''Fit the parametric g-formula as specified. Binary and multivariate treatments are available.
+        """Fit the parametric g-formula as specified. Binary and multivariate treatments are available.
         This implementation has three options for the binary treatment courses:
 
         all     -all individuals are given treatment
@@ -102,7 +105,7 @@ class TimeFixedGFormula:
         treatment:
             -specified treatment course. Either a string object for binary treatments or a list of custom
              treatments as strings
-        '''
+        """
         if self.model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
         if (type(treatment) != str) and (type(treatment) != list):
@@ -113,16 +116,16 @@ class TimeFixedGFormula:
 
         # Setting treatment (either multivariate or binary)
         if type(self.exposure) == list:  # Multivariate exposure
-            if (treatment == 'all') or (treatment == 'none'): # Check to make sure custom treatment
+            if (treatment == 'all') or (treatment == 'none'):  # Check to make sure custom treatment
                 raise ValueError('A multivariate exposure has been specified. A custom treatment must be '
                                  'specified by the user')
             else:
-                if len(self.exposure) != len(treatment): # Check to make sure same about of treatments specified
+                if len(self.exposure) != len(treatment):  # Check to make sure same about of treatments specified
                     raise ValueError('The list of custom treatment conditions must be the same size as the number of '
                                      'treatments')
                 for i in range(len(self.exposure)):
                     g[self.exposure[i]] = np.where(eval(treatment[i]),1,0)
-                if np.sum(np.where(g[self.exposure].sum(axis=1)>1,1,0)) > 1:
+                if np.sum(np.where(g[self.exposure].sum(axis=1) > 1, 1, 0)) > 1:
                     warnings.warn('It looks like your specified treatment strategy results in some individuals '
                                   'receiving at least two exposures. Reconsider how the custom treatments are '
                                   'specified')
@@ -135,10 +138,13 @@ class TimeFixedGFormula:
             elif treatment == 'none':
                 g[self.exposure] = 0
             else:  # custom exposure pattern
-                g[self.exposure] = np.where(eval(treatment),1,0)
+                g[self.exposure] = np.where(eval(treatment), 1, 0)
 
         # Getting predictions
         g[self.outcome] = np.nan
         g[self.outcome] = self.outcome_model.predict(g)
-        self.marginal_outcome = np.mean(g[self.outcome])
+        if self._weights is None:  # unweighted marginal estimate
+            self.marginal_outcome = np.mean(g[self.outcome])
+        else:  # weighted marginal estimate
+            self.marginal_outcome = np.average(g[self.outcome], weights=self.gf[self._weights])
         self.predicted_df = g
