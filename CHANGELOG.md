@@ -1,5 +1,15 @@
 ### Change logs
 
+#### v0.3.2
+**MAJOR CHANGES**:
+
+TimeFixedGFormula now allows weighted data as an input. For example, IPMW can be integrated into the time-fixed 
+g-formula estimation. Estimation for weighted data uses ``statsmodels`` GEE. As a result of the difference between GLM
+and GEE, the check of the number of dropped data was removed.
+
+**MINOR CHANGES**:
+
+
 #### v0.3.1
 **MINOR CHANGES**:
 
