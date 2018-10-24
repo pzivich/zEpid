@@ -206,6 +206,44 @@ intervals. This example generates confidence intervals for ART exposure on death
 to run, if not longer. Remember that it is fitting 500 logistic regression models to 500 bootstrapped sample to
 generate the confidence intervals.
 
+Weighted Data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Lastly, the ``TimeFixedGFormula`` can be estimated using weighted data. For the following example, we will calculate
+inverse probability of missingness weights (IPMW) for the sample data (see below for ``zepid.causal.ipw.IPMW``). While
+the functionality is demonstrated with IPMW, any type of weights are possible. For example, sampling weights are another
+potential option. First, we set up the data
+
+.. code:: python
+
+  df = ze.load_sample_data(timevary=False)
+  df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+  df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+Then estimate IPMW using ``zepid.causal.ipw.IPMW``
+
+.. code:: python
+
+  from zepid.causal.ipw import IPMW
+  ipm = IPMW(df, 'dead')
+  ipm.fit(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  df['mweight'] = ipm.Weight
+
+To fit ``TimeFixedGFormula`` with weighted data, the optional argument ``weights`` is specified. This optional argument
+is set to the column label for the weights, like the following:
+
+.. code:: python
+
+  g = TimeFixedGFormula(df, exposure='art', outcome='dead', weights='mweight')
+  g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  g.fit(treatment='all')
+  r1 = g.marginal_outcome
+  g.fit(treatment='none')
+  r0 = g.marginal_outcome
+
+Inclusion of IPMW in the model (and accounting for missing data on the outcome) results in a slightly attenuated
+estimate (-0.076 vs. -0.074), but is fairly consistent. Confidence intervals are generated using a similar procedure to
+above, but within each bootstrapped sample the IPMW is estimated on the sampled data.
+
 Inverse Probability of Treatment Weights
 --------------------------------------------
 Inverse Probability of Treatment Weights (IPTW) are used to adjust for confounder imbalances between exposed and
@@ -533,13 +571,13 @@ these results using ``zepid.graphics.EffectMeasurePlot`` for both Risk Differenc
 
 .. code:: python
 
-  labs = ['Crude','GLM','G-formula','IPTW','AIPW', 'TMLE', 'TMLE-ML']
-  measure = [-0.045, np.nan, -0.076, -0.082, -0.068, -0.079, -0.072]
-  lower = [-0.129, np.nan, -0.151, -0.156, -0.122, -0.216, -0.202]
-  upper = [0.038, np.nan, -0.001, -0.007, -0.004, 0.058, 0.057]
-  p = ze.graphics.EffectMeasurePlot(label=labs,effect_measure=measure,lcl=lower,ucl=upper)
-  p.labels(center=0,effectmeasure='RD')
-  p.plot(figsize=(8.25,4),t_adjuster=0.09,max_value=0.1,min_value=-0.25)
+  labs = ['Crude', 'GLM', 'G-formula', 'G-formula w/ IPMW', 'IPTW', 'AIPW', 'TMLE', 'TMLE-ML']
+  measure = [-0.045, np.nan, -0.076, -0.074, -0.082, -0.068, -0.079, -0.072]
+  lower = [-0.129, np.nan, -0.151, -0.142, -0.156, -0.122, -0.216, -0.202]
+  upper = [0.038, np.nan, -0.001, 0.002, -0.007, -0.004, 0.058, 0.057]
+  p = ze.graphics.EffectMeasurePlot(label=labs, effect_measure=measure, lcl=lower, ucl=upper)
+  p.labels(center=0, effectmeasure='RD')
+  p.plot(figsize=(8.5, 4),t_adjuster=0.05, max_value=0.1, min_value=-0.25)
   plt.tight_layout()
   plt.show()
 
