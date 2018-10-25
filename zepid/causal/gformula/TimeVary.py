@@ -51,11 +51,15 @@ class TimeVaryGFormula:
         -exposure variable label / column name
     outcome:
         -outcome variable label / column name
-    time:
-        -time variable label / column name
+    time_in:
+        -time variable label / column name for start of row time period
+    time_out:
+        -time variable label / column name for end of row time period
+    weights:
+        -weights for weighted data. Default is None, which assumes every observations has the same weight (i.e. 1)
     """
 
-    def __init__(self, df, idvar, exposure, outcome, time_in, time_out):
+    def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
         self.gf = df.copy()
         self.idvar = idvar
         self.exposure = exposure
@@ -71,6 +75,7 @@ class TimeVaryGFormula:
         self._covariate = []
         self._covariate_type = []
         self._covariate_recode = []
+        self._weights = weights
         self.predicted_outcomes = None
 
     def exposure_model(self, model, restriction=None, print_results=True):
@@ -92,7 +97,13 @@ class TimeVaryGFormula:
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
         linkdist = sm.families.family.Binomial(sm.families.links.logit)
-        self.exp_model = smf.glm(self.exposure + ' ~ ' + model, g, family=linkdist).fit()
+
+        if self._weights is None:  # Unweighted g-formula
+            self.exp_model = smf.glm(self.exposure + ' ~ ' + model, g, family=linkdist).fit()
+        else:  # Weighted g-formula
+            self.exp_model = smf.gee(self.exposure + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
+                                     family=linkdist).fit()
+
         if print_results:
             print(self.exp_model.summary())
         self._exposure_model_fit = True
@@ -118,7 +129,13 @@ class TimeVaryGFormula:
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
         linkdist = sm.families.family.Binomial(sm.families.links.logit)
-        self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
+
+        if self._weights is None:  # Unweighted g-formula
+            self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
+        else:  # Weighted g-formula
+            self.out_model = smf.gee(self.outcome + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
+                                     family=linkdist).fit()
+
         if print_results:
             print(self.out_model.summary())
         self._outcome_model_fit = True
@@ -164,13 +181,25 @@ class TimeVaryGFormula:
         g = self.gf.copy()
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
-        if var_type == 'binary':
-            linkdist = sm.families.family.Binomial(sm.families.links.logit)
-            m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
-        elif var_type == 'continuous':
-            m = smf.gls(covariate + ' ~ ' + model, g)
-        else:
-            raise ValueError('Only binary or continuous covariates are currently supported')
+
+        if self._weights is None:  # Unweighted g-formula
+            if var_type == 'binary':
+                linkdist = sm.families.family.Binomial(sm.families.links.logit)
+                m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
+            elif var_type == 'continuous':
+                linkdist = sm.families.family.Gaussian(sm.families.links.identity)
+                m = smf.gls(covariate + ' ~ ' + model, g)
+            else:
+                raise ValueError('Only binary or continuous covariates are currently supported')
+        else:  # Weighted g-formula
+            if var_type == 'binary':
+                linkdist = sm.families.family.Binomial(sm.families.links.logit)
+                m = smf.gee(covariate + ' ~ ' + model, self.idvar, g, weights=g[self._weights], family=linkdist)
+            elif var_type == 'continuous':
+                linkdist = sm.families.family.Gaussian(sm.families.links.identity)
+                m = smf.gee(covariate + ' ~ ' + model, self.idvar, g, weights=g[self._weights], family=linkdist)
+            else:
+                raise ValueError('Only binary or continuous covariates are currently supported')
 
         f = m.fit()
         if print_results:
@@ -214,7 +243,12 @@ class TimeVaryGFormula:
             raise ValueError('Specified treatment must be a string object')
 
         # Getting data all set
-        gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample, replace=True)
+        if self._weights is None:
+            gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample, replace=True)
+        else:
+            gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample,
+                                                                                           weights=self._weights,
+                                                                                           replace=True)
         gs['uid_g_zepid'] = [v for v in range(sample)]
 
         # Background preparations
@@ -279,12 +313,17 @@ class TimeVaryGFormula:
             gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
         except TypeError:  # gets around pandas <0.22 error
             gs = pd.concat(mc_simulated_data, ignore_index=True)
-        self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
-                                     self._covariate].sort_values(by=['uid_g_zepid',
-                                                                      self.time_in]).reset_index(drop=True)
+        if self._weights is None:
+            self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
+                                         self._covariate].sort_values(by=['uid_g_zepid',
+                                                                          self.time_in]).reset_index(drop=True)
+        else:
+            self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self._weights, self.time_in,
+                                          self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
+                                                                                            self.time_in]).reset_index(
+                drop=True)
 
-    @staticmethod
-    def _predict(df, model, variable):
+    def _predict(self, df, model, variable):
         """
         This predict method gains me a small ammount of increased speed each time a model is fit, compared to
         statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
@@ -295,7 +334,10 @@ class TimeVaryGFormula:
             # pp = odds_to_probability(np.exp(pp))  # assumes a logit model. For non-statsmodel.predict() option
             pred = np.random.binomial(1, pp, size=len(pp))
         elif variable == 'continuous':
-            pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
+            if self._weights is None:
+                pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
+            else:
+                pred = np.random.normal(loc=pp, scale=np.std(model.resid()), size=len(pp))
         else:
             raise ValueError('That option is not supported')
         return pred
