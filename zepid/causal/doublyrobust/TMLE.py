@@ -55,7 +55,7 @@ class TMLE:
         self.psi = None
         self.confint = None
 
-    def exposure_model(self, model, custom_model=None, print_results=True):
+    def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
         """Estimation of g(A=1,W), which is Pr(A=1|W)
 
         model:
@@ -68,29 +68,41 @@ class TMLE:
              NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
              The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
              to unexpected estimates
+        bound:
+            -Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations. Default
+             is False, meaning no truncation of predicted probabilities occurs. Providing a single float assumes
+             symmetric trunctation. A collection of floats can be provided for asymmetric trunctation
         print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self._exposure + ' ~ ' + model
 
+        # Base logistic regression model to generated predicted probabilities
         if custom_model is None:
             fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
             self.gW = fitmodel.predict(self.df)
+            if bound is not False:  # Bounding predicted probabilities if requested
+                self.gW = self._bounding(self.gW, bounds=bound)
 
+        # User-specified prediction model
         else:
             try:  # This two-stage 'try' filters whether the data needs an intercept, then has the predict() attr
                 data = patsy.dmatrix(model, self.df)
                 try:
                     self.gW = custom_model.predict(data)
+                    if bound is not False:  # Bounding predicted probabilities if requested
+                        self.gW = self._bounding(self.gW, bounds=bound)
                 except AttributeError:
                     raise AttributeError("custom_model does not have the 'predict()' attribute")
             except ValueError:
                 data = patsy.dmatrix(model+' - 1', self.df)
                 try:
                     self.gW = custom_model.predict(data)
+                    if bound is not False:  # Bounding predicted probabilities if requested
+                        self.gW = self._bounding(self.gW, bounds=bound)
                 except AttributeError:
                     raise AttributeError("custom_model does not have the 'predict()' attribute")
-
+        # Setting flag for fit() check to make sure exposure model was specified
         self._fit_exposure_model = True
 
     def outcome_model(self, model, custom_model=None, print_results=True):
@@ -111,6 +123,7 @@ class TMLE:
         """
         self._out_model = self._outcome + ' ~ ' + model
 
+        # Base logistic regression model for the Q-model
         if custom_model is None:  # Logistic Regression model for predictions
             f = sm.families.family.Binomial(sm.families.links.logit)
             log = smf.glm(self._out_model, self.df, family=f).fit()
@@ -126,10 +139,12 @@ class TMLE:
             dfx = self.df.copy()
             dfx[self._exposure] = 1
             self.QA1W = log.predict(dfx)
+
             dfx = self.df.copy()
             dfx[self._exposure] = 0
             self.QA0W = log.predict(dfx)
 
+        # User-specified model
         else:  # Custom Model (like SuPyLearner)
             try:  # This 'try' catches if the model does not have an intercept (sklearn models)
                 data = patsy.dmatrix(model, self.df)
@@ -151,6 +166,7 @@ class TMLE:
                 data = patsy.dmatrix(model + ' - 1', self.df)
                 try:
                     self.QAW = custom_model.predict(data)
+
                 except AttributeError:
                     raise AttributeError("custom_model does not have the 'predict()' attribute")
                 dfx = self.df.copy()
@@ -162,7 +178,7 @@ class TMLE:
                 dfx[self._exposure] = 0
                 data = patsy.dmatrix(model + ' - 1', dfx)
                 self.QA0W = custom_model.predict(data)
-
+        # Setting flag for fit() Q-model check
         self._fit_outcome_model = True
 
     def fit(self):
@@ -240,6 +256,41 @@ class TMLE:
         print('----------------------------------------------------------------------')
         print('Psi corresponds to '+self._psi_correspond)
         print('----------------------------------------------------------------------')
+
+    @staticmethod
+    def _bounding(v, bounds):
+        """Background function to perform bounding feature.
+
+        v:
+            -Values to be bounded
+        bounds:
+            -Percentile thresholds for bounds
+        """
+        if type(bounds) is float:  # Symmetric bounding
+            if bounds < 0 or bounds > 1:
+                raise ValueError('Bound value must be between (0, 1)')
+            low = np.percentile(v, q=bounds*100)
+            upp = np.percentile(v, q=(1-bounds)*100)
+            v = np.where(v < low, low, v)
+            v = np.where(v > upp, upp, v)
+        elif type(bounds) is str:  # Catching string inputs
+            raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+        else:  # Asymmetric bounds
+            if bounds[0] > bounds[1]:
+                raise ValueError('Bound thresholds must be listed in ascending order')
+            if len(bounds) > 2:
+                warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
+                              'specified bounds are used by the bound statement. So only ' +
+                              str(bounds[0:2]) + ' will be used')
+            if type(bounds[0]) is str or type(bounds[1]) is str:
+                raise ValueError('Bounds must be floats between (0, 1)')
+            if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
+                raise ValueError('Both bound values must be between (0, 1)')
+            low = np.percentile(v, q=bounds[0]*100)
+            upp = np.percentile(v, q=bounds[1]*100)
+            v = np.where(v < low, low, v)
+            v = np.where(v > upp, upp, v)
+        return v
 
 
 # TODO add HAL-TMLE
