@@ -156,3 +156,37 @@ def load_gvhd_data():
                'day', 'daysq', 'daycu', 'daycurs1', 'daycurs2', 'd', 'gvhd', 'relapse', 'platnorm', 'gvhdm1', 'relapsem1',
                'platnormm1', 'censlost', 'daysnorelapse', 'daysnoplatnorm', 'daysnogvhd', 'daysrelapse',
                'daysplatnorm', 'daysgvhd']]
+
+
+def load_sciatica_data():
+    """Loads the Sciatica Trial data published in; Mertens, BJA, Jacobs, WCH, Brand, R, and Peul, WC. Assessment of
+    patient-specific surgery effect based on weighted estimation and propensity scoring in the re-analysis of the
+    Sciatica Trial. PLOS One 2014. Details of the original Sciatica Trial are available in; Peul WC, van Houwelingen HC,
+    van den Hout WB, et al. Surgery versus Prolonged Conservative Treatment for Sciatica. NEJM 2007
+
+    DOI: 10.1177/0962280214545529
+
+    Variables:
+    -id: unique identifier for patient
+    -tpoints: follow-up time period
+    -time: follow-up time
+    -age_b: age at follow-up time
+    -age_t: age at randomization
+    -vas1_t: VAS score
+    -vas2_t: VAS score
+    -roland_t: Roland score
+    -likert_t: Likert score
+    -vas1_b: VAS1 at baseline
+    -vas2_b: VAS2 at baseline
+    -roland_b: Roland score at baseline
+    -likert_b: Likert score at baseline
+    -male: participant gender (1 is male, 0 is female)
+    -weight: participant weight in kilograms
+    -height: participant height in meters
+    -surgery: whether participant received the surgery (1 is surgery, 0 is not yet surgery)
+    """
+    df = pd.read_csv(resource_filename('zepid', 'datasets/sciatica.dat'), delim_whitespace=True, index_col=False,
+                     header=None, names=['id', 'tpoints', 'time', 'age_b', 'age_t', 'vas1_t', 'vas2_t', 'roland_t',
+                                         'likert_t', 'vas1_b', 'vas2_b', 'roland_b', 'likert_b', 'male', 'weight',
+                                         'height', 'surgery'])
+    return df
