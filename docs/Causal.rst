@@ -442,7 +442,11 @@ First, the data is loaded and prepared
   df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
 
 Next, the ``zepid.causal.doublyrobust.TMLE`` class is initialized. It is initialized with the pandas dataframe
-containing the data, column name of the exposure, and column name of the outcome
+containing the data, column name of the exposure, and column name of the outcome. By default, the risk difference is
+estimated. To estimate the risk ratio or odds ratio specify the optional argument ``psi`` to be ``risk_ratio`` or
+``odds_ratio``, respectively.
+
+.. code:: python
 
   from zepid.causal.doublyrobust import TMLE
   tmle = TMLE(df, exposure='art', outcome='dead')
@@ -466,13 +470,13 @@ After both models are specified the TMLE model can be fit. Results can be printe
 
 I am still learning about TMLE and some of the background processes. The confidence intervals come from influence
 curves. You can see the step-by-step process of basically what ``zepid.causal.doublyrobust.TMLE`` calculates in the
-following `LINK <https://migariane.github.io/TMLE.nb.html>`_
-
-Only the risk difference is supported. I need to find more information to calculate the risk ratio
+following `LINK <https://migariane.github.io/TMLE.nb.html>`_ As of version 0.3.2, the formula used to calculate the
+efficient influence curve confidence intervals is based on the formula in ``tmle.R``.
 
 TMLE with custom model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Still deciding if this needs to be separate from the machine learning section...
+Still deciding if this needs to be separate from the machine learning section... Process is the same as the TMLE with
+machine learning, as described below
 
 TMLE with Machine Learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -553,16 +557,6 @@ One final important item to take note of is the order of the standard ``model`` 
   tmle.fit()
   tmle.summary()
 
-The above results in the following output
-
-.. code:: python
-
-  Psi:  -0.072
-  95.0% two-sided CI: (-0.202 , 0.057)
-  ----------------------------------------------------------------------
-  Psi corresponds to risk difference
-  ----------------------------------------------------------------------
-
 
 Comparison between methods
 ----------------------------------------
@@ -572,9 +566,9 @@ these results using ``zepid.graphics.EffectMeasurePlot`` for both Risk Differenc
 .. code:: python
 
   labs = ['Crude', 'GLM', 'G-formula', 'G-formula w/ IPMW', 'IPTW', 'AIPW', 'TMLE', 'TMLE-ML']
-  measure = [-0.045, np.nan, -0.076, -0.074, -0.082, -0.068, -0.079, -0.072]
-  lower = [-0.129, np.nan, -0.151, -0.142, -0.156, -0.122, -0.216, -0.202]
-  upper = [0.038, np.nan, -0.001, 0.002, -0.007, -0.004, 0.058, 0.057]
+  measure = [-0.045, np.nan, -0.076, -0.074, -0.082, -0.068, -0.084, -0.091]
+  lower = [-0.129, np.nan, -0.151, -0.142, -0.156, -0.122, -0.154, -0.157]
+  upper = [0.038, np.nan, -0.001, 0.002, -0.007, -0.004, -0.015, -0.024]
   p = ze.graphics.EffectMeasurePlot(label=labs, effect_measure=measure, lcl=lower, ucl=upper)
   p.labels(center=0, effectmeasure='RD')
   p.plot(figsize=(8.5, 4),t_adjuster=0.05, max_value=0.1, min_value=-0.25)
