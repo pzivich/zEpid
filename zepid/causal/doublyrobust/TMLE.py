@@ -1,5 +1,3 @@
-# Only be very general (no SuPyLearner or any ML yet)
-
 import math
 import warnings
 import patsy
@@ -10,17 +8,14 @@ from scipy.stats import logistic, norm
 from statsmodels.genmod.families import links
 
 from zepid.causal.ipw import propensity_score
+from zepid.calc import probability_to_odds
 
 
 class TMLE:
-    """
-    Implementation of a simple TMLE model. It uses standard logistic regression models to calculate Psi. In the future,
-    the addition of automatic variable/model selection and addition of machine learning models will be added.
-
-    This is only the base TMLE currently
-    """
-    def __init__(self, df, exposure, outcome, psi='risk difference', alpha = 0.05):
-        """
+    def __init__(self, df, exposure, outcome, psi='risk_difference', alpha = 0.05):
+        """Implementation of a single time-point TMLE model. It uses standard logistic regression models to calculate
+        Psi. The TMLE estimator allows a standard logistic regression to be used. Alternatively, users are able to
+        directly input predicted outcomes from other methods (like machine learning algorithms).
 
         df:
             -pandas dataframe containing the variables of interest
@@ -29,15 +24,18 @@ class TMLE:
         outcome:
             -column label for the outcome of interest
         psi:
-            -What the TMLE psi estimates. Currently only Risk Difference is supported
+            -What the TMLE psi estimates. Current options include; risk difference comparing treated to untreated
+             (F(A=1) - F(A=0)), risk ratio (F(A=1) / F(A=0)), and odds ratio.
+             The following keywords are used
+             'risk_difference'  :   F(A=1) - F(A=0)
+             'risk_ratio'       :   F(A=1) / F(A=0)
+             'odds_ratio'       :   (F(A=1) / (1 - F(A=1)) / (F(A=0) / (1 - F(A=0))
         alpha:
             -alpha for confidence interval level. Default is 0.05
         """
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
                           "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
-        if psi != "risk difference":
-            raise ValueError('Only the additive estimate of the risk difference is currently implemented')
         self._psi_correspond = psi
         self.df = df.copy().dropna().reset_index()
         self.alpha = alpha
@@ -50,7 +48,9 @@ class TMLE:
         self.QA0W = None
         self.QA1W = None
         self.QAW = None
-        self.gA1 = None
+        self.gW = None
+        self.gA0W = None
+        self.gA1W = None
         self._epsilon = None
         self.psi = None
         self.confint = None
@@ -75,19 +75,19 @@ class TMLE:
 
         if custom_model is None:
             fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
-            self.gA1 = fitmodel.predict(self.df)
+            self.gW = fitmodel.predict(self.df)
 
         else:
             try:  # This two-stage 'try' filters whether the data needs an intercept, then has the predict() attr
                 data = patsy.dmatrix(model, self.df)
                 try:
-                    self.gA1 = custom_model.predict(data)
+                    self.gW = custom_model.predict(data)
                 except AttributeError:
                     raise AttributeError("custom_model does not have the 'predict()' attribute")
             except ValueError:
                 data = patsy.dmatrix(model+' - 1', self.df)
                 try:
-                    self.gA1 = custom_model.predict(data)
+                    self.gW = custom_model.predict(data)
                 except AttributeError:
                     raise AttributeError("custom_model does not have the 'predict()' attribute")
 
@@ -172,28 +172,56 @@ class TMLE:
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
                              'be generated')
 
-        # Calculating items to through into regression
-        gAW = self.df[self._exposure] / self.gA1 - ((1 - self.df[self._exposure]) / (1 - self.gA1))
-        g1W = 1 / self.gA1
-        g0W = -1 / (1 - self.gA1)
+        # Calculating clever covariates
+        H1W = self.df[self._exposure] / self.gW
+        H0W = (1 - self.df[self._exposure]) / (1 - self.gW)
 
         # Fitting logistic model with QAW offset
         f = sm.families.family.Binomial(sm.families.links.logit)
-        log = sm.GLM(self.df[self._outcome], gAW, offset=self.QAW, family=f).fit()
-        self._epsilon = log.params[0]
+        log = sm.GLM(self.df[self._outcome], np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
+                     family=f).fit()
+        self._epsilon = log.params
 
         # Getting Qn*
         # Qstar = logistic.cdf(self.QAW + self._epsilon*gAW) # I think this would allow natural course comparison
-        Qstar1 = logistic.cdf(self.QA1W + self._epsilon*g1W)
-        Qstar0 = logistic.cdf(self.QA0W + self._epsilon*g0W)
-        self.psi = np.mean(Qstar1 - Qstar0)
+        Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] * (1 / self.gW))
+        Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) + self._epsilon[1] * (1 / (1 - self.gW)))
+        # Estimating parameter
+        if self._psi_correspond == 'risk_difference':
+            self.psi = np.mean(Qstar1 - Qstar0)
+        elif self._psi_correspond == 'risk_ratio':
+            self.psi = np.mean(Qstar1) / np.mean(Qstar0)
+        elif self._psi_correspond == 'odds_ratio':
+            self.psi = (np.mean(Qstar1) / (1 - np.mean(Qstar1))) / (np.mean(Qstar0) / (1 - np.mean(Qstar0)))
+        else:
+            raise ValueError('Specified parameter is not implemented. Please use one of the available options')
 
         # Getting influence curve
-        ic = ((gAW * (self.df[self._outcome] - logistic.cdf(self.QAW))) +
-              logistic.cdf(Qstar1 - Qstar0) - self.psi)
-        varIC = np.var(ic, ddof=1) / self.df.shape[0]
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
-        self.confint = [self.psi - zalpha * math.sqrt(varIC), self.psi + zalpha * math.sqrt(varIC)]
+        if self._psi_correspond == 'risk_difference':
+            ic = ((self.df[self._exposure]/self.gW - (1-self.df[self._exposure])/(1-self.gW)) *
+                  (self.df[self._outcome] - self.QAW) + self.QA1W - self.QA0W - (np.mean(Qstar1) - np.mean(Qstar0)))
+            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            self.confint = [self.psi - zalpha * math.sqrt(varIC),
+                            self.psi + zalpha * math.sqrt(varIC)]
+        elif self._psi_correspond == 'risk_ratio':
+            ic = ((1/np.mean(Qstar1))*(self.df[self._exposure]/self.gW * (self.df[self._outcome] - self.QAW) +
+                                      self.QA1W - np.mean(Qstar1)) -
+                  (1/np.mean(Qstar0))*((1-self.df[self._exposure])/(1-self.gW) *  (self.df[self._outcome] - self.QAW) +
+                                       self.QA0W - np.mean(Qstar0)))
+            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            self.confint = [np.exp(np.log(self.psi) - zalpha * math.sqrt(varIC)),
+                            np.exp(np.log(self.psi) + zalpha * math.sqrt(varIC))]
+        elif self._psi_correspond == 'odds_ratio':
+            ic = (1 / (np.mean(Qstar1) * (1-np.mean(Qstar1))) *
+                  (self.df[self._exposure] / self.gW * (self.df[self._outcome] - self.QAW + self.QA1W)) -
+                  1 / (np.mean(Qstar0) * (1 - np.mean(Qstar0))) *
+                  ((1 - self.df[self._exposure]) / (1 - self.gW) * (self.df[self._outcome] - self.QAW + self.QA0W)))
+            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            self.confint = [np.exp(np.log(self.psi) - zalpha * math.sqrt(varIC)),
+                            np.exp(np.log(self.psi) + zalpha * math.sqrt(varIC))]
+        else:
+            pass
 
     def summary(self, decimal=3):
         """Prints summary of model results
