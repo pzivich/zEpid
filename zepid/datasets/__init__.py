@@ -35,7 +35,7 @@ def load_sample_data(timevary):
     if timevary is True:
         return df
     else:
-        dfi = df.loc[df.groupby('id').cumcount() == 0][['id', 'male', 'age0', 'cd40', 'cd4', 'dvl0', 'art']].copy()
+        dfi = df.loc[df.groupby('id').cumcount() == 0][['id', 'male', 'age0', 'cd40', 'dvl0', 'art']].copy()
         dfo = df.loc[df.id != df.id.shift(-1)][['id', 'dead', 'drop', 'out']].copy()
         dfo.loc[(dfo['drop'] == 1) & (dfo['out'] <= 45), 'dead'] = np.nan
         dfo['dead'] = np.where((dfo['dead'] == 1) & (dfo['out'] > 45), 0, dfo['dead'])
@@ -190,3 +190,19 @@ def load_sciatica_data():
                                          'likert_t', 'vas1_b', 'vas2_b', 'roland_b', 'likert_b', 'male', 'weight',
                                          'height', 'surgery'])
     return df
+
+
+def load_leukemia_data():
+    """Loads data from Freireich EJ et al., "The Effect of 6-Mercaptopurine on the Duration of Steriod-induced
+    Remissions in Acute Leukemia: A Model for Evaluation of Other Potentially Useful Therapy" Blood 1963
+
+    Variables:
+    -t: time
+    -status: event indicator (0: censored, 1: relapsed)
+    -sex: male, female
+    -logwbc: log-transformed white blood cell count
+    -treat: treatment indicator
+    """
+    df = pd.read_csv(resource_filename('zepid', 'datasets/leukemia.dat'), delim_whitespace=True, index_col=False)
+    return df
+
