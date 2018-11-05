@@ -27,8 +27,8 @@ class AIPW:
         self._fit_exposure_model = False
         self._fit_outcome_model = False
         self._generated_ci = False
-        self.riskdiff = None
-        self.riskratio = None
+        self.risk_difference = None
+        self.risk_ratio = None
         self._exp_model = None
         self._out_model = None
 
@@ -95,8 +95,8 @@ class AIPW:
                                               / (1 - self.df['ps']))))
 
         # Generating estimates for the risk difference and risk ratio
-        self.riskdiff = np.mean(self.df['dr1']) - np.mean(self.df['dr0'])
-        self.riskratio = np.mean(self.df['dr1']) / np.mean(self.df['dr0'])
+        self.risk_difference = np.mean(self.df['dr1']) - np.mean(self.df['dr0'])
+        self.risk_ratio = np.mean(self.df['dr1']) / np.mean(self.df['dr0'])
 
     def summary(self, decimal=4):
         """Prints a summary of the results for the doubly robust estimator.
@@ -109,6 +109,6 @@ class AIPW:
                              'be generated')
 
         print('----------------------------------------------------------------------')
-        print('Risk Difference: ', round(float(self.riskdiff), decimal))
-        print('Risk Ratio: ', round(float(self.riskratio), decimal))
+        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
         print('----------------------------------------------------------------------')
