@@ -97,11 +97,14 @@ class TMLE:
             except ValueError:
                 data = patsy.dmatrix(model+' - 1', self.df)
                 try:
-                    self.gW = custom_model.predict(data)
+                    if hasattr(custom_model, 'predict_proba'):
+                        self.gW = custom_model.predict_proba(data)[:, 1]
+                    else:
+                        self.gW = custom_model.predict(data)
                     if bound is not False:  # Bounding predicted probabilities if requested
                         self.gW = self._bounding(self.gW, bounds=bound)
                 except AttributeError:
-                    raise AttributeError("custom_model does not have the 'predict()' attribute")
+                    raise AttributeError("custom_model does not have the 'predict()' or 'predict_proba()' attribute")
         # Setting flag for fit() check to make sure exposure model was specified
         self._fit_exposure_model = True
 
@@ -165,19 +168,27 @@ class TMLE:
             except ValueError:  # sklearn models would be processed here since they don't have an intercept
                 data = patsy.dmatrix(model + ' - 1', self.df)
                 try:
-                    self.QAW = custom_model.predict(data)
-
+                    if hasattr(custom_model, 'predict_proba'):
+                        self.QAW = custom_model.predict_proba(data)[:, 1]
+                    else:
+                        self.QAW = custom_model.predict(data)
                 except AttributeError:
-                    raise AttributeError("custom_model does not have the 'predict()' attribute")
+                    raise AttributeError("custom_model does not have the 'predict()' or predict_proba()' attribute")
                 dfx = self.df.copy()
                 dfx[self._exposure] = 1
                 data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA1W = custom_model.predict(data)
+                if hasattr(custom_model, 'predict_proba'):
+                    self.QA1W = custom_model.predict_proba(data)[:, 1]
+                else:
+                    self.QA1W = custom_model.predict(data)
 
                 dfx = self.df.copy()
                 dfx[self._exposure] = 0
                 data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA0W = custom_model.predict(data)
+                if hasattr(custom_model, 'predict_proba'):
+                    self.QA0W = custom_model.predict_proba(data)[:, 1]
+                else:
+                    self.QA0W = custom_model.predict(data)
         # Setting flag for fit() Q-model check
         self._fit_outcome_model = True
 
