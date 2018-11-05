@@ -334,10 +334,7 @@ class TimeVaryGFormula:
             # pp = odds_to_probability(np.exp(pp))  # assumes a logit model. For non-statsmodel.predict() option
             pred = np.random.binomial(1, pp, size=len(pp))
         elif variable == 'continuous':
-            if self._weights is None:
-                pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
-            else:
-                pred = np.random.normal(loc=pp, scale=np.std(model.resid()), size=len(pp))
+            pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
         else:
             raise ValueError('That option is not supported')
         return pred
