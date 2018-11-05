@@ -3,12 +3,37 @@
 #### v0.3.2
 **MAJOR CHANGES**:
 
-TimeFixedGFormula now allows weighted data as an input. For example, IPMW can be integrated into the time-fixed 
-g-formula estimation. Estimation for weighted data uses ``statsmodels`` GEE. As a result of the difference between GLM
+``TMLE`` now allows estimation of risk ratios and odds ratios. Estimation procedure is based on ``tmle.R``
+
+``TMLE`` variance formula has been modified to match ``tmle.R`` rather than other resources. This is beneficial for future 
+implementation of missing data adjustment. Also would allow for mediation analysis with TMLE (not a priority for me at
+this time). 
+
+``TMLE`` now includes an option to place bounds on predicted probabilities using the ``bound`` option. Default is to use
+all predicted probabilities. Either symmetrical or asymmetrical truncation can be specified.
+
+``TimeFixedGFormula`` now allows weighted data as an input. For example, IPMW can be integrated into the time-fixed 
+g-formula estimation. Estimation for weighted data uses statsmodels GEE. As a result of the difference between GLM
 and GEE, the check of the number of dropped data was removed.
+
+``TimeVaryGFormula`` now allows weighted data as an input. For example, Sampling weights can be integrated into the 
+time-fixed g-formula estimation. Estimation for weighted data uses statsmodels GEE.
 
 **MINOR CHANGES**:
 
+Added Sciatica Trial data set. Mertens, BJA, Jacobs, WCH, Brand, R, and Peul, WC. Assessment of patient-specific 
+surgery effect based on weighted estimation and propensity scoring in the re-analysis of the Sciatica Trial. PLOS 
+One 2014. Future plan is to replicate this analysis if possible.
+
+Added data from Freireich EJ et al., "The Effect of 6-Mercaptopurine on the Duration of Steriod-induced
+Remissions in Acute Leukemia: A Model for Evaluation of Other Potentially Useful Therapy" *Blood* 1963
+
+``TMLE`` now allows general sklearn algorithms. Fixed issue where ``predict_proba()`` is used to generate probabilities 
+within ``sklearn`` rather than ``predict``. Looking at this, I am probably going to clean up the logic behind this and 
+the rest of ``custom_model`` functionality in the future
+
+``AIPW`` object now contains ``risk_difference`` and ``risk_ratio`` to match ``RiskRatio`` and ``RiskDifference`` 
+classes
 
 #### v0.3.1
 **MINOR CHANGES**:

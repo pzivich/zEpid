@@ -15,11 +15,11 @@ You can contact me either through github (https://github.com/pzivich), email (gm
 
 # Installation
 
-## Dependencies:
-pandas >= 0.18.0, numpy, statsmodels >= 0.7.0, matplotlib >= 2.0, scipy, tabulate
-
 ## Installing:
 You can install zEpid using `pip install zepid`
+
+## Dependencies:
+pandas >= 0.18.0, numpy, statsmodels >= 0.7.0, matplotlib >= 2.0, scipy, tabulate
 
 # Module Features
 
