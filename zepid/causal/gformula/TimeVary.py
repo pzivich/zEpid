@@ -59,7 +59,7 @@ class TimeVaryGFormula:
         -weights for weighted data. Default is None, which assumes every observations has the same weight (i.e. 1)
     """
 
-    def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
+    def __init__(self, df, idvar, exposure, outcome, time_in, time_out, method='MonteCarlo', weights=None):
         self.gf = df.copy()
         self.idvar = idvar
         self.exposure = exposure
@@ -77,6 +77,13 @@ class TimeVaryGFormula:
         self._covariate_recode = []
         self._weights = weights
         self.predicted_outcomes = None
+        if method == 'MonteCarlo':
+            self._mc = True
+        elif method == 'SequentialRegression':
+            self._mc = False
+        else:
+            raise ValueError('Either "MonteCarlo" or "SequentialRegression" must be specified as the estimation '
+                             'procedure for TimeVaryGFormula')
 
     def exposure_model(self, model, restriction=None, print_results=True):
         """Build the model for the exposure. This must be specified before the fit function. If it is not,
@@ -235,29 +242,42 @@ class TimeVaryGFormula:
             -on the fly recoding of variables done before the loop starts. Needed to do any kind of functional
              forms for entry times
         """
-        if self._exposure_model_fit is False:
-            raise ValueError('Before the g-formula can be calculated, the exposure model must be specified')
         if self._outcome_model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
         if (type(treatment) != str) and (type(treatment) != list):
             raise ValueError('Specified treatment must be a string object')
 
-        # Getting data all set
-        if self._weights is None:
-            gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample, replace=True)
+        # Monte Carlo Estimation
+        if self._mc:
+            if self._exposure_model_fit is False:
+                raise ValueError('Before the g-formula can be calculated, the exposure model must be specified for '
+                                 'Monte Carlo estimation')
+            # Getting data all set
+            if self._weights is None:
+                gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample, replace=True)
+            else:
+                gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample,
+                                                                                               weights=self._weights,
+                                                                                               replace=True)
+            gs['uid_g_zepid'] = [v for v in range(sample)]
+
+            # Background preparations
+            gs[self.outcome] = 0
+
+            # getting maximum time steps to run g-formula
+            if t_max is None:
+                t_max = np.max(self.gf[self.time_out])
+
+            # Estimating via MC process
+            self.predicted_outcomes = self._montecarlo_est(gs, treatment, t_max, in_recode, out_recode, lags)
+
+        # Sequential Regression Estimation
         else:
-            gs = self.gf.loc[(self.gf.groupby(self.idvar).cumcount() == 0) == True].sample(n=sample,
-                                                                                           weights=self._weights,
-                                                                                           replace=True)
-        gs['uid_g_zepid'] = [v for v in range(sample)]
+            self.predicted_outcomes = None
 
-        # Background preparations
-        gs[self.outcome] = 0
-
-        # getting maximum time steps to run g-formula
-        if t_max is None:
-            t_max = np.max(self.gf[self.time_out])
-
+    def _montecarlo_est(self, gs, treatment, t_max, in_recode, out_recode, lags):
+        """Monte Carlo estimation process for the g-formula
+        """
         # setting up some parts outside of Monte Carlo loop to speed things up
         mc_simulated_data = []
         g = gs.copy()
@@ -314,20 +334,34 @@ class TimeVaryGFormula:
         except TypeError:  # gets around pandas <0.22 error
             gs = pd.concat(mc_simulated_data, ignore_index=True)
         if self._weights is None:
-            self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
-                                         self._covariate].sort_values(by=['uid_g_zepid',
-                                                                          self.time_in]).reset_index(drop=True)
+            return gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] +
+                      self._covariate].sort_values(by=['uid_g_zepid',
+                                                       self.time_in]).reset_index(drop=True)
         else:
-            self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self._weights, self.time_in,
-                                          self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
-                                                                                            self.time_in]).reset_index(
-                drop=True)
+            return gs[['uid_g_zepid', self.exposure, self.outcome, self._weights, self.time_in,
+                       self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
+                                                                         self.time_in]).reset_index(drop=True)
 
-    def _predict(self, df, model, variable):
+    def _sequential_regression(self):
+        """Sequential regression estimation for g-formula
         """
-        This predict method gains me a small ammount of increased speed each time a model is fit, compared to
-        statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
-        """
+        t_points = list(self.df[self.time_out].unique()).sort(reverse=True)
+        for v in t_points:
+            if t_points.index(v) == 0:
+                # select all data for t=v
+                # fit regression model to observed Y(T=v)
+                pY = self.out_model.predict(self.df)
+                # predictions by treatment of interest
+                # extract predictions
+            else:
+                # select all data for t=v
+                # fit regression model to previously predicted outcome
+                # extract predictions
+                print(v)
+
+    @staticmethod
+    def _predict(df, model, variable):
+        """Predict method to shorten the _montecarlo_est procedure code"""
         # pp = data.mul(model.params).sum(axis=1) # Alternative to statsmodels.predict(), but too much too implement
         pp = model.predict(df)
         if variable == 'binary':
