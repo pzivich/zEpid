@@ -59,11 +59,22 @@ class TimeVaryGFormula:
         -weights for weighted data. Default is None, which assumes every observations has the same weight (i.e. 1)
     """
 
-    def __init__(self, df, idvar, exposure, outcome, time_in, time_out, method='MonteCarlo', weights=None):
+    def __init__(self, df, idvar, exposure, outcome, time_out, time_in=None, method='MonteCarlo', weights=None):
         self.gf = df.copy()
         self.idvar = idvar
-        self.exposure = exposure
-        self.outcome = outcome
+
+        # Checking that treatment is binary
+        if df[exposure].dropna().value_counts().index.isin([0, 1]).all():
+            self.exposure = exposure
+        else:
+            raise ValueError('Only binary treatments/exposures are currently implemented')
+
+        # Checking that outcome is binary
+        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+            self.outcome = outcome
+        else:
+            raise ValueError('Only binary outcomes are currently implemented')
+
         self.exp_model = None
         self.out_model = None
         self.time_in = time_in
@@ -77,10 +88,16 @@ class TimeVaryGFormula:
         self._covariate_recode = []
         self._weights = weights
         self.predicted_outcomes = None
+
+        # Different Estimator Approaches
         if method == 'MonteCarlo':
             self._mc = True
+            if time_in is None:
+                raise ValueError('"time_in" must be specified for MonteCarlo estimation')
         elif method == 'SequentialRegression':
             self._mc = False
+            self._modelform = None
+            self._printseqregresults = None
         else:
             raise ValueError('Either "MonteCarlo" or "SequentialRegression" must be specified as the estimation '
                              'procedure for TimeVaryGFormula')
@@ -132,19 +149,24 @@ class TimeVaryGFormula:
         print_results:
             -whether to print the logistic regression results to the terminal. Default is True
         """
-        g = self.gf.copy()
-        if restriction is not None:
-            g = g.loc[eval(restriction)].copy()
-        linkdist = sm.families.family.Binomial(sm.families.links.logit)
+        if self._mc:
+            g = self.gf.copy()
+            if restriction is not None:
+                g = g.loc[eval(restriction)].copy()
+            linkdist = sm.families.family.Binomial(sm.families.links.logit)
 
-        if self._weights is None:  # Unweighted g-formula
-            self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
-        else:  # Weighted g-formula
-            self.out_model = smf.gee(self.outcome + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
-                                     family=linkdist).fit()
+            if self._weights is None:  # Unweighted g-formula
+                self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
+            else:  # Weighted g-formula
+                self.out_model = smf.gee(self.outcome + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
+                                         family=linkdist).fit()
 
-        if print_results:
-            print(self.out_model.summary())
+            if print_results:
+                print(self.out_model.summary())
+        else:
+            self._modelform = model
+            self._printseqregresults = print_results
+
         self._outcome_model_fit = True
 
     def add_covariate_model(self, label, covariate, model, restriction=None, recode=None, var_type='binary',
@@ -269,13 +291,15 @@ class TimeVaryGFormula:
                 t_max = np.max(self.gf[self.time_out])
 
             # Estimating via MC process
-            self.predicted_outcomes = self._montecarlo_est(gs, treatment, t_max, in_recode, out_recode, lags)
+            self.predicted_outcomes = self._monte_carlo(gs, treatment, t_max, in_recode, out_recode, lags)
 
         # Sequential Regression Estimation
         else:
-            self.predicted_outcomes = None
+            if self._exposure_model_fit or len(self._covariate_models) > 0:
+                raise ValueError('Only the outcome model needs be specified for the sequential regression estimator')
+            self.predicted_outcomes = self._sequential_regression(treatment=treatment)
 
-    def _montecarlo_est(self, gs, treatment, t_max, in_recode, out_recode, lags):
+    def _monte_carlo(self, gs, treatment, t_max, in_recode, out_recode, lags):
         """Monte Carlo estimation process for the g-formula
         """
         # setting up some parts outside of Monte Carlo loop to speed things up
@@ -342,22 +366,107 @@ class TimeVaryGFormula:
                        self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
                                                                          self.time_in]).reset_index(drop=True)
 
-    def _sequential_regression(self):
+    def _sequential_regression(self, treatment):
         """Sequential regression estimation for g-formula
         """
-        t_points = list(self.df[self.time_out].unique()).sort(reverse=True)
-        for v in t_points:
-            if t_points.index(v) == 0:
-                # select all data for t=v
-                # fit regression model to observed Y(T=v)
-                pY = self.out_model.predict(self.df)
-                # predictions by treatment of interest
-                # extract predictions
+        # TODO before converting, need to do the custom treatment assessment here
+
+        # Converting dataframe from long-to-wide for easier estimation
+        column_labels = list(self.gf.columns)  # Getting all column labels (important to match with formula)
+        df = self._long_to_wide(df=self.gf, id=self.idvar, t=self.time_out)
+        linkdist = sm.families.family.Binomial(sm.families.links.logit)
+        t_points = sorted(list(self.gf[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
+
+        # TODO for zEpid, add some check that no summation is greater than 2. That would indicate recurring outcomes
+        if pd.Series(df[[self.outcome + '_' + str(t) for t in sorted(t_points, reverse=False)
+                         ]].sum(axis=1, skipna=True) > 1).any():
+            raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not supported')
+
+        # Step 1: Creating indicator for individuals who followed counterfactual outcome
+        treat_t_points = []
+        for t in sorted(t_points, reverse=False):
+            # Following treatment strategy
+            # treat_t_points.append(self.exposure + '_' + str(t))  # Might be good alternative for 'all' / 'none'
+            # if treat all, can do simple multiplication. if treat none, can do (1-A) simple multiplication
+            if treatment == 'all':
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 1, np.nan)
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 0,
+                                                       df['__indicator_' + str(t)])
+                treat_t_points.append('__indicator_' + str(t))
+            elif treatment == 'none':
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 1, np.nan)
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 0,
+                                                       df['__indicator_' + str(t)])
+                treat_t_points.append('__indicator_' + str(t))
+            elif treatment == 'natural':
+                raise ValueError('Natural course estimation is not clear to me with Sequential Regression. Not '
+                                 'implemented yet')
+            else:  # custom exposure pattern
+                raise ValueError('Think about how to implement custom treatments for Sequential Regression')
+                # df[self.exposure] = np.where(eval(treatment), 1, 0)
+
+            # Following treatment and have outcome occurrence
+            df['__check_' + str(t)] = df[treat_t_points + [self.outcome + '_' + str(t)]].prod(axis=1, skipna=True)
+            # This following check carries forward the outcome under the counterfactual treatment
+            if t_points.index(t) == 0:
+                pass
             else:
-                # select all data for t=v
-                # fit regression model to previously predicted outcome
-                # extract predictions
-                print(v)
+                df['__check_' + str(t)] = np.where(df['__check_' + str(t - 1)] == 1, 1, df['__check_' + str(t)])
+
+        # Step 2: Sequential Regression Estimation
+        results = pd.DataFrame()
+        for t in t_points:
+            # 2.1) Relabel everything to match with the specified model (selecting out that timepoint is within)
+            d_labels = {}
+            for c in column_labels:
+                d_labels[c + '_' + str(t)] = c
+            s = df.filter(regex='_' + str(t)).rename(mapper=d_labels, axis=1).reset_index().copy()
+
+            # 2.2) Fit the model to the observed data
+            if t_points.index(t) == 0:
+                if self._weights is None:
+                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, s, family=linkdist).fit()  # GLM
+                else:
+                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, self.idvar, s,
+                                weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
+                if self._printseqregresults:
+                    print(m.summary())
+            else:
+                s[self.outcome] = s['__pred_' + self.outcome + str(t + 1)]  # Uses previous predicted values to estimate
+
+                if self._weights is None:
+                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, s, family=linkdist).fit()  # GLM
+                else:
+                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, self.idvar, s,
+                                weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
+                if self._printseqregresults:
+                    print(m.summary())
+
+            # 2.3) Getting Predicted values out
+            if treatment == 'all':
+                s[self.exposure] = 1
+            elif treatment == 'none':
+                s[self.exposure] = 1
+            elif treatment == 'natural':
+                pass
+            else:
+                pass
+            # Predicted values based on counterfactual treatment strategy from predicted model
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df['depression' + '_' + str(t)].isna(),
+                                                                   np.nan, m.predict(s))
+            # If followed counterfactual treatment & had outcome, then always considered to have outcome past that t
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df['__tcheck_' + str(t)] == 1,
+                                                                   1, df['__pred_' + self.outcome + '_' + str(t)])
+
+            # 2.4) Extracting E[Y] for each time point
+            q = df.dropna(subset=['__pred_' + 'depression_' + str(t)]).copy()
+            if self._weights is None:
+                results['Q' + str(t)] = [np.mean(q['__pred_' + 'depression_' + str(t)])]
+            else:
+                results['Q' + str(t)] = [np.average(q['__pred_' + 'depression_' + str(t)],
+                                                    weights=q[self._weights + str(t)])]
+        # Step 3) Returning estimated results
+        return results.squeeze().sort_index()
 
     @staticmethod
     def _predict(df, model, variable):
@@ -372,3 +481,18 @@ class TimeVaryGFormula:
         else:
             raise ValueError('That option is not supported')
         return pred
+
+    @staticmethod
+    def _long_to_wide(df, id, t):
+        """Converts from long to wide dataframe for sequential regression estimation
+        """
+        reshaped = []
+        for c in df.columns:
+            if c == id or c == t:
+                pass
+            else:
+                df['v'] = c + '_' + df[t].astype(str)
+                reshaped.append(df.pivot(index='id', columns='v', values=c))
+
+        return pd.concat(reshaped, axis=1)
+
