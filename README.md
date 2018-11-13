@@ -63,8 +63,8 @@ Current implementation includes; IP Treatment W, IP Censoring W, IP Missing W. D
 Current implementation includes the estimator described by Funk et al 2011 AJE
 
 #### Targeted Maximum Likelihood Estimator
-Current implementation is a simple TMLE. At the current state, it does NOT include any algorithms in the background
-for variable selection or machine learning algorithms (these are to be added in the future)
+TMLE can be estimated through standard logistic regression model, or through user-input functions. Users can input
+fitted machine learning algorithms
 
 ## Sensitivity Analyses
 Includes trapezoidal distribution generator, corrected Risk Ratio
