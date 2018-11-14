@@ -324,9 +324,9 @@ class TimeVaryGFormula:
                 drop=True)
 
     def _predict(self, df, model, variable):
-        """
-        This predict method gains me a small ammount of increased speed each time a model is fit, compared to
-        statsmodels.predict(). Because this is repeated so much, it actually decreases time a fair bit
+        """Because this is repeated so much within the MC estimator. I have a commented out version of a predict
+        function that results in a little faster. However, it breaks down for special patsy functions (e.g. C(), :).
+        Kept in here as a potential future optimization.
         """
         # pp = data.mul(model.params).sum(axis=1) # Alternative to statsmodels.predict(), but too much too implement
         pp = model.predict(df)
