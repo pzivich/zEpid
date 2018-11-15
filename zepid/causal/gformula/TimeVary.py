@@ -369,101 +369,106 @@ class TimeVaryGFormula:
     def _sequential_regression(self, treatment):
         """Sequential regression estimation for g-formula
         """
-        # TODO before converting, need to do the custom treatment assessment here
+        if treatment == 'natural':
+            raise ValueError('Natural course estimation is not clear to me with Sequential Regression Estimator')
+
+        # If custom treatment, it gets evaluated here
+        g = self.gf
+        if treatment not in ['all', 'natural', 'none']:
+            g['__indicator'] = np.where(eval(treatment), 1, 0)
 
         # Converting dataframe from long-to-wide for easier estimation
-        column_labels = list(self.gf.columns)  # Getting all column labels (important to match with formula)
-        df = self._long_to_wide(df=self.gf, id=self.idvar, t=self.time_out)
+        column_labels = list(g.columns)  # Getting all column labels (important to match with formula)
+        df = self._long_to_wide(df=g, id=self.idvar, t=self.time_out)
         linkdist = sm.families.family.Binomial(sm.families.links.logit)
-        t_points = sorted(list(self.gf[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
+        rt_points = sorted(list(self.gf[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
+        t_points = sorted(list(self.gf[self.time_out].unique()), reverse=False)  # Getting all t's to forward loop
 
-        # TODO for zEpid, add some check that no summation is greater than 2. That would indicate recurring outcomes
+        # Checking for recurrent outcomes. Recurrent are not currently supported
         if pd.Series(df[[self.outcome + '_' + str(t) for t in sorted(t_points, reverse=False)
                          ]].sum(axis=1, skipna=True) > 1).any():
             raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not supported')
 
         # Step 1: Creating indicator for individuals who followed counterfactual outcome
         treat_t_points = []
-        for t in sorted(t_points, reverse=False):
+        for t in t_points:
             # Following treatment strategy
-            # treat_t_points.append(self.exposure + '_' + str(t))  # Might be good alternative for 'all' / 'none'
             # if treat all, can do simple multiplication. if treat none, can do (1-A) simple multiplication
             if treatment == 'all':
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 1, np.nan)
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 0,
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 1, np.nan)
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 0,
                                                        df['__indicator_' + str(t)])
-                treat_t_points.append('__indicator_' + str(t))
+                treat_t_points.append(self.exposure + '_' + str(t))
             elif treatment == 'none':
                 df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 1, np.nan)
                 df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 0,
                                                        df['__indicator_' + str(t)])
-                treat_t_points.append('__indicator_' + str(t))
-            elif treatment == 'natural':
-                raise ValueError('Natural course estimation is not clear to me with Sequential Regression. Not '
-                                 'implemented yet')
             else:  # custom exposure pattern
-                raise ValueError('Think about how to implement custom treatments for Sequential Regression')
-                # df[self.exposure] = np.where(eval(treatment), 1, 0)
+                pass
 
-            # Following treatment and have outcome occurrence
+            treat_t_points.append('__indicator_' + str(t))
             df['__check_' + str(t)] = df[treat_t_points + [self.outcome + '_' + str(t)]].prod(axis=1, skipna=True)
+
             # This following check carries forward the outcome under the counterfactual treatment
             if t_points.index(t) == 0:
                 pass
             else:
-                df['__check_' + str(t)] = np.where(df['__check_' + str(t - 1)] == 1, 1, df['__check_' + str(t)])
+                df['__check_' + str(t)] = np.where(df['__check_' + str(t_points[t_points.index(t) - 1])] == 1,
+                                                   1, df['__check_' + str(t)])
 
         # Step 2: Sequential Regression Estimation
         results = pd.DataFrame()
-        for t in t_points:
+        for t in rt_points:
             # 2.1) Relabel everything to match with the specified model (selecting out that timepoint is within)
             d_labels = {}
             for c in column_labels:
                 d_labels[c + '_' + str(t)] = c
-            s = df.filter(regex='_' + str(t)).rename(mapper=d_labels, axis=1).reset_index().copy()
+            g = df.filter(regex='_' + str(t)).rename(mapper=d_labels, axis=1).reset_index().copy()
 
             # 2.2) Fit the model to the observed data
-            if t_points.index(t) == 0:
+            if rt_points.index(t) == 0:
                 if self._weights is None:
-                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, s, family=linkdist).fit()  # GLM
+                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, g, family=linkdist).fit()  # GLM
                 else:
-                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, self.idvar, s,
+                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, self.idvar, g,
                                 weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
                 if self._printseqregresults:
                     print(m.summary())
             else:
-                s[self.outcome] = s['__pred_' + self.outcome + str(t + 1)]  # Uses previous predicted values to estimate
+                # Uses previous predicted values to estimate
+                g[self.outcome] = df['__pred_' + self.outcome + '_' + str(t_points[t_points.index(t)+1])]
 
                 if self._weights is None:
-                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, s, family=linkdist).fit()  # GLM
+                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, g, family=linkdist).fit()  # GLM
                 else:
-                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, self.idvar, s,
+                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, self.idvar, g,
                                 weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
                 if self._printseqregresults:
                     print(m.summary())
 
             # 2.3) Getting Predicted values out
             if treatment == 'all':
-                s[self.exposure] = 1
+                g[self.exposure] = 1
             elif treatment == 'none':
-                s[self.exposure] = 1
+                g[self.exposure] = 0
             elif treatment == 'natural':
                 pass
             else:
-                pass
+                g[self.exposure] = np.where(eval(treatment), 1, 0)
+
             # Predicted values based on counterfactual treatment strategy from predicted model
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df['depression' + '_' + str(t)].isna(),
-                                                                   np.nan, m.predict(s))
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(),
+                                                                   np.nan, m.predict(g))
             # If followed counterfactual treatment & had outcome, then always considered to have outcome past that t
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df['__tcheck_' + str(t)] == 1,
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df['__check_' + str(t)] == 1,
                                                                    1, df['__pred_' + self.outcome + '_' + str(t)])
 
             # 2.4) Extracting E[Y] for each time point
-            q = df.dropna(subset=['__pred_' + 'depression_' + str(t)]).copy()
+            q = df.dropna(subset=['__pred_' + self.outcome + '_' + str(t)]).copy()
             if self._weights is None:
-                results['Q' + str(t)] = [np.mean(q['__pred_' + 'depression_' + str(t)])]
+                results['Q' + str(t)] = [np.mean(q['__pred_' + self.outcome + '_' + str(t)])]
             else:
-                results['Q' + str(t)] = [np.average(q['__pred_' + 'depression_' + str(t)],
+                results['Q' + str(t)] = [np.average(q['__pred_' + self.outcome + '_' + str(t)],
                                                     weights=q[self._weights + str(t)])]
         # Step 3) Returning estimated results
         return results.squeeze().sort_index()
