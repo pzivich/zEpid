@@ -370,11 +370,13 @@ class TimeVaryGFormula:
         """Sequential regression estimation for g-formula
         """
         if treatment == 'natural':
-            raise ValueError('Natural course estimation is not clear to me with Sequential Regression Estimator')
+            # Thoughts: MC estimator needs natural course as a check. This should not apply to SR estimator
+            raise ValueError('Natural course estimation is not clear to me with Sequential Regression Estimator. '
+                             'Therefore, "natural" is not implemented')
 
         # If custom treatment, it gets evaluated here
         g = self.gf
-        if treatment not in ['all', 'natural', 'none']:
+        if treatment not in ['all', 'none']:
             g['__indicator'] = np.where(eval(treatment), 1, 0)
 
         # Converting dataframe from long-to-wide for easier estimation
@@ -395,10 +397,9 @@ class TimeVaryGFormula:
             # Following treatment strategy
             # if treat all, can do simple multiplication. if treat none, can do (1-A) simple multiplication
             if treatment == 'all':
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 1, np.nan)
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 0,
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 0, np.nan)
+                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 1,
                                                        df['__indicator_' + str(t)])
-                treat_t_points.append(self.exposure + '_' + str(t))
             elif treatment == 'none':
                 df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 1, np.nan)
                 df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 0,
@@ -471,7 +472,10 @@ class TimeVaryGFormula:
                 results['Q' + str(t)] = [np.average(q['__pred_' + self.outcome + '_' + str(t)],
                                                     weights=q[self._weights + str(t)])]
         # Step 3) Returning estimated results
-        return results.squeeze().sort_index()
+        if len(t_points) == 1:
+            return results
+        else:
+            return results.squeeze().sort_index()
 
     @staticmethod
     def _predict(df, model, variable):
