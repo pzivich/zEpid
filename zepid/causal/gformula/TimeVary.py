@@ -369,6 +369,7 @@ class TimeVaryGFormula:
     def _sequential_regression(self, treatment):
         """Sequential regression estimation for g-formula
         """
+        # TODO allow option to include different estimation models for each time point or the same model
         if treatment == 'natural':
             # Thoughts: MC estimator needs natural course as a check. This should not apply to SR estimator
             raise ValueError('Natural course estimation is not clear to me with Sequential Regression Estimator. '
@@ -437,7 +438,7 @@ class TimeVaryGFormula:
                     print(m.summary())
             else:
                 # Uses previous predicted values to estimate
-                g[self.outcome] = df['__pred_' + self.outcome + '_' + str(t_points[t_points.index(t)+1])]
+                g[self.outcome] = df['__pred_' + self.outcome + '_' + str(t_points[t_points.index(t)+1])].copy()
 
                 if self._weights is None:
                     m = smf.glm(self.outcome + ' ~ ' + self._modelform, g, family=linkdist).fit()  # GLM
@@ -461,7 +462,8 @@ class TimeVaryGFormula:
             df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(),
                                                                    np.nan, m.predict(g))
             # If followed counterfactual treatment & had outcome, then always considered to have outcome past that t
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df['__check_' + str(t)] == 1,
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where((df['__check_' + str(t)] == 1) &
+                                                                   df[self.outcome + '_' + str(t)].isna(),
                                                                    1, df['__pred_' + self.outcome + '_' + str(t)])
 
             # 2.4) Extracting E[Y] for each time point
