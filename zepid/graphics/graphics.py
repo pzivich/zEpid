@@ -2,7 +2,8 @@
 Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
 are implemented. Uses matplotlib to generate graphics. Future inclusions include forest plots
 
-Contents:
+Contents
+----------------
 Functional form assessment- func_form_plot()
 Forest plot/ effect measure plot- EffectMeasurePlot()
 P-value distribution plot- pvalue_plot()
@@ -29,56 +30,25 @@ class EffectMeasurePlot:
     effectmeasure_plot is initialized with the associated names for each line, the point estimate,
     the lower confidence limit, and the upper confidence limit.
 
-    Plots will resemble the following form:
+    Notes
+    ----------
+    .. code::
 
-        _____________________________________________      Measure     % CI
-        |                                           |
-    1   |        --------o-------                   |       x        n, 2n
-        |                                           |
-    2   |                   ----o----               |       w        m, 2m
-        |                                           |
-        |___________________________________________|
-        #           #           #           #
+            _____________________________________________      Measure     % CI
+            |                                           |
+        1   |        --------o-------                   |       x        n, 2n
+            |                                           |
+        2   |                   ----o----               |       w        m, 2m
+            |                                           |
+            |___________________________________________|
+                #           #           #           #
 
-
-
-    The following functions (and their purposes) live within effectmeasure_plot
-
-    labels(**kwargs)
-        Used to change the labels in the plot, as well as the center and scale. Inputs are
-        keyword arguments
-        KEYWORDS:
-            -effectmeasure  + changes the effect measure label
-            -conf_int       + changes the confidence interval label
-            -scale          + changes the scale to either log or linear
-            -center         + changes the reference line for the center
-
-    colors(**kwargs)
-        Used to change the color of points and lines. Also can change the shape of points.
-        Valid colors and shapes for matplotlib are required. Inputs are keyword arguments
-        KEYWORDS:
-            -errorbarcolor  + changes the error bar colors
-            -linecolor      + changes the color of the reference line
-            -pointcolor     + changes the color of the points
-            -pointshape     + changes the shape of points
-
-    plot(t_adjuster=0.01,decimal=3,size=3)
-        Generates the effect measure plot of the input lists according to the pre-specified
-        colors, shapes, and labels of the class object
-        Arguments:
-            -t_adjuster     + used to refine alignment of the table with the line graphs.
-                              When generate plots, trial and error for this value are usually
-                              necessary
-            -decimal        + number of decimal places to display in the table
-            -size           + size of the plot to generate
-
-
-    Example)
+    Examples
+    -------------
     >>>lab = ['One','Two'] #generating lists of data to plot
     >>>emm = [1.01,1.31]
     >>>lcl = ['0.90',1.01]
     >>>ucl = [1.11,1.53]
-    >>>
     >>>x = zepid.graphics.effectmeasure_plot(lab,emm,lcl,ucl) #initializing effectmeasure_plot with the above lists
     >>>x.labels(effectmeasure='RR') #changing the table label to 'RR'
     >>>x.colors(pointcolor='r') #changing the point colors to red
@@ -90,19 +60,19 @@ class EffectMeasurePlot:
         length. If a blank space is desired in the plot, add an empty character object (' ') to
         each list at the desired point.
 
-        Inputs:
-
-        label
-            -list of labels to use for y-axis
-        effect_measure
-            -list of numbers for point estimates to plot. If point estimate has trailing zeroes,
-             input as a character object rather than a float
-        lcl
-            -list of numbers for upper confidence limits to plot. If point estimate has trailing
-             zeroes, input as a character object rather than a float
-        ucl
-            -list of numbers for upper confidence limits to plot. If point estimate has
-             trailing zeroes, input as a character object rather than a float
+        Parameters
+        --------------
+        label : list
+            List of labels to use for y-axis
+        effect_measure : list
+            List of numbers for point estimates to plot. If point estimate has trailing zeroes,
+            input as a character object rather than a float
+        lcl : list
+            List of numbers for upper confidence limits to plot. If point estimate has trailing
+            zeroes, input as a character object rather than a float
+        ucl : list
+            List of numbers for upper confidence limits to plot. If point estimate has
+            trailing zeroes, input as a character object rather than a float
         """
         self.df = pd.DataFrame()
         self.df['study'] = label
@@ -131,16 +101,16 @@ class EffectMeasurePlot:
         """Function to change the labels of the outputted table. Additionally, the scale and reference
         value can be changed.
 
-        Accepts the following keyword arguments:
-
-        effectmeasure
-            -changes the effect measure label
-        conf_int
-            -changes the confidence interval label
-        scale
-            -changes the scale to either log or linear
-        center
-            -changes the reference line for the center
+        Parameters
+        -------------
+        effectmeasure : string, optional
+            Changes the effect measure label
+        conf_int : string, optional
+            Changes the confidence interval label
+        scale : string, optional
+            Changes the scale to either log or linear
+        center : float, integer, optional
+            Changes the reference line for the center
         """
         if 'effectmeasure' in kwargs:
             self.em = kwargs['effectmeasure']
@@ -154,16 +124,16 @@ class EffectMeasurePlot:
     def colors(self, **kwargs):
         """Function to change colors and shapes.
 
-        Accepts the following keyword arguments:
-
-        errorbarcolor
-            -changes the error bar colors
-        linecolor
-            -changes the color of the reference line
-        pointcolor
-            -changes the color of the points
-        pointshape
-            -changes the shape of points
+        Parameters
+        ---------------
+        errorbarcolor : string, optional
+            Changes the error bar colors
+        linecolor : string, optional
+            Changes the color of the reference line
+        pointcolor : string, optional
+            Changes the color of the points
+        pointshape : string, optional
+            Changes the shape of points
         """
         if 'errorbarcolor' in kwargs:
             self.errc = kwargs['errorbarcolor']
@@ -178,28 +148,35 @@ class EffectMeasurePlot:
         """Generates the matplotlib effect measure plot with the default or specified attributes.
         The following variables can be used to further fine-tune the effect measure plot
 
-        t_adjuster
-            -used to refine alignment of the table with the line graphs. When generate plots, trial
-             and error for this value are usually necessary. I haven't come up with an algorithm to
-             determine this yet...
-        decimal
-            -number of decimal places to display in the table
-        size
-            -size of the plot to generate
-        max_value
-            -maximum value of x-axis scale. Default is None, which automatically determines max value
-        min_value
-            -minimum value of x-axis scale. Default is None, which automatically determines min value
+        Parameters
+        -----------------
+        figsize : tuple, optional
+            Adjust the size of the figure. Syntax is same as matplotlib `figsize`
+        t_adjuster : float, optional
+            Used to refine alignment of the table with the line graphs. When generate plots, trial and error for this
+            value are usually necessary. I haven't come up with an algorithm to determine this yet...
+        decimal : integer, optional
+            Number of decimal places to display in the table
+        size : integer,
+            Option to adjust the size of the lines and points in the plot
+        max_value : float, optional
+            Maximum value of x-axis scale. Default is None, which automatically determines max value
+        min_value : float, optional
+            Minimum value of x-axis scale. Default is None, which automatically determines min value
+
+        Returns
+        ---------
+        matplotlib axes
         """
         tval = []
         ytick = []
         for i in range(len(self.df)):
-            if (np.isnan(self.df['OR2'][i]) == False):
-                if ((isinstance(self.df['OR'][i], float)) & (isinstance(self.df['LCL'][i], float)) & (
-                isinstance(self.df['UCL'][i], float))):
+            if np.isnan(self.df['OR2'][i]) is False:
+                if ((isinstance(self.df['OR'][i], float)) & (isinstance(self.df['LCL'][i], float)) &
+                        (isinstance(self.df['UCL'][i], float))):
                     tval.append([round(self.df['OR2'][i], decimal), (
-                                '(' + str(round(self.df['LCL'][i], decimal)) + ', ' + str(
-                            round(self.df['UCL'][i], decimal)) + ')')])
+                                '(' + str(round(self.df['LCL'][i], decimal)) + ', ' +
+                                str(round(self.df['UCL'][i], decimal)) + ')')])
                 else:
                     tval.append(
                         [self.df['OR'][i], ('(' + str(self.df['LCL'][i]) + ', ' + str(self.df['UCL'][i]) + ')')])
@@ -264,53 +241,60 @@ class EffectMeasurePlot:
 
 def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_dist=None, ylims=None,
                          loess_value=0.4, legend=True, model_results=True, loess=True, points=False, discrete=False):
-    """Creates a LOESS plot to aid in functional form assessment for continuous variables.
-    Plots can be created for binary and continuous outcomes. Default options are set to create
-    a functional form plot for a binary outcome. To convert to a continuous outcome,
-    outcome_type needs to be changed, in addition to the link_dist
+    """Creates a functional form plot to aid in functional form assessment for continuous/discrete variables. Plots can
+    be created for binary and continuous outcomes. Default options are set to create a functional form plot for a
+    binary outcome. To convert to a continuous outcome, outcome_type needs to be changed, in addition to the link_dist
 
-    Returns a matplotlib graph with a LOESS line (dashed red-line), regression line (sold blue-line),
-    and confidence interval (shaded blue)
-
-    df:
-        -dataframe that contains the variables of interest
-    outcome:
-        -Column name of the outcome variable of interest
-    var:
-        -Column name of the variable of interest for the functional form assessment
-    f_form:
-        -Regression equation of the functional form to assess. Default is None, which will produce
-         a linear functional form. Input the regression equation as the variables of interest, separated
-         by +. Example) 'var + var_sq'
-    outcome_type:
-        -Variable type of the outcome variable. Currently, only binary and continuous variables are
-         supported. Default is binary
-    link_dist:
-        -Link and distribution for the GLM regression equation. Change this to any valid link and
-        distributions supported by statsmodels. Default is None, which conducts logistic regression
-    ylims:
-        -List object of length 2 that holds the upper and lower limits of the y-axis. Y-axis limits should be
+    Parameters
+    ------------
+    df : DataFrame
+        Pandas dataframe that contains the variables of interest
+    outcome : string
+        Column name of the outcome variable of interest
+    var : string
+        Column name of the variable of interest for the functional form assessment
+    f_form : string, optional
+        Regression equation of the functional form to assess. Default is None, which will produce a linear functional
+        form. Input the regression equation as the variables of interest, separated by +. For example, 'var + var_sq'
+    outcome_type : string, optional
+        Variable type of the outcome variable. Currently, only binary and continuous variables are
+        supported. Default is 'binary' but 'continuous' is also supported
+    link_dist : optional
+        Link and distribution for the GLM regression equation. Change this to any valid link and distributions
+        supported by statsmodels. Default is None, which conducts logistic regression
+    ylims : list, optional
+        List object of length 2 that holds the upper and lower limits of the y-axis. Y-axis limits should be
         specified when comparing multiple graphs. These need to be user-specified since the results between
         models and datasets can be so variable. Default is None, which returns the matplotlib y-axis of best fit.
-    loess_value:
-        -Fraction of observations to use to fit the LOESS curve. This will need to be changed iteratively
-         to determine which percent works best for the data. Default is 0.5
-    legend:
-        -Turn the legend on or off. Default is True, displaying the legend in the graph
-    model_results:
-        -Whether to produce the model results. Default is True, which provides model results
-    loess:
-        -Whether to plot the LOESS curve along with the functional form. Default is True
-    points:
-        -Whether to plot the data points, where size is relative to the number of observations. Default is False
-    discrete:
-        -If your data is truly continuous, leave setting to bin the dat. Will automatically bin observations into categories
-         for generation of the LOESS curve. If you data is discrete, you can set this to True to use your actual values.
-         If you get a perfect SeparationError from statsmodels, it means you might have to reshift your categories.
+    loess_value : float, optional
+        Fraction of observations to use to fit the LOESS curve. This will need to be changed iteratively to determine
+        which percent works best for the data. Default is 0.4
+    legend : bool, optional
+        Turn the legend on or off. Default is True, displaying the legend in the graph
+    model_results : bool, optional
+        Whether to produce the model results. Default is True, which provides model results
+    loess : bool, optional
+        Whether to plot the LOESS curve along with the functional form. Default is True
+    points : bool, optional
+        Whether to plot the data points, where size is relative to the number of observations. Default is False
+    discrete : bool, optional
+        If your data is truly continuous, leave setting to bin the dat. Will automatically bin observations into
+        categories for generation of the LOESS curve. If you data is discrete, you can set this to True to use your
+        actual values. If you get a perfect SeparationError from statsmodels, it means you might have to reshift your
+        categories.
 
-    Example)
-    >>>data['var1_sq'] = data['var1']**2
-    >>>zepid.graphics.func_form_plot(df=data,outcome='D',var='var1',f_form='var1 + var1_sq')
+    Returns
+    -----------
+    matplotlib axes
+        Returns a matplotlib graph with a LOESS line (dashed red-line), regression line (sold blue-line), and
+        confidence interval (shaded blue)
+
+    Examples
+    ------------
+    >>> import zepid as ze
+    >>>df = ze.load_sample_data(timevary=False)
+    >>>df['cd4_sq'] = df['cd4']**2
+    >>>ze.graphics.functional_form_plot(df,outcome='dead',var='cd4',f_form='cd4 + cd4_sq')
     """
     # Copying out the dataframe to a new object we will manipulate a bit
     rf = df.copy()
@@ -405,21 +389,30 @@ def pvalue_plot(point, sd, color='b', fill=True, null=0, alpha=None):
     helps to understand what exactly confidence intervals are telling you. These  plots are based on
     Rothman Epidemiology 2nd Edition pg 152-153 and explained more fully within.
 
-    Returns matplotlib axes object
+    Parameters
+    -------------
+    point : float
+        Point estimate. Must be on a linear scale (RD / log(RR))
+    sd : float
+        Standard error of the estimate. Must for linear scale (SE(RD) / SE(log(RR)))
+    color : str, optional
+        Change color of p-value plot
+    fill : bool, optional
+        Hhether to fill the curve under the p-value distribution. Setting to False prevents fill
+    null : float, integer, optional
+        The main value to compare to. The default is zero
+    alpha : float, optional
+        Whether to draw a line designating significance level area. Default is None, which does not draw this line.
+        Generally, would be set to 0.05 to correspond to the widely used alpha of 0.05
 
-    point:
-        -point estimate. Must be on a linear scale (RD / log(RR))
-    sd:
-        -standard error of the estimate. Must for linear scale (SE(RD) / SE(log(RR)))
-    color:
-        -change color of p-value plot
-    fill:
-        -Whether to fill the curve under the p-value distribution. Setting to False prevents fill
-    null:
-        -The main value to compare to. The default is zero
+    Returns
+    -----------
+    matplotlib axes
 
-    Example)
-    >>>zepid.graphics.pvalue_plot(point=-0.1,sd=0.061,alpha=0.025)
+    Examples
+    -----------
+    >>>import zepid as ze
+    >>>ze.graphics.pvalue_plot(point=-0.1,sd=0.061,alpha=0.025)
     """
     if point <= null:
         lower = (point - 3 * sd)
@@ -454,20 +447,26 @@ def spaghetti_plot(df, idvar, variable, time):
     """Create a spaghetti plot by an ID variable. A spaghetti plot can be useful for visualizing
     trends or looking at longitudinal data patterns for individuals all at once.
 
-    Returns matplotlib axes
+    Parameters
+    ------------
+    df : DataFrame
+        Pandas dataframe containing variables of interest
+    idvar : str
+        ID variable for observations. This should indicate the group or individual followed over the time variable
+    variable : str
+        Variable of interest to see how it varies over time
+    time : str
+        Time or other variable in which the variable variation occurs
 
-    df:
-        -pandas dataframe containing variables of interest
-    idvar:
-        -ID variable for observations. This should indicate the group or individual followed over
-         the time variable
-    variable:
-        -Variable of interest to see how it varies over time
-    time:
-        -Time or other variable in which the variable variation occurs
+    Returns
+    -----------
+    matplotlib axes
 
-    Example)
-    >>>zepid.graphics.spaghetti_plot(df,idvar='pid',variable='v',time='t')
+    Examples
+    -----------
+    >>>import zepid as ze
+    >>>ze.load_sample_data(timevary=True)
+    >>>ze.graphics.spaghetti_plot(df, idvar='id', variable='cd4', time='enter')
     """
     ax = plt.gca()
     for i in df[idvar].unique():
@@ -480,19 +479,28 @@ def spaghetti_plot(df, idvar, variable, time):
 
 
 def roc(df, true, threshold, youden_index=True):
-    """Generate a Receiver Operator Curve from true values and predicted probabilities.
+    """Generate a Receiver Operator Curve from true values and predicted probabilities. Youden's Index can also be
+    calculated. Youden's index is calculated as
 
-    Returns matplotlib axes
+    .. math::
 
-    df:
-        -pandas dataframe containing variables of interest
-    true:
-        -the true designation of the outcome (1, 0)
-    threshold:
-        -predicted probabilities for the outcome
-    youden_index:
-        -Whether to calculate Youden's index. Youden's index maximizes both sensitivity and specificity.
-         The formula finds the maximum of (sensitivity + specificity - 1)
+        P_{Yi} = max(Se_i + Sp_i - 1)
+
+    Parameters
+    ------------
+    df : DataFrame
+        Pandas dataframe containing variables of interest
+    true : str
+        True designation of the outcome (1, 0)
+    threshold : str
+        Predicted probabilities for the outcome
+    youden_index : bool, optional
+        Whether to calculate Youden's index. Youden's index maximizes both sensitivity and specificity. The formula
+        finds the maximum of (sensitivity + specificity - 1)
+
+    Returns
+    -----------
+    matplotlib axes
     """
     sens = []
     fpr = []
@@ -546,26 +554,32 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     in a competing risks framework: application to injection drug use and progression to AIDS after initiation of
     antiretroviral therapy." Am J Epidemiol. 2015 for an example of this plot
 
-    risk_exposed:
-        -pandas Series with the probability of the outcome among the exposed group. Index by 'timeline'
-         where 'timeline' is the time. If you directly output the 1 - survival_function_ from
-         lifelines.KaplanMeierFitter(), this should create a valid input
-    risk_unexposed:
-        -pandas Series with the probability of the outcome among the exposed group. Index by 'timeline'
-         where 'timeline' is the time
-    measure:
-        -whether to generate the risk difference (RD) or risk ratio (RR). Default is 'RD'
-    loess:
-        -whether to generate LOESS curve fit to the calculated points. Default is True
-    loess_value:
-        -fraction of values to fit LOESS curve to. Default is 0.25
-    point_color:
-        -color of the points
-    line_color:
-        -color of the LOESS line generated and plotted
-    scale:
-        -change the y-axis scale. Options are 'linear' (default), 'log', 'log-transform'. 'log' and 'log-transform'
-         is only a valid option for Risk Ratio plots
+    Parameters
+    --------------
+    risk_exposed : Series
+        Pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' where 'timeline'
+        is the time. If you directly output the 1 - survival_function_ from lifelines.KaplanMeierFitter(), this should
+        create a valid input
+    risk_unexposed : Series
+        Pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' where 'timeline'
+        is the time
+    measure : str, optional
+        Whether to generate the risk difference (RD) or risk ratio (RR). Default is 'RD'
+    loess : bool, optional
+        Whether to generate LOESS curve fit to the calculated points. Default is True
+    loess_value : float, optional
+        Fraction of values to fit LOESS curve to. Default is 0.25
+    point_color : str, optional
+        Color of the points
+    line_color : str, optional
+        Color of the LOESS line generated and plotted
+    scale : str, optional
+        Change the y-axis scale. Options are 'linear' (default), 'log', 'log-transform'. 'log' and 'log-transform' is
+        only a valid option for Risk Ratio plots
+
+    Returns
+    -----------
+    matplotlib axes
     """
     re = risk_exposed.drop_duplicates(keep='first').iloc[:, 0].rename('exposed').reset_index()
     ru = risk_unexposed.drop_duplicates(keep='first').iloc[:, 0].rename('unexposed').reset_index()
