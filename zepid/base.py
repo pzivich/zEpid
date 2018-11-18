@@ -19,15 +19,31 @@ class RiskRatio:
     """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
     ignored.
 
-    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+    Risk ratio is calculated from
+
+    .. math::
+
+        RR = \frac{a}{a + b} / \frac{c}{c + d}
+
+    Risk ratio standard error is
+
+    .. math::
+
+        SE = (\frac{1}{a} - \frac{1}{a + b} + \frac{1}{c} - \frac{1}{c + d})^{\frac{1}{2}}
+
+    Notes
+    -------------
+    Outcome must be coded as (1: yes, 0:no). Only works supports binary outcomes
     """
 
     def __init__(self, reference=0, alpha=0.05):
         """
-        reference:
-            -reference category for comparisons
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        ------------
+        reference : integer, optional
+            Reference category for comparisons. Default reference category is 0
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.reference = reference
         self.alpha = alpha
@@ -45,15 +61,16 @@ class RiskRatio:
         self._missing_ed = None
 
     def fit(self, df, exposure, outcome):
-        """
-        Calculates the Risk Ratio
+        """Calculates the Risk Ratio
 
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        Parameters
+        ------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        exposure : string
+            Column name of exposure variable
+        outcome : string
+            Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
         # Setting up holders for results
         risk_lcl = []
@@ -117,11 +134,12 @@ class RiskRatio:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        ------------
+        decimal : integer, optional
+            Decimal points to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -145,13 +163,29 @@ class RiskDifference:
     """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
     ignored.
 
-    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+    Risk difference is calculated as
+
+    .. math::
+
+        RD = \frac{a}{a + b} - \frac{c}{c + d}
+
+    Risk difference standard error is calculated as
+
+    .. math::
+
+        SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
+
+    Notes
+    -------------
+    Outcome must be coded as (1: yes, 0:no). Only supports binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
-        reference:
-            -reference category for comparisons. Default is zero
-        alpha:
+        Parameters
+        ------------
+        reference : integer, optional
+            -reference category for comparisons. Default reference category is 0
+        alpha : float, optional
             -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.reference = reference
@@ -170,15 +204,16 @@ class RiskDifference:
         self._missing_ed = None
 
     def fit(self, df, exposure, outcome):
-        """
-        Calculates the Risk Difference
+        """Calculates the Risk Difference
 
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        Parameters
+        ------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        exposure : string
+            Column name of exposure variable
+        outcome : string
+            Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
         # Setting up holders for results
         risk_lcl = []
@@ -242,11 +277,12 @@ class RiskDifference:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        Prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        ------------
+        decimal : integer, optional
+            Decimal points to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -270,14 +306,36 @@ class NNT:
     """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
     Altman, DG (BMJ 1998). Missing data is ignored.
 
-    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+    Number needed to treat is calculated as
+
+    .. math::
+
+        NNT = \frac{1}{RD}
+
+    Risk difference the corresponding confidence intervals come from
+
+    .. math::
+
+        RD = \frac{a}{a + b} - \frac{c}{c + d}
+
+    Risk difference standard error is calculated as
+
+    .. math::
+
+        SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
+
+    Notes
+    -------------
+    Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
-        reference:
-            -reference category for comparisons
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        ------------
+        reference : integer, optional
+            Reference category for comparisons. Default reference category is 0
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.reference = reference
         self.alpha = alpha
@@ -294,15 +352,16 @@ class NNT:
         self._missing_ed = None
 
     def fit(self, df, exposure, outcome):
-        """
-        Calculates the NNT
+        """Calculates the NNT
 
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        Parameters
+        ------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        exposure : string
+            Column name of exposure variable
+        outcome : string
+            Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
         # Setting up holders for results
         nnt_lcl = []
@@ -348,11 +407,12 @@ class NNT:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        ------------
+        decimal : integer, optional
+            Decimal points to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -388,15 +448,29 @@ class NNT:
 class OddsRatio:
     """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
+    Odds ratio is calculated from
+
+    .. math::
+
+        OR = \frac{a}{b} / \frac{c}{d}
+
+    Odds ratio standard error is
+
+    .. math::
+
+        SE = (\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d})^{\frac{1}{2}}
+
     WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
 
     def __init__(self, reference=0, alpha=0.05):
         """
-        reference:
-            -reference category for comparisons
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        ---------------
+        reference : integer, optional
+            Reference category for comparisons. Default reference category is 0
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.reference = reference
         self.alpha = alpha
@@ -413,15 +487,16 @@ class OddsRatio:
         self._missing_ed = None
 
     def fit(self, df, exposure, outcome):
-        """
-        Calculates the Odds Ratio
+        """Calculates the Odds Ratio
 
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        Parameters
+        ---------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        exposure : string
+            Column name of exposure variable
+        outcome : string
+            Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
         # Setting up holders for results
         odr_lcl = []
@@ -468,11 +543,12 @@ class OddsRatio:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        ---------------
+        decimal : integer, optional
+            Decimal points to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -493,14 +569,30 @@ class OddsRatio:
 class IncidenceRateRatio:
     """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
-    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+    Incidence rate ratio is calculated from
+
+    .. math::
+
+        IR = \frac{a}{t1} / \frac{c}{t2}
+
+    Incidence rate ratio standard error is
+
+    .. math::
+
+        SE = (\frac{1}{a} + \frac{1}{c})^{\frac{1}{2}}
+
+    Notes
+    -------------
+    Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
-        reference:
-            -reference category for comparisons
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        ------------------
+        reference : integer, optional
+            Reference category for comparisons. Default reference category is 0
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.reference = reference
         self.alpha = alpha
@@ -519,15 +611,18 @@ class IncidenceRateRatio:
         self._missing_t = None
 
     def fit(self, df, exposure, outcome, time):
-        """
-        Calculate the Incidence Rate Ratio
+        """Calculate the Incidence Rate Ratio
 
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        Parameters
+        ------------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        exposure : string
+            Column name of exposure variable
+        outcome : string
+            Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        time : string
+            Column name of time contributed
         """
         # Setting up holders for results
         ir_lcl = []
@@ -592,11 +687,12 @@ class IncidenceRateRatio:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        ------------------
+        decimal : integer, optional
+            Decimal points to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -620,14 +716,30 @@ class IncidenceRateRatio:
 class IncidenceRateDifference:
     """Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
-    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+    Incidence rate difference is calculated from
+
+    .. math::
+
+        ID = \frac{a}{t1} - \frac{c}{t2}
+
+    Incidence rate difference standard error is
+
+    .. math::
+
+        SE = (\frac{a}{t1^2} + \frac{c}{t2^2})^{\frac{1}{2}}
+
+    Notes
+    --------------
+    Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
     """
     def __init__(self, reference=0, alpha=0.05):
         """
-        reference:
-            -reference category for comparisons
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        ----------------
+        reference : integer, optional
+            Reference category for comparisons. Default reference category is 0
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.reference = reference
         self.alpha = alpha
@@ -646,15 +758,16 @@ class IncidenceRateDifference:
         self._missing_t = None
 
     def fit(self, df, exposure, outcome, time):
-        """
-        Calculates the Incidence Rate Difference
+        """Calculates the Incidence Rate Difference
 
-        df:
-            -pandas dataframe containing variables of interest
-        exposure:
-            -column name of exposure variable. Must be coded as binary (0,1) where 1 is exposed
-        outcome:
-            -column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        Parameters
+        ----------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        exposure : string
+            Column name of exposure variable
+        outcome : string
+            Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
         # Setting up holders for results
         ir_lcl = []
@@ -719,11 +832,12 @@ class IncidenceRateDifference:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        ----------------
+        decimal : integer, optional
+            Decimal places to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -748,12 +862,28 @@ class Sensitivity:
     """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
     from pandas dataframe
 
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
+    Sensitivity is calculated from
+
+    .. math::
+
+        Se = \frac{TP}{P}
+
+    Wald standard error is
+
+    .. math::
+
+        SE_{Wald} = (\frac{1}{TP} - \frac{1}{P})^{\frac{1}{2}}
+
+    Notes
+    ----------------
+    Disease & Test must be coded as (1: yes, 0:no)
     """
     def __init__(self, alpha=0.05):
         """
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        --------------------
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.alpha = alpha
         self.sensitivity = None
@@ -763,17 +893,18 @@ class Sensitivity:
         self._b = None
 
     def fit(self, df, test, disease):
-        """
-        Calculates the Sensitivity
+        """Calculates the Sensitivity
 
-        df:
-            -pandas dataframe containing variables of interest
-        test:
-            -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        Parameters
+        -----------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        test : string
+            Column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
             positive test for the individual
-        disease:
-            -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-             has the outcome
+        disease : string
+            Column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+            has the outcome
         """
         self._a = df.loc[(df[test] == 1) & (df[disease] == 1)].shape[0]
         self._b = df.loc[(df[test] == 1) & (df[disease] == 0)].shape[0]
@@ -790,11 +921,12 @@ class Sensitivity:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        Prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        -----------------
+        decimal : integer, optional
+            Decimal places to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -809,12 +941,28 @@ class Specificity:
     """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
     from pandas dataframe
 
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
+    Specificity is calculated from
+
+    .. math::
+
+        Sp = \frac{FN}{N}
+
+    Wald standard error is
+
+    .. math::
+
+        SE_{Wald} = (\frac{1}{FN} - \frac{1}{N})^{\frac{1}{2}}
+
+    Notes
+    -------------
+    Disease & Test must be coded as (1: yes, 0:no)
     """
     def __init__(self, alpha=0.05):
         """
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        -----------
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.alpha = alpha
         self.specificity = None
@@ -824,17 +972,18 @@ class Specificity:
         self._d = None
 
     def fit(self, df, test, disease):
-        """
-        Calculates the Specificity
+        """Calculates specificity
 
-        df:
-            -pandas dataframe containing variables of interest
-        test:
-            -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        Parameters
+        -------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        test : string
+            Column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
             positive test for the individual
-        disease:
-            -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-             has the outcome
+        disease : string
+            Column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+            has the outcome
         """
         self._c = df.loc[(df[test] == 0) & (df[disease] == 1)].shape[0]
         self._d = df.loc[(df[test] == 0) & (df[disease] == 0)].shape[0]
@@ -851,11 +1000,12 @@ class Specificity:
         self._fit = True
 
     def summary(self, decimal=3):
-        """
-        Prints the summary results
+        """Prints the summary results
 
-        decimal:
-            -amount of decimal points to display. Default is 3
+        Parameters
+        -------------
+        decimal : integer, optional
+            Decimal places to display. Default is 3
         """
         if self._fit is False:
             raise ValueError('fit() function must be completed before results can be obtained')
@@ -868,14 +1018,42 @@ class Specificity:
 
 class Diagnostics:
     """Generates the Sensitivity, Specificity, and the corresponding (1-alpha)% confidence intervals, comparing test
-    results to disease status from pandas dataframe
+    results to disease status from pandas DataFrame
 
-    WARNING: Disease & Test must be coded as (1: yes, 0:no)
+    Sensitivity is calculated from
+
+    .. math::
+
+        Se = \frac{TP}{P}
+
+    Wald standard error is
+
+    .. math::
+
+        SE_{Wald} = (\frac{1}{TP} - \frac{1}{P})^{\frac{1}{2}}
+
+    Specificity is calculated from
+
+    .. math::
+
+        Sp = \frac{FN}{N}
+
+    Wald standard error is
+
+    .. math::
+
+        SE_{Wald} = (\frac{1}{FN} - \frac{1}{N})^{\frac{1}{2}}
+
+    Notes
+    ---------------
+    Disease & Test must be coded as (1: yes, 0:no)
     """
     def __init__(self, alpha=0.05):
         """
-        alpha:
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+        Parameters
+        -------------
+        alpha : float, optional
+            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
         """
         self.alpha = alpha
         self.sensitivity = None
@@ -888,17 +1066,18 @@ class Diagnostics:
         self._d = None
 
     def fit(self, df, test, disease):
-        """
-        Calculates the Sensitivity and Specificity
+        """Calculates sensitivity and specificity
 
-        df:
-            -pandas dataframe containing variables of interest
-        test:
-            -column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
+        Parameters
+        ----------------
+        df : DataFrame
+            Pandas dataframe containing variables of interest
+        test : string
+            Column name of test results to detect the outcome. Needs to be coded as binary (0,1), where 1 indicates a
             positive test for the individual
-        disease:
-            -column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
-             has the outcome
+        disease : string
+            Column name of true outcomes status. Needs to be coded as binary (0,1), where 1 indicates the individual
+            has the outcome
         """
         self.sensitivity = Sensitivity(alpha=self.alpha)
         self.sensitivity.fit(df=df, test=test, disease=disease)
@@ -906,11 +1085,12 @@ class Diagnostics:
         self.specificity.fit(df=df, test=test, disease=disease)
 
     def summary(self, decimal=3):
-        """
-        Prints the results
+        """Prints the results
 
-        decimal:
-            -number of decimal places to display. Default is 3
+        Parameters
+        -------------
+        decimal : integer, optional
+            Decimal points to display. Default is 3
         """
         print(tabulate([['T+', self.sensitivity._a, self.sensitivity._b],
                         ['T-', self.specificity._c, self.specificity._d]],
@@ -927,54 +1107,65 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit
     of the linear binomial regression, the IC, and the corresponding IC 95% confidence interval.
 
-    NOTE: statsmodels may produce a domain error in some versions.
+    Interaction Contrast is defined as the following
 
-    df:
-        -pandas dataframe containing variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as (0,1) where 1 is exposure
-    outcome:
-        -column name of outcome variable. Must be coded as (0,1) where 1 is outcome of interest
-    modifier:
-        -column name of modifier variable. Must be coded as (0,1) where 1 is modifier
-    adjust:
-        -string of other variables to adjust for, in correct statsmodels format. Default is None
-        NOTE: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates variables with those names.
-              Answers will be incorrect
-         Ex) '+ C1 + C2 + C3 + Z'
-    decimal:
-        -Number of decimals to display in result. Default is 3
+    .. math::
+
+        IC = RD_{11} - RD_{10} - RD_{01}
 
 
-    Example of Output)
-                     Generalized Linear Model Regression Results
-    ==============================================================================
-    Dep. Variable:                      D   No. Observations:                  210
-    Model:                            GLM   Df Residuals:                      204
-    Model Family:                Binomial   Df Model:                            5
-    Link Function:               identity   Scale:                             1.0
-    Method:                          IRLS   Log-Likelihood:                -97.450
-    Date:                Thu, 03 May 2018   Deviance:                       194.90
-    Time:                        18:46:13   Pearson chi2:                     198.
-    No. Iterations:                    79
-    ==============================================================================
-                     coef    std err          z      P>|z|      [0.025      0.975]
-    ------------------------------------------------------------------------------
-    Intercept      0.6101      0.542      1.125      0.260      -0.453       1.673
-    X              0.2049      0.056      3.665      0.000       0.095       0.314
-    Z              0.1580      0.049      3.207      0.001       0.061       0.255
-    E1M1          -0.2105      0.086     -2.447      0.014      -0.379      -0.042
-    var1        7.544e-05    6.7e-05      1.125      0.260    -5.6e-05       0.000
-    var2          -0.0248      0.022     -1.125      0.260      -0.068       0.018
-    ==============================================================================
+    Parameters
+    ----------------
+    df : DataFrame
+        Pandas dataframe containing variables of interest
+    exposure : string
+        Column name of exposure variable. Must be coded as (0,1) where 1 is exposure
+    outcome : string
+        Column name of outcome variable. Must be coded as (0,1) where 1 is outcome of interest
+    modifier : string
+        Column name of modifier variable. Must be coded as (0,1) where 1 is modifier
+    adjust : string, optional
+        String of other variables to adjust for, in correct statsmodels format. Default is None. Variables can *NOT* be
+        named {E1M0,E0M1,E1M1} since this function creates variables with those names. Answers will be incorrect
+        Example of accepted input is 'C1 + C2 + C3 + Z'
+    decimal : integer, optional
+        Decimal places to display in result. Default is 3
 
-    ----------------------------------------------------------------------
-    Interaction Contrast
-    ----------------------------------------------------------------------
+    Notes
+    -----------------
+    statsmodels may produce a domain error in some versions.
 
-    IC:		-0.21047
-    95% CI:		(-0.37908, -0.04186)
-    ----------------------------------------------------------------------
+    Example of Output
+    .. code::
+
+                         Generalized Linear Model Regression Results
+        ==============================================================================
+        Dep. Variable:                      D   No. Observations:                  210
+        Model:                            GLM   Df Residuals:                      204
+        Model Family:                Binomial   Df Model:                            5
+        Link Function:               identity   Scale:                             1.0
+        Method:                          IRLS   Log-Likelihood:                -97.450
+        Date:                Thu, 03 May 2018   Deviance:                       194.90
+        Time:                        18:46:13   Pearson chi2:                     198.
+        No. Iterations:                    79
+        ==============================================================================
+                         coef    std err          z      P>|z|      [0.025      0.975]
+        ------------------------------------------------------------------------------
+        Intercept      0.6101      0.542      1.125      0.260      -0.453       1.673
+        X              0.2049      0.056      3.665      0.000       0.095       0.314
+        Z              0.1580      0.049      3.207      0.001       0.061       0.255
+        E1M1          -0.2105      0.086     -2.447      0.014      -0.379      -0.042
+        var1        7.544e-05    6.7e-05      1.125      0.260    -5.6e-05       0.000
+        var2          -0.0248      0.022     -1.125      0.260      -0.068       0.018
+        ==============================================================================
+
+        ----------------------------------------------------------------------
+        Interaction Contrast
+        ----------------------------------------------------------------------
+        IC:		-0.21047
+        95% CI:		(-0.37908, -0.04186)
+        ----------------------------------------------------------------------
+
     """
     df.loc[((df[exposure] == 1) & (df[modifier] == 1)), 'E1M1'] = 1
     df.loc[((df[exposure] != 1) | (df[modifier] != 1)), 'E1M1'] = 0
@@ -1002,41 +1193,50 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     """Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial
     or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1},
     modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression
-    model. Prints the fit of the binomial regression, the ICR, and the corresponding ICR confidence interval. Confidence
-    intervals can be generated using the delta method or bootstrap method
+    model. Prints the fit of the binomial regression, the ICR, and the corresponding ICR confidence interval
 
-    NOTE: statsmodels may produce a domain error for log binomial models in some versions
+    Interation contrast ratio is defined as
 
-    df:
-        -pandas dataframe containing variables of interest
-    exposure:
-        -column name of exposure variable. Must be coded as (0,1) where 1 is exposure
-    outcome:
-        -column name of outcome variable. Must be coded as (0,1) where 1 is outcome of interest
-    modifier:
-        -column name of modifier variable. Must be coded as (0,1) where 1 is modifier
-    adjust:
-        -string of other variables to adjust for, in correct statsmodels format. Default is none
-        NOTE: variables can NOT be named {E1M0,E0M1,E1M1} since this function creates variables with those names.
-              Answers will be incorrect
-         Ex) '+ C1 + C2 + C3 + Z'
-    regression:
-        -Type of regression model to fit. Default is log binomial.
-         Options include:
-            'log':      Log-binomial model. Estimates the Relative Risk (RR)
-            'logit':    Logistic (logit) model. Estimates the Odds Ratio (OR). Note, this is only valid when the
-                        OR approximates the RR
-    ci:
-        -Type of confidence interval to return. Default is the delta method. Options include:
-            'delta':      Delta method as described by Hosmer and Lemeshow (1992)
-            'bootstrap':  bootstrap method (Assmann et al. 1996). The delta method is more time efficient than bootstrap
-    b_sample:
-        -Number of times to resample to generate bootstrap confidence intervals. Only important if bootstrap confidence
-         intervals are requested. Default is 1000
-    alpha:
-        -Alpha level for confidence interval. Default is 0.05
-    decimal:
-        -Number of decimal places to display in result. Default is 3
+    .. math::
+
+        ICR = RR_{11} - RR_{10} - RR_{01} + 1
+
+    Confidence intervals can be generated either through a bootstrap procedure or using the delta method
+
+    Parameters
+    ---------------
+    df : DataFrame
+        Pandas dataframe containing variables of interest
+    exposure : string
+        Column name of exposure variable. Must be coded as (0,1) where 1 is exposure
+    outcome : string
+        Column name of outcome variable. Must be coded as (0,1) where 1 is outcome of interest
+    modifier : string
+        Column name of modifier variable. Must be coded as (0,1) where 1 is modifier
+    adjust : string, optional
+        String of other variables to adjust for, in correct statsmodels format. Default is None. Variables can *NOT* be
+        named {E1M0,E0M1,E1M1} since this function creates variables with those names. Answers will be incorrect
+        Example of accepted input is 'C1 + C2 + C3 + Z'
+    regression : string, optional
+        Type of regression model to fit. Default is 'log' which fits the log-binomial model. Options include:
+        * 'log'     Log-binomial model. Estimates the Risk Ratio
+        * 'logit'   Logistic model. Estimates Odds Ratio. Only valid when odds ratio approximates the risk ratio
+    ci : string, optional
+        Type of confidence interval to return. Default is the delta method. Options include:
+        * 'delta':      Delta method as described by Hosmer and Lemeshow (1992)
+        * 'bootstrap':  bootstrap method (Assmann et al. 1996). The delta method is more time efficient than bootstrap
+    b_sample : integer, optional
+        Number of times to resample to generate bootstrap confidence intervals. Only used if bootstrap confidence
+        intervals are requested. Default is 1000
+    alpha : float, optional
+        Alpha level for confidence interval. Default is 0.05, which returns 95% confidence intervals
+    decimal : integer, optional
+        Decimal places to display in result. Default is 3
+
+    Notes
+    ------------
+    statsmodels may produce a domain error for log binomial models in some versions
+
     """
     df.loc[((df[exposure] == 1) & (df[modifier] == 0)), 'E1M0'] = 1
     df.loc[((df[exposure] != 1) | (df[modifier] != 0)), 'E1M0'] = 0
@@ -1116,37 +1316,45 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     determines knot locations based on percentiles. Options are available to set the number of knots,
     location of knots (value), term (linear, quadratic, etc.), and restricted/unrestricted.
 
-    Returns a pandas dataframe containing the spline variables (labeled 0 to n_knots)
+    Parameters
+    --------------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    var : string
+        Continuous variable to generate spline for
+    n_knots : integer, optional
+        Number of knots requested. Options for knots include any positive integer if the location of knots are
+        specified. If knot locations are not specified, n_knots must be an integer between 1 to 7. Default is 3 knots
+    knots : list, optional
+        Location of specified knots in a list. To specify the location of knots, put desired numbers for knots into a
+        list. Be sure that the length of the list is the same as the specified number of knots. Default is None, so
+        that the function will automatically determine knot locations without user specification
+    term : integer, float, optional
+        High order term for the spline terms. To calculate a quadratic spline change to 2, cubic spline
+        change to 3, etc. Default is 1, i.e. a linear spline
+    restricted : bool, optional
+        Whether to return a restricted spline. Note that the restricted spline returns one less column than the number
+        of knots. An unrestricted spline returns the same number of columns as the number of knots. Default is False,
+        providing an unrestricted spline
 
-    df:
-        -pandas dataframe containing the variables of interest
-    var:
-        -continuous variable to generate spline for
-    n_knots:
-        -number of knots requested. Options for knots include any positive integer if the location of
-         knots are specified. If knot locations are not specified, n_knots must be an integer between
-         1 to 7, including both. Default is set to 3
-    knots:
-        -Location of specified knots in a list. To specify the location of knots, put desired numbers for
-         knots into a list. Be sure that the length of the list is the same as the specified number of knots.
-         Default is None, so that the function will automatically determine knot locations without user specification
-    term:
-        -High order term for the spline terms. To calculate a quadratic spline change to 2, cubic spline
-         change to 3, etc. Default is 1, so a linear spline is returned
-    restricted:
-        -Whether to return a restricted spline. Note that the restricted spline returns one less column
-         than the number of knots. An unrestricted spline returns the same number of columns as the number of knots.
-         Default is False, providing an unrestricted spline
+    Returns
+    ---------
+    pd.DataFrame
+        Returns a pandas dataframe containing the spline variables (labeled 0 to n_knots)
 
+    Notes
+    -------------
+    Example of Output
 
-    Example of Output)
-           rspline0     rspline1   rspline2
-    0   9839.409066  1234.154601   2.785600
-    1    446.391437     0.000000   0.000000
-    2   7107.550298   409.780251   0.000000
-    3   4465.272901     7.614501   0.000000
-    4  10972.041543  1655.208555  52.167821
-    ..          ...          ...        ...
+    .. code::
+
+               rspline0     rspline1   rspline2
+        0   9839.409066  1234.154601   2.785600
+        1    446.391437     0.000000   0.000000
+        2   7107.550298   409.780251   0.000000
+        3   4465.272901     7.614501   0.000000
+        4  10972.041543  1655.208555  52.167821
+        ..          ...          ...        ...
     """
     if knots is None:
         if n_knots == 1:
@@ -1211,48 +1419,55 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
     Continuous variables either have median/IQR or mean/SE calculated depending on what is requested. Missing are
     counted as a separate category
 
-    Returns a pandas dataframe object containing a formatted Table 1. It is not recommended that this table is used
-    in any part of later analysis, since is id difficult to parse through the table. This function is only meant to
-    reduce the amount of copying from output needed.
+    Parameters
+    ---------------
+    df : DataFrame
+        Pandas dataframe object containing all variables of interest
+    cols : list
+        List of columns of variable names to include in the table. Ex) ['X',var1','var2']
+    variable_type : list
+        List of strings indicating the variable types. For example, ['category','continuous','continuous']. Variable
+        types accepted are
+        * 'category'        variable with categories only
+        * 'continuous'      continuous variable
+    continuous_measure : string, optional
+        Whether to use the medians or the means. Default is median. Options are
+        * 'median'          returns medians and IQR for continuous variables
+        * 'mean'            returns means and SE for continuous variables
+    strat_by : string, optional
+        Categorical variable to stratify by. Default is None (no stratification)
+    decimal : integer, optional
+        Decimal places to display in the table. Default is 3
 
-    df:
-        -pandas dataframe object containing all variables of interest
-    cols:
-        -list of columns of variable names to include in the table. Ex) ['X',var1','var2']
-    variable_types:
-        -list of strings indicating the variable types. Ex) ['category','continuous','continuous']
-         Options
-            'category'      :   variable with categories only
-            'continuous'    :   continuous variable
-    continuous_measure:
-        -Whether to use the medians or the means. Default is median
-         Options
-            'median'    :   returns medians and IQR for continuous variables
-            'mean'      :   returns means and SE for continuous variables
-    strat_by:
-        -What categorical variable to stratify by. Default is None (no stratification)
-    decimal:
-        -Number of decimals to display in the table. Default is 3
+    Returns
+    ----------
+    pd.DataFrame
+        Returns a pandas dataframe object containing a formatted Table 1. It is not recommended that this table is used
+        in any part of later analysis, since is id difficult to parse through the table. This function is only meant to
+        reduce the amount of copying from output needed.
 
+    Notes
+    -----------
+    Example of Output
 
-    Example of Output)
-    _                                D=0                             D=1
-    __                           % / IQR           n             % / IQR          n
+    .. code::
+        _                                D=0                             D=1
+        __                           % / IQR           n             % / IQR          n
 
-    Variable
-    TOTAL                                 310.000000                      74.000000
-    X        1.0                0.608187  104.000000            0.692308  27.000000
-             0.0                0.391813   67.000000            0.307692  12.000000
-             Missing                      139.000000                      35.000000
-    Z        1.0                0.722581  224.000000            0.635135  47.000000
-             0.0                0.277419   86.000000            0.364865  27.000000
+        Variable
+        TOTAL                                 310.000000                      74.000000
+        X        1.0                0.608187  104.000000            0.692308  27.000000
+                 0.0                0.391813   67.000000            0.307692  12.000000
+                 Missing                      139.000000                      35.000000
+        Z        1.0                0.722581  224.000000            0.635135  47.000000
+                 0.0                0.277419   86.000000            0.364865  27.000000
              Missing                        0.000000                       0.000000
-    var1              [468.231, 525.312]  497.262978  [481.959, 538.964] 507.286133
-             Missing                        0.000000                       0.000000
-    var2                [24.454, 25.731]   25.058982      [24.1, 25.607]  24.816898
-             Missing                        0.000000                       0.000000
-    var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
-             Missing                        0.000000
+        var1              [468.231, 525.312]  497.262978  [481.959, 538.964] 507.286133
+                 Missing                        0.000000                       0.000000
+        var2                [24.454, 25.731]   25.058982      [24.1, 25.607]  24.816898
+                 Missing                        0.000000                       0.000000
+        var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
+                 Missing                        0.000000
     """
     # Unstratified Table 1
     if strat_by is None:
