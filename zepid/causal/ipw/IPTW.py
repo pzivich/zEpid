@@ -145,17 +145,15 @@ class IPTW:
         if self.denominator_model is None:
             raise ValueError('No model has been fit to generated predicted probabilities')
 
-        self.df['propscore'] = self.denominator_model.predict(self.df)
+        self.df['__denom__'] = self.denominator_model.predict(self.df)
         if self.stabilized:
             n = self.numerator_model.predict(self.df)
         else:
             n = 1
-        self.df['denom'] = self.df['propscore']
-        self.df['numer'] = n
-        self.df['iptw'] = self._weight_calculator(self.df, denominator='denom', numerator='numer')
-        self.Weight = self.df['iptw']
-        self.ProbabilityDenominator = self.df['denom']
-        self.ProbabilityNumerator = self.df['numer']
+        self.df['__numer__'] = n
+        self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
+        self.ProbabilityDenominator = self.df['__denom__']
+        self.ProbabilityNumerator = self.df['__numer__']
 
     def plot_kde(self, bw_method='scott', fill=True, color_e='b', color_u='r'):
         """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
@@ -178,9 +176,9 @@ class IPTW:
         matplotlib axes
         """
         x = np.linspace(0, 1, 10000)
-        density_t = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 1]['propscore'].dropna(),
+        density_t = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
                                            bw_method=bw_method)
-        density_u = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 0]['propscore'].dropna(),
+        density_u = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna(),
                                            bw_method=bw_method)
         ax = plt.gca()
         if fill:
@@ -201,8 +199,8 @@ class IPTW:
         -------------
         matplotlib axes
         """
-        boxes = (self.df.loc[self.df[self.ex] == 1]['propscore'].dropna(),
-                 self.df.loc[self.df[self.ex] == 0]['propscore'].dropna())
+        boxes = (self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
+                 self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna())
         labs = ['Treat = 1', 'Treat = 0']
         meanpointprops = dict(marker='D', markeredgecolor='black', markerfacecolor='black')
         ax = plt.gca()
@@ -227,6 +225,7 @@ class IPTW:
         None
             Prints the positivity results to the console but does not return any objects
         """
+        self.df['iptw'] = self.Weight
         if not self.stabilized:
             warnings.warn('Positivity should only be used for stabilized IPTW')
         avg = float(np.mean(self.df['iptw'].dropna()))
@@ -264,6 +263,7 @@ class IPTW:
         None
             Prints the positivity results to the console but does not return any objects
         """
+        self.df['iptw'] = self.Weight
         if var_type == 'binary':
             wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
             wt2 = np.sum(self.df.loc[(self.df[self.ex] == 1)].dropna()['iptw'])

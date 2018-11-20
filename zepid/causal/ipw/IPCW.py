@@ -61,9 +61,9 @@ class IPCW:
             self.df = self._dataprep(f, idvar, time, event, enter=enter)
         else:
             self.df = f
-            self.df['uncensored'] = np.where((self.df[idvar] != self.df[idvar].shift(-1)) &
-                                             (self.df[event] == 0),
-                                             0, 1)  # generating indicator for uncensored
+            self.df['__uncensored__'] = np.where((self.df[idvar] != self.df[idvar].shift(-1)) &
+                                                 (self.df[event] == 0),
+                                                 0, 1)  # generating indicator for uncensored
         self.idvar = idvar
         self.time = time
         self.event = event
@@ -84,12 +84,12 @@ class IPCW:
         print_results : bool, optional
             Whether to print the model results. Default is True
         """
-        nmodel = propensity_score(self.df, 'uncensored ~ ' + model_numerator, print_results=print_results)
-        self.df['numer'] = nmodel.predict(self.df)
-        dmodel = propensity_score(self.df, 'uncensored ~ ' + model_denominator, print_results=print_results)
-        self.df['denom'] = dmodel.predict(self.df)
-        self.df['cnumer'] = self.df.groupby(self.idvar)['numer'].cumprod()
-        self.df['cdenom'] = self.df.groupby(self.idvar)['denom'].cumprod()
+        nmodel = propensity_score(self.df, '__uncensored__ ~ ' + model_numerator, print_results=print_results)
+        self.df['__numer__'] = nmodel.predict(self.df)
+        dmodel = propensity_score(self.df, '__uncensored__ ~ ' + model_denominator, print_results=print_results)
+        self.df['__denom__'] = dmodel.predict(self.df)
+        self.df['__cnumer__'] = self.df.groupby(self.idvar)['__numer__'].cumprod()
+        self.df['__cdenom__'] = self.df.groupby(self.idvar)['__denom__'].cumprod()
 
     def fit(self):
         """Generate the IPC Weights for each observation period for each observation. The calculated weights can be
@@ -99,8 +99,7 @@ class IPCW:
         -------------
         Fills in the Weight attribute
         """
-        self.df['ipcw'] = self.df['cnumer'] / self.df['cdenom']
-        self.Weight = self.df['ipcw']
+        self.Weight = self.df['__cnumer__'] / self.df['__cdenom__']
 
     @staticmethod
     def _dataprep(cf, idvar, time, event, enter=None):
@@ -145,14 +144,14 @@ class IPCW:
             lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event], axis=1, inplace=True)
         else:
             lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event, enter], axis=1, inplace=True)
-        lf.rename(columns={"delta_indicator_zepid": event, 'uncensored_zepid': 'uncensored', 't_enter_zepid': 't_enter',
-                           't_out_zepid': 't_out'}, inplace=True)
+        lf.rename(columns={"delta_indicator_zepid": event, 'uncensored_zepid': '__uncensored__',
+                           't_enter_zepid': 't_enter', 't_out_zepid': 't_out'}, inplace=True)
         warnings.warn('Please verify the long dataframe was generated correctly')
         print('Check for dataframe')
         print('\tEvents in input:', np.sum(cf[event]))
         print('\tEvents in output:', np.sum(lf[event]))
         print('\tCensor in input:', cf.dropna(subset=[event]).shape[0] - np.sum(cf[event]))
-        print('\tCensor in output:', lf.shape[0] - np.sum(lf.uncensored))
+        print('\tCensor in output:', lf.shape[0] - np.sum(lf['__uncensored__']))
         if enter is None:
             print('\tTotal t input:', np.sum(cf[time]))
             print('\tTotal t output:', np.sum(lf.loc[(lf[idvar] != lf[idvar].shift(-1))]['t_out']))
