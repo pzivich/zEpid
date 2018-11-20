@@ -7,28 +7,96 @@ from .utils import propensity_score
 
 
 class IPTW:
-    """
-    Calculates the weight for inverse probability of treatment weights through logistic regression.
-    Both stabilized or unstabilized weights are implemented. Default is just to calculate the prevalence
-    of the treatment in the population.
-
-    df:
-        -pandas dataframe object containing all variables of interest
-    treatment:
-        -Variable name of treatment variable of interest. Must be coded as binary.
-         1 should indicate treatment, while 0 indicates no treatment
-    stabilized:
-        -Whether to return stabilized or unstabilized weights. Input is True/False. Default is
-         stabilized weights (True)
-    standardize:
-        -who to standardize the estimate to. Options are the entire population, the exposed, or
-         the unexposed. See Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed
-         Options for standardization are:
-            'population'    :   weight to entire population
-            'exposed'       :   weight to exposed individuals
-            'unexposed'     :   weight to unexposed individuals
-    """
     def __init__(self, df, treatment, stabilized=True, standardize='population'):
+        """
+        Calculates the weight for inverse probability of treatment weights through logistic regression.
+        Both stabilized or unstabilized weights are implemented. Default is just to calculate the prevalence
+        of the treatment in the population.
+
+        The formula for stabilized weights is
+
+        .. math::
+
+            \pi_i = \frac{\Pr(A=a)}{\Pr(A=a|L=l)}
+
+        For unstabilized weights
+
+        .. math::
+
+            \pi_i = \frac{1}{\Pr(A=a|L=l)}
+
+        SMR unstabilized weights for weighting to exposed (A=1)
+
+        .. math::
+
+            \pi_i &= 1 if A = 1 \\
+                  &= \frac{\Pr(A=1|L=l)}{\Pr(A=0|L=l)} if A = 0
+
+        For SMR weighted to the unexposed (A=0) the equation becomes
+
+        .. math::
+
+            \pi_i &= \frac{\Pr(A=0|L=l)}{\Pr(A=1|L=l)} if A=1 \\
+                  &= 1 if A = 0
+
+        Parameters
+        ----------
+        df : DataFrame
+            Pandas dataframe object containing all variables of interest
+        treatment : str
+            Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment, while 0
+            indicates no treatment
+        stabilized : bool, optional
+            Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
+        standardize : str, optional
+            Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. See Sato
+            & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the exposed or
+            unexposed is also referred to as SMR weighting. Options for standardization are:
+            * 'population'    :   weight to entire population
+            * 'exposed'       :   weight to exposed individuals
+            * 'unexposed'     :   weight to unexposed individuals
+
+        Example
+        -------
+        Stabilized IPTW weights
+        >>>import zepid as ze
+        >>>from zepid.causal.ipw import IPTW
+        >>>df = ze.load_sample_data(False)
+        >>>ipt = IPTW(df, treatment='art', stabilized=True)
+        >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        >>>ipt.fit()
+
+        Unstabilized IPTW weights
+        >>>ipt = IPTW(df, treatment='art', stabilized=False)
+        >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        >>>ipt.fit()
+
+        SMR weight to the exposed population
+        >>>ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
+        >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        >>>ipt.fit()
+
+        Diagnostics
+        1) Standard differences
+        >>>ipt.StandardizedDifference('male', var_type='binary')
+        >>>ipt.StandardizedDifference('age0', var_type='continuous')
+
+        2) Positivity
+        >>>ipt.positivity()
+
+        3) Plots
+        >>>ipt.plot_boxplot()
+        >>>plt.show()
+        >>>ipt.plot_kde()
+        >>>plt.show()
+        """
+        self.denominator_model = None
+        self.numerator_model = None
+
+        self.Weight = None
+        self.ProbabilityNumerator = None
+        self.ProbabilityDenominator = None
+
         self.df = df.copy()
         self.ex = treatment
         self.stabilized = stabilized
@@ -39,21 +107,22 @@ class IPTW:
                              'population, exposed, unexposed')
 
     def regression_models(self, model_denominator, model_numerator='1', print_results=True):
-        """
-        Logistic regression model(s) for propensity score models. The model denominator must be specified for both
+        """Logistic regression model(s) for propensity score models. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
 
-        model_denominator:
-            -statsmodels glm format for modeling data. Only includes predictor variables
-             Example) 'var1 + var2 + var3'
-        model_numerator:
-            - statsmodels glm format for modeling data. Only includes predictor variables for the numerator.
-             Default ('1') calculates the overall probability. In general this is recommended. If confounding
-             variables are included in the numerator, they would later need to be adjusted for.
-             Example) 'var1'
-        print_results:
-            -whether to print the model results from the regression models. Default is True
+        Parameters
+        ------------
+        model_denominator : str
+            String listing variables to predict the exposure, separated by +. For example, 'var1 + var2 + var3'. This
+            is for the predicted probabilities of the denominator
+        model_numerator : str, optional
+            Optional string listing variables to predict the exposure, separated by +. Only used to calculate the
+            numerator. Default ('1') calculates the overall probability of exposure. In general this is recommended. If
+            confounding variables are included in the numerator, they would later need to be adjusted for. Argument is
+            also only used when calculating stabilized weights
+        print_results : bool, optional
+            Whether to print the model results from the regression models. Default is True
         """
         self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
                                                   print_results=print_results)
@@ -65,12 +134,17 @@ class IPTW:
                 warnings.warn('Argument for model_numerator is only used for stabilized=True')
 
     def fit(self):
-        """
-        Uses the specified regression models from 'regression_models' to generate the corresponding
-        inverse probability of treatment weights
+        """Uses the specified regression models from 'regression_models' to generate the corresponding inverse
+        probability of treatment weights
 
-        IPTW will have the Weight attribute which contains a pandas Series of the calculated IPTW
+        Returns
+        ------------
+        IPTW class gains the Weight, ProbabilityDenominator, and ProbabilityNumerator attributed. Weights is a pandas
+        Series containing the calculated IPTW.
         """
+        if self.denominator_model is None:
+            raise ValueError('No model has been fit to generated predicted probabilities')
+
         self.df['propscore'] = self.denominator_model.predict(self.df)
         if self.stabilized:
             n = self.numerator_model.predict(self.df)
@@ -84,22 +158,24 @@ class IPTW:
         self.ProbabilityNumerator = self.df['numer']
 
     def plot_kde(self, bw_method='scott', fill=True, color_e='b', color_u='r'):
-        """
-        Generates a density plot that can be used to check whether positivity may be violated qualitatively. Note
-        input probability variable, not the weight! The kernel density used is SciPy's Gaussian kernel. Either Scott's
-        Rule or Silverman's Rule can be implemented.
+        """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
+        kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+        Alternative option to the boxplot of probabilities
 
-        bw_method:
-            -method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are
-             valid options
-        fill:
-            -whether to color the area under the density curves. Default is true
-        color_e:
-            -color of the line/area for the treated group. Default is Blue
-        color_u:
-            -color of the line/area for the treated group. Default is Red
+        Parameters
+        ------------
+        bw_method : str, optional
+            Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+        fill : bool, optional
+            Whether to color the area under the density curves. Default is true
+        color_e : str, optional
+            Color of the line/area for the treated group. Default is Blue
+        color_u : str, optional
+            Color of the line/area for the treated group. Default is Red
 
-        Returns matplotlib axes
+        Returns
+        ---------------
+        matplotlib axes
         """
         x = np.linspace(0, 1, 10000)
         density_t = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 1]['propscore'].dropna(),
@@ -118,11 +194,12 @@ class IPTW:
         return ax
 
     def plot_boxplot(self):
-        """
-        Generates a stratified boxplot that can be used to visually check whether positivity may be violated,
-        qualitatively.
+        """Generates a stratified boxplot that can be used to visually check whether positivity may be violated,
+        qualitatively. Alternative option to the kernel density plot.
 
-        Returns matplotlib axes
+        Returns
+        -------------
+        matplotlib axes
         """
         boxes = (self.df.loc[self.df[self.ex] == 1]['propscore'].dropna(),
                  self.df.loc[self.df[self.ex] == 0]['propscore'].dropna())
@@ -134,15 +211,22 @@ class IPTW:
         return ax
 
     def positivity(self, decimal=3):
-        '''Use this to assess whether positivity is a valid assumption. Note that this should only be used for
+        """Use this to assess whether positivity is a valid assumption. Note that this should only be used for
         stabilized weights generated from IPTW. This diagnostic method is based on recommendations from
         Cole SR & Hernan MA (2008). For more information, see the following paper:
         Cole SR, Hernan MA. Constructing inverse probability weights for marginal structural models.
         American Journal of Epidemiology 2008; 168(6):656–664.
 
-        decimal:
-            -number of decimal places to display. Default is three
-        '''
+        Parameters
+        --------------
+        decimal : int, optional
+            Number of decimal places to display. Default is three
+
+        Returns
+        --------------
+        None
+            Prints the positivity results to the console but does not return any objects
+        """
         if not self.stabilized:
             warnings.warn('Positivity should only be used for stabilized IPTW')
         avg = float(np.mean(self.df['iptw'].dropna()))
@@ -164,16 +248,21 @@ class IPTW:
     def StandardizedDifference(self, variable, var_type, decimal=3):
         """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
-        by the specified IPTW model
+        by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
 
-        SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
+        Parameters
+        ---------------
+        variable : str
+            Label for variable to calculate the standardized difference
+        var_type : str
+            Variable type. Options are 'binary' or 'continuous'
+        decimal : int, optional
+            Decimal places to display in results. Default is 3
 
-        variable:
-            -label for variable to calculate the standardized difference
-        var_type:
-            -variable type. Options are 'binary' or 'continuous'
-        decimal:
-            -decimal places to display in results. Default is 3
+        Returns
+        --------------
+        None
+            Prints the positivity results to the console but does not return any objects
         """
         if var_type == 'binary':
             wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
@@ -200,8 +289,11 @@ class IPTW:
         print('----------------------------------------------------------------------')
 
     def _weight_calculator(self, df, denominator, numerator):
-        """
-        Calculates the IPTW based on the predicted probabilities and the specified group to standardize to
+        """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
+        background for the fit() function. Not intended to be used by users
+
+        df is the dataframe, denominator is the string indicating the column of Pr, numerator is the string indicating
+        the column of Pr
         """
         if self.stabilized:  # Stabilized weights
             if self.standardize == 'population':
@@ -238,8 +330,7 @@ class IPTW:
 
     @staticmethod
     def _weighted_avg(df, v, w, t):
-        """
-        Calculates the weighted mean for continuous variables
+        """Calculates the weighted mean for continuous variables. Used by StandardizedDifferences
         """
         l = []
         for i in [0, 1]:
@@ -251,8 +342,7 @@ class IPTW:
 
     @staticmethod
     def _weighted_std(df, v, w, t, xbar):
-        """
-        Calculates the weighted standard deviation for continuous variables
+        """Calculates the weighted standard deviation for continuous variables. Used by StandardizedDifferences
         """
         l = []
         for i in [0, 1]:
