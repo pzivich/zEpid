@@ -13,25 +13,77 @@ from zepid.calc import probability_to_odds
 
 class TMLE:
     def __init__(self, df, exposure, outcome, psi='risk_difference', alpha = 0.05):
-        """Implementation of a single time-point TMLE model. It uses standard logistic regression models to calculate
-        Psi. The TMLE estimator allows a standard logistic regression to be used. Alternatively, users are able to
-        directly input predicted outcomes from other methods (like machine learning algorithms).
+        """Implementation of a single time-point target maximum likelihood estimator. It uses standard logistic
+        regression models to calculate Psi. The TMLE estimator allows a standard logistic regression to be used.
+        Alternatively, users are able to directly input predicted outcomes from other methods (like machine learning
+        algorithms).
 
-        df:
-            -pandas dataframe containing the variables of interest
-        exposure:
-            -column label for the exposure of interest
-        outcome:
-            -column label for the outcome of interest
-        psi:
-            -What the TMLE psi estimates. Current options include; risk difference comparing treated to untreated
-             (F(A=1) - F(A=0)), risk ratio (F(A=1) / F(A=0)), and odds ratio.
-             The following keywords are used
-             'risk_difference'  :   F(A=1) - F(A=0)
-             'risk_ratio'       :   F(A=1) / F(A=0)
-             'odds_ratio'       :   (F(A=1) / (1 - F(A=1)) / (F(A=0) / (1 - F(A=0))
-        alpha:
-            -alpha for confidence interval level. Default is 0.05
+        TMLE is a double robust substitution estimator. For further details, see the listed references. The following
+        is a general description of the estimation process for TMLE
+
+        1. Initial estimates for Y are predicted from a regression model. Expected values for each individual are
+        generated under the scenarios of all treated vs all untreated
+
+        .. math::
+
+            E(Y|A, L)
+
+        2. Predicted probabilities are generated from a regression model
+
+        .. math::
+
+            \Pr(A=1|L)
+
+        3. The predicted Y is merged together with the IPW using
+
+        .. math::
+
+            H_a(A=a,L) = \frac{I(A=1)}{\pi_1} - \frac{I(A=0)}{\pi_0}
+
+        for each individual. Afterwards, the predicted Y is set as an offset in the following logit model and used to
+        predict values under each treatment strategy after fitted
+
+        .. math::
+
+            logit(E(Y|A,L)) = logit(Y_a) + \sigma * H_a
+
+        4. The targeted Psi is estimated via one of the following formulas
+
+        .. math::
+
+            RD = \frac{1}{n} \sum_{i=1}^{n} (\hat{Y}_1 - \hat{Y}_0)
+
+            RR = \frac{1}{n} \sum_{i=1}^{n} (\hat{Y}_1) / \frac{1}{n} \sum_{i=1}^{n} (\hat{Y}_0)
+
+        Confidence intervals are constructed using influence curve theory
+
+        Parameters
+        ----------
+        df : DataFrame
+            Pandas dataframe containing the variables of interest
+        exposure : str
+            Column label for the exposure of interest
+        outcome : str
+            Column label for the outcome of interest
+        psi : str, optional
+            What the TMLE psi estimates. Current options include; risk difference comparing treated to untreated
+            (F(A=1) - F(A=0)), risk ratio (F(A=1) / F(A=0)), and odds ratio. The following keywords are available
+            * 'risk_difference'  :   F(A=1) - F(A=0)
+            * 'risk_ratio'       :   F(A=1) / F(A=0)
+            * 'odds_ratio'       :   (F(A=1) / (1 - F(A=1)) / (F(A=0) / (1 - F(A=0))
+        alpha : int, optional
+            Alpha for confidence interval level. Default is 0.05
+
+        References
+        ----------
+        Schuler, Megan S., and Sherri Rose. "Targeted maximum likelihood estimation for causal inference in
+        observational studies." American journal of epidemiology 185.1 (2017): 65-73.
+
+        Van der Laan, Mark J., and Sherri Rose. Targeted learning: causal inference for observational and experimental
+        data. Springer Science & Business Media, 2011.
+
+        Van Der Laan, Mark J., and Daniel Rubin. "Targeted maximum likelihood learning." The International Journal of
+        Biostatistics 2.1 (2006).
         """
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
@@ -56,24 +108,26 @@ class TMLE:
         self.confint = None
 
     def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
-        """Estimation of g(A=1,W), which is Pr(A=1|W)
+        """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
 
-        model:
-            -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
-        custom_model:
-            -Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
-             This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
-             any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
-             logistic regression. Please see online for an example
-             NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
-             The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
-             to unexpected estimates
-        bound:
-            -Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations. Default
-             is False, meaning no truncation of predicted probabilities occurs. Providing a single float assumes
-             symmetric trunctation. A collection of floats can be provided for asymmetric trunctation
-        print_results:
-            -Whether to print the fitted model results. Default is True (prints results)
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
+        custom_model : optional
+            Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
+            This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
+            any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
+            logistic regression. Please see online for an example
+            NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
+            The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
+            to unexpected estimates
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations. Default
+            is False, meaning no truncation of predicted probabilities occurs. Providing a single float assumes
+            symmetric trunctation. A collection of floats can be provided for asymmetric trunctation
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self._exposure + ' ~ ' + model
 
@@ -109,20 +163,22 @@ class TMLE:
         self._fit_exposure_model = True
 
     def outcome_model(self, model, custom_model=None, print_results=True):
-        """Estimation of Q(A,W), which is Pr(Y=1|A,W)
+        """Estimation of E(Y|A,L), which is also written sometimes as Q(A,W) or Pr(Y=1|A,W)
 
-        model:
-            -Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
-        custom_model:
-            -Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
-             This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
-             any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
-             logistic regression. Please see online for an example
-             NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
-             The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
-             to unexpected estimates
-        print_results:
-            -Whether to print the fitted model results. Default is True (prints results)
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
+        custom_model : optional
+            Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
+            This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
+            any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
+            logistic regression. Please see online for an example
+            NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
+            The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
+            to unexpected estimates
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results)
         """
         self._out_model = self._outcome + ' ~ ' + model
 
@@ -194,6 +250,10 @@ class TMLE:
 
     def fit(self):
         """Estimates psi based on the gAW and QAW. Confidence intervals come from the influence curve
+
+        Returns
+        -------
+        TMLE gains Psi and confint attributes
         """
         if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
@@ -253,8 +313,10 @@ class TMLE:
     def summary(self, decimal=3):
         """Prints summary of model results
 
-        decimal:
-            -number of decimal places to display. Default is 3
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
         """
         if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
@@ -270,7 +332,7 @@ class TMLE:
 
     @staticmethod
     def _bounding(v, bounds):
-        """Background function to perform bounding feature.
+        """Background function to perform bounding feature. Not intended for users to access
 
         v:
             -Values to be bounded
@@ -304,5 +366,4 @@ class TMLE:
         return v
 
 
-# TODO add HAL-TMLE
 # TODO longitudinal TMLE; estimated by E[...E[Y_n|A=abar]...] working from center to outside

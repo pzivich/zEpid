@@ -14,9 +14,14 @@ class IPCW:
 
         IPC weights are calculated via logistic regression and weights are cumulative products per unique ID. IPCW can
         be used to correct for missing at random data by the generated model in weighted Kaplan-Meier curves. The
-        formula used to generate IPCW is
+        formula used to generate the unstabilized IPCW is
 
         .. math::
+
+            \pi_i(t) = \cumprod_{R_k \le t} \frac{1}{\Pr(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
+
+        The stabilized IPCW substitutes predicted probabilities under the specified numerator model into the numerator
+        of the previous equation. It is similar in concept to IPTW and IPMW in that regards.
 
         Parameters
         ---------------
