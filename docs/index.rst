@@ -1,5 +1,6 @@
 ﻿.. image:: images/zepid_logo.png
--------------------------------------
+
+--------------------------------
 
 zEpid
 =====================================
@@ -33,7 +34,7 @@ Contents:
   Reference/index
 
 Installation:
-------------------------------
+-------------
 
 Dependencies are from the typical Python data-stack: Numpy, Pandas, Scipy, Statsmodels, and Matplotlib. Addtionally,
 it requires Tabulate, so nice looking tables can be easily generated. Install using:
@@ -41,7 +42,7 @@ it requires Tabulate, so nice looking tables can be easily generated. Install us
 ``pip install zepid``
 
 Source code and Issue Tracker
-------------------------------
+-----------------------------
 
 Available on Github `pzivich/zepid <https://github.com/pzivich/zepid/>`_
 Please report bugs, issues, and feature extensions there.
