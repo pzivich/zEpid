@@ -2,6 +2,7 @@ import warnings
 import math
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.stats import norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -12,9 +13,9 @@ from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_diffe
                               odds_ratio, incidence_rate_difference, incidence_rate_ratio, sensitivity, specificity)
 
 
-# TODO add plot function
-
-
+#########################################################################################################
+# Measures of effect / association
+#########################################################################################################
 class RiskRatio:
     """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
     ignored.
@@ -140,6 +141,48 @@ class RiskRatio:
         print('Missing E&D: ', self._missing_ed)
         print('======================================================================')
 
+    def plot(self, measure='risk_ratio', scale='linear', color='k', center=1):
+        """Plot the risk ratios or the risks along with their corresponding confidence intervals. This option is an
+        alternative to summary(), which displays results in a table format.
+
+        Parameters
+        ----------
+        measure : str, optional
+            Whether to display risk ratios or risks. Default is to display the risk ratio. Options are;
+            * 'risk_ratio'  : display risk ratios
+            * 'risk'        : display risks
+        scale : str, optional
+            Scale for the x-axis. Default is a linear scale. A log-scale can be requested by setting scale='log'
+        color : str, optional
+            Color to display points and confidence limits. Allows any valid matplotlib colors
+        center : str, optional
+            Sets a reference line. For the risk ratio, the reference line defaults to 1. For risks, no reference line is
+            displayed.
+
+        Returns
+        -------
+        matplotlib axes
+        """
+        if measure == 'risk_ratio':
+            ax = _plotter(estimate=self.results['RiskRatio'], lcl=self.results['RR_LCL'], ucl=self.results['RR_UCL'],
+                          labels=self.results.index,
+                          center=center, color=color)
+            if scale == 'log':
+                try:
+                    ax.set_xscale('log')
+                except:
+                    raise ValueError('For the log scale, all values must be positive')
+            ax.set_title('Risk Ratio')
+        elif measure == 'risk':
+            ax = _plotter(estimate=self.results['Risk'], lcl=self.results['Risk_LCL'], ucl=self.results['Risk_UCL'],
+                          labels=self.results.index,
+                          center=np.nan, color=color)
+            ax.set_title('Risk')
+            ax.set_xlim([0, 1])
+        else:
+            raise ValueError('Must specify either "risk_ratio" or "risk" for plots')
+        return ax
+
 
 class RiskDifference:
     """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
@@ -264,6 +307,41 @@ class RiskDifference:
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
         print('======================================================================')
+
+    def plot(self, measure='risk_difference', color='k', center=0):
+        """Plot the risk differences or the risks along with their corresponding confidence intervals. This option is an
+        alternative to summary(), which displays results in a table format.
+
+        Parameters
+        ----------
+        measure : str, optional
+            Whether to display risk differences or risks. Default is to display the risk difference. Options are;
+            * 'risk_difference' : display risk differences
+            * 'risk'            : display risks
+        color : str, optional
+            Color to display points and confidence limits. Allows any valid matplotlib colors
+        center : str, optional
+            Sets a reference line. For the risk difference, the reference line defaults to 0. For risks, no reference
+            line is displayed.
+
+        Returns
+        -------
+        matplotlib axes
+        """
+        if measure == 'risk_difference':
+            ax = _plotter(estimate=self.results['RiskDifference'], lcl=self.results['RD_LCL'],
+                          ucl=self.results['RD_UCL'], labels=self.results.index,
+                          center=center, color=color)
+            ax.set_title('Risk Difference')
+        elif measure == 'risk':
+            ax = _plotter(estimate=self.results['Risk'], lcl=self.results['Risk_LCL'], ucl=self.results['Risk_UCL'],
+                          labels=self.results.index,
+                          center=np.nan, color=color)
+            ax.set_title('Risk')
+            ax.set_xlim([0, 1])
+        else:
+            raise ValueError('Must specify either "risk_difference" or "risk" for plots')
+        return ax
 
 
 class NNT:
@@ -489,6 +567,34 @@ class OddsRatio:
         print('Missing E&D: ', self._missing_ed)
         print('======================================================================')
 
+    def plot(self, scale='linear', color='k', center=1):
+        """Plot the odds ratios along with their corresponding confidence intervals. This option is an
+        alternative to summary(), which displays results in a table format.
+
+        Parameters
+        ----------
+        scale : str, optional
+            Scale for the x-axis. Default is a linear scale. A log-scale can be requested by setting scale='log'
+        color : str, optional
+            Color to display points and confidence limits. Allows any valid matplotlib colors
+        center : str, optional
+            Sets a reference line. The reference line defaults to 1.
+
+        Returns
+        -------
+        matplotlib axes
+        """
+        ax = _plotter(estimate=self.results['OddsRatio'], lcl=self.results['OR_LCL'], ucl=self.results['OR_UCL'],
+                      labels=self.results.index,
+                      center=center, color=color)
+        if scale == 'log':
+            try:
+                ax.set_xscale('log')
+            except:
+                raise ValueError('For the log scale, all values must be positive')
+        ax.set_title('Odds Ratio')
+        return ax
+
 
 class IncidenceRateRatio:
     """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
@@ -615,6 +721,49 @@ class IncidenceRateRatio:
         print('Missing E&D: ', self._missing_ed)
         print('Missing T:   ', self._missing_t)
         print('======================================================================')
+
+    def plot(self, measure='incidence_rate_ratio', scale='linear', color='k', center=1):
+        """Plot the risk ratios or the risks along with their corresponding confidence intervals. This option is an
+        alternative to summary(), which displays results in a table format.
+
+        Parameters
+        ----------
+        measure : str, optional
+            Whether to display incidence rate ratios or incidence rates. Default is to display the incidence rate ratio.
+            Options are;
+            * 'incidence_rate_ratio'  : display incidence rate ratios
+            * 'incidence_rate'        : display incidence rates
+        scale : str, optional
+            Scale for the x-axis. Default is a linear scale. A log-scale can be requested by setting scale='log'
+        color : str, optional
+            Color to display points and confidence limits. Allows any valid matplotlib colors
+        center : str, optional
+            Sets a reference line. For the incidence rate ratio, the reference line defaults to 1. For incidence rates,
+            no reference line is displayed.
+
+        Returns
+        -------
+        matplotlib axes
+        """
+        if measure == 'incidence_rate_ratio':
+            ax = _plotter(estimate=self.results['IncRateRatio'], lcl=self.results['IRR_LCL'],
+                          ucl=self.results['IRR_UCL'], labels=self.results.index,
+                          center=center, color=color)
+            if scale == 'log':
+                try:
+                    ax.set_xscale('log')
+                except:
+                    raise ValueError('For the log scale, all values must be positive')
+            ax.set_title('Incidence Rate Ratio')
+        elif measure == 'incidence_rate':
+            ax = _plotter(estimate=self.results['IncRate'], lcl=self.results['IncRate_LCL'],
+                          ucl=self.results['IncRate_UCL'], labels=self.results.index,
+                          center=np.nan, color=color)
+            ax.set_title('Incidence Rate')
+            ax.set_xlim([0, 1])
+        else:
+            raise ValueError('Must specify either "incidence_rate_ratio" or "incidence_rate" for plots')
+        return ax
 
 
 class IncidenceRateDifference:
@@ -743,7 +892,65 @@ class IncidenceRateDifference:
         print('Missing T:   ', self._missing_t)
         print('======================================================================')
 
+    def plot(self, measure='incidence_rate_difference', color='k', center=0):
+        """Plot the incidence rate differences or the incidence rates along with their corresponding confidence
+        intervals. This option is an alternative to summary(), which displays results in a table format.
 
+        Parameters
+        ----------
+        measure : str, optional
+            Whether to display incidence rate ratios or incidence rates. Default is to display the incidence rate
+            differences. Options are;
+            * 'incidence_rate_difference'  : display incidence rate differences
+            * 'incidence_rate'             : display incidence rates
+        color : str, optional
+            Color to display points and confidence limits. Allows any valid matplotlib colors
+        center : str, optional
+            Sets a reference line. For the incidence rate difference, the reference line defaults to 0. For incidence
+            rates, no reference line is displayed.
+
+        Returns
+        -------
+        matplotlib axes
+        """
+        if measure == 'incidence_rate_difference':
+            ax = _plotter(estimate=self.results['IncRateDiff'], lcl=self.results['IRD_LCL'],
+                          ucl=self.results['IRR_UCL'], labels=self.results.index,
+                          center=center, color=color)
+            ax.set_title('Incidence Rate Difference')
+        elif measure == 'incidence_rate':
+            ax = _plotter(estimate=self.results['IncRate'], lcl=self.results['IncRate_LCL'],
+                          ucl=self.results['IncRate_UCL'], labels=self.results.index,
+                          center=np.nan, color=color)
+            ax.set_title('Incidence Rate')
+            ax.set_xlim([0, 1])
+        else:
+            raise ValueError('Must specify either "incidence_rate_difference" or "incidence_rate" for plots')
+        return ax
+
+
+def _plotter(estimate, lcl, ucl, labels, center=0, color='k'):
+    """Plot functionality to be used by all the measure classes. Hidden functional for all the other plotting
+    functionalities
+    """
+    ypoints = [i for i in range(len(labels))]
+
+    ax = plt.gca()
+    # ax.errorbar(estimate, ypoints, xerr=[lcl, ucl], marker='None', ecolor=color, elinewidth=1, linewidth=0)
+    ax.hlines(ypoints, lcl, ucl, colors=color, zorder=3)
+    ax.scatter(estimate, ypoints, c=color, s=100, marker='o', edgecolors='None', zorder=2)
+    if np.isnan(center):
+        pass
+    else:
+        ax.axvline(center, color='gray', zorder=1)
+    ax.set_yticklabels(labels)
+    ax.set_yticks(ypoints)
+    return ax
+
+
+#########################################################################################################
+# Testing measures
+#########################################################################################################
 class Sensitivity:
     """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
     from pandas dataframe
@@ -921,6 +1128,9 @@ class Diagnostics:
         print('======================================================================')
 
 
+#########################################################################################################
+# Interaction contrasts
+#########################################################################################################
 def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3):
     """Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1},
@@ -1111,6 +1321,9 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     print('----------------------------------------------------------------------')
 
 
+#########################################################################################################
+# Other
+#########################################################################################################
 def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     """Creates spline dummy variables based on either user specified knot locations or automatically
     determines knot locations based on percentiles. Options are available to set the number of knots,
