@@ -6,60 +6,72 @@ from statsmodels.genmod.families import links
 
 
 class TimeVaryGFormula:
-    """Time-varying implementation of the g-formula, also referred to as the g-computation
-    algorithm formula. This implementation has four options for the treatment courses:
-    
-    Key options for treatments
-        all     -all individuals are given treatment
-        none    -no individuals are given treatment
-        natural -individuals retain their observed treatment
-        custom treatment
-                -create a custom treatment. When specifying this, the dataframe must be 
-                 referred to as 'g' The following is an example that selects those whose
-                 age is 25 or older and are females
-                 ex) treatment="((g['age0']>=25) & (g['male']==0))
-    
-    Currently, only supports a binary exposure and a binary outcome. Uses a logistic regression model to predict
-    exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the time-varying
-    g-formula. See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
-    
-    IMPORTANT CONSIDERATIONS:
-    1) TimeVaryGFormula increases by time unit increase of one. Your input dataset should reflect this
-    2) Only binary exposures and binary outcomes are supported
-    3) Binary and continuous covariates are supported
-    4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
-    5) Fit the natural course model first and compare to the observed data. They should be similar
-    6) Check to make sure the predicted values are reasonable. If not, you may need to code in restrictions into
-        'restriction', 'recode', or 'in_recode' statements in the fitted models
-
-    Process for the g-formula monte carlo:
-        1) run lines in "in_recode"
-        2) time-varying covariates, order ascending in from "labels"
-            a) predict time-varying covariate
-            b) run lines in "recode" from "add_covariate_model()"
-        3) predict exposure / apply exposure pattern
-        4) predict outcome
-        5) run lines in "out_recode"
-        6) lag variables in "lags"
-        7) append current-time rows to full dataframe
-        8) Repeat till t_max is met
-
-    Inputs:
-    df:
-        -pandas dataframe containing the variables of interest
-    exposure:
-        -exposure variable label / column name
-    outcome:
-        -outcome variable label / column name
-    time_in:
-        -time variable label / column name for start of row time period
-    time_out:
-        -time variable label / column name for end of row time period
-    weights:
-        -weights for weighted data. Default is None, which assumes every observations has the same weight (i.e. 1)
-    """
-
     def __init__(self, df, idvar, exposure, outcome, time_out, time_in=None, method='MonteCarlo', weights=None):
+        """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
+        time-varying parametric g-formula uses either the Monte Carlo or the sequential regression (iterative expectations)
+        estimators. The Monte Carlo estimator is useful for survival data and the sequential regression estimator is useful
+        for longitudinal data. This implementation has four options for the treatment courses:
+
+        Options for treatments
+        * all : all individuals are given treatment
+        * none : no individuals are given treatment
+        * natural : individuals retain their observed treatment
+        * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The following
+            is an example that selects those whose age is 25 or older and are females
+            Ex) treatment="((g['age0']>=25) & (g['male']==0))
+
+        Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to predict
+        exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the time-varying g-formula.
+        See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
+
+        Parameters
+        ----------
+        df : DataFrame
+            Pandas dataframe containing the variables of interest
+        exposure : str
+            Treatment column label
+        outcome : str
+            Outcome column label
+        time_out : str
+            End of follow-up period time column label
+        time_in : str, optional
+            Start of follow-up period time label. This column is only required for the Monte Carlo estimator
+        method : str, optional
+            Estimator to use estimate the g-formula. Default is the Monte Carlo estimator. The Monte Carlo estimator is
+            requested via 'MonteCarlo' and the sequential regression (iterative conditional) is requested with
+            'SequentialRegression'
+        weights : str, optional
+            Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+
+        Notes
+        -----
+        1) Monte Carlo increases by time units of one. Input dataset should reflect this
+        2) Only binary exposures and binary outcomes are supported
+        3) Binary and continuous covariates are supported
+        4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
+        5) For the Monte Carlo estimator, fit the natural course model first and compare to the observed data. They should
+           be similar
+
+        Process for the Monte Carlo g-formula
+            1) run lines in "in_recode"
+            2) time-varying covariates, order ascending in from "labels"
+                a) predict time-varying covariate
+                b) run lines in "recode" from "add_covariate_model()"
+            3) predict exposure / apply exposure pattern
+            4) predict outcome
+            5) run lines in "out_recode"
+            6) lag variables in "lags"
+            7) append current-time rows to full dataframe
+            8) Repeat till t_max is met
+
+        Process for the sequential regression g-formula
+            1) Convert long data set to wide data set
+            2) Identify individuals who followed the counterfactual treatment plan and had the outcome
+            3) Fit a regression model for the outcome at time t for Y
+            4) Predict outcomes under the observed treatment and the counterfactual treatment
+            5) Repeat regression model fitting for t-1 to min(t)
+            6) Take the mean predicted Y for each time
+        """
         self.gf = df.copy()
         self.idvar = idvar
 
@@ -103,19 +115,21 @@ class TimeVaryGFormula:
                              'procedure for TimeVaryGFormula')
 
     def exposure_model(self, model, restriction=None, print_results=True):
-        """Build the model for the exposure. This must be specified before the fit function. If it is not,
-        an error will be raised.
-        
-        model:
-            -variables to include in the model for predicting the outcome. Must be contained within the input
-             pandas dataframe when initialized. Format is the same as the functional form
-             Example) 'var1 + var2 + var3 + var4'
-        restriction:
-            -used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
-             model fitting. The pandas dataframe must be referred to as 'g'
-             Example) "g['art']==1"
-        print_results:
-            -whether to print the logistic regression results to the terminal. Default is True
+        """Add a specified regression model for the exposure. This is used for natural course estimation of the Monte
+        Carlo g-formula. If the Monte Carlo estimation procedure is used, this must be specified before calling the
+        fit function.
+
+        Parameters
+        ----------
+        model : str
+            Variables to include in the model for predicting the exposure. Must be contained within the input
+            pandas dataframe when initialized. Format follows patsy standards
+            For example) 'var1 + var2 + var3 + var4'
+        restriction : str, optional
+            Used to restrict the population that the regression model is fit to. Useful for Intent-to-Treat model
+            fitting. The pandas dataframe must be referred to as 'g'. For example) "g['art']==1"
+        print_results : bool, optional
+            Whether to print the logistic regression model results to the terminal. Default is True
         """
         g = self.gf.copy()
         if restriction is not None:
@@ -133,21 +147,20 @@ class TimeVaryGFormula:
         self._exposure_model_fit = True
 
     def outcome_model(self, model, restriction=None, print_results=True):
-        """Build the model for the outcome. This must be specified before the fit function. If it is not,
-        an error will be raised.
-        
-        Input:
-        
+        """Add a specified regression model for the outcome. This is used for both Monte Carlo and sequential regression
+        estimators and must be specified before the fit function.
+
+        Parameters
+        ----------
         model:
-            -variables to include in the model for predicting the outcome. Must be contained within the input
-             pandas dataframe when initialized. Format is the same as the functional form,
-             i.e. 'var1 + var2 + var3 + var4'
-        restriction:
-            -used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
-             model fitting. The pandas dataframe must be referred to as 'g'
-             Example) "g['art']==1"
-        print_results:
-            -whether to print the logistic regression results to the terminal. Default is True
+            Variables to include in the model for predicting the outcome. Must be contained within the input
+            pandas dataframe when initialized. Format follows patsy standards
+            For example) 'var1 + var2 + var3 + var4'
+        restriction : str, optional
+            Used to restrict the population that the regression model is fit to. Useful for Intent-to-Treat model
+            fitting. The pandas dataframe must be referred to as 'g'. For example) "g['art']==1"
+        print_results : bool, optional
+            Whether to print the logistic regression model results to the terminal. Default is True
         """
         if self._mc:
             g = self.gf.copy()
@@ -171,37 +184,40 @@ class TimeVaryGFormula:
 
     def add_covariate_model(self, label, covariate, model, restriction=None, recode=None, var_type='binary',
                             print_results=True):
-        """
-        Build the model for the specified covariate. This is to deal with time-varying confounders.
-        Does NOT have to be specified, unlike the exposure and outcome models. The order in which these
-        models are fit is based on the provided integer labels
-        
-        Input:
-        
-        label:
-            -integer label for the covariate model. Covariate models are fit in ascending order within 
+        """Add a specified regression model for time-varying confounders. Unlike the exposure and outcome models, a
+        covariate model does NOT have to be specified. Additionally, *n* covariate models can be specified for *n*
+        time-varying covariates. Additional models are added by repeated calls for this function with the corresponding
+        covariates and predictive regression equations
+
+        This argument is only used for the Monte Carlo g-formula. The sequential regression only requires specification
+        of the outcome model.
+
+        Parameters
+        ----------
+        label : int
+            Integer label for the covariate model. Covariate models are fit in ascending order within
              TimeVaryGFormula
-        covariate:
-            -variable to be predicted
-        model:
-            -variables to include in the model for predicting the outcome. Must be contained within the input
-             pandas dataframe when initialized. Format is the same as the functional form,
-             i.e. 'var1 + var2 + var3 + var4'
-        restriction:
-            -used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
-             model fitting. The pandas dataframe must be referred to as 'g'
-             Example) "g['art']==1"
-        recode:
-            -This variable is vitally important for various functional forms implemented later in models. This
-             is used to run some background code to recreate functional forms as the g-formula is fit via fit()
-             For an example, let's say we have age but we want the functional form to be cubic. For this, we 
-             would set the recode="g['']" Similar to TimeFixedGFormula, 'g' must be specified as the data frame 
-             object with the corresponding indexes. Also lines of executable code should end with ';', so Python
-             knows that the line ends there. My apologies for this poor solution... I am working on a better way
-        var_type:
-            -type of variable that the covariate is. Current options include 'binary' or 'continuous'
-        print_results:
-            -whether to print the logistic regression results to the terminal. Default is True
+        covariate : str
+            Column label for time-varying confounder to be predicted
+        model : str
+            Variables to include in the model for predicting the outcome. Must be contained within the input
+            pandas dataframe when initialized. Format follows patsy
+            For example) 'var1 + var2 + var3 + var4'
+        restriction : str, optional
+            Used to restrict the population to fit the logistic regression model to. Useful for Intent-to-Treat
+            model fitting. The pandas dataframe must be referred to as 'g'. For example) "g['art']==1"
+        recode : str, optional
+            This variable is vitally important for various functional forms implemented later in models. This
+            is used to run some background code to recreate functional forms as the g-formula is estimated via fit()
+            For an example, let's say we have age but we want the functional form to be quadratic. For this, we
+            would set the recode="g['age_sq'] = g['age']**2;" Similar to TimeFixedGFormula, 'g' must be specified as the
+            DataFrame object with the corresponding indexes. Also lines of executable code should end with ';', so
+            Python knows that the line ends there. My apologies for this poor solution... I am working on a better way.
+            In the background, Python executes the code input into recode
+        var_type : str, optional
+            Type of variable that the covariate is. Current options include 'binary' or 'continuous'
+        print_results : bool, optional
+            Whether to print the logistic regression model results to the terminal. Default is True
         """
         if type(label) is not int:
             raise ValueError('Label must be an integer')
@@ -245,24 +261,39 @@ class TimeVaryGFormula:
             self._covariate_recode.append(recode)
 
     def fit(self, treatment, lags=None, sample=10000, t_max=None, in_recode=None, out_recode=None):
-        """
-        Implementation of fit
-        
-        treatment:
-            -treatment strategy
-        lags:
-            -variables to generate a lagged variable for. It should be a dictionary with the variable name
-             as the key and the lagged variable name as the value.
-             Ex) {'art':'lagged_art'}
-        sample:
-            -number of individuals to sample from the original data with replacement. It should be a large 
-             number. Default is 10000
-        t_max:
-            -maximum time to run g-formula until. Default is None, which uses the maximum time of the input 
-             dataframe. Input should be integer (but will also accept floats)
-        in_recode:
-            -on the fly recoding of variables done before the loop starts. Needed to do any kind of functional
-             forms for entry times
+        """Estimate the counterfactual outcomes under the specified treatment plan using the previously specified
+        regression models. For the Monte Carlo g-formula, both the exposure and outcome models need to be specified
+        before fit can be called. For sequential regression, only the outcome model needs to be specified.
+
+        Parameters
+        ----------
+        treatment : str
+            Treatment strategy. Options include
+            * all : all individuals are given treatment
+            * none : no individuals are given treatment
+            * natural : individuals retain their observed treatment. Only available for MonteCarlo
+            * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
+                The following is an example that selects those whose age is 25 or older and are females
+                Ex) treatment="((g['age0']>=25) & (g['male']==0))
+        lags : dict, optional
+            Dictionary of variable names and the corresponding lagged variable name. This should be specified for all
+            variables that are lagged. This parameter is only used for the Monte Carlo g-formula.
+             As an example, {'art':'lagged_art'} would correctly lag the variable 'art' to be 'lagged_art' for each time
+             step of the Monte Carlo procedure
+        sample : int, optional
+            Number of individuals to sample from the original data with replacement. This argument is only used by the
+            Monte Carlo g-formula. The number of samples to use should be a large number to reduce simulation error.
+            The default is 10000
+        t_max : int, optional
+            Maximum time to run Monte Carlo g-formula until. Default is None, which uses the maximum time of the input
+            dataframe.
+        in_recode : str, optional
+            On the fly recoding of variables done before the Monte Carlo loop starts. Needed to do any kind of
+            functional forms for entry times. This is executed at each start of the Monte Carlo g-formula time steps
+        out_recode : str, optional
+            On the fly recoding of variables done at the end of the Monte Carlo loop. Needed for operations like
+            counting the number of days with a treatment. This is executed at each end of the Monte Carlo g-formula
+            time steps
         """
         if self._outcome_model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
@@ -300,7 +331,7 @@ class TimeVaryGFormula:
             self.predicted_outcomes = self._sequential_regression(treatment=treatment)
 
     def _monte_carlo(self, gs, treatment, t_max, in_recode, out_recode, lags):
-        """Monte Carlo estimation process for the g-formula
+        """Hidden function that executes the Monte Carlo estimation process for the g-formula
         """
         # setting up some parts outside of Monte Carlo loop to speed things up
         mc_simulated_data = []
@@ -367,7 +398,7 @@ class TimeVaryGFormula:
                                                                          self.time_in]).reset_index(drop=True)
 
     def _sequential_regression(self, treatment):
-        """Sequential regression estimation for g-formula
+        """Hidden function that executes the sequential regression estimation for g-formula
         """
         # TODO allow option to include different estimation models for each time point or the same model
         if treatment == 'natural':
@@ -479,7 +510,8 @@ class TimeVaryGFormula:
 
     @staticmethod
     def _predict(df, model, variable):
-        """Predict method to shorten the _montecarlo_est procedure code"""
+        """Hidden predict method to shorten the Monte Carlo estimation code
+        """
         # pp = data.mul(model.params).sum(axis=1) # Alternative to statsmodels.predict(), but too much too implement
         pp = model.predict(df)
         if variable == 'binary':
@@ -493,7 +525,7 @@ class TimeVaryGFormula:
 
     @staticmethod
     def _long_to_wide(df, id, t):
-        """Converts from long to wide dataframe for sequential regression estimation
+        """Hidden function for sequential regression that converts from long to wide data set
         """
         reshaped = []
         for c in df.columns:
