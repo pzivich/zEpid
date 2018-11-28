@@ -396,7 +396,7 @@ class TimeVaryGFormula:
         treat_t_points = []
         for t in t_points:
             # Following treatment strategy
-            # if treat all, can do simple multiplication. if treat none, can do (1-A) simple multiplication
+            # alternative: if treat all, can do simple multiplication. if treat none, can do (1-A) simple multiplication
             if treatment == 'all':
                 df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 0, np.nan)
                 df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 1,
@@ -453,8 +453,6 @@ class TimeVaryGFormula:
                 g[self.exposure] = 1
             elif treatment == 'none':
                 g[self.exposure] = 0
-            elif treatment == 'natural':
-                pass
             else:
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
