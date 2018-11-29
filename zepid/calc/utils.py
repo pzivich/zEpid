@@ -26,9 +26,11 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
     zalpha = norm.ppf(c, loc=0, scale=1)
     if confint == 'wald':
         lr = math.log(risk / (1 - risk))
-        sd = math.sqrt((1 / events) + (1 / (total - events)))
-        lower = 1 / (1 + math.exp(-1 * (lr - zalpha * sd)))
-        upper = 1 / (1 + math.exp(-1 * (lr + zalpha * sd)))
+        sd = math.sqrt((risk * (1-risk)) / total)
+        # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
+        # freq_details37.htm#procstat.freq.freqbincl
+        lower = risk - zalpha * sd
+        upper = risk + zalpha * sd
     elif confint == 'hypergeometric':
         sd = math.sqrt(events * (total - events) / (total ** 2 * (total - 1)))
         lower = risk - zalpha * sd
@@ -114,7 +116,9 @@ def risk_difference(a, b, c, d, alpha=0.05):
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
-    sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
+    sd = math.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
+    # TODO hypergeometric CL for later implementation
+    # sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl = riskdiff - (zalpha * sd)
     ucl = riskdiff + (zalpha * sd)
     return riskdiff, lcl, ucl, sd
@@ -141,16 +145,18 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
-    ratiod1 = a / (a + b)
-    ratiod2 = c / (c + d)
-    riskdiff = ratiod1 - ratiod2
-    sd = math.sqrt(((a * b) / ((a + b)**2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
+    r1 = a / (a + b)
+    r0 = c / (c + d)
+    riskdiff = r1 - r0
+    sd = math.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
+    # TODO hypergeometric CL for later implementation
+    # sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl_rd = riskdiff - (zalpha * sd)
     ucl_rd = riskdiff + (zalpha * sd)
     if riskdiff != 0:
         numbnt = 1 / riskdiff
     else:
-        numbnt = 'inf'
+        numbnt = math.inf
     if lcl_rd != 0:
         lcl = 1 / lcl_rd
     else:
