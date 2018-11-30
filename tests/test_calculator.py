@@ -2,7 +2,8 @@ import pytest
 import numpy as np
 import numpy.testing as npt
 
-from zepid.calc import risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat, odds_ratio
+from zepid.calc import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat, odds_ratio,
+                        odds_to_probability, probability_to_odds)
 
 
 class TestRisks:
@@ -133,3 +134,29 @@ class TestOddsRatio:
         sas_se = 0.4566, 2.1902
         odr = odds_ratio(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
         npt.assert_allclose(np.round(odr[1:3], 4), sas_se)
+
+
+class TestOddsProbabilityConverter:
+
+    def test_odds_to_probability(self):
+        pr = odds_to_probability(1.1)
+        npt.assert_allclose(pr, 1.1/2.1)
+
+    def test_probability_to_odds(self):
+        od = probability_to_odds(0.5)
+        assert od == 1
+
+    def test_back_and_forth_conversions(self):
+        original = 0.12
+        odd = probability_to_odds(original)
+        pr = odds_to_probability(odd)
+        npt.assert_allclose(original, pr)
+
+    def test_forth_and_back_conversions(self):
+        original = 1.1
+        pr = odds_to_probability(original)
+        odd = probability_to_odds(pr)
+        npt.assert_allclose(original, odd)
+
+
+# TODO incidence rate tests, ACR test, PAF, semibayes, testing

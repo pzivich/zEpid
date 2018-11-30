@@ -25,7 +25,6 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
     c = 1 - alpha / 2
     zalpha = norm.ppf(c, loc=0, scale=1)
     if confint == 'wald':
-        lr = math.log(risk / (1 - risk))
         sd = math.sqrt((risk * (1-risk)) / total)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
@@ -494,10 +493,11 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     sens = detected / cases
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
-        ls = math.log(sens / (1 - sens))
-        sd = math.sqrt((1 / detected) + (1 / (cases - detected)))
-        lower = 1 / (1 + math.exp(-1 * (ls - zalpha * sd)))
-        upper = 1 / (1 + math.exp(-1 * (ls + zalpha * sd)))
+        sd = math.sqrt((sens * (1-sens)) / cases)
+        # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
+        # freq_details37.htm#procstat.freq.freqbincl
+        lower = sens - zalpha * sd
+        upper = sens + zalpha * sd
     elif confint == 'hypergeometric':
         sd = math.sqrt(detected * (cases - detected) / (cases ** 2 * (cases - 1)))
         lower = sens - zalpha * sd
@@ -529,10 +529,11 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
     spec = 1 - (detected / noncases)
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
-        ls = math.log(spec / (1 - spec))
-        sd = math.sqrt((1 / detected) + (1 / (noncases - detected)))
-        lower = 1 / (1 + math.exp(-1 * (ls - zalpha * sd)))
-        upper = 1 / (1 + math.exp(-1 * (ls + zalpha * sd)))
+        sd = math.sqrt((spec * (1-spec)) / noncases)
+        # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
+        # freq_details37.htm#procstat.freq.freqbincl
+        lower = spec - zalpha * sd
+        upper = spec + zalpha * sd
     elif confint == 'hypergeometric':
         sd = math.sqrt(detected * (noncases - detected) / (noncases ** 2 * (cases - 1)))
         lower = spec - zalpha * sd
