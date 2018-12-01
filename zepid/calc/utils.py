@@ -55,6 +55,10 @@ def incidence_rate_ci(events, time, alpha=0.05):
     ir = events / time
     zalpha = norm.ppf(c, loc=0, scale=1)
     sd = math.sqrt(events / (time ** 2))
+    # https://www.researchgate.net/post/How_to_estimate_standard_error_from_incidence_rate_and_population
+    # Incidence rate confidence intervals are a mess, with not sources agreeing...
+    # http://www.openepi.com/PersonTime1/PersonTime1.htm
+    # zEpid uses a normal approximation. There are too many options for CI's...
     lower = ir - zalpha * sd
     upper = ir + zalpha * sd
     return ir, lower, upper, sd
@@ -468,7 +472,7 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
         print(str(round((1 - alpha) * 100, 1)) + '% Posterior Probability Interval: (', round(post_lcl, decimal), ', ',
               round(post_ucl, decimal), ')')
         print('----------------------------------------------------------------------\n')
-    return [post_mean, post_lcl, post_ucl]
+    return post_mean, post_lcl, post_ucl
 
 
 def sensitivity(detected, cases, alpha=0.05, confint='wald'):
@@ -588,7 +592,7 @@ def npv_converter(sensitivity, specificity, prevalence):
 
 
 def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitivity,
-                            specificity, population=10000,decimal=3):
+                            specificity, population=10000, decimal=3):
     """Compares the cost of sensivitiy/specificity of screening criteria to treating the entire population
     as test-negative and test-positive. The lowest per capita cost is considered the ideal choice. Note that
     this function only provides relative costs

@@ -1,10 +1,20 @@
 import pytest
+import math
 import numpy as np
 import numpy.testing as npt
 
 from zepid.calc import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat, odds_ratio,
-                        odds_to_probability, probability_to_odds)
+                        incidence_rate_ratio, incidence_rate_difference, odds_to_probability, probability_to_odds,
+                        semibayes, attributable_community_risk, population_attributable_fraction, sensitivity,
+                        specificity, npv_converter, ppv_converter)
 
+
+@pytest.fixture
+def counts_1():
+    return 25, 25, 25, 25
+
+
+# Tests for Basic Measures
 
 class TestRisks:
 
@@ -25,18 +35,23 @@ class TestRisks:
 
 class TestIncidenceRate:
 
-    def test_incidencerate(self):
-        events = 5
-        time = 100
-        i = incidence_rate_ci(events, time)
-        npt.assert_allclose(i[0], events/time)
+    def test_incidence_rate(self):
+        i = incidence_rate_ci(14, 400)
+        npt.assert_allclose(i[0], 0.035)
+
+    def test_match_sas_se(self):
+        sas_se = 0.009354
+        i = incidence_rate_ci(14, 400)
+        npt.assert_allclose(i[3], sas_se, atol=1e-5)
+
+    def test_match_normalapprox_ci(self):
+        # Because incidence rate CI's have no agreed convention, I use the normal approx. This is not the same as SAS
+        sas_ci = 0.01667, 0.05333
+        i = incidence_rate_ci(14, 400)
+        npt.assert_allclose(np.round(i[1:3], 5), sas_ci, atol=1e-5)
 
 
 class TestRiskRatio:
-
-    @pytest.fixture
-    def counts_1(self):
-        return 25, 25, 25, 25
 
     def test_risk_ratio_equal_to_1(self, counts_1):
         rr = risk_ratio(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
@@ -57,10 +72,6 @@ class TestRiskRatio:
 
 
 class TestRiskDifference:
-
-    @pytest.fixture
-    def counts_1(self):
-        return 25, 25, 25, 25
 
     def test_risk_difference_equal_to_0(self, counts_1):
         rd = risk_difference(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
@@ -113,10 +124,6 @@ class TestNumberNeededtoTreat:
 
 class TestOddsRatio:
 
-    @pytest.fixture
-    def counts_1(self):
-        return 25, 25, 25, 25
-
     def test_odds_ratio_equal_to_1(self, counts_1):
         odr = odds_ratio(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
         assert odr[0] == 1
@@ -136,6 +143,131 @@ class TestOddsRatio:
         npt.assert_allclose(np.round(odr[1:3], 4), sas_se)
 
 
+class TestIncidenceRateRatio:
+
+    def test_incidence_rate_ratio_equal_to_1(self):
+        irr = incidence_rate_ratio(6, 6, 100, 100)
+        assert irr[0] == 1
+
+    def test_value_error_for_negative_counts(self):
+        with pytest.raises(ValueError):
+            incidence_rate_ratio(-5, 1, 1, 1)
+
+    def test_match_sas_ci(self):
+        sas_ci = 0.658778447, 4.460946657
+        irr = incidence_rate_ratio(6, 14, 100, 400)
+        npt.assert_allclose(irr[1:3], sas_ci)
+
+    def test_match_sas_se(self):
+        sas_se = 0.487950036
+        irr = incidence_rate_ratio(6, 14, 100, 400)
+        npt.assert_allclose(irr[3], sas_se)
+
+
+class TestIncidenceRateDiff:
+
+    def test_incidence_rate_difference_equal_to_1(self):
+        ird = incidence_rate_difference(6, 6, 100, 100)
+        assert ird[0] == 0
+
+    def test_value_error_for_negative_counts(self):
+        with pytest.raises(ValueError):
+            incidence_rate_difference(-5, 1, 1, 1)
+
+    def test_match_sas(self):
+        sas_ird = 0.025
+        ird = incidence_rate_difference(6, 14, 100, 400)
+        npt.assert_allclose(ird[0], sas_ird)
+
+    def test_correct_ci(self):
+        # SAS does not provide CI's for IRD easily. Instead comparing to OpenEpi calculator
+        oe_ci = -0.02639, 0.07639
+        ird = incidence_rate_difference(6, 14, 100, 400)
+        npt.assert_allclose(ird[0], 0.025)
+        npt.assert_allclose(ird[1:3], oe_ci, atol=1e-6)
+
+
+class TestACR:
+
+    def test_acr_is_zero(self):
+        acr = attributable_community_risk(25, 25, 25, 25)
+        assert acr == 0
+
+    def test_value_error_for_negative_counts(self):
+        with pytest.raises(ValueError):
+            attributable_community_risk(-5, 1, 1, 1)
+
+    def test_compare_to_formula(self):
+        acr_formula = (25 + 10) / 100 - 10 / 50
+        acr = attributable_community_risk(25, 25, 10, 40)
+        npt.assert_allclose(acr, acr_formula)
+
+
+class TestPAF:
+
+    def test_paf_is_zero(self):
+        paf = population_attributable_fraction(25, 25, 25, 25)
+        assert paf == 0
+
+    def test_value_error_for_negative_counts(self):
+        with pytest.raises(ValueError):
+            population_attributable_fraction(-5, 1, 1, 1)
+
+    def test_compare_to_formula(self):
+        paf_formula = ((25 + 10) / 100 - 10 / 50) / ((25 + 10) / 100)
+        paf = population_attributable_fraction(25, 25, 10, 40)
+        npt.assert_allclose(paf, paf_formula)
+
+
+# Test testing measures
+class TestPredictiveFunctions:
+
+    def test_correct_sensitivity(self):
+        r = sensitivity(25, 50)
+        assert r[0] == 0.5
+
+    def test_sensitivity_match_sas_ci(self):
+        sas_ci = (0.361409618, 0.638590382)
+        r = sensitivity(25, 50, confint='wald')
+        npt.assert_allclose(r[1:3], sas_ci)
+
+    def test_sensitivity_match_sas_se(self):
+        sas_se = 0.070710678
+        r = sensitivity(25, 50, confint='wald')
+        npt.assert_allclose(r[3], sas_se)
+
+    def test_correct_specificity(self):
+        r = specificity(25, 50)
+        assert r[0] == 0.5
+
+    def test_specificity_match_sas_ci(self):
+        sas_ci = (0.361409618, 0.638590382)
+        r = specificity(25, 50, confint='wald')
+        npt.assert_allclose(r[1:3], sas_ci)
+
+    def test_specificity_match_sas_se(self):
+        sas_se = 0.070710678
+        r = specificity(25, 50, confint='wald')
+        npt.assert_allclose(r[3], sas_se)
+
+    def test_ppv_conversion(self):
+        sens = 0.8
+        spec = 0.8
+        prev = 0.1
+        ppv_formula = (sens*prev) / ((sens*prev) + ((1-spec) * (1-prev)))
+        ppv = ppv_converter(sens, spec, prev)
+        npt.assert_allclose(ppv, ppv_formula)
+
+    def test_npv_conversion(self):
+        sens = 0.8
+        spec = 0.8
+        prev = 0.1
+        npv_formula = (spec*0.9) / ((spec*0.9) + ((1-sens) * (prev)))
+        npv = npv_converter(sens, spec, prev)
+        npt.assert_allclose(npv, npv_formula)
+
+
+# Test other calculators
 class TestOddsProbabilityConverter:
 
     def test_odds_to_probability(self):
@@ -159,4 +291,13 @@ class TestOddsProbabilityConverter:
         npt.assert_allclose(original, odd)
 
 
-# TODO incidence rate tests, ACR test, PAF, semibayes, testing
+class TestsSemiBayes:
+
+    def test_compare_to_modernepi3(self):
+        # Compares to Modern Epidemiology 3 example on page 334-335
+        posterior_rr = math.exp(math.log(3.51)/0.569 / (1/0.5 + 1/0.569))
+        posterior_ci = math.exp(0.587 - 1.96*(0.266**0.5)), math.exp(0.587 + 1.96*(0.266**0.5))
+        sb = semibayes(prior_mean=1, prior_lcl=0.25, prior_ucl=4, mean=3.51, lcl=0.80, ucl=15.4,
+                       ln_transform=True, print_results=False)
+        npt.assert_allclose(sb[0], posterior_rr, atol=1e-3)
+        npt.assert_allclose(sb[1:], posterior_ci, rtol=1e-3)
