@@ -6,7 +6,6 @@ import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from scipy.stats import logistic, norm
-from statsmodels.genmod.families import links
 
 from zepid.causal.ipw import propensity_score
 from zepid.calc import probability_to_odds
@@ -136,7 +135,7 @@ class TMLE:
 
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
-            f = sm.families.family.Binomial(sm.families.links.logit)
+            f = sm.families.family.Binomial()
             log = smf.glm(self._out_model, self.df, family=f).fit()
 
             if print_results:
@@ -215,7 +214,7 @@ class TMLE:
         HAW = H1W + H0W
 
         # Step 5) Estimating TMLE
-        f = sm.families.family.Binomial(sm.families.links.logit)
+        f = sm.families.family.Binomial()
         log = sm.GLM(self.df[self._outcome], np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
                      family=f).fit()
         self._epsilon = log.params

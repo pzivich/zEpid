@@ -20,7 +20,7 @@ def propensity_score(df, model, print_results=True):
     Example)
     >>>zepid.ipw.propensity_score(df=data,model='X ~ Z + var1 + var2')
     '''
-    f = sm.families.family.Binomial(sm.families.links.logit)
+    f = sm.families.family.Binomial()
     log = smf.glm(model, df, family=f).fit()
     if print_results == True:
         print('\n----------------------------------------------------------------')

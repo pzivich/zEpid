@@ -12,7 +12,7 @@ class TestTMLE:
         df = ze.load_sample_data(False)
         df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
         df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
-        return df
+        return df.dropna()
 
     def test_drop_missing_data(self, df):
         tmle = TMLE(df, exposure='art', outcome='dead')
