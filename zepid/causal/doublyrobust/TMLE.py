@@ -96,7 +96,7 @@ class TMLE:
                         self.g1W = fm.predict(data)
                     else:
                         raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
-                    if print_results:
+                    if print_results and hasattr(fm, 'summarize'):
                         fm.summarize()
 
                 else:
@@ -161,7 +161,7 @@ class TMLE:
                 if {'X', 'y'}.issubset(set(inspect.getfullargspec(custom_model.fit)[0])):
                     data = patsy.dmatrix(model + ' - 1', self.df)
                     fm = custom_model.fit(X=data, y=self.df[self._outcome])
-                    if print_results:
+                    if print_results and hasattr(fm, 'summarize'):
                         fm.summarize()
                     if hasattr(fm, 'predict_proba'):
                         self.QAW = fm.predict_proba(data)[:, 1]
