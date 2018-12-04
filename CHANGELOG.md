@@ -1,5 +1,13 @@
 ### Change logs
 
+#### v0.4.0:
+**MAJOR CHANGES**:
+``TMLE`` has been modified to estimate the custom user models now, rather than take the input. This better corresponds 
+to R's tmle (however, R does the entire process in the background. You must specify for this implementation). The reason
+for this major change is that ``LTMLE`` requires an iterative process. The iterative process requires required fitting 
+based on predicted values. Therefore, for ``LTMLE`` an unfitted model must be input and repeatedly fit. ``TMLE`` matches
+this process.
+
 #### v0.3.2
 **MAJOR CHANGES**:
 
