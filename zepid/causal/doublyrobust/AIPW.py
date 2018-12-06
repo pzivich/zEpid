@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -21,7 +22,10 @@ class AIPW:
     """
 
     def __init__(self, df, exposure, outcome):
-        self.df = df.copy()
+        if df.dropna().shape[0] != df.shape[0]:
+            warnings.warn("There is missing data in the dataset. By default, AIPW will drop all missing data. AIPW will"
+                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
+        self.df = df.copy().dropna().reset_index()
         self._exposure = exposure
         self._outcome = outcome
         self._fit_exposure_model = False
@@ -56,7 +60,7 @@ class AIPW:
         """
 
         self._out_model = self._outcome + ' ~ ' + model
-        f = sm.families.family.Binomial(sm.families.links.logit)
+        f = sm.families.family.Binomial()
         log = smf.glm(self._out_model, self.df, family=f).fit()
         if print_results:
             print('\n----------------------------------------------------------------')
@@ -77,7 +81,7 @@ class AIPW:
         This function generates the estimated risk difference and risk ratio.  To view results, use AIPW.summary() For
         confidence intervals, a bootstrap procedure should be used
         """
-        if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
+        if (self._fit_exposure_model is False) or (self._fit_outcome_model is False):
             raise ValueError('The exposure and outcome models must be specified before the doubly robust estimate can '
                              'be generated')
 
