@@ -151,7 +151,6 @@ def load_gvhd_data():
     lf['daysrelapse'] = lf.groupby('id')['relapse'].cumsum()
     lf['daysplatnorm'] = lf.groupby('id')['platnorm'].cumsum()
     lf['daysgvhd'] = lf.groupby('id')['gvhd'].cumsum()
-    print(lf.columns)
     return lf[['id', 'age', 'agesq', 'agecurs1', 'agecurs2', 'male', 'cmv', 'all', 'wait', 'yesterday', 'tomorrow',
                'day', 'daysq', 'daycu', 'daycurs1', 'daycurs2', 'd', 'gvhd', 'relapse', 'platnorm', 'gvhdm1', 'relapsem1',
                'platnormm1', 'censlost', 'daysnorelapse', 'daysnoplatnorm', 'daysnogvhd', 'daysrelapse',
