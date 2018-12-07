@@ -11,6 +11,7 @@ Receiver-Operator Curve- roc()
 Dynamic risk plot- dynamic_risk_plot()
 """
 
+import warnings
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
@@ -144,7 +145,7 @@ class EffectMeasurePlot:
         """
         if 'effectmeasure' in kwargs:
             self.em = kwargs['effectmeasure']
-        if 'ci' in kwargs:
+        if 'conf_int' in kwargs:
             self.ci = kwargs['conf_int']
         if 'scale' in kwargs:
             self.scale = kwargs['scale']
@@ -315,8 +316,9 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
     # Copying out the dataframe to a new object we will manipulate a bit
     rf = df.copy()
     rf = rf.dropna(subset=[var, outcome]).sort_values(by=[var, outcome]).reset_index()
-    print('Warning: missing observations of model variables are dropped')
-    print(int(df.shape[0] - rf.shape[0]), ' observations were dropped from the functional form assessment')
+    warnings.warn('Warning: missing observations of model variables are dropped. ' +
+                  str(int(df.shape[0] - rf.shape[0])) +
+                  ' observations were dropped from the functional form assessment')
 
     # Functional form for the model
     if f_form is None:
@@ -327,7 +329,7 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
     # Generating Models
     if outcome_type == 'binary':
         if link_dist is None:
-            link_dist = sm.families.family.Binomial(sm.families.links.logit)
+            link_dist = sm.families.family.Binomial()
         else:
             pass
     elif outcome_type == 'continuous':
@@ -345,9 +347,10 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
             if discrete is False:
                 # Binning continuous variable into categories to get "General" functional form
                 categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
-                print('''A total of ''' + str(categories) + ''' categories were created. If you would like to influence 
-                        the number of categories the spline is fit to, do the following\n\tIncrease: multiply by 
-                        constant >1\n\tDecrease: multiply by contast <1 and >0''')
+                if model_results:
+                    print('''A total of ''' + str(categories) + ''' categories were created. If you would like to 
+                            influence  the number of categories the spline is fit to, do the following\n\tIncrease: 
+                            multiply by constant >1\n\tDecrease: multiply by contast <1 and >0''')
                 rf['vbin'] = pd.qcut(rf[var], q=categories, duplicates='drop').cat.codes
                 djm = smf.glm(outcome + '~ C(vbin)', rf, family=link_dist).fit()
             else:
@@ -364,7 +367,7 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
                 lowess_x = list(zip(*yl))[0]
                 lowess_y = list(zip(*yl))[1]
                 ax.plot(lowess_x, lowess_y, '--', color='red', linewidth=1, label='LOESS')
-        elif outcome_type == 'continuous':
+        if outcome_type == 'continuous':
             if points:
                 pf = rf.groupby(by=[var, outcome]).count().reset_index()
                 ax.scatter(pf[var], pf[outcome], color='gray', label='Data point')
@@ -373,8 +376,6 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
                 lowess_x = list(zip(*yl))[0]
                 lowess_y = list(zip(*yl))[1]
                 ax.plot(lowess_x, lowess_y, '--', color='red', linewidth=1, label='LOESS')
-        else:
-            raise ValueError('Functional form assessment only supports binary or continuous outcomes currently')
 
     # Functional form model fitting
     ffm = smf.glm(outcome + ' ~ ' + f_form, rf, family=link_dist).fit()
