@@ -1131,7 +1131,7 @@ class Diagnostics:
 #########################################################################################################
 # Interaction contrasts
 #########################################################################################################
-def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3):
+def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3, print_results=True):
     """Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1},
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit
@@ -1195,20 +1195,22 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
         eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + E1M1 + ' + adjust
     f = sm.families.family.Binomial(sm.families.links.identity)
     model = smf.glm(eq, df, family=f).fit()
-    print(model.summary())
     ic = model.params['E1M1']
     lcl = model.conf_int().loc['E1M1'][0]
     ucl = model.conf_int().loc['E1M1'][1]
-    print('\n----------------------------------------------------------------------')
-    print('Interaction Contrast')
-    print('----------------------------------------------------------------------')
-    print('\nIC:\t\t' + str(round(ic, decimal)))
-    print('95% CI:\t\t(' + str(round(lcl, decimal)) + ', ' + str(round(ucl, decimal)) + ')')
-    print('----------------------------------------------------------------------')
+    if print_results:
+        print(model.summary())
+        print('\n----------------------------------------------------------------------')
+        print('Interaction Contrast')
+        print('----------------------------------------------------------------------')
+        print('\nIC:\t\t' + str(round(ic, decimal)))
+        print('95% CI:\t\t(' + str(round(lcl, decimal)) + ', ' + str(round(ucl, decimal)) + ')')
+        print('----------------------------------------------------------------------')
+    return ic, lcl, ucl
 
 
-def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, regression='log', ci='delta',
-                               b_sample=200, alpha=0.05, decimal=5):
+def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, regression='logit', ci='delta',
+                               b_sample=200, alpha=0.05, decimal=5, print_results=True):
     """Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial
     or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1},
     modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression
@@ -1260,6 +1262,7 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     if regression == 'logit':
         f = sm.families.family.Binomial(sm.families.links.logit)
         print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
+        # TODO replace this with a warning looking at prevalence. Now should default to logit
     elif regression == 'log':
         f = sm.families.family.Binomial(sm.families.links.log)
     if adjust is None:
@@ -1267,7 +1270,6 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     else:
         eq = outcome + ' ~ E1M0 + E0M1 + E1M1 + ' + adjust
     model = smf.glm(eq, df, family=f).fit()
-    print(model.summary())
     em10 = math.exp(model.params['E1M0'])
     em01 = math.exp(model.params['E0M1'])
     em11 = math.exp(model.params['E1M1'])
@@ -1310,15 +1312,18 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
             icr_ucl = usig + icr
     else:
         raise ValueError('Please specify a supported confidence interval type')
-    print('\n----------------------------------------------------------------------')
-    if regression == 'logit':
-        print('ICR based on Odds Ratio\t\tAlpha = ' + str(alpha))
-        print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
-    elif regression == 'log':
-        print('ICR based on Risk Ratio\t\tAlpha = ' + str(alpha))
-    print('\nICR:\t\t' + str(round(icr, decimal)))
-    print('CI:\t\t(' + str(round(icr_lcl, decimal)) + ', ' + str(round(icr_ucl, decimal)) + ')')
-    print('----------------------------------------------------------------------')
+    if print_results:
+        print(model.summary())
+        print('\n----------------------------------------------------------------------')
+        if regression == 'logit':
+            print('ICR based on Odds Ratio\t\tAlpha = ' + str(alpha))
+            print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
+        elif regression == 'log':
+            print('ICR based on Risk Ratio\t\tAlpha = ' + str(alpha))
+        print('\nICR:\t\t' + str(round(icr, decimal)))
+        print('CI:\t\t(' + str(round(icr_lcl, decimal)) + ', ' + str(round(icr_ucl, decimal)) + ')')
+        print('----------------------------------------------------------------------')
+    return icr, icr_lcl, icr_ucl
 
 
 #########################################################################################################
@@ -1467,6 +1472,11 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
     var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
              Missing                        0.000000
     """
+    if len(cols) != len(variable_type):
+        raise ValueError('List of columns must be the same length as the list of variable types')
+    if continuous_measure != 'median' and continuous_measure != 'mean':
+        raise ValueError("'median' or 'mean' must be requested as the continuous_measure")
+
     # Unstratified Table 1
     if strat_by is None:
         rlist = []
@@ -1482,7 +1492,7 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
                     m = df[i].isnull().sum()
                     rf = pd.DataFrame({'n / Median': x, '% / IQR': x / x.sum()})
                     rf = rf.append(pd.DataFrame({'n / Median': m, '% / IQR': ''}, index=['Missing']))
-            elif continuous_measure == 'mean':
+            if continuous_measure == 'mean':
                 if variable_type[vn] == 'continuous':
                     rf = pd.DataFrame({'n / Mean': [np.mean(df[i].dropna()), df[i].isnull().sum()],
                                        '% / SE': [np.std(df[i].dropna()).round(decimals=decimal), '']},
@@ -1491,8 +1501,6 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
                     x = df[i].value_counts(dropna=False)
                     y = df[i].value_counts(dropna=False)
                     rf = pd.DataFrame({'n / Mean': x, '% / SE': y / y.sum()})
-            else:
-                raise ValueError('median or mean must be specified')
             rlist.append(rf)
         srf = pd.concat(rlist, keys=cols, names=['Variable'])
         if continuous_measure == 'median':
@@ -1510,32 +1518,33 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
             rlist = []
             for i in cols:
                 vn = cols.index(i)
-                if continuous_measure == 'median':
-                    if variable_type[vn] == 'continuous':
+                if variable_type[vn] == 'category':
+                    x = sf[i].value_counts()
+                    m = sf[i].isnull().sum()
+                    if continuous_measure == 'median':
+                        rf = pd.DataFrame({'n / Median': x, '% / IQR': x / x.sum()})
+                        rf = rf.append(pd.DataFrame({'n / Median': m, '% / IQR': ''}, index=['Missing']))
+                    if continuous_measure == 'mean':
+                        rf = pd.DataFrame({'n / Mean': x, '% / SD': x / x.sum()})
+                        rf = rf.append(pd.DataFrame({'n / Mean': m, '% / SD': ''}, index=['Missing']))
+                if variable_type[vn] == 'continuous':
+                    if continuous_measure == 'median':
                         rf = pd.DataFrame({'n / Median': [np.median(sf[i].dropna()), sf[i].isnull().sum()],
                                            '% / IQR': [np.percentile(sf[i].dropna(), [25, 75]).round(decimals=decimal),
                                                        '']}, index=['', 'Missing'])
-                    if variable_type[vn] == 'category':
-                        x = sf[i].value_counts()
-                        m = sf[i].isnull().sum()
-                        rf = pd.DataFrame({'n / Median': x, '% / IQR': x / x.sum()})
-                        rf = rf.append(pd.DataFrame({'n / Median': m, '% / IQR': ''}, index=['Missing']))
-                if continuous_measure == 'mean':
-                    if variable_type[vn] == 'continuous':
+                    if continuous_measure == 'mean':
                         rf = pd.DataFrame({'n / Mean': [np.mean(sf[i].dropna()), sf[i].isnull().sum()],
-                                           '% / SE': [np.std(sf[i].dropna()).round(decimals=decimal), '']},
+                                          '% / SD': [np.std(sf[i].dropna()).round(decimals=decimal), '']},
                                           index=['', 'Missing'])
-                    if variable_type[vn] == 'category':
-                        x = sf[i].value_counts()
-                        m = sf[i].isnull().sum()
-                        rf = pd.DataFrame({'n / Mean': x, '% / SD': x / x.sum()})
-                        rf = rf.append(pd.DataFrame({'n / Mean': m, '% / SD': ''}, index=['Missing']))
                 rlist.append(rf)
             if continuous_measure == 'median':
                 c = pd.DataFrame({'n / Median': len(sf), '% / IQR': ''}, index=[''])
             if continuous_measure == 'mean':
                 c = pd.DataFrame({'n / Mean': len(sf), '% / SD': ''}, index=[''])
-            rff = pd.concat([c] + rlist, keys=['TOTAL'] + cols, names=['Variable'], axis=0)
+            try:  # avoids pandas error
+                rff = pd.concat([c] + rlist, keys=['TOTAL'] + cols, names=['Variable'], axis=0, sort=False)
+            except TypeError:  # gets around pandas <0.22 error
+                rff = pd.concat([c] + rlist, keys=['TOTAL'] + cols, names=['Variable'], axis=0)
             slist.append(rff)
             if continuous_measure == 'median':
                 nlist.append((strat_by + '=' + str(j), '% / IQR'))
@@ -1543,6 +1552,11 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
                 nlist.append((strat_by + '=' + str(j), '% / SD'))
             nlist.append((strat_by + '=' + str(j), 'n'))
         index = pd.MultiIndex.from_tuples(nlist, names=['_', '__'])
-        srf = pd.concat(slist, keys=cols, names=['Variable'], axis=1)
+        try:  # avoids pandas error
+            srf = pd.concat(slist, keys=cols, names=['Variable'], axis=1, sort=False)
+        except TypeError:
+            srf = pd.concat(slist, keys=cols, names=['Variable'], axis=1)
+        print(srf.columns)
+        print(index)
         srf.columns = index
         return srf

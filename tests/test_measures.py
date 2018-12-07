@@ -2,10 +2,15 @@ import pytest
 import numpy as np
 import pandas as pd
 import numpy.testing as npt
+import pandas.testing as pdt
 import matplotlib.pyplot as plt
+from scipy.stats import logistic
 
 import zepid as ze
-from zepid import RiskRatio, RiskDifference, OddsRatio, NNT, IncidenceRateRatio, IncidenceRateDifference
+from zepid import (RiskRatio, RiskDifference, OddsRatio, NNT, IncidenceRateRatio, IncidenceRateDifference,
+                   Sensitivity, Specificity, Diagnostics, interaction_contrast, interaction_contrast_ratio, spline,
+                   table1_generator)
+from zepid.calc import sensitivity, specificity
 
 
 @pytest.fixture
@@ -280,4 +285,273 @@ class TestIncidenceRateDifference:
         irr.fit(time_data, exposure='exp', outcome='dis', time='t')
         assert isinstance(irr.plot(), type(plt.gca()))
 
-# TODO test for sensitivity, specificity, splines, table 1 generator(?)
+
+class TestDiagnostics:
+
+    @pytest.fixture
+    def test_data(self):
+        df = pd.DataFrame()
+        df['test'] = [1 for i in range(50)] + [0 for i in range(50)]
+        df['case'] = [1 for i in range(40)] + [0 for i in range(10)] + [1 for i in range(15)] + [0 for i in range(35)]
+        return df
+
+    def test_sensitivity_same_as_calc(self, test_data):
+        se = Sensitivity()
+        se.fit(test_data, test='test', disease='case')
+        sens = sensitivity(40, 50)
+        npt.assert_allclose(se.sensitivity, sens[0])
+
+    def test_specificity_same_as_calc(self, test_data):
+        sp = Specificity()
+        sp.fit(test_data, test='test', disease='case')
+        spec = specificity(15, 50)
+        npt.assert_allclose(sp.specificity, spec[0])
+
+    def test_diagnostic_same_as_compositions(self, test_data):
+        se = Sensitivity()
+        se.fit(test_data, test='test', disease='case')
+
+        sp = Specificity()
+        sp.fit(test_data, test='test', disease='case')
+
+        diag = Diagnostics()
+        diag.fit(test_data, test='test', disease='case')
+
+        npt.assert_allclose(diag.sensitivity.sensitivity, se.sensitivity)
+        npt.assert_allclose(diag.specificity.specificity, sp.specificity)
+
+    def test_match_sas_sensitivity_ci(self, test_data):
+        sas_ci = [0.689127694, 0.910872306]
+        diag = Diagnostics()
+        diag.fit(test_data, test='test', disease='case')
+        npt.assert_allclose(diag.sensitivity.results[['Se_LCL', 'Se_UCL']], [sas_ci])
+
+    def test_match_sas_specificity_ci(self, test_data):
+        sas_ci = [0.572979816, 0.827020184]
+        diag = Diagnostics()
+        diag.fit(test_data, test='test', disease='case')
+        npt.assert_allclose(diag.specificity.results[['Sp_LCL', 'Sp_UCL']], [sas_ci])
+
+
+class TestInteractionContrasts:
+
+    @pytest.fixture
+    def data_ic(self, n=10000):
+        df = pd.DataFrame()
+        np.random.seed(111)
+        df['exp'] = np.random.binomial(1, 0.5, size=n)
+        df['mod'] = np.random.binomial(1, 0.5, size=n)
+        df['y'] = np.random.binomial(1, size=n, p=logistic.cdf(0.1 + 0.2*df['exp'] + 0.3*df['mod'] -
+                                                               0.4*df['mod']*df['exp']))
+        # Note: IC will not be equal to ICR
+        return df
+
+    def test_interaction_contrast(self, data_ic):
+        ic = interaction_contrast(data_ic, exposure='exp', outcome='y', modifier='mod', print_results=False)
+        npt.assert_allclose(np.round(ic[0], 4), -0.1009)
+
+    def test_interaction_contrast_ci(self, data_ic):
+        ic = interaction_contrast(data_ic, exposure='exp', outcome='y', modifier='mod', print_results=False)
+        assert ic[1] < -0.1009 < ic[2]
+
+    def test_interaction_contrast_ratio(self, data_ic):
+        icr = interaction_contrast_ratio(data_ic, exposure='exp', outcome='y', modifier='mod', print_results=False)
+        npt.assert_allclose(np.round(icr[0], 4), -0.4908)
+
+    def test_interaction_contrast_ratio_delta_ci(self, data_ic):
+        icr = interaction_contrast_ratio(data_ic, exposure='exp', outcome='y', modifier='mod', print_results=True)
+        assert icr[1] < -0.4908 < icr[2]
+
+    def test_interaction_contrast_ratio_bootstrap_ci(self, data_ic):
+        icr = interaction_contrast_ratio(data_ic, exposure='exp', outcome='y', modifier='mod',
+                                         ci='bootstrap', print_results=False)
+        assert icr[1] < -0.4908 < icr[2]
+
+
+class TestSplines:
+
+    @pytest.fixture
+    def spline_data(self):
+        df = pd.DataFrame()
+        df['v'] = [1, 5, 10, 15, 20]
+        return df
+
+    def test_error_for_bad_nknots(self, spline_data):
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=1.5)
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=0)
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=-1)
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=8)
+
+    def test_error_for_unequal_numbers(self, spline_data):
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=1, knots=[1, 3])
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=3, knots=[1, 3])
+
+    def test_error_for_bad_order(self, spline_data):
+        with pytest.raises(ValueError):
+            spline_data['sp'] = spline(spline_data, 'v', n_knots=3, knots=[3, 1, 2])
+
+    def test_auto_knots1(self, spline_data):
+        spline_data['sp'] = spline(spline_data, 'v', n_knots=1, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 5.0},
+                                                      {'sp': 10.0}])
+        pdt.assert_series_equal(spline_data['sp'], expected_splines['sp'])
+
+    def test_auto_knots2(self, spline_data):
+        spline_data[['sp1', 'sp2']] = spline(spline_data, 'v', n_knots=2, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 10 - 20/3, 'sp2': 0.0},
+                                                      {'sp1': 15 - 20/3, 'sp2': 15 - 40/3},
+                                                      {'sp1': 20 - 20/3, 'sp2': 20 - 40/3}])
+        pdt.assert_frame_equal(spline_data[['sp1', 'sp2']], expected_splines[['sp1', 'sp2']])
+
+    def test_user_knots1(self, spline_data):
+        spline_data['sp'] = spline(spline_data, 'v', n_knots=1, knots=[16], restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 4.0}])
+        pdt.assert_series_equal(spline_data['sp'], expected_splines['sp'])
+
+    def test_user_knots2(self, spline_data):
+        spline_data[['sp1', 'sp2']] = spline(spline_data, 'v', n_knots=2, knots=[10, 16], restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 5.0, 'sp2': 0.0},
+                                                      {'sp1': 10.0, 'sp2': 4.0}])
+        pdt.assert_frame_equal(spline_data[['sp1', 'sp2']], expected_splines[['sp1', 'sp2']])
+
+    def test_quadratic_spline1(self, spline_data):
+        spline_data['sp'] = spline(spline_data, 'v', n_knots=1, knots=[16], term=2, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 4.0**2}])
+        pdt.assert_series_equal(spline_data['sp'], expected_splines['sp'])
+
+    def test_quadratic_spline2(self, spline_data):
+        spline_data[['sp1', 'sp2']] = spline(spline_data, 'v', n_knots=2, knots=[10, 16], term=2, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 5.0**2, 'sp2': 0.0},
+                                                      {'sp1': 10.0**2, 'sp2': 4.0**2}])
+        pdt.assert_frame_equal(spline_data[['sp1', 'sp2']], expected_splines[['sp1', 'sp2']])
+
+    def test_cubic_spline1(self, spline_data):
+        spline_data['sp'] = spline(spline_data, 'v', n_knots=1, knots=[16], term=3, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 0.0},
+                                                      {'sp': 4.0**3}])
+        pdt.assert_series_equal(spline_data['sp'], expected_splines['sp'])
+
+    def test_cubic_spline2(self, spline_data):
+        spline_data[['sp1', 'sp2']] = spline(spline_data, 'v', n_knots=2, knots=[10, 16], term=3, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 5.0**3, 'sp2': 0.0},
+                                                      {'sp1': 10.0**3, 'sp2': 4.0**3}])
+        pdt.assert_frame_equal(spline_data[['sp1', 'sp2']], expected_splines[['sp1', 'sp2']])
+
+    def test_higher_order_spline(self, spline_data):
+        spline_data[['sp1', 'sp2']] = spline(spline_data, 'v', n_knots=2, knots=[10, 16], term=3.7, restricted=False)
+        expected_splines = pd.DataFrame.from_records([{'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 0.0, 'sp2': 0.0},
+                                                      {'sp1': 5.0**3.7, 'sp2': 0.0},
+                                                      {'sp1': 10.0**3.7, 'sp2': 4.0**3.7}])
+        pdt.assert_frame_equal(spline_data[['sp1', 'sp2']], expected_splines[['sp1', 'sp2']])
+
+    def test_restricted_spline1(self, spline_data):
+        spline_data['rsp'] = spline(spline_data, 'v', n_knots=2, knots=[10, 16], restricted=True)
+        expected_splines = pd.DataFrame.from_records([{'rsp': 0.0},
+                                                      {'rsp': 0.0},
+                                                      {'rsp': 0.0},
+                                                      {'rsp': 5.0},
+                                                      {'rsp': 6.0}])
+        pdt.assert_series_equal(spline_data['rsp'], expected_splines['rsp'])
+
+    def test_restricted_spline2(self, spline_data):
+        spline_data['rsp'] = spline(spline_data, 'v', n_knots=2, knots=[5, 16], restricted=True)
+        expected_splines = pd.DataFrame.from_records([{'rsp': 0.0},
+                                                      {'rsp': 0.0},
+                                                      {'rsp': 10.0 - 5.0},
+                                                      {'rsp': 15.0 - 5.0},
+                                                      {'rsp': (20.0 - 5.0) - (20.0 - 16.0)}])
+        pdt.assert_series_equal(spline_data['rsp'], expected_splines['rsp'])
+
+    def test_restricted_spline3(self, spline_data):
+        spline_data['rsp'] = spline(spline_data, 'v', n_knots=2, knots=[5, 16], term=2, restricted=True)
+        expected_splines = pd.DataFrame.from_records([{'rsp': 0.0},
+                                                      {'rsp': 0.0},
+                                                      {'rsp': (10.0 - 5.0)**2 - 0},
+                                                      {'rsp': (15.0 - 5.0)**2 - 0},
+                                                      {'rsp': (20.0 - 5.0)**2 - (20.0 - 16.0)**2}])
+        pdt.assert_series_equal(spline_data['rsp'], expected_splines['rsp'])
+
+
+class TestTable1:
+
+    @pytest.fixture
+    def data(self, n=1000):
+        df = pd.DataFrame()
+        np.random.seed(111)
+        df['exp'] = np.random.binomial(1, 0.5, size=n)
+        df['mod'] = np.random.binomial(1, 0.5, size=n)
+        df['y'] = np.random.binomial(1, size=n, p=logistic.cdf(0.1 + 0.2*df['exp'] + 0.3*df['mod'] -
+                                                               0.4*df['mod']*df['exp']))
+        df['continuous'] = np.random.normal(size=n)
+        return df
+
+    def test_unstratified_median(self, data):
+        t = table1_generator(data, cols=['exp', 'mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'category', 'continuous'])
+        assert isinstance(t, type(pd.DataFrame()))
+
+    def test_unstratified_mean(self, data):
+        t = table1_generator(data, cols=['exp', 'mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'category', 'continuous'],
+                             continuous_measure='mean')
+        assert isinstance(t, type(pd.DataFrame()))
+
+    def test_stratified_median(self, data):
+        t = table1_generator(data, cols=['mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'continuous'], strat_by='exp')
+        assert isinstance(t, type(pd.DataFrame()))
+
+    def test_stratified_mean(self, data):
+        t = table1_generator(data, cols=['mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'continuous'],
+                             continuous_measure='mean', strat_by='exp')
+        assert isinstance(t, type(pd.DataFrame()))
+
+    def test_catch_different_lengths(self, data):
+        with pytest.raises(ValueError):
+            table1_generator(data, cols=['exp', 'mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'continuous'],
+                             continuous_measure='A')
+
+    def test_wrong_continuous_measure_error(self, data):
+        with pytest.raises(ValueError):
+            table1_generator(data, cols=['exp', 'mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'category', 'continuous'],
+                             continuous_measure='A')
+        with pytest.raises(ValueError):
+            table1_generator(data, cols=['mod', 'y', 'continuous'],
+                             variable_type=['category', 'category', 'continuous'],
+                             continuous_measure='A', strat_by='exp')
