@@ -54,7 +54,9 @@ class TimeFixedGFormula:
             raise ValueError('Only binary or continuous outcomes are currently supported. Please specify "binary" or '
                              '"continuous"')
         self._weights = weights
-        self.model_fit = False
+        self._outcome_model = None
+        self.marginal_outcome = np.nan
+        self.predicted_df = None
 
     def outcome_model(self, model, print_results=True):
         """Build the model for the outcome. This is also referred to at the Q-model. This must be specified
@@ -68,23 +70,22 @@ class TimeFixedGFormula:
             -whether to print the logistic regression results to the terminal. Default is True
         """
         if self.outcome_type == 'binary':
-            linkdist = sm.families.family.Binomial(sm.families.links.logit)
+            linkdist = sm.families.family.Binomial()
         else:
             linkdist = sm.families.family.Gaussian(sm.families.links.identity)
 
         # Modeling the outcome
         if self._weights is None:
             m = smf.glm(self.outcome+' ~ '+model, self.gf, family=linkdist)
-            self.outcome_model = m.fit()
+            self._outcome_model = m.fit()
         else:
             m = smf.gee(self.outcome+' ~ '+model, self.gf.index, self.gf, family=linkdist,
                         weights=self.gf[self._weights])
-            self.outcome_model = m.fit()
+            self._outcome_model = m.fit()
 
         # Printing results of the model and if any observations were dropped
         if print_results is True:
-            print(self.outcome_model.summary())
-        self.model_fit = True
+            print(self._outcome_model.summary())
 
     def fit(self, treatment):
         """Fit the parametric g-formula as specified. Binary and multivariate treatments are available.
@@ -106,7 +107,7 @@ class TimeFixedGFormula:
             -specified treatment course. Either a string object for binary treatments or a list of custom
              treatments as strings
         """
-        if self.model_fit is False:
+        if self._outcome_model is None:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
         if (type(treatment) != str) and (type(treatment) != list):
             raise ValueError('Specified treatment must be a string object or a list of string objects')
@@ -128,7 +129,7 @@ class TimeFixedGFormula:
                 if np.sum(np.where(g[self.exposure].sum(axis=1) > 1, 1, 0)) > 1:
                     warnings.warn('It looks like your specified treatment strategy results in some individuals '
                                   'receiving at least two exposures. Reconsider how the custom treatments are '
-                                  'specified')
+                                  'specified', UserWarning)
 
         else:  # Binary exposure
             if type(treatment) == list:
@@ -142,7 +143,7 @@ class TimeFixedGFormula:
 
         # Getting predictions
         g[self.outcome] = np.nan
-        g[self.outcome] = self.outcome_model.predict(g)
+        g[self.outcome] = self._outcome_model.predict(g)
         if self._weights is None:  # unweighted marginal estimate
             self.marginal_outcome = np.mean(g[self.outcome])
         else:  # weighted marginal estimate
