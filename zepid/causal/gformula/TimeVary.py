@@ -134,7 +134,7 @@ class TimeVaryGFormula:
         g = self.gf.copy()
         if restriction is not None:
             g = g.loc[eval(restriction)].copy()
-        linkdist = sm.families.family.Binomial(sm.families.links.logit)
+        linkdist = sm.families.family.Binomial()
 
         if self._weights is None:  # Unweighted g-formula
             self.exp_model = smf.glm(self.exposure + ' ~ ' + model, g, family=linkdist).fit()
@@ -166,7 +166,7 @@ class TimeVaryGFormula:
             g = self.gf.copy()
             if restriction is not None:
                 g = g.loc[eval(restriction)].copy()
-            linkdist = sm.families.family.Binomial(sm.families.links.logit)
+            linkdist = sm.families.family.Binomial()
 
             if self._weights is None:  # Unweighted g-formula
                 self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
@@ -229,7 +229,7 @@ class TimeVaryGFormula:
 
         if self._weights is None:  # Unweighted g-formula
             if var_type == 'binary':
-                linkdist = sm.families.family.Binomial(sm.families.links.logit)
+                linkdist = sm.families.family.Binomial()
                 m = smf.glm(covariate + ' ~ ' + model, g, family=linkdist)
             elif var_type == 'continuous':
                 linkdist = sm.families.family.Gaussian(sm.families.links.identity)
@@ -238,7 +238,7 @@ class TimeVaryGFormula:
                 raise ValueError('Only binary or continuous covariates are currently supported')
         else:  # Weighted g-formula
             if var_type == 'binary':
-                linkdist = sm.families.family.Binomial(sm.families.links.logit)
+                linkdist = sm.families.family.Binomial()
                 m = smf.gee(covariate + ' ~ ' + model, self.idvar, g, weights=g[self._weights], family=linkdist)
             elif var_type == 'continuous':
                 linkdist = sm.families.family.Gaussian(sm.families.links.identity)
@@ -414,7 +414,7 @@ class TimeVaryGFormula:
         # Converting dataframe from long-to-wide for easier estimation
         column_labels = list(g.columns)  # Getting all column labels (important to match with formula)
         df = self._long_to_wide(df=g, id=self.idvar, t=self.time_out)
-        linkdist = sm.families.family.Binomial(sm.families.links.logit)
+        linkdist = sm.families.family.Binomial()
         rt_points = sorted(list(self.gf[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
         t_points = sorted(list(self.gf[self.time_out].unique()), reverse=False)  # Getting all t's to forward loop
 
@@ -478,8 +478,11 @@ class TimeVaryGFormula:
                                 weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
                 if self._printseqregresults:
                     print(m.summary())
+            # Extract predicted probabilities for observed treatments
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(), np.nan,
+                                                                   m.predict(g))
 
-            # 2.3) Getting Predicted values out
+            # 2.3) Getting Counterfactual Treatment Values
             if treatment == 'all':
                 g[self.exposure] = 1
             elif treatment == 'none':
@@ -488,19 +491,19 @@ class TimeVaryGFormula:
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
             # Predicted values based on counterfactual treatment strategy from predicted model
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(),
+            df['__cf_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(),
                                                                    np.nan, m.predict(g))
             # If followed counterfactual treatment & had outcome, then always considered to have outcome past that t
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where((df['__check_' + str(t)] == 1) &
-                                                                   df[self.outcome + '_' + str(t)].isna(),
-                                                                   1, df['__pred_' + self.outcome + '_' + str(t)])
+            df['__cf_' + self.outcome + '_' + str(t)] = np.where((df['__check_' + str(t)] == 1) &
+                                                                 df[self.outcome + '_' + str(t)].isna(),
+                                                                 1, df['__cf_' + self.outcome + '_' + str(t)])
 
             # 2.4) Extracting E[Y] for each time point
-            q = df.dropna(subset=['__pred_' + self.outcome + '_' + str(t)]).copy()
+            q = df.dropna(subset=['__cf_' + self.outcome + '_' + str(t)]).copy()
             if self._weights is None:
-                results['Q' + str(t)] = [np.mean(q['__pred_' + self.outcome + '_' + str(t)])]
+                results['Q' + str(t)] = [np.mean(q['__cf_' + self.outcome + '_' + str(t)])]
             else:
-                results['Q' + str(t)] = [np.average(q['__pred_' + self.outcome + '_' + str(t)],
+                results['Q' + str(t)] = [np.average(q['__cf_' + self.outcome + '_' + str(t)],
                                                     weights=q[self._weights + str(t)])]
         # Step 3) Returning estimated results
         if len(t_points) == 1:
