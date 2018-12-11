@@ -8,9 +8,9 @@ from statsmodels.genmod.families import links
 class TimeVaryGFormula:
     def __init__(self, df, idvar, exposure, outcome, time_out, time_in=None, method='MonteCarlo', weights=None):
         """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
-        time-varying parametric g-formula uses either the Monte Carlo or the sequential regression (iterative expectations)
-        estimators. The Monte Carlo estimator is useful for survival data and the sequential regression estimator is useful
-        for longitudinal data. This implementation has four options for the treatment courses:
+        time-varying parametric g-formula uses either the Monte Carlo or the sequential regression (iterative
+        expectations) estimators. The Monte Carlo estimator is useful for survival data and the sequential regression
+        estimator is useful for longitudinal data. This implementation has four options for the treatment courses:
 
         Options for treatments
         * all : all individuals are given treatment
@@ -20,9 +20,9 @@ class TimeVaryGFormula:
             is an example that selects those whose age is 25 or older and are females
             Ex) treatment="((g['age0']>=25) & (g['male']==0))
 
-        Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to predict
-        exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the time-varying g-formula.
-        See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
+        Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
+        predict exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the
+        time-varying g-formula. See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
 
         Parameters
         ----------
@@ -70,7 +70,7 @@ class TimeVaryGFormula:
             3) Fit a regression model for the outcome at time t for Y
             4) Predict outcomes under the observed treatment and the counterfactual treatment
             5) Repeat regression model fitting for t-1 to min(t)
-            6) Take the mean predicted Y for each time
+            6) Take the mean predicted Y at the end to obtain the cumulative probability
         """
         self.gf = df.copy()
         self.idvar = idvar
@@ -443,7 +443,6 @@ class TimeVaryGFormula:
             df['__check_' + str(t)] = df[treat_t_points + [self.outcome + '_' + str(t)]].prod(axis=1, skipna=True)
 
             # This following check carries forward the outcome under the counterfactual treatment
-            # TODO looks like it might be using these 1's to fit the model...
             if t_points.index(t) == 0:
                 pass
             else:
@@ -451,13 +450,13 @@ class TimeVaryGFormula:
                                                    1, df['__check_' + str(t)])
 
         # Step 2: Sequential Regression Estimation
-        results = pd.DataFrame()
         for t in rt_points:
             # 2.1) Relabel everything to match with the specified model (selecting out that timepoint is within)
             d_labels = {}
             for c in column_labels:
                 d_labels[c + '_' + str(t)] = c
             g = df.filter(regex='_' + str(t)).rename(mapper=d_labels, axis=1).reset_index().copy()
+            g[self.time_out] = t
 
             # 2.2) Fit the model to the observed data
             if rt_points.index(t) == 0:
@@ -499,22 +498,8 @@ class TimeVaryGFormula:
                                                                  1,
                                                                  df['__pred_' + self.outcome + '_' + str(t)])
 
-            # 2.4) Extracting E[Y] for each time point
-            q = df.dropna(subset=['__cf_' + self.outcome + '_' + str(t)]).copy()
-            if self._weights is None:
-                results['Q' + str(t)] = [np.mean(q['__cf_' + self.outcome + '_' + str(t)])]
-            else:
-                results['Q' + str(t)] = [np.average(q['__cf_' + self.outcome + '_' + str(t)],
-                                                    weights=q[self._weights + str(t)])]
-        # print(df[['__pred_Y_1', '__pred_Y_2', '__pred_Y_3']])
-        # print(df[['__cf_Y_1', '__cf_Y_2', '__cf_Y_3']])
-        # print(df[['__check_1', '__check_2', '__check_3']])
-
         # Step 3) Returning estimated results
-        if len(t_points) == 1:
-            return results
-        else:
-            return results.squeeze().sort_index()
+        return np.mean(df['__pred_' + self.outcome + '_' + str(t_points[0])])
 
     @staticmethod
     def _predict(df, model, variable):
