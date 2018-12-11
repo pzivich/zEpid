@@ -443,6 +443,7 @@ class TimeVaryGFormula:
             df['__check_' + str(t)] = df[treat_t_points + [self.outcome + '_' + str(t)]].prod(axis=1, skipna=True)
 
             # This following check carries forward the outcome under the counterfactual treatment
+            # TODO looks like it might be using these 1's to fit the model...
             if t_points.index(t) == 0:
                 pass
             else:
@@ -469,7 +470,9 @@ class TimeVaryGFormula:
                     print(m.summary())
             else:
                 # Uses previous predicted values to estimate
-                g[self.outcome] = df['__pred_' + self.outcome + '_' + str(t_points[t_points.index(t)+1])].copy()
+                g[self.outcome] = np.where(df['__pred_'+self.outcome+'_'+str(t_points[t_points.index(t)+1])].isna(),
+                                           g[self.outcome],
+                                           df['__pred_' + self.outcome + '_' + str(t_points[t_points.index(t)+1])])
 
                 if self._weights is None:
                     m = smf.glm(self.outcome + ' ~ ' + self._modelform, g, family=linkdist).fit()  # GLM
@@ -478,9 +481,6 @@ class TimeVaryGFormula:
                                 weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
                 if self._printseqregresults:
                     print(m.summary())
-            # Extract predicted probabilities for observed treatments
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(), np.nan,
-                                                                   m.predict(g))
 
             # 2.3) Getting Counterfactual Treatment Values
             if treatment == 'all':
@@ -491,12 +491,13 @@ class TimeVaryGFormula:
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
             # Predicted values based on counterfactual treatment strategy from predicted model
-            df['__cf_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(),
-                                                                   np.nan, m.predict(g))
+            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(),
+                                                                   np.nan,
+                                                                   m.predict(g))
             # If followed counterfactual treatment & had outcome, then always considered to have outcome past that t
-            df['__cf_' + self.outcome + '_' + str(t)] = np.where((df['__check_' + str(t)] == 1) &
-                                                                 df[self.outcome + '_' + str(t)].isna(),
-                                                                 1, df['__cf_' + self.outcome + '_' + str(t)])
+            df['__cf_' + self.outcome + '_' + str(t)] = np.where((df['__check_' + str(t)] == 1),
+                                                                 1,
+                                                                 df['__pred_' + self.outcome + '_' + str(t)])
 
             # 2.4) Extracting E[Y] for each time point
             q = df.dropna(subset=['__cf_' + self.outcome + '_' + str(t)]).copy()
@@ -505,6 +506,10 @@ class TimeVaryGFormula:
             else:
                 results['Q' + str(t)] = [np.average(q['__cf_' + self.outcome + '_' + str(t)],
                                                     weights=q[self._weights + str(t)])]
+        # print(df[['__pred_Y_1', '__pred_Y_2', '__pred_Y_3']])
+        # print(df[['__cf_Y_1', '__cf_Y_2', '__cf_Y_3']])
+        # print(df[['__check_1', '__check_2', '__check_3']])
+
         # Step 3) Returning estimated results
         if len(t_points) == 1:
             return results
