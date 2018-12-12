@@ -126,7 +126,7 @@ class TestTMLE:
         npt.assert_allclose(tmle.confint, r_ci, rtol=1e-5)
 
     def test_sklearn_in_tmle(self, df):
-        log = LogisticRegression(penalty='l1', random_state=201)
+        log = LogisticRegression(penalty='l1', C=1.0, random_state=201)
         tmle = TMLE(df, exposure='art', outcome='dead', psi='risk_difference')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
         tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=log)

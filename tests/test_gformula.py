@@ -38,11 +38,10 @@ class TestTimeFixedGFormula:
     @pytest.fixture
     def data(self):
         df = pd.DataFrame()
-        df['L'] = [0 for i in range(125)] + [1 for i in range(75)]
-        df['A'] = [0 for i in range(75)] + [1 for i in range(50)] + [0 for i in range(50)] + [1 for i in range(25)]
-        df['Y'] = ([0 for i in range(45)] + [1 for i in range(30)] + [0 for i in range(22)] + [1 for i in range(28)] +
-                   [0 for i in range(28)] + [1 for i in range(22)] + [0 for i in range(10)] + [1 for i in range(15)])
-        df['w'] = [5 for i in range(125)] + [1 for i in range(75)]
+        df['L'] = [0]*125 + [1]*75
+        df['A'] = [0]*75 + [1]*50 + [0]*50 + [1]*25
+        df['Y'] = [0]*45 + [1]*30 + [0]*22 + [1]*28 + [0]*28 + [1]*22 + [0]*10 + [1]*15
+        df['w'] = [5]*125 + [1]*75
         return df
 
     @pytest.fixture
@@ -64,8 +63,8 @@ class TestTimeFixedGFormula:
         n = 10000
         np.random.seed(1011)
         df = pd.DataFrame()
-        df['A1'] = [0 for i in range(7500)] + [1 for i in range(2500)]
-        df['A2'] = [0 for i in range(5500)] + [1 for i in range(2000)] + [0 for i in range(2500)]
+        df['A1'] = [0]*7500 + [1]*2500
+        df['A2'] = [0]*5500 + [1]*2000 + [0]*2500
         df['Y'] = np.random.binomial(1, size=n, p=logistic.cdf(-0.5 + 2 * df['A1'] + 0.5 * df['A2']))
         df['id'] = df.index
         return df

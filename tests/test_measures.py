@@ -16,26 +16,25 @@ from zepid.calc import sensitivity, specificity
 @pytest.fixture
 def data_set():
     df = pd.DataFrame()
-    df['exp'] = [1 for i in range(50)] + [0 for i in range(50)]
-    df['dis'] = [1 for i in range(25)] + [0 for i in range(25)] + [1 for i in range(25)] + [0 for i in range(25)]
+    df['exp'] = [1]*50 + [0]*50
+    df['dis'] = [1]*25 + [0]*25 + [1]*25 + [0]*25
     return df
 
 
 @pytest.fixture
 def multi_exposures():
     df = pd.DataFrame()
-    df['exp'] = [1 for i in range(50)] + [0 for i in range(50)] + [2 for i in range(50)]
-    df['dis'] = ([1 for i in range(25)] + [0 for i in range(25)] + [1 for i in range(25)] + [0 for i in range(25)] +
-                 [1 for i in range(25)] + [0 for i in range(25)])
+    df['exp'] = [1]*50 + [0]*50 + [2]*50
+    df['dis'] = [1]*25 + [0]*25 + [1]*25 + [0]*25 + [1]*25 + [0]*25
     return df
 
 
 @pytest.fixture
 def time_data():
     df = pd.DataFrame()
-    df['exp'] = [1 for i in range(50)] + [0 for i in range(50)]
-    df['dis'] = [1 for i in range(6)] + [0 for i in range(44)] + [1 for i in range(14)] + [0 for i in range(50-14)]
-    df['t'] = [2 for i in range(50)] + [8 for i in range(50)]
+    df['exp'] = [1]*50 + [0]*50
+    df['dis'] = [1]*6 + [0]*44 + [1]*14 + [0]*36
+    df['t'] = [2]*50 + [8]*50
     return df
 
 
@@ -225,9 +224,8 @@ class TestIncidenceRateRatio:
 
     def test_multiple_exposures(self):
         df = pd.DataFrame()
-        df['exp'] = [1 for i in range(50)] + [0 for i in range(50)] + [2 for i in range(50)]
-        df['dis'] = ([1 for i in range(25)] + [0 for i in range(25)] + [1 for i in range(25)] + [0 for i in range(25)] +
-                     [1 for i in range(25)] + [0 for i in range(25)])
+        df['exp'] = [1]*50 + [0]*50 + [2]*50
+        df['dis'] = [1]*25 + [0]*25 + [1]*25 + [0]*25 + [1]*25 + [0]*25
         df['t'] = 2
         irr = IncidenceRateRatio()
         irr.fit(df, exposure='exp', outcome='dis', time='t')
@@ -261,9 +259,8 @@ class TestIncidenceRateDifference:
 
     def test_multiple_exposures(self):
         df = pd.DataFrame()
-        df['exp'] = [1 for i in range(50)] + [0 for i in range(50)] + [2 for i in range(50)]
-        df['dis'] = ([1 for i in range(25)] + [0 for i in range(25)] + [1 for i in range(25)] + [0 for i in range(25)] +
-                     [1 for i in range(25)] + [0 for i in range(25)])
+        df['exp'] = [1]*50 + [0]*50 + [2]*50
+        df['dis'] = [1]*25 + [0]*25 + [1]*25 + [0]*25 + [1]*25 + [0]*25
         df['t'] = 2
         ird = IncidenceRateDifference()
         ird.fit(df, exposure='exp', outcome='dis', time='t')
@@ -291,8 +288,8 @@ class TestDiagnostics:
     @pytest.fixture
     def test_data(self):
         df = pd.DataFrame()
-        df['test'] = [1 for i in range(50)] + [0 for i in range(50)]
-        df['case'] = [1 for i in range(40)] + [0 for i in range(10)] + [1 for i in range(15)] + [0 for i in range(35)]
+        df['test'] = [1]*50 + [0]*50
+        df['case'] = [1]*40 + [0]*10 + [1]*15 + [0]*35
         return df
 
     def test_sensitivity_same_as_calc(self, test_data):
