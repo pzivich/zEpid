@@ -404,11 +404,26 @@ class TestTimeVaryGFormula:
         npt.assert_allclose(g.predicted_outcomes, 0.661226, rtol=1e-5)
 
     def test_sr_custom_treatment(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression',
-                             weights='w')
+        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression')
         out_m = 'A + L'
         g.outcome_model(out_m, print_results=False)
         g.fit(treatment="g['t'] != 2")
         npt.assert_allclose(g.predicted_outcomes, 0.48543, rtol=1e-5)
+
+    def test_sr_custom_time_point(self, data):
+        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t', method='SequentialRegression')
+        g.outcome_model('A + L', print_results=False)
+        # values come from R's ltmle package
+        g.fit(treatment="all", t_max=2)
+        npt.assert_allclose(g.predicted_outcomes, 0.33492, rtol=1e-5)
+        g.fit(treatment="none", t_max=2)
+        npt.assert_allclose(g.predicted_outcomes, 0.51228, rtol=1e-5)
+
+    def test_sr_warning_outside_time_point(self, data):
+        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression')
+        g.outcome_model('A + L', print_results=False)
+        with pytest.warns(UserWarning):
+            g.fit(treatment="all", t_max=6)
+        npt.assert_allclose(g.predicted_outcomes, 0.33492, rtol=1e-5)
 
     # TODO still need to come up with an approach to test MC-g-formula results...

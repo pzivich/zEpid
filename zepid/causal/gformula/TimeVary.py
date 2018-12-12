@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -328,7 +329,7 @@ class TimeVaryGFormula:
         else:
             if self._exposure_model_fit or len(self._covariate_models) > 0:
                 raise ValueError('Only the outcome model needs be specified for the sequential regression estimator')
-            self.predicted_outcomes = self._sequential_regression(treatment=treatment)
+            self.predicted_outcomes = self._sequential_regression(treatment=treatment, tmax=t_max)
 
     def _monte_carlo(self, gs, treatment, t_max, in_recode, out_recode, lags):
         """Hidden function that executes the Monte Carlo estimation process for the g-formula
@@ -397,7 +398,7 @@ class TimeVaryGFormula:
                        self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
                                                                          self.time_in]).reset_index(drop=True)
 
-    def _sequential_regression(self, treatment):
+    def _sequential_regression(self, treatment, tmax):
         """Hidden function that executes the sequential regression estimation for g-formula
         """
         # TODO allow option to include different estimation models for each time point or the same model
@@ -411,17 +412,28 @@ class TimeVaryGFormula:
         if treatment not in ['all', 'none']:
             g['__indicator'] = np.where(eval(treatment), 1, 0)
 
+        # Restricting based on tmax argument
+        if tmax is None:
+            pass
+        elif tmax in list(self.gf[self.time_out].unique()):
+            g = g.loc[g[self.time_out] <= tmax].copy()
+        else:
+            warnings.warn("The t_max argument specifies a time that is not observed in the data. All times less than"
+                          "the specified t_max argument included in the estimation procedure", UserWarning)
+            g = g.loc[g[self.time_out] <= tmax].copy()
+
         # Converting dataframe from long-to-wide for easier estimation
         column_labels = list(g.columns)  # Getting all column labels (important to match with formula)
         df = self._long_to_wide(df=g, id=self.idvar, t=self.time_out)
         linkdist = sm.families.family.Binomial()
-        rt_points = sorted(list(self.gf[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
-        t_points = sorted(list(self.gf[self.time_out].unique()), reverse=False)  # Getting all t's to forward loop
+        rt_points = sorted(list(g[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
+        t_points = sorted(list(g[self.time_out].unique()), reverse=False)  # Getting all t's to forward loop
 
         # Checking for recurrent outcomes. Recurrent are not currently supported
         if pd.Series(df[[self.outcome + '_' + str(t) for t in sorted(t_points, reverse=False)
                          ]].sum(axis=1, skipna=True) > 1).any():
-            raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not supported')
+            raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not currently '
+                             'supported')
 
         # Step 1: Creating indicator for individuals who followed counterfactual outcome
         treat_t_points = []
