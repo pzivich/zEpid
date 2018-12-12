@@ -84,33 +84,27 @@ class TMLE:
 
         # User-specified prediction model
         else:
-            if hasattr(custom_model, 'fit'):
-                # Supports sklearn and supylearner
-                if {'X', 'y'}.issubset(set(inspect.getfullargspec(custom_model.fit)[0])):
-                    data = patsy.dmatrix(model + ' - 1', self.df)
-                    fm = custom_model.fit(X=data, y=self.df[self._outcome])
-                    if hasattr(fm, 'predict_proba'):
-                        self.g1W = fm.predict_proba(data)[:, 1]
-                    elif hasattr(fm, 'predict'):
-                        self.g1W = fm.predict(data)
-                    else:
-                        raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
-                    if print_results and hasattr(fm, 'summarize'):
-                        fm.summarize()
-
-                else:
-                    raise ValueError("Currently custom_model must have the arguments [X, y]. This "
-                                     "covers sklearn and supylearner. If there is a predictive model you would "
-                                     "like to use, please open an issue at https://github.com/pzivich/zepid and I "
-                                     "can work on adding support")
-
+            data = patsy.dmatrix(model + ' - 1', self.df)
+            try:
+                fm = custom_model.fit(X=data, y=self.df[self._outcome])
+            except TypeError:
+                raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                                "covers both sklearn and supylearner. If there is a predictive model you would "
+                                "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                                "can work on adding support")
+            if print_results and hasattr(fm, 'summarize'):
+                fm.summarize()
+            if hasattr(fm, 'predict_proba'):
+                self.g1W = fm.predict_proba(data)[:, 1]
+            elif hasattr(fm, 'predict'):
+                self.g1W = fm.predict(data)
             else:
-                raise AttributeError("Custom model does not have the 'fit' method")
+                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
         self.g0W = 1 - self.g1W
-        if bound is not False:  # Bounding predicted probabilities if requested
+        if bound:  # Bounding predicted probabilities if requested
             self.g1W = self._bounding(self.g1W, bounds=bound)
-        if bound is not False:  # Bounding predicted probabilities if requested
+        if bound:  # Bounding predicted probabilities if requested
             self.g0W = self._bounding(self.g0W, bounds=bound)
 
         self._fit_exposure_model = True
@@ -155,49 +149,44 @@ class TMLE:
 
         # User-specified model
         else:
-            if hasattr(custom_model, 'fit'):
-                # Supports sklearn and supylearner
-                if {'X', 'y'}.issubset(set(inspect.getfullargspec(custom_model.fit)[0])):
-                    data = patsy.dmatrix(model + ' - 1', self.df)
-                    fm = custom_model.fit(X=data, y=self.df[self._outcome])
-                    if print_results and hasattr(fm, 'summarize'):
-                        fm.summarize()
-                    if hasattr(fm, 'predict_proba'):
-                        self.QAW = fm.predict_proba(data)[:, 1]
+            data = patsy.dmatrix(model + ' - 1', self.df)
+            try:
+                fm = custom_model.fit(X=data, y=self.df[self._outcome])
+            except TypeError:
+                raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                                "covers both sklearn and supylearner. If there is a predictive model you would "
+                                "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                                "can work on adding support")
+            if print_results and hasattr(fm, 'summarize'):
+                fm.summarize()
+            if hasattr(fm, 'predict_proba'):
+                self.QAW = fm.predict_proba(data)[:, 1]
 
-                        dfx = self.df.copy()
-                        dfx[self._exposure] = 1
-                        data = patsy.dmatrix(model + ' - 1', dfx)
-                        self.QA1W = fm.predict_proba(data)[:, 1]
+                dfx = self.df.copy()
+                dfx[self._exposure] = 1
+                data = patsy.dmatrix(model + ' - 1', dfx)
+                self.QA1W = fm.predict_proba(data)[:, 1]
 
-                        dfx = self.df.copy()
-                        dfx[self._exposure] = 0
-                        data = patsy.dmatrix(model + ' - 1', dfx)
-                        self.QA0W = fm.predict_proba(data)[:, 1]
+                dfx = self.df.copy()
+                dfx[self._exposure] = 0
+                data = patsy.dmatrix(model + ' - 1', dfx)
+                self.QA0W = fm.predict_proba(data)[:, 1]
 
-                    elif hasattr(fm, 'predict'):
-                        self.QAW = fm.predict(data)
+            elif hasattr(fm, 'predict'):
+                self.QAW = fm.predict(data)
 
-                        dfx = self.df.copy()
-                        dfx[self._exposure] = 1
-                        data = patsy.dmatrix(model + ' - 1', dfx)
-                        self.QA1W = fm.predict(data)
+                dfx = self.df.copy()
+                dfx[self._exposure] = 1
+                data = patsy.dmatrix(model + ' - 1', dfx)
+                self.QA1W = fm.predict(data)
 
-                        dfx = self.df.copy()
-                        dfx[self._exposure] = 0
-                        data = patsy.dmatrix(model + ' - 1', dfx)
-                        self.QA0W = fm.predict(data)
+                dfx = self.df.copy()
+                dfx[self._exposure] = 0
+                data = patsy.dmatrix(model + ' - 1', dfx)
+                self.QA0W = fm.predict(data)
 
-                    else:
-                        raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
-
-                else:
-                    raise ValueError("Currently custom_model must have the arguments [X, y]. This "
-                                     "covers both sklearn and supylearner. If there is a predictive model you would "
-                                     "like to use, please open an issue at https://github.com/pzivich/zepid and I "
-                                     "can work on adding support")
             else:
-                raise AttributeError("Custom model does not have the 'fit' method")
+                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
         self._fit_outcome_model = True
 
