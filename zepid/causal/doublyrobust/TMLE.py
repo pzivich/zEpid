@@ -1,5 +1,4 @@
 import math
-import inspect
 import warnings
 import patsy
 import numpy as np
@@ -12,7 +11,7 @@ from zepid.calc import probability_to_odds
 
 
 class TMLE:
-    def __init__(self, df, exposure, outcome, psi='risk_difference', alpha = 0.05):
+    def __init__(self, df, exposure, outcome, measure='risk_difference', alpha = 0.05):
         """Implementation of a single time-point TMLE model. It uses standard logistic regression models to calculate
         Psi. The TMLE estimator allows a standard logistic regression to be used. Alternatively, users are able to
         directly input predicted outcomes from other methods (like machine learning algorithms).
@@ -23,7 +22,7 @@ class TMLE:
             -column label for the exposure of interest
         outcome:
             -column label for the outcome of interest
-        psi:
+        measure:
             -What the TMLE psi estimates. Current options include; risk difference comparing treated to untreated
              (F(A=1) - F(A=0)), risk ratio (F(A=1) / F(A=0)), and odds ratio.
              The following keywords are used
@@ -37,7 +36,7 @@ class TMLE:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
                           "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
         # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
-        self._psi_correspond = psi
+        self._psi_correspond = measure
         self.df = df.copy().dropna().reset_index()
         self.alpha = alpha
         self._exposure = exposure
