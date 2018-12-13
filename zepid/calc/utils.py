@@ -30,6 +30,14 @@ def check_nonnegativity_or_throw(*args):
         if arg < 0:
             raise ValueError('Value must be non-negative, however %f is negative' % arg)
 
+def warn_if_normal_approximation_invalid(args):
+    for arg in args:
+        if arg <= 5:
+            warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+            # just print once
+            break
+
+
 
 def risk_ci(events, total, alpha=0.05, confint='wald'):
     """Calculate two-sided (1-alpha)% Confidence interval of Risk. 
@@ -120,7 +128,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
     """
     check_positivity_or_throw(a, b, c, d)
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+
     zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
@@ -180,9 +188,8 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
     check_positivity_or_throw(a, b, c, d)
+    warn_if_normal_approximation_invalid(a, b, c, d)
 
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
@@ -224,9 +231,8 @@ def odds_ratio(a, b, c, d, alpha=0.05):
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
     check_positivity_or_throw(a, b, c, d)
+    warn_if_normal_approximation_invalid(a, b, c, d)
 
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
     or1 = a / b
     or0 = c / d
@@ -256,9 +262,8 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     """
     check_positivity_or_throw(a, c)
     check_nonnegativity_or_throw(t2, t1)
+    warn_if_normal_approximation_invalid(a, c)
 
-    if (a <= 5) or (c <= 5):
-        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
     irate1 = a / t1
     irate2 = c / t2
@@ -288,9 +293,8 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     """
     check_positivity_or_throw(a, c)
     check_nonnegativity_or_throw(t2, t1)
+    warn_if_normal_approximation_invalid(a, c)
 
-    if (a <= 5) or (c <= 5):
-        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
     rated1 = a / t1
     rated2 = c / t2
@@ -526,11 +530,11 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
     check_positivity_or_throw(detected, cases)
-
+    warn_if_normal_approximation_invalid(cases)
+    
     if detected > cases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
-    if cases <= 5:
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+
     sens = detected / cases
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
@@ -562,11 +566,10 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
     check_positivity_or_throw(detected, noncases)
+    warn_if_normal_approximation_invalid(noncases)
 
     if detected > noncases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
-    if noncases <= 5:
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     spec = 1 - (detected / noncases)
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
