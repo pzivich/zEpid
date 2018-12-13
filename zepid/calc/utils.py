@@ -20,6 +20,17 @@ def normal_ppf(z):
     return norm.ppf(z, loc=0, scale=1)
 
 
+def check_positivity_or_throw(*args):
+    for arg in args:
+        if arg <= 0:
+            raise ValueError('Value must be positive, however %f is not positive' % arg)
+
+def check_nonnegativity_or_throw(*args):
+    for arg in args:
+        if arg < 0:
+            raise ValueError('Value must be non-negative, however %f is negative' % arg)
+
+
 def risk_ci(events, total, alpha=0.05, confint='wald'):
     """Calculate two-sided (1-alpha)% Confidence interval of Risk. 
 
@@ -107,8 +118,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
@@ -138,8 +148,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
@@ -170,8 +179,8 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
+
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
@@ -214,8 +223,8 @@ def odds_ratio(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
+
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
@@ -245,8 +254,9 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (c < 0) or (t1 <= 0) | (t2 <= 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, c)
+    check_nonnegativity_or_throw(t2, t1)
+
     if (a <= 5) or (c <= 5):
         warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
@@ -276,8 +286,9 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (c < 0) or (t1 <= 0) or (t2 <= 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, c)
+    check_nonnegativity_or_throw(t2, t1)
+
     if (a <= 5) or (c <= 5):
         warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
     zalpha = normal_ppf(1 - alpha / 2)
@@ -306,8 +317,7 @@ def attributable_community_risk(a, b, c, d):
     d:
         -count of unexposed individuals without outcome
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
     return rt - r0
@@ -327,8 +337,8 @@ def population_attributable_fraction(a, b, c, d):
     d:
         -count of unexposed individuals without outcome
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
+
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
     return (rt - r0) / rt
@@ -515,8 +525,8 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (detected < 0) or (cases < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(detected, cases)
+
     if detected > cases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
     if cases <= 5:
@@ -551,8 +561,8 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (detected < 0) or (noncases < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(detected, noncases)
+
     if detected > noncases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
     if noncases <= 5:
