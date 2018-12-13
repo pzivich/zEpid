@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import numpy.testing as npt
 import pandas.testing as pdt
-import matplotlib.pyplot as plt
 from scipy.stats import logistic
 
 import zepid as ze
@@ -75,11 +74,6 @@ class TestRiskRatio:
         npt.assert_allclose(rf.loc[rf.index == '1'][['RR_LCL', 'RR_UCL']], [sas_ci], rtol=1e-5)
         npt.assert_allclose(rf.loc[rf.index == '1'][['SD(RR)']], sas_se, rtol=1e-5)
 
-    def test_plot_returns_axes(self, data_set):
-        rr = RiskRatio()
-        rr.fit(data_set, exposure='exp', outcome='dis')
-        assert isinstance(rr.plot(), type(plt.gca()))
-
 
 class TestRiskDifference:
 
@@ -125,11 +119,6 @@ class TestRiskDifference:
         npt.assert_allclose(rf.loc[rf.index == '1'][['RD_LCL', 'RD_UCL']], [sas_ci])
         npt.assert_allclose(rf.loc[rf.index == '1'][['SD(RD)']], sas_se)
 
-    def test_plot_returns_axes(self, data_set):
-        rd = RiskDifference()
-        rd.fit(data_set, exposure='exp', outcome='dis')
-        assert isinstance(rd.plot(), type(plt.gca()))
-
 
 class TestOddsRatio:
 
@@ -167,11 +156,6 @@ class TestOddsRatio:
         rf = ord.results
         npt.assert_allclose(rf.loc[rf.index == '1'][['OR_LCL', 'OR_UCL']], [sas_ci], rtol=1e-3)
         npt.assert_allclose(rf.loc[rf.index == '1'][['SD(OR)']], sas_se, rtol=1e-4)
-
-    def test_plot_returns_axes(self, data_set):
-        ord = OddsRatio()
-        ord.fit(data_set, exposure='exp', outcome='dis')
-        assert isinstance(ord.plot(), type(plt.gca()))
 
 
 class TestNNT:
@@ -244,11 +228,6 @@ class TestIncidenceRateRatio:
         npt.assert_allclose(rf.loc[rf.index == '1'][['IRR_LCL', 'IRR_UCL']], [sas_ci], rtol=1e-5)
         npt.assert_allclose(rf.loc[rf.index == '1'][['SD(IRR)']], sas_se, rtol=1e-5)
 
-    def test_plot_returns_axes(self, time_data):
-        irr = IncidenceRateRatio()
-        irr.fit(time_data, exposure='exp', outcome='dis', time='t')
-        assert isinstance(irr.plot(), type(plt.gca()))
-
 
 class TestIncidenceRateDifference:
 
@@ -276,11 +255,6 @@ class TestIncidenceRateDifference:
         npt.assert_allclose(ird.incidence_rate_difference[1], oe_irr, rtol=1e-4)
         rf = ird.results
         npt.assert_allclose(rf.loc[rf.index == '1'][['IRD_LCL', 'IRD_UCL']], [oe_ci], rtol=1e-3)
-
-    def test_plot_returns_axes(self, time_data):
-        irr = IncidenceRateRatio()
-        irr.fit(time_data, exposure='exp', outcome='dis', time='t')
-        assert isinstance(irr.plot(), type(plt.gca()))
 
 
 class TestDiagnostics:

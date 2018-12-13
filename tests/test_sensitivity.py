@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 import numpy.testing as npt
-import matplotlib.pyplot as plt
 
 from zepid.sensitivity_analysis import trapezoidal, MonteCarloRR
 
@@ -40,6 +39,3 @@ class TestMonteCarloBiasAnalysis:
     def test_percentiles_rr(self, mcba):
         m = np.percentile(mcba.corrected_RR, q=[2.5, 97.5])
         npt.assert_allclose(m, [0.729893, 0.875549], rtol=1e-5)
-
-    def test_plot_returns_axes(self, mcba):
-        assert isinstance(mcba.plot(), type(plt.gca()))

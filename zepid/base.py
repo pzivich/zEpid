@@ -904,7 +904,7 @@ class IncidenceRateDifference:
         """
         if measure == 'incidence_rate_difference':
             ax = _plotter(estimate=self.results['IncRateDiff'], lcl=self.results['IRD_LCL'],
-                          ucl=self.results['IRR_UCL'], labels=self.results.index,
+                          ucl=self.results['IRD_UCL'], labels=self.results.index,
                           center=center, **plot_kwargs)
             ax.set_title('Incidence Rate Difference')
         elif measure == 'incidence_rate':
