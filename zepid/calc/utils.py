@@ -14,7 +14,7 @@ class Results(NamedTuple):
     upper_bound: float
     standard_error: float
     alpha: float
-    name: str
+    measure: str
 
 
 def normal_ppf(z):
@@ -34,7 +34,7 @@ def check_nonnegativity_or_throw(*args):
 def warn_if_normal_approximation_invalid(*args):
     for arg in args:
         if arg <= 5:
-            warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+            warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid', UserWarning)
             # just print once
             break
 
@@ -61,7 +61,7 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
 
     Returns 
     -------
-    Results : a Results object with (risk, lower CL, upper CL, SE, alpha, name)
+    Results : a Results object with (risk, lower CL, upper CL, SE, alpha, measure)
 
     Note
     ----
@@ -158,8 +158,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
     check_positivity_or_throw(a, b, c, d)
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+    warn_if_normal_approximation_invalid(a, b, c, d)
     zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)

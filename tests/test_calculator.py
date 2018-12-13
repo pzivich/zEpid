@@ -14,6 +14,7 @@ def counts_1():
     return 25, 25, 25, 25
 
 
+
 # Tests for Basic Measures
 
 class TestRisks:
@@ -103,6 +104,10 @@ class TestRiskDifference:
         sas_se = 0.1
         rd = risk_difference(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
         npt.assert_allclose(rd.standard_error, sas_se)
+
+    def test_raises_warning_if_small_cells(self):
+        with pytest.warns(UserWarning, match='confidence interval approximation is invalid'):
+            rd = risk_difference(1, 10, 10, 10)
 
 
 class TestNumberNeededtoTreat:
