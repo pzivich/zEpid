@@ -144,24 +144,24 @@ class IPTW:
             -number of decimal places to display. Default is three
         '''
         if not self.stabilized:
-            warnings.warn('Positivity should only be used for stabilized IPTW')
-        avg = float(np.mean(self.df['iptw'].dropna()))
-        mx = np.max(self.df['iptw'].dropna())
-        mn = np.min(self.df['iptw'].dropna())
-        sd = float(np.std(self.df['iptw'].dropna()))
+            warnings.warn('Positivity should only be used for stabilized IPTW', UserWarning)
+        self._pos_avg = float(np.mean(self.df['iptw'].dropna()))
+        self._pos_max = np.max(self.df['iptw'].dropna())
+        self._pos_min = np.min(self.df['iptw'].dropna())
+        self._pos_sd = float(np.std(self.df['iptw'].dropna()))
         print('----------------------------------------------------------------------')
         print('IPW Diagnostic for positivity')
         print('''If the mean of the weights is far from either the min or max, this may\n indicate the model is
                 incorrect or positivity is violated''')
         print('Standard deviation can help in IPTW model selection')
         print('----------------------------------------------------------------------')
-        print('Mean weight:\t\t\t', round(avg, decimal))
-        print('Standard Deviation:\t\t', round(sd, decimal))
-        print('Minimum weight:\t\t\t', round(mn, decimal))
-        print('Maximum weight:\t\t\t', round(mx, decimal))
+        print('Mean weight:\t\t\t', round(self._pos_avg, decimal))
+        print('Standard Deviation:\t\t', round(self._pos_sd, decimal))
+        print('Minimum weight:\t\t\t', round(self._pos_min, decimal))
+        print('Maximum weight:\t\t\t', round(self._pos_max, decimal))
         print('----------------------------------------------------------------------')
 
-    def StandardizedDifference(self, variable, var_type, decimal=3):
+    def standardized_difference(self, variable, var_type, decimal=3):
         """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model
@@ -175,6 +175,7 @@ class IPTW:
         decimal:
             -decimal places to display in results. Default is 3
         """
+        # TODO add plotter of this... (needs variable type detector, patsy extractor, loop to calculate, plot df)
         if var_type == 'binary':
             wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
             wt2 = np.sum(self.df.loc[(self.df[self.ex] == 1)].dropna()['iptw'])
