@@ -68,9 +68,11 @@ class TMLE:
              The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
              to unexpected estimates
         bound:
-            -Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations. Default
-             is False, meaning no truncation of predicted probabilities occurs. Providing a single float assumes
-             symmetric trunctation. A collection of floats can be provided for asymmetric trunctation
+            -Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+             Specifying this argument can improve finite sample performance for random positivity violations. However,
+             inference becomes limited to the restricted population. Default is False, meaning no truncation of
+             predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+             floats can be provided for asymmetric trunctation
         print_results:
             -Whether to print the fitted model results. Default is True (prints results)
         """
