@@ -1,6 +1,7 @@
 import warnings
-import numpy as np
 from typing import NamedTuple
+
+import numpy as np
 from scipy.stats import norm
 
 
@@ -30,7 +31,7 @@ def check_nonnegativity_or_throw(*args):
         if arg < 0:
             raise ValueError('Value must be non-negative, however %f is negative' % arg)
 
-def warn_if_normal_approximation_invalid(args):
+def warn_if_normal_approximation_invalid(*args):
     for arg in args:
         if arg <= 5:
             warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
@@ -127,7 +128,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
     check_positivity_or_throw(a, b, c, d)
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
+    warn_if_normal_approximation_invalid(a, b, c, d)
 
     zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
@@ -302,7 +303,7 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     sd = np.sqrt((a / (t1**2)) + (c / (t2**2)))
     lcl = irated - (zalpha * sd)
     ucl = irated + (zalpha * sd)
-    return irated, lcl, ucl, sd
+    return Results(irated, lcl, ucl, sd, alpha, 'incidence rate difference')
 
 
 def attributable_community_risk(a, b, c, d):
@@ -322,6 +323,7 @@ def attributable_community_risk(a, b, c, d):
         -count of unexposed individuals without outcome
     """
     check_positivity_or_throw(a, b, c, d)
+
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
     return rt - r0

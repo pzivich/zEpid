@@ -45,13 +45,13 @@ class TestRisks:
 class TestIncidenceRate:
 
     def test_incidence_rate(self):
-        i = incidence_rate_ci(14, 400)
-        npt.assert_allclose(i[0], 0.035)
+        irc = incidence_rate_ci(14, 400)
+        npt.assert_allclose(irc.point_estimate, 0.035)
 
     def test_match_sas_se(self):
         sas_se = 0.009354
-        i = incidence_rate_ci(14, 400)
-        npt.assert_allclose(i[3], sas_se, atol=1e-5)
+        irc = incidence_rate_ci(14, 400)
+        npt.assert_allclose(irc.standard_error, sas_se, atol=1e-5)
 
     def test_match_normalapprox_ci(self):
         # Because incidence rate CI's have no agreed convention, I use the normal approx. This is not the same as SAS
@@ -64,11 +64,11 @@ class TestRiskRatio:
 
     def test_risk_ratio_equal_to_1(self, counts_1):
         rr = risk_ratio(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
-        assert rr[0] == 1
+        assert rr.point_estimate == 1
 
     def test_risk_ratio_equal_to_2(self):
         rr = risk_ratio(50, 50, 25, 75)
-        assert rr[0] == 2
+        assert rr.point_estimate == 2
 
     def test_value_error_for_negative_counts(self):
         with pytest.raises(ValueError):
@@ -84,11 +84,11 @@ class TestRiskDifference:
 
     def test_risk_difference_equal_to_0(self, counts_1):
         rd = risk_difference(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
-        assert rd[0] == 0
+        assert rd.point_estimate == 0
 
     def test_risk_difference_equal_to_half(self):
         rd = risk_difference(50, 50, 25, 75)
-        npt.assert_allclose(rd[0], 0.25)
+        npt.assert_allclose(rd.point_estimate, 0.25)
 
     def test_value_error_for_negative_counts(self):
         with pytest.raises(ValueError):
@@ -102,7 +102,7 @@ class TestRiskDifference:
     def test_match_sas_se(self, counts_1):
         sas_se = 0.1
         rd = risk_difference(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
-        npt.assert_allclose(rd[3], sas_se)
+        npt.assert_allclose(rd.standard_error, sas_se)
 
 
 class TestNumberNeededtoTreat:
@@ -114,7 +114,7 @@ class TestNumberNeededtoTreat:
     def test_match_risk_difference(self):
         nnt = number_needed_to_treat(50, 50, 25, 75)
         rd = risk_difference(50, 50, 25, 75)
-        npt.assert_allclose(nnt[0], 1/rd[0])
+        npt.assert_allclose(nnt.point_estimate, 1/rd[0])
 
     def test_match_rd_ci(self):
         nnt = number_needed_to_treat(50, 50, 25, 75)
@@ -124,7 +124,7 @@ class TestNumberNeededtoTreat:
     def test_match_rd_se(self):
         nnt = number_needed_to_treat(50, 50, 25, 75)
         rd = risk_difference(50, 50, 25, 75)
-        npt.assert_allclose(nnt[3], rd[3])
+        npt.assert_allclose(nnt.standard_error, rd[3])
 
     def test_rd_of_zero_is_nnt_inf(self):
         nnt = number_needed_to_treat(25, 25, 25, 25)
@@ -135,12 +135,12 @@ class TestOddsRatio:
 
     def test_odds_ratio_equal_to_1(self, counts_1):
         odr = odds_ratio(counts_1[0], counts_1[1], counts_1[2], counts_1[3])
-        assert odr[0] == 1
+        assert odr.point_estimate == 1
 
     def test_odds_ratio_greater_than_risk_ratio(self):
         odr = odds_ratio(50, 50, 25, 75)
         rr = risk_ratio(50, 50, 25, 75)
-        assert odr[0] > rr[0]
+        assert odr.point_estimate > rr.point_estimate
 
     def test_value_error_for_negative_counts(self):
         with pytest.raises(ValueError):
@@ -156,7 +156,7 @@ class TestIncidenceRateRatio:
 
     def test_incidence_rate_ratio_equal_to_1(self):
         irr = incidence_rate_ratio(6, 6, 100, 100)
-        assert irr[0] == 1
+        assert irr.point_estimate == 1
 
     def test_value_error_for_negative_counts(self):
         with pytest.raises(ValueError):
@@ -170,14 +170,14 @@ class TestIncidenceRateRatio:
     def test_match_sas_se(self):
         sas_se = 0.487950036
         irr = incidence_rate_ratio(6, 14, 100, 400)
-        npt.assert_allclose(irr[3], sas_se)
+        npt.assert_allclose(irr.standard_error, sas_se)
 
 
 class TestIncidenceRateDiff:
 
     def test_incidence_rate_difference_equal_to_1(self):
         ird = incidence_rate_difference(6, 6, 100, 100)
-        assert ird[0] == 0
+        assert ird.point_estimate == 0
 
     def test_value_error_for_negative_counts(self):
         with pytest.raises(ValueError):
@@ -186,13 +186,13 @@ class TestIncidenceRateDiff:
     def test_match_sas(self):
         sas_ird = 0.025
         ird = incidence_rate_difference(6, 14, 100, 400)
-        npt.assert_allclose(ird[0], sas_ird)
+        npt.assert_allclose(ird.point_estimate, sas_ird)
 
     def test_correct_ci(self):
         # SAS does not provide CI's for IRD easily. Instead comparing to OpenEpi calculator
         oe_ci = -0.02639, 0.07639
         ird = incidence_rate_difference(6, 14, 100, 400)
-        npt.assert_allclose(ird[0], 0.025)
+        npt.assert_allclose(ird.point_estimate, 0.025)
         npt.assert_allclose(ird[1:3], oe_ci, atol=1e-6)
 
 
