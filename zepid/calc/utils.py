@@ -1,29 +1,56 @@
 import warnings
 import math
+from typing import NamedTuple
 from scipy.stats import norm
 
 
+class Results(NamedTuple):
+    """
+    A simple wrapper class for the results of marginal estimates
+    """
+    point_estimate: float
+    lower_bound: float
+    upper_bound: float
+    standard_error: float
+    alpha: float
+    name: str
+
+
+def normal_ppf(z):
+    return norm.ppf(z, loc=0, scale=1)
+
+
 def risk_ci(events, total, alpha=0.05, confint='wald'):
-    """Calculate two-sided (1-alpha)% Confidence interval of Risk. Note
-    relies on the Central Limit Theorem, so there must be at least 5 events
+    """Calculate two-sided (1-alpha)% Confidence interval of Risk. 
+
+    Parameters
+    ----------
+    events: int
+        Number of events/outcomes that occurred
+    
+    total: int
+        total number of subjects that could have experienced the event
+    
+    alpha: float, optional
+        Alpha level. Default is 0.05
+    
+    confint: str, optional
+        Type of confidence interval to generate. Current options are
+            - wald
+            - hypergeometric
+
+    Returns 
+    -------
+    Results : a Results object with (risk, lower CL, upper CL, SE, alpha, name)
+
+    Note
+    ----
+    Relies on the Central Limit Theorem, so there must be at least 5 events
     and 5 nonevents
-
-    Returns (risk, lower CL, upper CL, SE)
-
-    events:
-        -Number of events/outcomes that occurred
-    total:
-        -total number of subjects that could have experienced the event
-    alpha:
-        -Alpha level. Default is 0.05
-    confint:
-        -Type of confidence interval to generate. Current options are
-            wald
-            hypergeometric
     """
     risk = events / total
     c = 1 - alpha / 2
-    zalpha = norm.ppf(c, loc=0, scale=1)
+    zalpha = normal_ppf(c)
     if confint == 'wald':
         sd = math.sqrt((risk * (1-risk)) / total)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
@@ -36,7 +63,7 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
         upper = risk + zalpha * sd
     else:
         raise ValueError('Only wald and hypergeometric confidence intervals are currently supported')
-    return risk, lower, upper, sd
+    return Results(risk, lower, upper, sd, alpha, 'risk')
 
 
 def incidence_rate_ci(events, time, alpha=0.05):
@@ -53,7 +80,7 @@ def incidence_rate_ci(events, time, alpha=0.05):
     """
     c = 1 - alpha / 2
     ir = events / time
-    zalpha = norm.ppf(c, loc=0, scale=1)
+    zalpha = normal_ppf(c)
     sd = math.sqrt(events / (time ** 2))
     # https://www.researchgate.net/post/How_to_estimate_standard_error_from_incidence_rate_and_population
     # Incidence rate confidence intervals are a mess, with not sources agreeing...
@@ -61,7 +88,7 @@ def incidence_rate_ci(events, time, alpha=0.05):
     # zEpid uses a normal approximation. There are too many options for CI's...
     lower = ir - zalpha * sd
     upper = ir + zalpha * sd
-    return ir, lower, upper, sd
+    return Results(ir, lower, upper, sd, alpha, 'incidence rate')
 
 
 def risk_ratio(a, b, c, d, alpha=0.05):
@@ -84,7 +111,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
         raise ValueError('All numbers must be positive')
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
     relrisk = r1 / r0
@@ -92,7 +119,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
     lnrr = math.log(relrisk)
     lcl = math.exp(lnrr - (zalpha * sd))
     ucl = math.exp(lnrr + (zalpha * sd))
-    return relrisk, lcl, ucl, sd
+    return Results(relrisk, lcl, ucl, sd, alpha, 'risk ratio')
 
 
 def risk_difference(a, b, c, d, alpha=0.05):
@@ -115,7 +142,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
         raise ValueError('All numbers must be positive')
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
@@ -124,7 +151,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
     # sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl = riskdiff - (zalpha * sd)
     ucl = riskdiff + (zalpha * sd)
-    return riskdiff, lcl, ucl, sd
+    return Results(riskdiff, lcl, ucl, sd, alpha, 'risk difference')
 
 
 def number_needed_to_treat(a, b, c, d, alpha=0.05):
@@ -147,7 +174,7 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
         raise ValueError('All numbers must be positive')
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
@@ -168,7 +195,7 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
         ucl = 1 / ucl_rd
     else:
         ucl = math.inf
-    return numbnt, lcl, ucl, sd
+    return Results(numbnt, lcl, ucl, sd, alpha, 'number needed to treat')
 
 
 def odds_ratio(a, b, c, d, alpha=0.05):
@@ -191,7 +218,7 @@ def odds_ratio(a, b, c, d, alpha=0.05):
         raise ValueError('All numbers must be positive')
     if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
         warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     or1 = a / b
     or0 = c / d
     oddsr = or1 / or0
@@ -199,7 +226,7 @@ def odds_ratio(a, b, c, d, alpha=0.05):
     lnor = math.log(oddsr)
     lcl = math.exp(lnor - (zalpha * sd))
     ucl = math.exp(lnor + (zalpha * sd))
-    return oddsr, lcl, ucl, sd
+    return Results(oddsr, lcl, ucl, sd, alpha, 'odds ratio')
 
 
 def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
@@ -222,7 +249,7 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
         raise ValueError('All numbers must be positive')
     if (a <= 5) or (c <= 5):
         warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     irate1 = a / t1
     irate2 = c / t2
     irater = irate1 / irate2
@@ -230,7 +257,7 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     lnirr = math.log(irater)
     lcl = math.exp(lnirr - (zalpha * sd))
     ucl = math.exp(lnirr + (zalpha * sd))
-    return irater, lcl, ucl, sd
+    return Results(irater, lcl, ucl, sd, alpha, 'incidence rate ratio')
 
 
 def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
@@ -253,7 +280,7 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
         raise ValueError('All numbers must be positive')
     if (a <= 5) or (c <= 5):
         warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     rated1 = a / t1
     rated2 = c / t2
     irated = rated1 - rated2
@@ -353,7 +380,7 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     decimal:
         -Number of decimal places to display. Default is three
     """
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     se = (ucl - lcl) / (zalpha * 2)
     cnull = 2 * estimate
     up_cn = norm.cdf(x=cnull, loc=estimate, scale=se)
@@ -415,7 +442,7 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
         mean = math.log(mean)
         lcl = math.log(lcl)
         ucl = math.log(ucl)
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
 
     # Extracting prior SD
     prior_sd = (prior_ucl - prior_lcl) / (2 * zalpha)

@@ -20,17 +20,26 @@ class TestRisks:
 
     def test_correct_risk(self):
         r = risk_ci(25, 50)
+        assert r.point_estimate == 0.5
         assert r[0] == 0.5
 
     def test_match_sas_ci(self):
         sas_ci = (0.361409618, 0.638590382)
         r = risk_ci(25, 50, confint='wald')
         npt.assert_allclose(r[1:3], sas_ci)
+        npt.assert_allclose([r.lower_bound, r.upper_bound], sas_ci)
 
     def test_match_sas_se(self):
         sas_se = 0.070710678
         r = risk_ci(25, 50, confint='wald')
         npt.assert_allclose(r[3], sas_se)
+        npt.assert_allclose(r.standard_error, sas_se)
+
+    def test_match_sas_se(self):
+        sas_se = 0.070710678
+        r = risk_ci(25, 50, confint='wald')
+        npt.assert_allclose(r[3], sas_se)
+        npt.assert_allclose(r.standard_error, sas_se)
 
 
 class TestIncidenceRate:
