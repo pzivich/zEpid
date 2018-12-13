@@ -2,11 +2,32 @@
 
 #### v0.4.0:
 **MAJOR CHANGES**:
+
 ``TMLE`` has been modified to estimate the custom user models now, rather than take the input. This better corresponds 
 to R's tmle (however, R does the entire process in the background. You must specify for this implementation). The reason
 for this major change is that ``LTMLE`` requires an iterative process. The iterative process requires required fitting 
 based on predicted values. Therefore, for ``LTMLE`` an unfitted model must be input and repeatedly fit. ``TMLE`` matches
 this process.
+
+``TimeVaryGFormula`` supports both Monte Carlo estimation and Sequential Regression (interative conditionals) this 
+added approach reduces some concern over model misspecification. It is also the process used by LTMLE to estimate 
+effects of interventions. Online documentation has been updated to show how the sequential regression is estimated and
+demonstrates how to calculated cumulative probabilities for multiple time points
+
+All calculator functions now return named tuples. The returned tuples can be index via ``returned[0]`` or 
+``returned.point_estimate``
+
+Tests have been added for all currently available functions. 
+
+**MINOR CHANGES**:
+
+``AIPW`` drops missing data. Similar to ``TMLE``
+
+``IPTW`` calculation of standardized differences is now the ``stabilized_difference`` function instead of the previously
+used ``StandardDifference``. This change is to follow PEP guidelines
+
+The ``psi`` argument has been replaced with ``measure`` in ``TMLE``. The print out still refers to psi. This update is 
+to help new users better understand what the argument is for
 
 #### v0.3.2
 **MAJOR CHANGES**:
