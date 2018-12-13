@@ -6,3 +6,4 @@ scipy
 tabulate
 patsy
 sklearn
+lifelines>=0.14.2
