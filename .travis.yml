@@ -6,3 +6,9 @@ python:
 
 notifications:
   email: false
+
+install:
+  - pip install -r travis-requirements.txt
+
+script:
+  - pytest
