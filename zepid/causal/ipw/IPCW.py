@@ -69,7 +69,7 @@ class IPCW:
             self.df['__uncensored__'] = np.where((self.df[idvar] != self.df[idvar].shift(-1)) &
                                                  (self.df[event] == 0),
                                                  0, 1)  # generating indicator for uncensored
-            self.df['uncensored'] = np.where(self.df[time] == np.max(df[time]), 1, self.df['uncensored'])
+            self.df['__uncensored__'] = np.where(self.df[time] == np.max(df[time]), 1, self.df['__uncensored__'])
         self.idvar = idvar
         self.time = time
         self.event = event

@@ -244,53 +244,53 @@ class TestIPCW:
     def test_data_conversion(self, flat_data):
         ipc = IPCW(flat_data, idvar='id', time='t', event='Y', flat_df=True)
         expected_data = pd.DataFrame.from_records([{'id': 1, 't_enter': 0, 't_out': 1, 'A': 1, 'Y': 0.0,
-                                                    'uncensored': 0},
+                                                    '__uncensored__': 0},
                                                    {'id': 2, 't_enter': 0, 't_out': 1, 'A': 1, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 2, 't_enter': 1, 't_out': 2, 'A': 1, 'Y': 0.0,
-                                                    'uncensored': 0},
+                                                    '__uncensored__': 0},
                                                    {'id': 3, 't_enter': 0, 't_out': 1, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 3, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 3, 't_enter': 2, 't_out': 3, 'A': 0, 'Y': 1.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 4, 't_enter': 0, 't_out': 1, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 4, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 4, 't_enter': 2, 't_out': 3, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 5, 't_enter': 0, 't_out': 1, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 5, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 1.0,
-                                                    'uncensored': 1}]
+                                                    '__uncensored__': 1}]
                                                   )
-        pdt.assert_frame_equal(ipc.df[['id', 'A', 'Y', 't_enter', 't_out', 'uncensored']],
-                               expected_data[['id', 'A', 'Y', 't_enter', 't_out', 'uncensored']],
+        pdt.assert_frame_equal(ipc.df[['id', 'A', 'Y', 't_enter', 't_out', '__uncensored__']],
+                               expected_data[['id', 'A', 'Y', 't_enter', 't_out', '__uncensored__']],
                                check_dtype=False, check_index_type=False, check_like=True)
 
     def test_data_conversion_late_entry(self, flat_data2):
         ipc = IPCW(flat_data2, idvar='id', time='t', event='Y', enter='enter', flat_df=True)
         expected_data = pd.DataFrame.from_records([{'id': 1, 't_enter': 0, 't_out': 1, 'A': 1, 'Y': 0.0,
-                                                    'uncensored': 0},
+                                                    '__uncensored__': 0},
                                                    {'id': 2, 't_enter': 0, 't_out': 1, 'A': 1, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 2, 't_enter': 1, 't_out': 2, 'A': 1, 'Y': 0.0,
-                                                    'uncensored': 0},
+                                                    '__uncensored__': 0},
                                                    {'id': 3, 't_enter': 2, 't_out': 3, 'A': 0, 'Y': 1.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 4, 't_enter': 0, 't_out': 1, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 4, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 4, 't_enter': 2, 't_out': 3, 'A': 0, 'Y': 0.0,
-                                                    'uncensored': 1},
+                                                    '__uncensored__': 1},
                                                    {'id': 5, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 1.0,
-                                                    'uncensored': 1}]
+                                                    '__uncensored__': 1}]
                                                   )
-        pdt.assert_frame_equal(ipc.df[['id', 'A', 'Y', 't_enter', 't_out', 'uncensored']],
-                               expected_data[['id', 'A', 'Y', 't_enter', 't_out', 'uncensored']],
+        pdt.assert_frame_equal(ipc.df[['id', 'A', 'Y', 't_enter', 't_out', '__uncensored__']],
+                               expected_data[['id', 'A', 'Y', 't_enter', 't_out', '__uncensored__']],
                                check_dtype=False, check_index_type=False, check_like=True)
 
     def test_match_sas_weights(self):
