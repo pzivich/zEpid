@@ -5,28 +5,43 @@ from pkg_resources import resource_filename
 
 def load_sample_data(timevary):
     """Load data that is part of the zepid package. This data set comes from simulated data from Jessie Edwards
-    (thanks Jess!). This data is used for all examples on zepid.readthedocs.io and part of my other repository
-    Python-for-Epidemiologists (work in-progress)
+    (thanks Jess!). This data is used for examples on zepid.readthedocs
 
-    timevary:
-        True    -produces a repeated follow-up data set
-        False   -produces a single observation per subject
+    Parameters
+    --------------
+    timevary : bool
+        Whether to return the time-varying data set or the time fixed. If True then returns data set with repeated
+        visits. If False then a data set with single observation per subject representing the 45-week risk is returned
 
-    Variables:
-    -id: participant unique ID (multiple observations per person)
-    -enter: start of time period
-    -out: end of time period
-    -male: indicator variable for male (1 = yes)
-    -age0: baseline age (at enter = 0)
-    -cd40: baseline CD4 T cell count (at enter = 0)
-    -dvl0: baseline viral load data (at enter = 0)
-    -cd4: CD4 T cell count at that follow-up visit
-    -dvl: viral load at that follow-up visit
-    -art: indicator of whether ART (antiretroviral treatment) was
-          prescribed at that time
-    -drop: indicator of whether individual dropped out of the study (1 = yes)
-    -dead: indicator for death at end of follow-up period (1 = yes)
-    -t: total time contributed
+    Notes
+    -------------
+    For the time-varying data set, the following variables are returned;
+        id - participant unique ID
+        enter - start of follow-up period
+        out - end of time period
+        male - indicator variable for male (1 = yes)
+        age0 - age at enter = 0
+        cd40 - CD4 T cell count at enter = 0
+        dvl0 - detectable viral load data at enter = 0
+        cd4 - CD4 T cell count at enter = t
+        dvl - viral load at enter = t
+        art - indicator of whether ART was prescribed at enter = t
+        drop - indicator of whether individual dropped out of the study at enter = t (1 = yes)
+        dead - indicator for death at out = t (1 = yes)
+
+    For the time-fixed data set, the following variables are returned
+        id - participant unique ID
+        male - indicator variable for male (1 = yes)
+        age0 - age at enter = 0
+        cd40 - CD4 T cell count at enter = 0
+        dvl0 - detectable viral load data at enter = 0
+        art - indicator of whether ART was prescribed at enter = 0
+        t - total time contributed
+
+    Returns
+    ----------
+    DataFrame
+        Returns either a time-varying or time-fixed pandas DataFrame
     """
     cols = ['id', 'enter', 'out', 'male', 'age0', 'cd40', 'dvl0', 'cd4', 'dvl', 'art', 'drop', 'dead']
     df = pd.read_csv(resource_filename('zepid', 'datasets/data.dat'),
@@ -53,11 +68,18 @@ def load_ewing_sarcoma_data():
     or Cole SR, Hernán MA. Adjusted survival curves with inverse probability weights. Comput Methods Programs
     Biomed. 2004;75(1):45-9.
 
-    Variables:
-    -treat: treatment (1 is novel treatment; 0 is one of three standard treatments)
-    -ldh: pre-treatment serum lactic acid dehydrogenase (LDH) (1 is >= 200 international units; 0 is <200)
-    -time: days till recurrence or censoring (continuous)
-    -outcome: sarcoma recurrence (1 is recurrence; 0 is censored)
+    Notes
+    -----------
+    Variables within the dataset are
+        treat - treatment (1 is novel treatment; 0 is one of three standard treatments)
+        ldh - pre-treatment serum lactic acid dehydrogenase (LDH) (1 is >= 200 international units; 0 is <200)
+        time - days till recurrence or censoring (continuous)
+        outcome - sarcoma recurrence (1 is recurrence; 0 is censored)
+
+    Returns
+    ----------
+    DataFrame
+        Returns pandas DataFrame
     """
     return pd.read_csv(resource_filename('zepid', 'datasets/ewing.dat'), index_col=False)
 
@@ -67,37 +89,44 @@ def load_gvhd_data():
     parametric g-formula for time-to-event data: intuition and a worked example. Epidemiology. 2014;25(6):889-97.
     Patients were followed until death or administrative censoring at 5-years.
 
-    Variables:
-    -id: unique ID for each participant
-    -age: participant baseline age
-    -agesq: squared baseline age
-    -agecurs1: restricted cubic spline knot 1 for baseline age
-    -agecurs2: restricted cubic spline knot 2 for basline age
-    -male: participant gender (1 is male, 0 is female)
-    -cmv: cytomegalovirus baseline immune status (1 is yes, 0 is no)
-    -all: at this time, I am unsure what this variable indicates (1, 0)
-    -wait: wait time from diagnosis to transplantation (months)
-    -day: day since transplantation
-    -daysq: squared day since transplantation
-    -daycu: cubic day since transplantation
-    -daycurs1: restricted cubic spline knot 1 for days since transplantation
-    -daycurs2: restricted cubic spline knot 2 for days since transplantation
-    -yesterday: previous day
-    -tomorrow: day after
-    -gvhd: indicator for Graph-versus-Host Disease (1 is yes, 0 is no)
-    -d: indicator of death (1 is yes, 0 is no)
-    -relapse: indicator for relapse (1 is yes, 0 is no)
-    -platnorm: indicator for normal platelet count (1 is yes, 0 is no)
-    -censlost: indicator for censoring due to loss-to-follow-up (1 is yes, 0 is no)
-    -gvhdm1: indicator for previous day diagnosis of GvHD (1 is yes, 0 is no)
-    -relapsem1: indicator for previous day relapse (1 is yes, 0 is no)
-    -platnormm1: indicator for previous day normal platelet count (1 is yes, 0 is no)
-    -daysnogvhd: number of consecutive days without a GvHD diagnosis
-    -daysnorelapse: number of consecutive days without relapse
-    -daysnoplatnorm: number of consecutive days without normal platelet count
-    -daysgvhd: number of consecutive days with GvHD
-    -daysrelapse: number of consecutive days after relapse
-    -daysplatnorm: number of consecutive days with normal platelet count
+    Notes
+    ---------------
+    Variables are formatted exactly as described in Keil et al. 2014
+        id: unique ID for each participant
+        age: participant baseline age
+        agesq: squared baseline age
+        agecurs1: restricted cubic spline knot 1 for baseline age
+        agecurs2: restricted cubic spline knot 2 for basline age
+        male: participant gender (1 is male, 0 is female)
+        cmv: cytomegalovirus baseline immune status (1 is yes, 0 is no)
+        all: at this time, I am unsure what this variable indicates (1, 0)
+        wait: wait time from diagnosis to transplantation (months)
+        day: day since transplantation
+        daysq: squared day since transplantation
+        daycu: cubic day since transplantation
+        daycurs1: restricted cubic spline knot 1 for days since transplantation
+        daycurs2: restricted cubic spline knot 2 for days since transplantation
+        yesterday: previous day
+        tomorrow: day after
+        gvhd: indicator for Graph-versus-Host Disease (1 is yes, 0 is no)
+        d: indicator of death (1 is yes, 0 is no)
+        relapse: indicator for relapse (1 is yes, 0 is no)
+        platnorm: indicator for normal platelet count (1 is yes, 0 is no)
+        censlost: indicator for censoring due to loss-to-follow-up (1 is yes, 0 is no)
+        gvhdm1: indicator for previous day diagnosis of GvHD (1 is yes, 0 is no)
+        relapsem1: indicator for previous day relapse (1 is yes, 0 is no)
+        platnormm1: indicator for previous day normal platelet count (1 is yes, 0 is no)
+        daysnogvhd: number of consecutive days without a GvHD diagnosis
+        daysnorelapse: number of consecutive days without relapse
+        daysnoplatnorm: number of consecutive days without normal platelet count
+        daysgvhd: number of consecutive days with GvHD
+        daysrelapse: number of consecutive days after relapse
+        daysplatnorm: number of consecutive days with normal platelet count
+
+    Returns
+    ----------
+    DataFrame
+        Returns pandas DataFrame
     """
     df = pd.read_csv(resource_filename('zepid', 'datasets/gvhd.dat'), delim_whitespace=True, index_col=False)
 
@@ -152,9 +181,9 @@ def load_gvhd_data():
     lf['daysplatnorm'] = lf.groupby('id')['platnorm'].cumsum()
     lf['daysgvhd'] = lf.groupby('id')['gvhd'].cumsum()
     return lf[['id', 'age', 'agesq', 'agecurs1', 'agecurs2', 'male', 'cmv', 'all', 'wait', 'yesterday', 'tomorrow',
-               'day', 'daysq', 'daycu', 'daycurs1', 'daycurs2', 'd', 'gvhd', 'relapse', 'platnorm', 'gvhdm1', 'relapsem1',
-               'platnormm1', 'censlost', 'daysnorelapse', 'daysnoplatnorm', 'daysnogvhd', 'daysrelapse',
-               'daysplatnorm', 'daysgvhd']]
+               'day', 'daysq', 'daycu', 'daycurs1', 'daycurs2', 'd', 'gvhd', 'relapse', 'platnorm', 'gvhdm1',
+               'relapsem1', 'platnormm1', 'censlost', 'daysnorelapse', 'daysnoplatnorm', 'daysnogvhd',
+               'daysrelapse', 'daysplatnorm', 'daysgvhd']]
 
 
 def load_sciatica_data():
@@ -162,27 +191,33 @@ def load_sciatica_data():
     patient-specific surgery effect based on weighted estimation and propensity scoring in the re-analysis of the
     Sciatica Trial. PLOS One 2014. Details of the original Sciatica Trial are available in; Peul WC, van Houwelingen HC,
     van den Hout WB, et al. Surgery versus Prolonged Conservative Treatment for Sciatica. NEJM 2007
-
     DOI: 10.1177/0962280214545529
 
-    Variables:
-    -id: unique identifier for patient
-    -tpoints: follow-up time period
-    -time: follow-up time
-    -age_b: age at follow-up time
-    -age_t: age at randomization
-    -vas1_t: VAS score
-    -vas2_t: VAS score
-    -roland_t: Roland score
-    -likert_t: Likert score
-    -vas1_b: VAS1 at baseline
-    -vas2_b: VAS2 at baseline
-    -roland_b: Roland score at baseline
-    -likert_b: Likert score at baseline
-    -male: participant gender (1 is male, 0 is female)
-    -weight: participant weight in kilograms
-    -height: participant height in meters
-    -surgery: whether participant received the surgery (1 is surgery, 0 is not yet surgery)
+    Notes
+    -------------
+    Variables included are
+        id: unique identifier for patient
+        tpoints: follow-up time period
+        time: follow-up time
+        age_b: age at follow-up time
+        age_t: age at randomization
+        vas1_t: VAS score
+        vas2_t: VAS score
+        roland_t: Roland score
+        likert_t: Likert score
+        vas1_b: VAS1 at baseline
+        vas2_b: VAS2 at baseline
+        roland_b: Roland score at baseline
+        likert_b: Likert score at baseline
+        male: participant gender (1 is male, 0 is female)
+        weight: participant weight in kilograms
+        height: participant height in meters
+        surgery: whether participant received the surgery (1 is surgery, 0 is not yet surgery)
+
+    Returns
+    ----------
+    DataFrame
+        Returns pandas DataFrame
     """
     df = pd.read_csv(resource_filename('zepid', 'datasets/sciatica.dat'), delim_whitespace=True, index_col=False,
                      header=None, names=['id', 'tpoints', 'time', 'age_b', 'age_t', 'vas1_t', 'vas2_t', 'roland_t',
@@ -195,12 +230,19 @@ def load_leukemia_data():
     """Loads data from Freireich EJ et al., "The Effect of 6-Mercaptopurine on the Duration of Steriod-induced
     Remissions in Acute Leukemia: A Model for Evaluation of Other Potentially Useful Therapy" Blood 1963
 
-    Variables:
-    -t: time
-    -status: event indicator (0: censored, 1: relapsed)
-    -sex: male, female
-    -logwbc: log-transformed white blood cell count
-    -treat: treatment indicator
+    Notes
+    ------------
+    Variables included are
+        t: time
+        status: event indicator (0: censored, 1: relapsed)
+        sex: male, female
+        logwbc: log-transformed white blood cell count
+        treat: treatment indicator
+
+    Returns
+    ----------
+    DataFrame
+        Returns pandas DataFrame
     """
     df = pd.read_csv(resource_filename('zepid', 'datasets/leukemia.dat'), delim_whitespace=True, index_col=False)
     return df

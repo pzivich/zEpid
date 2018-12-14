@@ -1,29 +1,36 @@
-import warnings
-import math 
 import numpy as np
 
+
 def trapezoidal(mini, mode1, mode2, maxi, size=None):
-    '''Creates trapezoidal distribution based on Fox & Lash 2005. This function 
-    can be used to generate distributions of probabilities and effect measures for
-    sensitivity analyses. It is particularly useful when used in conjunction with 
-    rr_corr to determine a distribution of potential results due to a single unadjusted
+    """Creates trapezoidal distribution based on Fox & Lash 2005. This function can be used to generate distributions
+    of probabilities and effect measures for sensitivity analyses. It is particularly useful when used in conjunction
+    with rr_corr to determine a distribution of potential results due to a single unadjusted
     confounder
-    
-    mini:
-        -minimum value of trapezoidal distribution
-    mode1:
-        -Start of uniform distribution
-    mode2:
-        -End of uniform distribution
-    maxi:
-        -maximum value of trapezoidal distribution
-    size:
-        -number of observations to generate. Default is None, which returns a single draw
-    
-    Example)
-    >>>zepid.sens_analysis.trapezoidal(mini=0.2,mode1=0.3,mode2=0.5,maxi=0.6)
-    '''
-    if size == None:
+
+    Parameters
+    --------------
+    mini : float
+        Minimum value of trapezoidal distribution
+    mode1 : float
+        Start of uniform distribution
+    mode2 : float
+        End of uniform distribution
+    maxi : float
+        Maximum value of trapezoidal distribution
+    size : int, optional
+        Number of observations to generate. Default is None, which returns a single draw
+
+    Returns
+    --------------
+    float or array
+        Returns either a single float from the distribution or an array of floats
+
+    Examples
+    --------------
+    >>>import zepid as ze
+    >>>ze.sensitivity_analysis.trapezoidal(mini=0.2, mode1=0.3, mode2=0.5, maxi=0.6)
+    """
+    if size is None:
         p = np.random.uniform()
         v = (p*(maxi+mode2-mini-mode1)+(mini+mode1)) / 2
         if v < mode1:
@@ -34,14 +41,14 @@ def trapezoidal(mini, mode1, mode2, maxi, size=None):
             pass   
         return v
     
-    #draws the number specified by size
-    elif type(size) == int:
+    # Draws the number specified by size
+    elif type(size) is int:
         va = []
         for i in range(size):
-            va.append(trapezoidal(mini=mini,mode1=mode1,mode2=mode2,maxi=maxi,size=None))
-        return va
+            va.append(trapezoidal(mini=mini, mode1=mode1, mode2=mode2, maxi=maxi, size=None))
+        return np.array(va)
     
-    #ValueError is size is not an integer        
+    # ValueError is size is not an integer
     else:
         raise ValueError('"size" must be an integer')
-        
+

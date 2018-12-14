@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import norm
 
 
-Results = namedtuple('Results', 
+Results = namedtuple('Results',
                      ['point_estimate', 'lower_bound', 'upper_bound', 'standard_error', 'alpha', 'measure']
                      )
 
@@ -36,27 +36,41 @@ def warn_if_normal_approximation_invalid(*args):
 
 
 def risk_ci(events, total, alpha=0.05, confint='wald'):
-    """Calculate two-sided (1-alpha)% Confidence interval of Risk. 
+    """Calculate two-sided risk confidence intervals
+
+    Risk is calculated from
+
+    .. math::
+
+        R = \frac{a}{a+b}
+
+    Wald standard error is
+
+    .. math::
+
+        SE_{Wald} = (\frac{1}{a} - \frac{1}{b})^{\frac{1}{2}}
+
+    Hypergeometric standard error is
+
+    .. math::
+
+        SE_{HypGeo} = (\frac{a*b}{(a+b)^2 * (a+b-1)})^{\frac{1}{2}}
 
     Parameters
     ----------
-    events: int
+    events : integer, float
         Number of events/outcomes that occurred
-    
-    total: int
-        total number of subjects that could have experienced the event
-    
-    alpha: float, optional
+    total : integer, float
+        Total number of subjects that could have experienced the event
+    alpha : float, optional
         Alpha level. Default is 0.05
-    
-    confint: str, optional
-        Type of confidence interval to generate. Current options are
-            - wald
-            - hypergeometric
+    confint : string, optional
+        Type of confidence interval to generate. Current options include Wald or Hypergeometric confidence intervals
 
-    Returns 
-    -------
-    Results : a Results object with (risk, lower CL, upper CL, SE, alpha, measure)
+    Returns
+    ---------
+    tuple
+        Tuple containing risk, lower CL, upper CL, SE
 
     Note
     ----
@@ -82,16 +96,35 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
 
 
 def incidence_rate_ci(events, time, alpha=0.05):
-    """Calculate two-sided (1-alpha)% Wald Confidence interval of Incidence Rate
+    """Calculate two-sided incidence rate confidence intervals. Only Wald-type confidence intervals are currently
+    implemented.
 
-    Returns (incidence rate, lower CL, upper CL, SE)
+    Incidence rate is calculated from
 
-    events:
-        -number of events/outcomes that occurred
-    time:
-        -total person-time contributed in this group
-    alpha:
-        -alpha level. Default is 0.05
+    .. math::
+
+        I = \frac{a}{T}
+
+    Incidence rate standard error is
+
+    .. math::
+
+        SE = (\frac{a}{T^2})^\frac{1}{2})
+
+    Parameters
+    -------------
+    events : integer, float
+        Number of events/outcomes that occurred
+    time : integer, float
+        Total person-time contributed in this group
+    alpha : float, optional
+        Alpha level. Default is 0.05
+
+
+    Returns
+    ------------
+    tuple
+        Tuple containing incidence rate, lower CL, upper CL, SE
     """
     c = 1 - alpha / 2
     ir = events / time
@@ -107,20 +140,37 @@ def incidence_rate_ci(events, time, alpha=0.05):
 
 
 def risk_ratio(a, b, c, d, alpha=0.05):
-    """Calculates the Risk Ratio from count data.
+    """Calculates the risk ratio and confidence intervals from count data.
 
-    Returns (risk ratio, lower CL, upper CL, SE)
+    Risk ratio is calculated from
 
-    a:
-        -count of exposed individuals with outcome
-    b:
-        -count of unexposed individuals with outcome
-    c:
-        -count of exposed individuals without outcome
-    d:
-        -count of unexposed individuals without outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    .. math::
+
+        RR = \frac{a}{a + b} / \frac{c}{c + d}
+
+    Risk ratio standard error is
+
+    .. math::
+
+        SE = (\frac{1}{a} - \frac{1}{a + b} + \frac{1}{c} - \frac{1}{c + d})^{\frac{1}{2}}
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    b : integer, float
+        Count of unexposed individuals with outcome
+    c : integer, float
+        Count of exposed individuals without outcome
+    d : integer, float
+        Count of unexposed individuals without outcome
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    Returns
+    --------------
+    tuple
+        Tuple of risk ratio, lower CL, upper CL, SE
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -137,20 +187,37 @@ def risk_ratio(a, b, c, d, alpha=0.05):
 
 
 def risk_difference(a, b, c, d, alpha=0.05):
-    """Calculates the Risk Difference from count data.
+    """Calculates the risk difference and confidence intervals from count data.
 
-    Returns (risk difference, lower CL, upper CL, SE)
+    Risk difference is calculated as
 
-    a:
-        -count of exposed individuals with outcome
-    b:
-        -count of unexposed individuals with outcome
-    c:
-        -count of exposed individuals without outcome
-    d:
-        -count of unexposed individuals without outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    .. math::
+
+        RD = \frac{a}{a + b} - \frac{c}{c + d}
+
+    Risk difference standard error is calculated as
+
+    .. math::
+
+        SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    b : integer, float
+        Count of unexposed individuals with outcome
+    c : integer, float
+        Count of exposed individuals without outcome
+    d : integer, float
+        Count of unexposed individuals without outcome
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    Returns
+    --------------
+    tuple
+        Tuple of risk difference, lower CL, upper CL, SE
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -167,20 +234,31 @@ def risk_difference(a, b, c, d, alpha=0.05):
 
 
 def number_needed_to_treat(a, b, c, d, alpha=0.05):
-    """Calculates the Number Needed to Treat from count data
+    """Calculates the number needed to treat and confidence intervals from count data.
 
-    Returns (NNT, lower CL, upper CL, SE)
+    Number needed to treat is calculated as
 
-    a:
-        -count of exposed individuals with outcome
-    b:
-        -count of unexposed individuals with outcome
-    c:
-        -count of exposed individuals without outcome
-    d:
-        -count of unexposed individuals without outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    .. math::
+
+        NNT = \frac{1}{RD}
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    b : integer, float
+        Count of unexposed individuals with outcome
+    c : integer, float
+        Count of exposed individuals without outcome
+    d : integer, float
+        Count of unexposed individuals without outcome
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    Returns
+    --------------
+    tuple
+        Tuple of NNT, lower CL, upper CL, SE
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -210,20 +288,37 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
 
 
 def odds_ratio(a, b, c, d, alpha=0.05):
-    """Calculates the Odds Ratio from count data
+    """Calculates the odds ratio and confidence interval from count data
 
-    Returns (Odds Ratio, lower CL, upper CL, SE)
+    Odds ratio is calculated from
 
-    a:
-        -count of exposed individuals with outcome
-    b:
-        -count of unexposed individuals with outcome
-    c:
-        -count of exposed individuals without outcome
-    d:
-        -count of unexposed individuals without outcome
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    .. math::
+
+        OR = \frac{a}{b} / \frac{c}{d}
+
+    Odds ratio standard error is
+
+    .. math::
+
+        SE = (\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d})^{\frac{1}{2}}
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    b : integer, float
+        Count of unexposed individuals with outcome
+    c : integer, float
+        Count of exposed individuals without outcome
+    d : integer, float
+        Count of unexposed individuals without outcome
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    Returns
+    --------------
+    tuple
+        Tuple of OR, lower CL, upper CL, SE
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -240,20 +335,37 @@ def odds_ratio(a, b, c, d, alpha=0.05):
 
 
 def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
-    """Calculates the Incidence Rate Ratio from count data
+    """Calculates the incidence rate ratio and confidence intervals from count data
 
-    Returns (incidence rate ratio, lower CL, upper CL, SE)
+    Incidence rate ratio is calculated from
 
-    a:
-        -count of exposed with outcome
-    b:
-        -count of unexposed with outcome
-    T1:
-        -person-time contributed by those who were exposed
-    T2:
-        -person-time contributed by those who were unexposed
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    .. math::
+
+        IR = \frac{a}{t1} / \frac{c}{t2}
+
+    Incidence rate ratio standard error is
+
+    .. math::
+
+        SE = (\frac{1}{a} + \frac{1}{c})^{\frac{1}{2}}
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    c : integer, float
+        Count of unexposed individuals with outcome
+    t1 : integer, float
+        Person-time contributed by those who were exposed
+    t2 : integer, float
+        Person-time contributed by those who were unexposed
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    Returns
+    --------------
+    tuple
+        Tuple of IR, lower CL, upper CL, SE
     """
     check_positivity_or_throw(a, c)
     check_nonnegativity_or_throw(t2, t1)
@@ -271,20 +383,37 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
 
 
 def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
-    """Calculates the Incidence Rate Difference from count data
+    """Calculates the incidence rate difference and confidence intervals from count data
 
-    Returns (incidence rate difference, lower CL, upper CL, SE)
+    Incidence rate difference is calculated from
 
-    a:
-        -count of exposed with outcome
-    b:
-        -count of unexposed with outcome
-    T1:
-        -person-time contributed by those who were exposed
-    T2:
-        -person-time contributed by those who were unexposed
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    .. math::
+
+        ID = \frac{a}{t1} - \frac{c}{t2}
+
+    Incidence rate difference standard error is
+
+    .. math::
+
+        SE = (\frac{a}{t1^2} + \frac{c}{t2^2})^{\frac{1}{2}}
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    c : integer, float
+        Count of unexposed individuals with outcome
+    t1 : integer, float
+        Person-time contributed by those who were exposed
+    t2 : integer, float
+        Person-time contributed by those who were unexposed
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    Returns
+    --------------
+    tuple
+        Tuple of ID, lower CL, upper CL, SE)
     """
     check_positivity_or_throw(a, c)
     check_nonnegativity_or_throw(t2, t1)
@@ -301,20 +430,31 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
 
 
 def attributable_community_risk(a, b, c, d):
-    """Calculates the estimated Attributable Community Risk (ACR) from count data. ACR is also
-    known as Population Attributable Risk. Since this is commonly confused with the population
-    attributable fraction, the name ACR is used to clarify differences in the formulas
+    """Calculates the estimated attributable community risk (ACR) from count data. ACR is also known as Population
+    Attributable Risk. Since this is commonly confused with the population attributable fraction, the name ACR is used
+    to clarify differences in the formulas
 
-    Return attributable community risk
+    Attributable community risk is calculated as
 
-    a:
-        -count of exposed individuals with outcome
-    b:
-        -count of unexposed individuals with outcome
-    c:
-        -count of exposed individuals without outcome
-    d:
-        -count of unexposed individuals without outcome
+    .. math::
+
+        ACR = \frac{a + c}{a + b + c + d} - \frac{c}{c + d} = R - R_0
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    b : integer, float
+        Count of unexposed individuals with outcome
+    c : integer, float
+        Count of exposed individuals without outcome
+    d : integer, float
+        Count of unexposed individuals without outcome
+
+    Returns
+    --------------
+    float
+        Attributable community risk
     """
     check_positivity_or_throw(a, b, c, d)
 
@@ -324,18 +464,29 @@ def attributable_community_risk(a, b, c, d):
 
 
 def population_attributable_fraction(a, b, c, d):
-    """Calculates the Population Attributable Fraction from count data
+    """Calculates the population attributable fraction (PAF) from count data
 
-    Returns population attribuable fraction
+    Population attributable fraction is calculated as
 
-    a:
-        -count of exposed individuals with outcome
-    b:
-        -count of unexposed individuals with outcome
-    c:
-        -count of exposed individuals without outcome
-    d:
-        -count of unexposed individuals without outcome
+    .. math::
+
+        PAF = (\frac{a + c}{a + b + c + d} - \frac{c}{c + d}) / \frac{a + c}{a + b + c + d} = (R - R_0) / R
+
+    Parameters
+    ------------
+    a : integer, float
+        Count of exposed individuals with outcome
+    b : integer, float
+        Count of unexposed individuals with outcome
+    c : integer, float
+        Count of exposed individuals without outcome
+    d : integer, float
+        Count of unexposed individuals without outcome
+
+    Returns
+    --------------
+    float
+        Population attributable fraction
     """
     check_positivity_or_throw(a, b, c, d)
 
@@ -344,24 +495,46 @@ def population_attributable_fraction(a, b, c, d):
     return (rt - r0) / rt
 
 
-def probability_to_odds(prop):
-    """Convert proportion to odds. Returns the corresponding odds
+def probability_to_odds(prob):
+    """Convert proportion to odds
 
-    Returns odds
+    Probability is converted to odds using
 
-    prop:
-        -proportion that is desired to transform into odds
+    .. math::
+
+        O = \frac{P}{1 - P}
+
+    Parameters
+    ---------------
+    prob : float, NumPy array
+        Probability or array of probabilities to transform into odds
+
+    Returns
+    ----------
+    odds
+        Float or array of odds
     """
-    return prop / (1 - prop)
+    return prob / (1 - prob)
 
 
 def odds_to_probability(odds):
-    """Convert odds to proportion. Returns the corresponding proportion
+    """Convert odds to proportion
 
-    Return proportion/probability
+    Probability is converted to odds using
 
-    odds:
-        -odds that is desired to transform into a proportion
+    .. math::
+
+        P = \frac{O}{1 + O}
+
+    Parameters
+    ---------------
+    odds : float, NumPy array
+        Odds or array of odds to transform into probabilities
+
+    Returns
+    ----------
+    prob
+        Float or array of probabilities
     """
     return odds / (1 + odds)
 
@@ -370,25 +543,34 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     """Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation
     of results. For a full discussion and how to interpret the estimate and p-value, see Rosenthal & Rubin.
 
-    NOTE: Make sure that the confidence interval points put into the equation match the alpha level calculation
+    Parameters
+    -------------
+    estimate : float
+        Point estimate for result
+    lcl : float
+        Lower confidence limit
+    ucl : float
+        Upper confidence limit
+    sided : string, optional
+        Whether to compute the upper one-sided, lower one-sided, or two-sided counternull
+        p-value. Default is the two-sided
+        * 'upper'     Upper one-sided p-value
+        * 'lower'     Lower one-sided p-value
+        * 'two'       Two-sided p-value
+    alpha : float, optional
+        Alpha level for p-value. Default is 0.05. Verify that this is the same alpha used to generate confidence
+        intervals
+    decimal : integer, optional
+        Number of decimal places to display. Default is three
 
-    estimate:
-        -Point estimate for result
-    lcl:
-        -Lower confidence limit
-    ucl:
-        -Upper confidence limit
-    sided:
-        -Whether to compute the upper one-sided, lower one-sided, or two-sided counternull
-         p-value. Default is the two-sided
-            'upper'     Upper one-sided p-value
-            'lower'     Lower one-sided p-value
-            'two'       Two-sided p-value
-    alpha:
-        -Alpha level for p-value. Default is 0.05. Verify that this is the same alpha used to
-         generate confidence intervals
-    decimal:
-        -Number of decimal places to display. Default is three
+    Returns
+    ----------
+    None
+        Function does not return an object. It prints results to the console
+
+    Notes
+    --------
+    Make sure that the confidence interval points put into the equation match the alpha level calculation
     """
     zalpha = normal_ppf(1 - alpha / 2)
     se = (ucl - lcl) / (zalpha * 2)
@@ -416,33 +598,48 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     """A simple Bayesian Analysis. Note that this analysis assumes normal distribution for the
     continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340)
 
-    Warning: Make sure that the alpha used to generate the confidence intervals matches the alpha
+    The posterior estimate and variance are calculated as
+
+    .. math::
+
+        E_{posterior} = \frac{(E_{prior}*\frac{1}{Var_{prior}}) + (E*\frac{1}{Var})}{E_{prior}*\frac{1}{Var_{prior}}}
+
+        Var_{posterior} = \frac{1}{\frac{1}{Var_{prior}} + \frac{1}{Var}}
+
+    Parameters
+    ------------
+    prior_mean : float
+        Prior designated point estimate
+    prior_lcl : float
+        Prior designated lower confidence limit
+    prior_ucl : float
+        Prior designated upper confidence limit
+    mean : float
+        Point estimate result obtained from analysis
+    lcl : float
+        Lower confidence limit estimate obtained from analysis
+    ucl : float
+        Upper confidence limit estimate obtained from analysis
+    ln_transform : bool, optional
+        Whether to natural log transform results before conducting analysis. Should be used for
+        RR, OR, or or other Ratio measure. Default is False (use for RD and other absolute measures)
+    alpha : float, optional
+        Alpha level for confidence intervals. Default is 0.05
+    decimal : float, optional
+        Number of decimal places to display. Default is three
+    print_results : bool, optional
+        Whether to print the results of the semi-Bayesian calculations. Default is True
+
+    Returns
+    ---------
+    tuple
+        Tuple of posterior mean, posterior lower CL, posterior upper CL
+
+    Notes
+    -------------
+    Warning; Make sure that the alpha used to generate the confidence intervals matches the alpha
     used in this calculation. Additionally, this calculation can only handle normally distributed
     priors and observed
-
-    Returns (posterior mean, posterior lower CL, posterior upper CL)
-
-    prior_mean:
-        -Prior designated point estimate
-    prior_lcl:
-        -Prior designated lower confidence limit
-    prior_ucl:
-        -Prior designated upper confidence limit
-    mean:
-        -Point estimate result obtained from analysis
-    lcl:
-        -Lower confidence limit estimate obtained from analysis
-    ucl:
-        -Upper confidence limit estimate obtained from analysis
-    ln_transform:
-        -Whether to natural log transform results before conducting analysis. Should be used for
-         RR, OR, or or other Ratio measure. Default is False (use for RD and other absolute measures)
-    alpha:
-        -Alpha level for confidence intervals. Default is 0.05
-    decimal:
-        -Number of decimal places to display. Default is three
-    print_results:
-        -Whether to print the results of the semi-Bayesian calculations. Default is True
     """
     # Transforming to log scale if ratio measure
     if ln_transform:
@@ -513,21 +710,28 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
 
 
 def sensitivity(detected, cases, alpha=0.05, confint='wald'):
-    """
-    Calculate the Sensitivity from number of detected cases and the number of total true cases.
+    """Calculate the sensitivity from number of detected cases and the number of total true cases.
 
-    Returns (sensitivity, lower CL, upper CL, SE)
+    Parameters
+    ---------------
+    detected : integer, float
+        Number of true cases detected via testing criteria
+    cases : integer, float
+        Total number of true/actual cases
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+    confint : string, optional
+        Type of confidence interval to generate. Current options include Wald or Hypergeometric confidence intervals
 
-    detected:
-        -number of true cases detected via testing criteria
-    cases:
-        -total number of true/actual cases
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+
+    Returns
+    --------
+    tuple
+        Tuple of sensitivity, lower CL, upper CL, SE
     """
     check_positivity_or_throw(detected, cases)
     warn_if_normal_approximation_invalid(cases)
-    
+
     if detected > cases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
 
@@ -549,17 +753,23 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
 
 
 def specificity(detected, noncases, alpha=0.05, confint='wald'):
-    """
-    Calculate the Sensitivity from number of detected cases and the number of total true cases.
+    """Calculate the specificity from number of false detections and the number of total non-cases.
 
-    Returns (specificity, lower CL, upper CL, SE)
+    Parameters
+    ---------------
+    detected : integer, float
+        Number of false cases detected via testing criteria
+    noncases : integer, float
+        Total number of non-cases
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+    confint : string, optional
+        Type of confidence interval to generate. Current options include Wald or Hypergeometric confidence intervals
 
-    detected:
-        -number of false cases detected via testing criteria
-    cases:
-        -total number of true/actual noncases
-    alpha:
-        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
+    Returns
+    --------
+    tuple
+        Tuple of specificity, lower CL, upper CL, SE
     """
     check_positivity_or_throw(detected, noncases)
     warn_if_normal_approximation_invalid(noncases)
@@ -584,16 +794,27 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
 
 
 def ppv_converter(sensitivity, specificity, prevalence):
-    """Generates the Positive Predictive Value from designated Sensitivity, Specificity, and Prevalence.
+    """Generates the positive predictive value from designated sensitivity, specificity, and prevalence.
 
-    Returns positive predictive value
+    Positive predictive value is calculated using
 
-    sensitivity:
-        -sensitivity of the criteria
-    specificity:
-        -specificity of the criteria
-    prevalence:
-        -prevalence of the outcome in the population
+    .. math::
+
+        PPV = \frac{Se*P}{Se*P + (1-Sp)*(1-P)}
+
+    Parameters
+    -------------
+    sensitivity : float
+        Sensitivity of the testing criteria
+    specificity : float
+        Specificity of the testing criteria
+    prevalence : float
+        Prevalence of the outcome in the population
+
+    Returns
+    ------------
+    float
+        Positive predictive value
     """
     if (sensitivity > 1) or (specificity > 1) or (prevalence > 1):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -606,16 +827,25 @@ def ppv_converter(sensitivity, specificity, prevalence):
 
 
 def npv_converter(sensitivity, specificity, prevalence):
-    """Generates the Negative Predictive Value from designated Sensitivity, Specificity, and Prevalence.
+    """Generates the negative predictive value from designated sensitivity, specificity, and prevalence.
 
-    Returns negative predictive value
+    .. math::
 
-    sensitivity:
-        -sensitivity of the criteria
-    specificity:
-        -specificity of the criteria
-    prevalence:
-        -prevalence of the outcome in the population
+        NPV = \frac{Sp*(1-P)}{(1-Se)*P + Sp*(1-P)}
+
+    Parameters
+    -------------
+    sensitivity : float
+        Sensitivity of the testing criteria
+    specificity : float
+        Specificity of the testing criteria
+    prevalence : float
+        Prevalence of the outcome in the population
+
+    Returns
+    ------------
+    float
+        Negative predictive value
     """
     if (sensitivity > 1) or (specificity > 1) or (prevalence > 1):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -633,26 +863,34 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
     as test-negative and test-positive. The lowest per capita cost is considered the ideal choice. Note that
     this function only provides relative costs
 
-    WARNING: When calculating costs, be sure to consult experts in health policy or related fields.  Costs
-    should encompass more than just monetary costs, like relative costs (regret, disappointment, stigma,
-    disutility, etc.). Careful consideration of relative costs between false positive and false negatives
-    needs to be considered.
+    Parameters
+    ----------------
+    cost_miss_case : float
+        The relative cost of missing a case, compared to false positives. In general, set this to 1 then change the
+        value under 'cost_false_pos' to reflect the relative cost
+    cost_false_pos : float
+        The relative cost of a false positive case, compared to a missed case
+    prevalence : float
+        The prevalence of the disease in the population. Must be a float
+    sensitivity : float
+        The sensitivity level of the screening test. Must be a float
+    specificity : float
+        The specificity level of the screening test. Must be a float
+    population : float
+        The population size to set. Choose a larger value since this is only necessary for total calculations. Default is 10,000
+    decimal : integer
+        Amount of decimal points to display. Default value is 3
 
-    cost_miss_case:
-        -The relative cost of missing a case, compared to false positives. In general, set this to 1 then
-         change the value under 'cost_false_pos' to reflect the relative cost
-    cost_false_pos:
-        -The relative cost of a false positive case, compared to a missed case
-    prevalence:
-        -The prevalence of the disease in the population. Must be a float
-    sensitivity:
-        -The sensitivity level of the screening test. Must be a float
-    specificity:
-        -The specificity level of the screening test. Must be a float
-    population:
-        -The population size to set. Choose a larger value since this is only necessary for total calculations. Default is 10,000
-    decimal:
-        -amount of decimal points to display. Default value is 3
+    Returns
+    ---------
+    None
+        Prints results to console
+
+    Notes
+    --------
+    When calculating costs, be sure to consult experts in health policy or related fields.  Costs should encompass more
+    than just monetary costs, like relative costs (regret, disappointment, stigma, disutility, etc.). Careful
+    consideration of relative costs between false positive and false negatives needs to be considered.
     """
     print('----------------------------------------------------------------------')
     print('''NOTE: When calculating costs, be sure to consult experts in health\npolicy or related fields.  
