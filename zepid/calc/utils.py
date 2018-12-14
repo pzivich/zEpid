@@ -1,42 +1,84 @@
 import warnings
-import math
+from collections import namedtuple
+
+import numpy as np
 from scipy.stats import norm
 
 
+Results = namedtuple('Results', 
+                     ['point_estimate', 'lower_bound', 'upper_bound', 'standard_error', 'alpha', 'measure']
+                     )
+
+
+def normal_ppf(z):
+    return norm.ppf(z, loc=0, scale=1)
+
+
+def check_positivity_or_throw(*args):
+    for arg in args:
+        if arg <= 0:
+            raise ValueError('Value must be positive, however %f is not positive' % arg)
+
+
+def check_nonnegativity_or_throw(*args):
+    for arg in args:
+        if arg < 0:
+            raise ValueError('Value must be non-negative, however %f is negative' % arg)
+
+
+def warn_if_normal_approximation_invalid(*args):
+    for arg in args:
+        if arg <= 5:
+            warnings.warn('At least one cell count is less than 5, therefore confidence '
+                          'interval approximation is invalid', UserWarning)
+            # just print once
+            break
+
+
 def risk_ci(events, total, alpha=0.05, confint='wald'):
-    """Calculate two-sided (1-alpha)% Confidence interval of Risk. Note
-    relies on the Central Limit Theorem, so there must be at least 5 events
+    """Calculate two-sided (1-alpha)% Confidence interval of Risk. 
+
+    Parameters
+    ----------
+    events: int
+        Number of events/outcomes that occurred
+    
+    total: int
+        total number of subjects that could have experienced the event
+    
+    alpha: float, optional
+        Alpha level. Default is 0.05
+    
+    confint: str, optional
+        Type of confidence interval to generate. Current options are
+            - wald
+            - hypergeometric
+
+    Returns 
+    -------
+    Results : a Results object with (risk, lower CL, upper CL, SE, alpha, measure)
+
+    Note
+    ----
+    Relies on the Central Limit Theorem, so there must be at least 5 events
     and 5 nonevents
-
-    Returns (risk, lower CL, upper CL, SE)
-
-    events:
-        -Number of events/outcomes that occurred
-    total:
-        -total number of subjects that could have experienced the event
-    alpha:
-        -Alpha level. Default is 0.05
-    confint:
-        -Type of confidence interval to generate. Current options are
-            wald
-            hypergeometric
     """
     risk = events / total
     c = 1 - alpha / 2
-    zalpha = norm.ppf(c, loc=0, scale=1)
+    zalpha = normal_ppf(c)
     if confint == 'wald':
-        sd = math.sqrt((risk * (1-risk)) / total)
+        sd = np.sqrt((risk * (1-risk)) / total)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
         lower = risk - zalpha * sd
         upper = risk + zalpha * sd
     elif confint == 'hypergeometric':
-        sd = math.sqrt(events * (total - events) / (total ** 2 * (total - 1)))
+        sd = np.sqrt(events * (total - events) / (total ** 2 * (total - 1)))
         lower = risk - zalpha * sd
         upper = risk + zalpha * sd
     else:
         raise ValueError('Only wald and hypergeometric confidence intervals are currently supported')
-    return risk, lower, upper, sd
+    return Results(risk, lower, upper, sd, alpha, 'risk')
 
 
 def incidence_rate_ci(events, time, alpha=0.05):
@@ -53,15 +95,15 @@ def incidence_rate_ci(events, time, alpha=0.05):
     """
     c = 1 - alpha / 2
     ir = events / time
-    zalpha = norm.ppf(c, loc=0, scale=1)
-    sd = math.sqrt(events / (time ** 2))
+    zalpha = normal_ppf(c)
+    sd = np.sqrt(events / (time ** 2))
     # https://www.researchgate.net/post/How_to_estimate_standard_error_from_incidence_rate_and_population
     # Incidence rate confidence intervals are a mess, with not sources agreeing...
     # http://www.openepi.com/PersonTime1/PersonTime1.htm
     # zEpid uses a normal approximation. There are too many options for CI's...
     lower = ir - zalpha * sd
     upper = ir + zalpha * sd
-    return ir, lower, upper, sd
+    return Results(ir, lower, upper, sd, alpha, 'incidence rate')
 
 
 def risk_ratio(a, b, c, d, alpha=0.05):
@@ -80,19 +122,18 @@ def risk_ratio(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    check_positivity_or_throw(a, b, c, d)
+    warn_if_normal_approximation_invalid(a, b, c, d)
+
+    zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
     relrisk = r1 / r0
-    sd = math.sqrt((1 / a) - (1 / (a + b)) + (1 / c) - (1 / (c + d)))
-    lnrr = math.log(relrisk)
-    lcl = math.exp(lnrr - (zalpha * sd))
-    ucl = math.exp(lnrr + (zalpha * sd))
-    return relrisk, lcl, ucl, sd
+    sd = np.sqrt((1 / a) - (1 / (a + b)) + (1 / c) - (1 / (c + d)))
+    lnrr = np.log(relrisk)
+    lcl = np.exp(lnrr - (zalpha * sd))
+    ucl = np.exp(lnrr + (zalpha * sd))
+    return Results(relrisk, lcl, ucl, sd, alpha, 'risk ratio')
 
 
 def risk_difference(a, b, c, d, alpha=0.05):
@@ -111,20 +152,18 @@ def risk_difference(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    check_positivity_or_throw(a, b, c, d)
+    warn_if_normal_approximation_invalid(a, b, c, d)
+    zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
-    sd = math.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
+    sd = np.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
     # TODO hypergeometric CL for later implementation
-    # sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
+    # sd = np.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl = riskdiff - (zalpha * sd)
     ucl = riskdiff + (zalpha * sd)
-    return riskdiff, lcl, ucl, sd
+    return Results(riskdiff, lcl, ucl, sd, alpha, 'risk difference')
 
 
 def number_needed_to_treat(a, b, c, d, alpha=0.05):
@@ -143,32 +182,31 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    check_positivity_or_throw(a, b, c, d)
+    warn_if_normal_approximation_invalid(a, b, c, d)
+
+    zalpha = normal_ppf(1 - alpha / 2)
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
-    sd = math.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
+    sd = np.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
     # TODO hypergeometric CL for later implementation
-    # sd = math.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
+    # sd = np.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl_rd = riskdiff - (zalpha * sd)
     ucl_rd = riskdiff + (zalpha * sd)
     if riskdiff != 0:
         numbnt = 1 / riskdiff
     else:
-        numbnt = math.inf
+        numbnt = np.inf
     if lcl_rd != 0:
         lcl = 1 / lcl_rd
     else:
-        lcl = math.inf
+        lcl = np.inf
     if ucl_rd != 0:
         ucl = 1 / ucl_rd
     else:
-        ucl = math.inf
-    return numbnt, lcl, ucl, sd
+        ucl = np.inf
+    return Results(numbnt, lcl, ucl, sd, alpha, 'number needed to treat')
 
 
 def odds_ratio(a, b, c, d, alpha=0.05):
@@ -187,19 +225,18 @@ def odds_ratio(a, b, c, d, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
-    if (a <= 5) or (b <= 5) or (c <= 5) or (d <= 5):
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    check_positivity_or_throw(a, b, c, d)
+    warn_if_normal_approximation_invalid(a, b, c, d)
+
+    zalpha = normal_ppf(1 - alpha / 2)
     or1 = a / b
     or0 = c / d
     oddsr = or1 / or0
-    sd = math.sqrt((1 / a) + (1 / b) + (1 / c) + (1 / d))
-    lnor = math.log(oddsr)
-    lcl = math.exp(lnor - (zalpha * sd))
-    ucl = math.exp(lnor + (zalpha * sd))
-    return oddsr, lcl, ucl, sd
+    sd = np.sqrt((1 / a) + (1 / b) + (1 / c) + (1 / d))
+    lnor = np.log(oddsr)
+    lcl = np.exp(lnor - (zalpha * sd))
+    ucl = np.exp(lnor + (zalpha * sd))
+    return Results(oddsr, lcl, ucl, sd, alpha, 'odds ratio')
 
 
 def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
@@ -218,19 +255,19 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (c < 0) or (t1 <= 0) | (t2 <= 0):
-        raise ValueError('All numbers must be positive')
-    if (a <= 5) or (c <= 5):
-        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    check_positivity_or_throw(a, c)
+    check_nonnegativity_or_throw(t2, t1)
+    warn_if_normal_approximation_invalid(a, c)
+
+    zalpha = normal_ppf(1 - alpha / 2)
     irate1 = a / t1
     irate2 = c / t2
     irater = irate1 / irate2
-    sd = math.sqrt((1 / a) + (1 / c))
-    lnirr = math.log(irater)
-    lcl = math.exp(lnirr - (zalpha * sd))
-    ucl = math.exp(lnirr + (zalpha * sd))
-    return irater, lcl, ucl, sd
+    sd = np.sqrt((1 / a) + (1 / c))
+    lnirr = np.log(irater)
+    lcl = np.exp(lnirr - (zalpha * sd))
+    ucl = np.exp(lnirr + (zalpha * sd))
+    return Results(irater, lcl, ucl, sd, alpha, 'incidence rate ratio')
 
 
 def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
@@ -249,18 +286,18 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (a < 0) or (c < 0) or (t1 <= 0) or (t2 <= 0):
-        raise ValueError('All numbers must be positive')
-    if (a <= 5) or (c <= 5):
-        warnings.warn('At least one event count is less than 5, therefore confidence interval approximation is invalid')
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    check_positivity_or_throw(a, c)
+    check_nonnegativity_or_throw(t2, t1)
+    warn_if_normal_approximation_invalid(a, c)
+
+    zalpha = normal_ppf(1 - alpha / 2)
     rated1 = a / t1
     rated2 = c / t2
     irated = rated1 - rated2
-    sd = math.sqrt((a / (t1**2)) + (c / (t2**2)))
+    sd = np.sqrt((a / (t1**2)) + (c / (t2**2)))
     lcl = irated - (zalpha * sd)
     ucl = irated + (zalpha * sd)
-    return irated, lcl, ucl, sd
+    return Results(irated, lcl, ucl, sd, alpha, 'incidence rate difference')
 
 
 def attributable_community_risk(a, b, c, d):
@@ -279,8 +316,8 @@ def attributable_community_risk(a, b, c, d):
     d:
         -count of unexposed individuals without outcome
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
+
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
     return rt - r0
@@ -300,8 +337,8 @@ def population_attributable_fraction(a, b, c, d):
     d:
         -count of unexposed individuals without outcome
     """
-    if (a < 0) or (b < 0) or (c < 0) or (d < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(a, b, c, d)
+
     rt = (a + c) / (a + b + c + d)
     r0 = c / (c + d)
     return (rt - r0) / rt
@@ -353,7 +390,7 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     decimal:
         -Number of decimal places to display. Default is three
     """
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+    zalpha = normal_ppf(1 - alpha / 2)
     se = (ucl - lcl) / (zalpha * 2)
     cnull = 2 * estimate
     up_cn = norm.cdf(x=cnull, loc=estimate, scale=se)
@@ -409,13 +446,13 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     """
     # Transforming to log scale if ratio measure
     if ln_transform:
-        prior_mean = math.log(prior_mean)
-        prior_lcl = math.log(prior_lcl)
-        prior_ucl = math.log(prior_ucl)
-        mean = math.log(mean)
-        lcl = math.log(lcl)
-        ucl = math.log(ucl)
-    zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+        prior_mean = np.log(prior_mean)
+        prior_lcl = np.log(prior_lcl)
+        prior_ucl = np.log(prior_ucl)
+        mean = np.log(mean)
+        lcl = np.log(lcl)
+        ucl = np.log(ucl)
+    zalpha = normal_ppf(1 - alpha / 2)
 
     # Extracting prior SD
     prior_sd = (prior_ucl - prior_lcl) / (2 * zalpha)
@@ -438,21 +475,21 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     # Calculating posterior
     post_mean = ((prior_mean * prior_w) + (mean * w)) / (prior_w + w)
     post_var = 1 / (prior_w + w)
-    sd = math.sqrt(post_var)
+    sd = np.sqrt(post_var)
     post_lcl = post_mean - zalpha * sd
     post_ucl = post_mean + zalpha * sd
 
     # Transforming back if ratio measure
     if ln_transform:
-        post_mean = math.exp(post_mean)
-        post_lcl = math.exp(post_lcl)
-        post_ucl = math.exp(post_ucl)
-        prior_mean = math.exp(prior_mean)
-        prior_lcl = math.exp(prior_lcl)
-        prior_ucl = math.exp(prior_ucl)
-        mean = math.exp(mean)
-        lcl = math.exp(lcl)
-        ucl = math.exp(ucl)
+        post_mean = np.exp(post_mean)
+        post_lcl = np.exp(post_lcl)
+        post_ucl = np.exp(post_ucl)
+        prior_mean = np.exp(prior_mean)
+        prior_lcl = np.exp(prior_lcl)
+        prior_ucl = np.exp(prior_ucl)
+        mean = np.exp(mean)
+        lcl = np.exp(lcl)
+        ucl = np.exp(ucl)
 
     # Presenting Results
     if print_results:
@@ -488,22 +525,22 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (detected < 0) or (cases < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(detected, cases)
+    warn_if_normal_approximation_invalid(cases)
+    
     if detected > cases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
-    if cases <= 5:
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
+
     sens = detected / cases
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
-        sd = math.sqrt((sens * (1-sens)) / cases)
+        sd = np.sqrt((sens * (1-sens)) / cases)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
         lower = sens - zalpha * sd
         upper = sens + zalpha * sd
     elif confint == 'hypergeometric':
-        sd = math.sqrt(detected * (cases - detected) / (cases ** 2 * (cases - 1)))
+        sd = np.sqrt(detected * (cases - detected) / (cases ** 2 * (cases - 1)))
         lower = sens - zalpha * sd
         upper = sens + zalpha * sd
     else:
@@ -524,22 +561,21 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
     alpha:
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% onfidence interval
     """
-    if (detected < 0) or (noncases < 0):
-        raise ValueError('All numbers must be positive')
+    check_positivity_or_throw(detected, noncases)
+    warn_if_normal_approximation_invalid(noncases)
+
     if detected > noncases:
         raise ValueError('Detected true cases must be less than or equal to the total number of cases')
-    if noncases <= 5:
-        warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid')
     spec = 1 - (detected / noncases)
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
-        sd = math.sqrt((spec * (1-spec)) / noncases)
+        sd = np.sqrt((spec * (1-spec)) / noncases)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
         lower = spec - zalpha * sd
         upper = spec + zalpha * sd
     elif confint == 'hypergeometric':
-        sd = math.sqrt(detected * (noncases - detected) / (noncases ** 2 * (cases - 1)))
+        sd = np.sqrt(detected * (noncases - detected) / (noncases ** 2 * (cases - 1)))
         lower = spec - zalpha * sd
         upper = spec + zalpha * sd
     else:
