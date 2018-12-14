@@ -1,20 +1,14 @@
 import warnings
-from typing import NamedTuple
+from collections import namedtuple
 
 import numpy as np
 from scipy.stats import norm
 
 
-class Results(NamedTuple):
-    """
-    A simple wrapper class for the results of marginal estimates
-    """
-    point_estimate: float
-    lower_bound: float
-    upper_bound: float
-    standard_error: float
-    alpha: float
-    measure: str
+Results = namedtuple('Results', 
+        ['point_estimate', 'lower_bound', 'upper_bound', 'standard_error', 'alpha', 'measure']
+)
+
 
 
 def normal_ppf(z):
