@@ -48,6 +48,7 @@ class IPCW:
             self.df['uncensored'] = np.where((self.df[idvar] != self.df[idvar].shift(-1)) &
                                              (self.df[event] == 0),
                                              0, 1)  # generating indicator for uncensored
+            self.df['uncensored'] = np.where(self.df[time] == np.max(df[time]), 1, self.df['uncensored'])
         self.idvar = idvar
         self.time = time
         self.event = event
@@ -112,6 +113,7 @@ class IPCW:
         lf['t_enter_zepid'] = lf['tpoint_zepid']
         lf['t_out_zepid'] = np.where(lf['tdiff_zepid'] < 1, lf[time], lf['t_enter_zepid'] + 1)
         lf['uncensored_zepid'] = np.where((lf[idvar] != lf[idvar].shift(-1)) & (lf['delta_indicator_zepid'] == 0), 0, 1)
+        lf['uncensored_zepid'] = np.where(lf['t_out_zepid'] == np.max(lf['t_out_zepid']), 1, lf['uncensored_zepid'])
 
         # Removing blocks of observations that would have occurred before entrance into the sample
         if enter is not None:
@@ -124,7 +126,7 @@ class IPCW:
             lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event, enter], axis=1, inplace=True)
         lf.rename(columns={"delta_indicator_zepid": event, 'uncensored_zepid': 'uncensored', 't_enter_zepid': 't_enter',
                            't_out_zepid': 't_out'}, inplace=True)
-        warnings.warn('Please verify the long dataframe was generated correctly')
+        warnings.warn('Please verify the long dataframe was generated correctly', UserWarning)
         print('Check for dataframe')
         print('\tEvents in input:', np.sum(cf[event]))
         print('\tEvents in output:', np.sum(lf[event]))
@@ -138,5 +140,5 @@ class IPCW:
             print('\tLate in output:', np.sum(np.where((lf['t_enter'] != 0) & (lf[idvar] != lf[idvar].shift(1)), 1, 0)))
             print('\tTotal t input:', np.sum(cf[time] - cf[enter]))
             print('\tTotal t output:', np.sum(lf['t_out'] - lf['t_enter']))
-        return lf
+        return lf.reset_index(drop=True)
 

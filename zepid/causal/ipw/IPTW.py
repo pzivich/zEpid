@@ -208,33 +208,33 @@ class IPTW:
             if self.standardize == 'population':
                 df['w'] = np.where(df[self.ex] == 1, (df[numerator] / df[denominator]),
                                    ((1 - df[numerator]) / (1 - df[denominator])))
-                df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
+                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
             # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif self.standardize == 'exposed':
                 df['w'] = np.where(df[self.ex] == 1, 1,
                                    ((df[denominator] / (1 - df[denominator])) * ((1 - df[numerator]) /
                                                                                  df[numerator])))
-                df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
+                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
             # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             else:
                 df['w'] = np.where(df[self.ex] == 1,
                                    (((1 - df[denominator]) / df[denominator]) * (df[numerator] /
                                                                                  (1 - df[numerator]))),
                                    1)
-                df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
+                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
 
         else:  # Unstabilized weights
             if self.standardize == 'population':
                 df['w'] = np.where(df[self.ex] == 1, 1 / df[denominator], 1 / (1 - df[denominator]))
-                df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
+                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
             # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif self.standardize == 'exposed':
                 df['w'] = np.where(df[self.ex] == 1, 1, (df[denominator] / (1 - df[denominator])))
-                df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
+                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
             # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             else:
                 df['w'] = np.where(df[self.ex] == 1, ((1 - df[denominator]) / df[denominator]), 1)
-                df.loc[(df[self.ex] != 1) & (df[self.ex] != 0), 'w'] = np.nan
+                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
         return df['w']
 
     @staticmethod
