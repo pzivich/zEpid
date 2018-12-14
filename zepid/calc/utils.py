@@ -6,9 +6,8 @@ from scipy.stats import norm
 
 
 Results = namedtuple('Results', 
-        ['point_estimate', 'lower_bound', 'upper_bound', 'standard_error', 'alpha', 'measure']
-)
-
+                     ['point_estimate', 'lower_bound', 'upper_bound', 'standard_error', 'alpha', 'measure']
+                     )
 
 
 def normal_ppf(z):
@@ -20,18 +19,20 @@ def check_positivity_or_throw(*args):
         if arg <= 0:
             raise ValueError('Value must be positive, however %f is not positive' % arg)
 
+
 def check_nonnegativity_or_throw(*args):
     for arg in args:
         if arg < 0:
             raise ValueError('Value must be non-negative, however %f is negative' % arg)
 
+
 def warn_if_normal_approximation_invalid(*args):
     for arg in args:
         if arg <= 5:
-            warnings.warn('At least one cell count is less than 5, therefore confidence interval approximation is invalid', UserWarning)
+            warnings.warn('At least one cell count is less than 5, therefore confidence '
+                          'interval approximation is invalid', UserWarning)
             # just print once
             break
-
 
 
 def risk_ci(events, total, alpha=0.05, confint='wald'):
