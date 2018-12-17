@@ -511,7 +511,11 @@ class TimeVaryGFormula:
                                                                  df['__pred_' + self.outcome + '_' + str(t)])
 
         # Step 3) Returning estimated results
-        return np.mean(df['__pred_' + self.outcome + '_' + str(t_points[0])])
+        if self._weights is None:
+            return np.mean(df['__pred_' + self.outcome + '_' + str(t_points[0])])
+        else:
+            return np.average(df['__pred_' + self.outcome + '_' + str(t_points[0])],
+                              weights=df[self._weights + '_' + str(t_points[0])])
 
     @staticmethod
     def _predict(df, model, variable):
