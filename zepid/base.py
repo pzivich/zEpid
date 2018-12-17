@@ -159,7 +159,7 @@ class RiskRatio:
         print('Missing E&D: ', self._missing_ed)
         print('======================================================================')
 
-    def plot(self, measure='risk_ratio', scale='linear', center=1, **plot_kwargs):
+    def plot(self, measure='risk_ratio', scale='linear', center=1, **errorbar_kwargs):
         """Plot the risk ratios or the risks along with their corresponding confidence intervals. This option is an
         alternative to summary(), which displays results in a table format.
 
@@ -171,11 +171,11 @@ class RiskRatio:
             * 'risk'        : display risks
         scale : str, optional
             Scale for the x-axis. Default is a linear scale. A log-scale can be requested by setting scale='log'
-        color : str, optional
-            Color to display points and confidence limits. Allows any valid matplotlib colors
         center : str, optional
             Sets a reference line. For the risk ratio, the reference line defaults to 1. For risks, no reference line is
             displayed.
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
+            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -184,14 +184,14 @@ class RiskRatio:
         if measure == 'risk_ratio':
             ax = _plotter(estimate=self.results['RiskRatio'], lcl=self.results['RR_LCL'], ucl=self.results['RR_UCL'],
                           labels=self.results.index,
-                          center=center, **plot_kwargs)
+                          center=center, **errorbar_kwargs)
             if scale == 'log':
                 ax.set_xscale('log')
             ax.set_title('Risk Ratio')
         elif measure == 'risk':
             ax = _plotter(estimate=self.results['Risk'], lcl=self.results['Risk_LCL'], ucl=self.results['Risk_UCL'],
                           labels=self.results.index,
-                          center=np.nan, **plot_kwargs)
+                          center=np.nan, **errorbar_kwargs)
             ax.set_title('Risk')
             ax.set_xlim([0, 1])
         else:
@@ -341,7 +341,7 @@ class RiskDifference:
         print('Missing E&D: ', self._missing_ed)
         print('======================================================================')
 
-    def plot(self, measure='risk_difference', center=0, **plot_kwargs):
+    def plot(self, measure='risk_difference', center=0, **errorbar_kwargs):
         """Plot the risk differences or the risks along with their corresponding confidence intervals. This option is an
         alternative to summary(), which displays results in a table format.
 
@@ -351,11 +351,11 @@ class RiskDifference:
             Whether to display risk differences or risks. Default is to display the risk difference. Options are;
             * 'risk_difference' : display risk differences
             * 'risk'            : display risks
-        color : str, optional
-            Color to display points and confidence limits. Allows any valid matplotlib colors
         center : str, optional
             Sets a reference line. For the risk difference, the reference line defaults to 0. For risks, no reference
             line is displayed.
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
+            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -364,12 +364,12 @@ class RiskDifference:
         if measure == 'risk_difference':
             ax = _plotter(estimate=self.results['RiskDifference'], lcl=self.results['RD_LCL'],
                           ucl=self.results['RD_UCL'], labels=self.results.index,
-                          center=center, **plot_kwargs)
+                          center=center, **errorbar_kwargs)
             ax.set_title('Risk Difference')
         elif measure == 'risk':
             ax = _plotter(estimate=self.results['Risk'], lcl=self.results['Risk_LCL'], ucl=self.results['Risk_UCL'],
                           labels=self.results.index,
-                          center=np.nan, **plot_kwargs)
+                          center=np.nan, **errorbar_kwargs)
             ax.set_title('Risk')
             ax.set_xlim([0, 1])
         else:
@@ -640,7 +640,7 @@ class OddsRatio:
         print('Missing E&D: ', self._missing_ed)
         print('======================================================================')
 
-    def plot(self, scale='linear', center=1, **plot_kwargs):
+    def plot(self, scale='linear', center=1, **errorbar_kwargs):
         """Plot the odds ratios along with their corresponding confidence intervals. This option is an
         alternative to summary(), which displays results in a table format.
 
@@ -648,10 +648,10 @@ class OddsRatio:
         ----------
         scale : str, optional
             Scale for the x-axis. Default is a linear scale. A log-scale can be requested by setting scale='log'
-        color : str, optional
-            Color to display points and confidence limits. Allows any valid matplotlib colors
         center : str, optional
             Sets a reference line. The reference line defaults to 1.
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
+            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -659,7 +659,7 @@ class OddsRatio:
         """
         ax = _plotter(estimate=self.results['OddsRatio'], lcl=self.results['OR_LCL'], ucl=self.results['OR_UCL'],
                       labels=self.results.index,
-                      center=center, **plot_kwargs)
+                      center=center, **errorbar_kwargs)
         if scale == 'log':
             ax.set_xscale('log')
         ax.set_title('Odds Ratio')
@@ -812,7 +812,7 @@ class IncidenceRateRatio:
         print('Missing T:   ', self._missing_t)
         print('======================================================================')
 
-    def plot(self, measure='incidence_rate_ratio', scale='linear', center=1, **plot_kwargs):
+    def plot(self, measure='incidence_rate_ratio', scale='linear', center=1, **errorbar_kwargs):
         """Plot the risk ratios or the risks along with their corresponding confidence intervals. This option is an
         alternative to summary(), which displays results in a table format.
 
@@ -825,11 +825,11 @@ class IncidenceRateRatio:
             * 'incidence_rate'        : display incidence rates
         scale : str, optional
             Scale for the x-axis. Default is a linear scale. A log-scale can be requested by setting scale='log'
-        color : str, optional
-            Color to display points and confidence limits. Allows any valid matplotlib colors
         center : str, optional
             Sets a reference line. For the incidence rate ratio, the reference line defaults to 1. For incidence rates,
             no reference line is displayed.
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
+            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -838,14 +838,14 @@ class IncidenceRateRatio:
         if measure == 'incidence_rate_ratio':
             ax = _plotter(estimate=self.results['IncRateRatio'], lcl=self.results['IRR_LCL'],
                           ucl=self.results['IRR_UCL'], labels=self.results.index,
-                          center=center, **plot_kwargs)
+                          center=center, **errorbar_kwargs)
             if scale == 'log':
                 ax.set_xscale('log')
             ax.set_title('Incidence Rate Ratio')
         elif measure == 'incidence_rate':
             ax = _plotter(estimate=self.results['IncRate'], lcl=self.results['IncRate_LCL'],
                           ucl=self.results['IncRate_UCL'], labels=self.results.index,
-                          center=np.nan, **plot_kwargs)
+                          center=np.nan, **errorbar_kwargs)
             ax.set_title('Incidence Rate')
             ax.set_xlim([0, 1])
         else:
@@ -997,7 +997,7 @@ class IncidenceRateDifference:
         print('Missing T:   ', self._missing_t)
         print('======================================================================')
 
-    def plot(self, measure='incidence_rate_difference', center=0, **plot_kwargs):
+    def plot(self, measure='incidence_rate_difference', center=0, **errorbar_kwargs):
         """Plot the incidence rate differences or the incidence rates along with their corresponding confidence
         intervals. This option is an alternative to summary(), which displays results in a table format.
 
@@ -1011,6 +1011,8 @@ class IncidenceRateDifference:
         center : str, optional
             Sets a reference line. For the incidence rate difference, the reference line defaults to 0. For incidence
             rates, no reference line is displayed.
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
+            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -1019,12 +1021,12 @@ class IncidenceRateDifference:
         if measure == 'incidence_rate_difference':
             ax = _plotter(estimate=self.results['IncRateDiff'], lcl=self.results['IRD_LCL'],
                           ucl=self.results['IRD_UCL'], labels=self.results.index,
-                          center=center, **plot_kwargs)
+                          center=center, **errorbar_kwargs)
             ax.set_title('Incidence Rate Difference')
         elif measure == 'incidence_rate':
             ax = _plotter(estimate=self.results['IncRate'], lcl=self.results['IncRate_LCL'],
                           ucl=self.results['IncRate_UCL'], labels=self.results.index,
-                          center=np.nan, **plot_kwargs)
+                          center=np.nan, **errorbar_kwargs)
             ax.set_title('Incidence Rate')
             ax.set_xlim([0, 1])
         else:
@@ -1032,31 +1034,27 @@ class IncidenceRateDifference:
         return ax
 
 
-def _plotter(estimate, lcl, ucl, labels, center=0, **plot_kwargs):
-    """Plot functionality to be used by all the measure classes. Hidden functional for all the other plotting
-    functionalities
+def _plotter(estimate, lcl, ucl, labels, center=0, **errorbar_kwargs):
     """
-    ypoints = list(range(len(labels)))
+    Plot functionality to be used by all the measure classes. Internal functional for all the other plotting
+    functionalities.
+
+    The main function is matplotlib.errorbar, see defaults here: https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
+    """
+    ypoints = np.arange(len(labels))
 
     ax = plt.gca()
-    # ax.errorbar(estimate, ypoints, fmt='o', xerr=[lcl, ucl])
-    if np.isnan(center):
-        pass
-    else:
+
+    errorbar_kwargs.setdefault('fmt', 'o')
+    errorbar_kwargs.setdefault('color', 'k')
+
+    absolute_errors_from_estimate = np.abs(estimate.values - np.vstack((lcl, ucl)))
+
+    ax.errorbar(estimate, ypoints, xerr=absolute_errors_from_estimate, **errorbar_kwargs)
+    
+    if not np.isnan(center):
         ax.axvline(center, zorder=1, color='gray')
-    for y, l, u, e in zip(ypoints, lcl, ucl, estimate):
-        if 'color' in plot_kwargs:
-            ax.plot([l, u], [y, y], zorder=2, **plot_kwargs)
-            if 'marker' in plot_kwargs:
-                ax.plot(e, y, zorder=3, **plot_kwargs)
-            else:  # When markers are unspecified, point estimates aren't displayed. This avoids
-                ax.plot(e, y, zorder=3, marker='o', **plot_kwargs)
-        else:  # When color is unspecified, matplotlib will color everything different colors. This avoids that
-            ax.plot([l, u], [y, y], zorder=2, color='k', **plot_kwargs)
-            if 'marker' in plot_kwargs:
-                ax.plot(e, y, zorder=3, color='k', **plot_kwargs)
-            else:
-                ax.plot(e, y, zorder=3, color='k', marker='o', **plot_kwargs)
+
     ax.set_yticklabels(labels)
     ax.set_yticks(ypoints)
     return ax
