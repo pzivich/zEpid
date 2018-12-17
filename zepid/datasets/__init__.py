@@ -247,3 +247,37 @@ def load_leukemia_data():
     df = pd.read_csv(resource_filename('zepid', 'datasets/leukemia.dat'), delim_whitespace=True, index_col=False)
     return df
 
+
+def load_binge_drinking_data():
+    """Loads data from Ahren J et al., "Predicting the Population Health Impacts of Community Interventions: The Case
+    of Alcohol Outlets and Binge Drinking" AJPH 2016. Below is some notes taken from the supplementary materials
+    detailed by the paper authors;
+
+    "The data provided for use with this sample code are simulated. The data are designed to be similar to the real
+    data and associations examined in the main paper. There are 4000 observations representing individuals who are
+    nested in 44 communities (variable name: neighborhood_id). The exposure of interest is neighborhood alcohol outlet
+    density (alc_outlet_density), with values ranging from 39 to 168. The outcome of interest is a  binary indicator of
+    binge drinking (binge_drink), and covariates include gender (male), age (age_categorical), marital status
+    (married), education (education_categorical), and race/ethnicity (race_categorical). Alcohol outlet density and
+    binge drinking were simulated as simple linear functions of the covariates. Thus, unlike the applied example, the
+    relation of outlet density with binge drinking has a linear shape."
+
+    Notes
+    -----
+    Variables included are
+        male: gender (0: female, 1: male)
+        age_categorical: age groups (not clearly defined as to what they refer to)
+        married: marital status
+        education_categorical: categories of education levels
+        race_categorical: categories of race
+        alc_outlet_density: density of alcohol outlets in the neighborhood (continuous)
+        binge_drink: whether individual binge drinks (1: yes, 0: no)
+        neighborhood_id: identifier for groups that individuals are nested in
+
+    Returns
+    -------
+    DataFrame
+        Returns pandas DataFrame
+    """
+    df = pd.read_csv(resource_filename('zepid', 'datasets/binge.dat'), index_col=False)
+    return df
