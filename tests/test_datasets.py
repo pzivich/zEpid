@@ -87,7 +87,6 @@ class TestSciatica:
         assert df.shape[0] == df.dropna().shape[0]
 
 
-
 class TestLeukemia:
 
     def test_return_pandas(self):
@@ -105,3 +104,34 @@ class TestLeukemia:
     def test_no_missing(self):
         df = ze.load_leukemia_data()
         assert df.shape[0] == df.dropna().shape[0]
+
+
+class TestLongitudinal:
+
+    def test_return_pandas(self):
+        df = ze.load_longitudinal_data()
+        assert isinstance(df, type(pd.DataFrame()))
+
+    def test_correct_ncols(self):
+        df = ze.load_longitudinal_data()
+        assert df.shape[1] == 6
+
+    def test_correct_nobs(self):
+        df = ze.load_longitudinal_data()
+        assert df.shape[0] == 2330
+
+
+class TestBingeData:
+
+    def test_return_pandas(self):
+        df = ze.load_binge_drinking_data()
+        assert isinstance(df, type(pd.DataFrame()))
+
+    def test_correct_ncols(self):
+        df = ze.load_binge_drinking_data()
+        assert df.shape[1] == 8
+
+    def test_correct_nobs(self):
+        df = ze.load_binge_drinking_data()
+        assert df.shape[0] == 4000
+
