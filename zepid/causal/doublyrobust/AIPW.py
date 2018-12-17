@@ -2,7 +2,6 @@ import warnings
 import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import links
 from zepid.causal.ipw import propensity_score
 
 
@@ -39,7 +38,7 @@ class AIPW:
         self.df = df.copy()
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, AIPW will drop all missing data. AIPW will"
-                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
+                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations', UserWarning)
         self.df = df.copy().dropna().reset_index()
         self._exposure = exposure
         self._outcome = outcome

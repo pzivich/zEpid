@@ -86,7 +86,8 @@ class TMLE:
         """
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
-                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations')
+                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations', UserWarning)
+
         # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
         self._psi_correspond = measure
         self.df = df.copy().dropna().reset_index()
@@ -349,7 +350,7 @@ class TMLE:
             if len(bounds) > 2:
                 warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
                               'specified bounds are used by the bound statement. So only ' +
-                              str(bounds[0:2]) + ' will be used')
+                              str(bounds[0:2]) + ' will be used', UserWarning)
             if type(bounds[0]) is str or type(bounds[1]) is str:
                 raise ValueError('Bounds must be floats between (0, 1)')
             if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
