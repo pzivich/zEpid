@@ -91,7 +91,7 @@ def measures_check():
     data_set = load_sample_data(False)
     rr = RiskRatio()
     rr.fit(data_set, exposure='art', outcome='dead')
-    rr.plot()
+    rr.plot(fmt='*', ecolor='r', barsabove=True, markersize=25)
     plt.show()
     rd = RiskDifference()
     rd.fit(data_set, exposure='art', outcome='dead')
