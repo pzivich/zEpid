@@ -4,31 +4,30 @@
 
 
 Measures
-'''''''''''''''''''''''''''''''''
-
-*zEpid* can be used to directly calculate association/effect measures directly from a pandas dataframe object. For the
-following examples, we will load the following dataset (kindly provided by Jess Edwards) that comes with *zEpid*. This
-data set can be loaded using the following command
+''''''''
+*zEpid* can be used to directly calculate association/effect measures directly from a pandas ``DataFrame object``. For
+the following examples, we will load the following data set (kindly provided by Jess Edwards) that comes with *zEpid*.
+This data set can be loaded using the following command
 
 .. code:: python
 
-   import zepid as ze
-   df = ze.load_sample_data(timevary=False)
+   from zepid import load_sample_data, RiskRatio
+
+   df = load_sample_data(timevary=False)
 
 
 Measures of Effect/Association
 ------------------------------
-
 There are several association measures currently implemented. The risk ratio can be calculated with the ``RiskRatio``
-class object. The estimates, along with the confidence intervals are generated with the ``RiskRatio.fit()``. Results
-are printed to the console with ``RiskRatio.summary()``. As of v0.3.0, ``RiskRatio`` became a python class object. Users
-are able to select specific values from ``RiskRatio``, such as risks (``RiskRatio.risks``), risk ratio
-(``RiskRatio.risk_ratio``), and standard error / confidence limits (``RiskRatio.results``).
+class. The estimates, along with the confidence intervals are generated with the ``RiskRatio.fit()``. Results
+are printed to the console with ``RiskRatio.summary()``. Users are able to select specific values from ``RiskRatio``,
+such as risks (``RiskRatio.risks``), risk ratio (``RiskRatio.risk_ratio``), and standard error / confidence limits
+(``RiskRatio.results``). Lastly, plots for either the risk ratio(s) or risks can be generated via ``RiskRatio.plot()``
 
 .. code:: python
 
-   rr = ze.RiskRatio()
-   rr.fit(df,exposure='art',outcome='dead')
+   rr = RiskRatio()
+   rr.fit(df, exposure='art', outcome='dead')
    rr.summary()
 
 Which will produce the following output
@@ -59,32 +58,22 @@ Which will produce the following output
    ======================================================================
 
 Other measures currently implemented include risk difference (``RiskDifference``), number needed to treat (``NNT``),
-and odds ratio (``OddsRatio``). These measures can be implemented like the following,
+and odds ratio (``OddsRatio``). These classes implement the same functionalities. Additionally, incidence rate
+measures (ratio and difference) are available as well if the data includes time contributed by each individual
 
 .. code:: python
 
-   rd = ze.RiskDifference()
-   rd.fit(df, exposure='art', outcome='dead')
-   nnt = ze.NNT()
-   nnt.fit(df, exposure='art', outcome='dead')
-   odsr = ze.OddsRatio()
-   odsr.fit(df, exposure='art', outcome='dead')
+   from zepid import IncidenceRateRatio, IncidenceRateDifference
 
-
-Additionally, incidence rate measures (ratio and difference) are available as well if the data includes time
-contributed by each individual
-
-.. code:: python
-
-   irr = ze.IncidenceRateRatio()
+   irr = IncidenceRateRatio()
    irr.fit(df,exposure='art', outcome='dead', time='t')
 
-   ird = ze.IncidenceRateDifference()
+   ird = IncidenceRateDifference()
    ird.fit(df,exposure='art', outcome='dead', time='t')
 
 
 All of the above examples compared a binary exposure variable. If a discrete variable (for example three exposure
-levels 0,1,2) is instead specified as the exposure, then two comparisons will be made (1 vs 0, 2 vs 0). The reference
+levels; 0, 1, 2) is instead specified as the exposure, then two comparisons will be made (1 vs 0, 2 vs 0). The reference
 category can be specified through the ``reference`` option when the class is initialized. See the references section for
 further details on these functions and examples.
 
@@ -94,11 +83,13 @@ Calculations are available for sensitivity and specificity implemented by:
 
 .. code:: python
 
-   sn = ze.Sensitivity()
+   from zepid import Sensitivity, Specificity
+
+   sn = Sensitivity()
    sn.fit(df, test, disease)
    sn.summary()
 
-   sp = ze.Specificity()
+   sp = Specificity()
    sp.fit(df, test, disease)
    sp.summary()
 
@@ -106,25 +97,28 @@ Calculations are available for sensitivity and specificity implemented by:
 *Note* : currently, we do not have an example for these functions. The variable names are placeholders only
 
 Other functionalities
-------------------------------
+---------------------
+Below are other functionalities included in *zEpid* Examples are given for splines, table 1 generator, and interaction
+contrasts
 
 Splines
-^^^^^^^^^^^^
-
+^^^^^^^
 *zEpid* is able to directly calculate splines for inclusion in spline models. For a continuous variable, the are
-implemented through ``zepid.spline``. To implement a basic linear spline with three (automatically) determine knots,
+implemented through ``spline``. To implement a basic linear spline with three (automatically) determine knots,
 the following code is used
 
 .. code:: python
 
-   df[['age_lsp0', 'age_lsp1', 'age_lsp2']] = ze.spline(df, var='age0')
+   from zepid import spline
+
+   df[['age_lsp0', 'age_lsp1', 'age_lsp2']] = spline(df, var='age0')
 
 
 Instead we can generate a quadratic spline by
 
 .. code:: python
 
-   df[['age_qsp0', 'age_qsp1', 'age_qsp2']] = ze.spline(df, var='age0', term=2)
+   df[['age_qsp0', 'age_qsp1', 'age_qsp2']] = spline(df, var='age0', term=2)
 
 
 Any higher order spline can be requested by changing the term argument (ex. ``term=3`` produces cubic splines). The
@@ -132,7 +126,7 @@ number of knots in the spline can be adjusted by specifying the optional  argume
 
 .. code:: python
 
-   df[['age_csp0', 'age_csp1']] = ze.spline(df, var='age0', term=3, n_knots=2)
+   df[['age_csp0', 'age_csp1']] = spline(df, var='age0', term=3, n_knots=2)
 
 
 Furthermore, the user can specify the placement of the knots rather than having them determined
@@ -141,8 +135,7 @@ number of knots specified in ``knots``
 
 .. code:: python
 
-   df[['age_sp30', 'age_sp45']] = ze.spline(df, var='age0', n_knots=2, knots=[30, 45])
-
+   df[['age_sp30', 'age_sp45']] = spline(df, var='age0', n_knots=2, knots=[30, 45])
 
 All of the previous examples are unrestricted splines. If the tails/ends of the spline deviate quite drastically,
 then a restricted spline can be specified. *Note* that a restricted spline returns one less column than the number of
@@ -150,27 +143,29 @@ knots
 
 .. code:: python
 
-   df[['age_rsp0', 'age_rsp1']] = ze.spline(df, var='age0', n_knots=3, restricted=True)
+   df[['age_rsp0', 'age_rsp1']] = spline(df, var='age0', n_knots=3, restricted=True)
 
 
 We will return to the ``spline`` function for graphics guide. Splines are a flexible functional form and we can assess
-the functional form through ``statsmodels`` results and a ``matplotlib`` graph obtained
-from ``zepid.graphics.functional_form_plot``
+the functional form through ``statsmodels`` results and a ``matplotlib`` graph obtained from
+``zepid.graphics.functional_form_plot``
 
 Table 1
-^^^^^^^^^^^^
-
+^^^^^^^
 Are you tired of copying your Table 1 results from raw output to an Excel document? This is something that constantly
 annoys me. In the hopes of making mine (and others') lives easier, I implemented a function that generates a(n)
-(un)stratified descriptive table with specified summary statistics. The returned ``pandas`` dataframe can be output as
+(un)stratified descriptive table with specified summary statistics. The returned pandas ``DataFrame`` can be output as
 a CSV, opened in Excel (or similar software), and final publication edits can be made (relabel columns/rows, set column
 widths, add lines, etc.). The following command generates a descriptive table
 
 .. code:: python
 
+   from zepid import table1_generator
+
    columns = ['art', 'dead', 'age0', 'cd40'] #list of columns of interest
    vars_type = ['category', 'category', 'continuous', 'continuous'] #list of variable types
-   table = ze.table1_generator(df, columns, vars_type)
+
+   table = table1_generator(df, columns, vars_type)
    table.to_csv('table1.csv') #outputting dataframe as a CSV
 
 
@@ -179,8 +174,7 @@ be specified like the following
 
 .. code:: python
 
-   table = ze.table1_generator(df, columns, vars_type, continuous_measure='mean')
-
+   table = table1_generator(df, columns, vars_type, continuous_measure='mean')
 
 The two previous examples were unstratified tables. A stratified table can be stratified by categorical variable,
 specified like the following
@@ -191,21 +185,22 @@ specified like the following
    vars_type = ['category', 'continuous', 'continuous']
    table = ze.table1_generator(df, columns, vars_type, strat_by='dead')
 
-
 I *DO NOT* recommend attempting any operations on these generated ``pandas`` dataframes. They are purely generated for
-formatting your results to an Excel document. Unfortunately, you will still need to do all formating and relabelling in
+formatting your results to an Excel document. Unfortunately, you will still need to do all formatting and relabelling in
 Excel (or other software) to get your table 1 publication ready, but this should make life a little bit easier
 
 Interaction Contrasts
-^^^^^^^^^^^^^^^^^^^^^^
-
+^^^^^^^^^^^^^^^^^^^^^
 Lastly, the interaction contract (IC) and interaction contrast ratio (ICR) can be calculated. Both IC and ICR use
 ``statsmodels`` generalized linear models (``GLM``). The interaction contrast is calculated from a linear risk
 (binomial - identity GLM) implemented by
 
 .. code:: python
 
-   ze.interaction_contrast(df,exposure='art',outcome='dead',modifier='male')
+   from zepid import interaction_contrast, interaction_contrast_ratio, load_sample_data
+
+   df = load_sample_data(False)
+   interaction_contrast(df, exposure='art', outcome='dead', modifier='male')
 
 Which produces the following ``statsmodels`` output and the following
 
@@ -247,7 +242,7 @@ be patient.
 
 .. code:: python
 
-   ze.interaction_contrast_ratio(df,exposure='art',outcome='dead',modifier='male')
+   interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male')
 
 Resulting in the following output
 
@@ -281,8 +276,7 @@ Bootstrapped confidence intervals can be requested by the following
 
 .. code:: python
 
-   ze.interaction_contrast_ratio(df, 'art', 'dead', modifier='male', ci='bootstrap')
-
+   interaction_contrast_ratio(df, 'art', 'dead', modifier='male', ci='bootstrap')
 
 The bootstrapped confidence intervals took several seconds to run. This behavior would be expected since 501 GLM models
 are it in the procedure. Similar confidence intervals are obtained.

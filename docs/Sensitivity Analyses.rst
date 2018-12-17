@@ -4,12 +4,12 @@
 
 
 Sensitivity Analyses
-'''''''''''''''''''''''''''''''''
+''''''''''''''''''''
 Sensitivity analyses are a way to determine the robustness of findings against certain assumptions or unmeasured
 factors. Currently, *zEpid* supports Monte Carlo bias analysis
 
 Trapezoidal Distribution
-===========================
+========================
 NumPy doesn't have a trapezoidal distribution, so this is an implementation. The trapezoid distribution is contains a
 central "zone of indifference" where values are from a uniform distribution. The tails of this distribution reflect the
 uncertainty around the edges of the distribution. I think a visual will explain it more clearly, so let's generate one

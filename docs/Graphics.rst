@@ -4,7 +4,7 @@
 
 
 Graphics
-'''''''''''''''''''''''''''''''''
+''''''''
 
 Several different graphics are implemented through *zEpid* and include the following; functional form assessment,
 p-value plots, spaghetti plots, and effect measure plots (forest plots)
@@ -22,7 +22,7 @@ through ``statsmodels``, a generalized linear model is fit to the functional for
 
 We will now go through some examples. We will look at baseline age (discrete variable) within the data that comes
 with *zEpid* First, we will do some data preparation for later functional form options. We will create a squared term
-and a restricted quadratic spline term (using zepid)
+and a restricted quadratic spline term. First, we set up the data
 
 .. code:: python
 
@@ -35,13 +35,12 @@ and a restricted quadratic spline term (using zepid)
 
 
 Linear 
-^^^^^^^
-
+^^^^^^
 Now that our variables are all prepared, we will look at a basic linear term for ``age0``. 
 
 .. code:: python
 
-   functional_form_plot(df,outcome='dead',var='age0',discrete=True)
+   functional_form_plot(df, outcome='dead', var='age0', discrete=True)
    plt.show()
 
 In the console, the following results will be printed
@@ -85,7 +84,6 @@ In this plot, we can see that there are less individuals in the younger age cate
 
 Quadratic
 ^^^^^^^^^^^
-
 To implement other functional forms besides linear terms, the optional ``f_form`` argument must be supplied. Note that
 any terms specified in the ``f_form`` argument must be part of the data set. We can assess a quadratic functional form
 like the following
@@ -101,8 +99,7 @@ The ``f_form`` argument is used to specify any functional form variables that ar
 
 Spline
 ^^^^^^^^^^^
-
-One important note is that ``functional_form_plot`` returns a ``matplotlib`` axes object, meansing that further items
+One important note is that ``functional_form_plot`` returns a ``matplotlib`` axes object, meaning that further items
 can be added to the plot. We will show the functionality of this through the spline example. We will add dashed lines
 on our plot to designate where the spline knots are located
 
@@ -117,9 +114,13 @@ on our plot to designate where the spline knots are located
 .. image:: images/zepid_fform4.png
 
 Non-Discrete Variables
-^^^^^^^^^^^^^^^^^^^^^^^
-For non-discrete variables (indicated by ``discrete=False``, the default), that data is binned into categories
+^^^^^^^^^^^^^^^^^^^^^^
+For non-discrete variables (indicated by ``discrete=False``, the default), then data is binned into categories
 automatically. The number of categories is determined via the maximum value minus the minimum divided by 5.
+
+.. math::
+
+    (max(X) - min(X)) / 5
 
 To adjust the number of categories, the continuous variable can be multiplied by some constant. If more categories are
 desired, then the continuous variable can be multiplied by some constant greater than 1. Conversely, if less categories
@@ -138,7 +139,7 @@ If we use the current values, the number of categories is indicated in the conso
    A total of 99 categories were created. If you would like to influence the number of categories 
    the spline is fit to, do the following 
        Increase: multiply by a constant >1
-       Decrease: multiply by a contast <1 and >0
+       Decrease: multiply by a constant <1 and >0
 
 We can see that ``statsmodels`` has an overflow issue in some exponential. We can decrease the number of categories
 within ``cd40`` to see if that fixes this. We will decrease the number of categories by multiplying by ``0.25``.
@@ -152,11 +153,10 @@ within ``cd40`` to see if that fixes this. We will decrease the number of catego
 Now only ``24`` categories are created and it removes the overflow issue.
 
 This concludes the section on functional form assessment. My hope is that this makes functional form assessment much
-easier for users and makes coding much easier/faster. My future plans for this function would be to allow users to
-specify the colors in the plot, however this is not implemented yet
+easier for users and makes coding much easier/faster.
 
 P-value Plot
-====================================
+============
 As described and shown in *Epidemiology* 2nd Edition by K. Rothman, this function is meant to plot the p-value
 distribution for a variable. From this distribution, p-values and confidence intervals can be visualized to compare or
 contrast results. Note that this functionality only works for linear variables (i.e. Risk Difference and log(Risk
@@ -166,7 +166,9 @@ deviation of ``0.042``. We generate the P-value plot from the following code
 
 .. code:: python
 
-   ze.graphics.pvalue_plot(point=-0.049, sd=0.042)
+   from zepid.graphics import pvalue_plot
+
+   pvalue_plot(point=-0.049, sd=0.042)
    plt.show()
 
 Which produces the following plot
@@ -181,8 +183,9 @@ between our data and the systematic review
 .. code:: python
 
    from matplotlib.lines import Line2D
-   ze.graphics.pvalue_plot(point=-0.049, sd=0.042, color='b', fill=False)
-   ze.graphics.pvalue_plot(point=-0.062, sd=0.0231, color='r', fill=False)
+
+   pvalue_plot(point=-0.049, sd=0.042, color='b', fill=False)
+   pvalue_plot(point=-0.062, sd=0.0231, color='r', fill=False)
    plt.legend([Line2D([0], [0], color='b', lw=2),
                Line2D([0], [0], color='r', lw=2)],
               ['Our Study', 'Review'])
@@ -195,7 +198,7 @@ Producing the following plot
 From this we can see that our results are consistent with our hypothetical systematic review.
 
 Spaghetti Plot
-====================================
+==============
 Spaghetti plots are a fun (sometimes useful) way to look for outliers/patterns in longitudinal data. The following is
 an example spaghetti plot using the longitudinal data from zepid and looking at CD4 T cell count over time.
 
@@ -216,10 +219,11 @@ useful for finding extreme outliers in large data sets.
 
 Effect Measure Plots
 ====================
-Effect measure plots are similar to forest plots. Forest plots generally summarize the of various studies and collapse
-the studies into a single summary measure. Effect measure plots are similar but do not use the same summary measure.
-For an example, I am going to replicate Figure 2 from my 2017 paper "Influenza vaccination status and outcomes among
-influenza-associated hospitalizations in Columbus, Ohio (2012-2015)" published in *Epidemiology and Infection*
+Effect measure plots are also referred to as forest plots. Forest plots generally summarize the of various studies and
+collapse the studies into a single summary measure. Effect measure plots are similar but do not use the same summary
+measure. For an example, I am going to replicate Figure 2 from my `2017 paper "Influenza vaccination status and
+outcomes among influenza-associated hospitalizations in Columbus, Ohio
+(2012-2015)" <https://www.ncbi.nlm.nih.gov/pubmed/29032772>`_ published in *Epidemiology and Infection*
 
 The first step to creating the effect measure plot is to create lists containing; labels, point estimates, lower
 confidence limits, and upper confidence limits
@@ -227,6 +231,8 @@ confidence limits, and upper confidence limits
 .. code:: python
 
    import numpy as np
+   from zepid.graphics import EffectMeasurePlot
+
    labs = ['Overall', 'Adjusted', '',
            '2012-2013', 'Adjusted', '',
            '2013-2014', 'Adjusted', '',
@@ -237,12 +243,12 @@ confidence limits, and upper confidence limits
 
 Some general notes about the above code: (1) for blank y-axis labels, a blank string is indicated, (2) for blank
 measure/confidence intervals, ``np.nan`` is specified, (3) for floats ending with a zero, they must be input as
-characters. If floats that end in ``0`` (such as ``0.80``) are put into a list as a float and not a string, the
+characters. If floats that end in ``0`` (such as ``0.80``) are put into a list as a string and not a float, the
 floating ``0`` will be truncated from the table. Now that our data is all prepared, we can now generate our plot
 
 .. code:: python
 
-   p = ze.graphics.EffectMeasurePlot(label=labs, effect_measure=measure, lcl=lower, ucl=upper)
+   p = EffectMeasurePlot(label=labs, effect_measure=measure, lcl=lower, ucl=upper)
    p.labels(scale='log')
    p.plot(figsize=(6.5, 3), t_adjuster=0.02, max_value=2, min_value=0.38)
    plt.tight_layout()
@@ -252,7 +258,7 @@ floating ``0`` will be truncated from the table. Now that our data is all prepar
 
 There are other optional arguments to adjust the plot (colors of points/point shape/etc.). Take a look through the
 function documentation for available options. One unfortunate consequence of how the plot is currently generated, there
-is not option to directly edit the plot outside of the function. This is for future work/revisions to the code.
+is not option to directly edit the plot outside of the function. This is for future revisions to the source code.
 
 *NOTE* There is one part of the effect measure plot that is not particularly pretty. In the ``plot()`` function there
 is an optional argument ``t_adjuster``. This argument changes the alignment of the table so that the table aligns
@@ -262,7 +268,7 @@ be changed by the user manually to find a good table alignment. I recommend usin
 plot size can be changes by the ``figsize`` argument
 
 Receiver-Operator Curves
-====================================
+========================
 Receiver-Operator Curves (ROC) are a fundamental tool for diagnosing the sensitivity and specificity of a test over a
 variety of thresholds. ROC curves can be generated for predicted probabilities from a model or different diagnostics
 thresholds (ex. ALT levels to predict infections). In this example, we will predict the probability of death among the
@@ -275,6 +281,7 @@ predictive model and obtain predicted probabilities.
    import statsmodels.api as sm 
    import statsmodels.formula.api as smf 
    from statsmodels.genmod.families import family,links
+   from zepid.graphics import roc
 
    df = ze.load_sample_data(timevary=False)
    f = sm.families.family.Binomial(sm.families.links.logit) 
@@ -288,7 +295,7 @@ Now with predicted probabilities, we can generate a ROC plot
 
 .. code:: python
 
-   ze.graphics.roc(df.dropna(), true='dead', threshold='predicted')
+   roc(df.dropna(), true='dead', threshold='predicted')
    plt.tight_layout()
    plt.title('Receiver-Operator Curve')
    plt.show()
@@ -300,37 +307,37 @@ output is printed to the console
 
 .. code:: python
 
- ----------------------------------------------------------------------
- Youden's Index:  0.15328818469754796
- Predictive values at Youden's Index 
- 	Sensitivity:  0.6739130434782609
-	Specificity:  0.6857142857142857
- ----------------------------------------------------------------------
+   ----------------------------------------------------------------------
+   Youden's Index:  0.15328818469754796
+   Predictive values at Youden's Index
+      Sensitivity:  0.6739130434782609
+	  Specificity:  0.6857142857142857
+   ----------------------------------------------------------------------
 
-Youden's index is defined as 
+Youden's index is the solution to the following
 
 .. math:: 
 
   Sensitivity + Specificity - 1
 
-Where Youden's index is the value that maximizes the above. Basically, it maximizes both sensitivity and specificity.
+where Youden's index is the value that maximizes the above. Basically, it maximizes both sensitivity and specificity.
 You can learn more from `HERE <https://en.wikipedia.org/wiki/Youden%27s_J_statistic>`_
 
 Dynamic Risk Plots
-====================================
+==================
 Dynamic risk plots allow the visualization of how the risk difference/ratio changes over time. For a published example,
 see `HERE <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/>`_ and discussed further
 `HERE <https://academic.oup.com/aje/article/181/4/246/122265>`_
 
 For this example, we will borrow our results from our IPTW marginal structural model, discussed in the Causal page. We
 will used the fitted survival functions to obtain the risk estimates for our exposed and unexposed groups. These were
-generated from the ``lifelines`` Kaplan Meier curves.
+generated from the ``lifelines`` Kaplan Meier curves (estimated via ``KaplanMeierFitter``).
 
 .. code:: python
 
   a = 1 - kme.survival_function_
   b = 1 - kmu.survival_function_
-  ze.graphics.dynamic_risk_plot(a, b)
+  dynamic_risk_plot(a, b)
   plt.show()
 
 .. image:: images/zepid_msm_rd.png
@@ -340,7 +347,7 @@ ratio plot, with the point and line colors changed
 
 .. code:: python
 
-  ze.graphics.dynamic_risk_plot(a, b, measure='RR', point_color='darkred', line_color='r', scale='log')
+  dynamic_risk_plot(a, b, measure='RR', point_color='darkred', line_color='r', scale='log')
   plt.yticks([0.4, 0.6, 0.8, 1, 2, 4, 6])
   plt.show()
 
@@ -350,7 +357,7 @@ You can also request a log-transformed RR
 
 .. code:: python
   
- ze.graphics.dynamic_risk_plot(a, b, measure='RR', point_color='darkgreen', line_color='g', scale='log-transform')
+ dynamic_risk_plot(a, b, measure='RR', point_color='darkgreen', line_color='g', scale='log-transform')
  plt.show()
 
 .. image:: images/zepid_msm_rr2.png
