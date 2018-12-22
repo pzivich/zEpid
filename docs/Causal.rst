@@ -20,12 +20,11 @@ The g-computation algorithm, also referred to as g-formula, is a method to obtai
 treatment comparisons (Robins 1986). For some introductions to the utility and usage of the g-formula, I recommend
 reading:
 
+`Ahern J et at. 2009 <https://www.ncbi.nlm.nih.gov/pubmed/19270051>`_
 
 `Snowden JM et al. 2011 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3105284/>`_
 
-`Keil AP et al. 2014 <https://www.ncbi.nlm.nih.gov/pubmed/25140837>`_
-
-`Westreich D et al. 2012 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3641816/>`_
+`Ahern J et al. 2016 <https://www.ncbi.nlm.nih.gov/pubmed/27631757>`_
 
 Currently, all implementations of the g-formula in *zEpid* are parametric implementations that use ``statsmodels``
 logistic regression for binary outcomes and ``statsmodels`` linear regression for continuous outcomes.
@@ -34,10 +33,10 @@ To implement the g-formula in the time fixed setting, the ``TimeFixedGFormula`` 
 ``zepid.causal.gformula``. The class is initialized with the data set of interest, the exposure, the outcome, and the
 variable type of the outcome. Currently, only binary or continuous outcomes are implemented. Once initialized, the
 parametric outcome model is specified. After we specify the outcome model, we can obtain our marginal estimates for the
-outcome. I recommend reviewing Snowden et al 2011 for an introduction and further information.
+outcome. I recommend reviewing one of the above articles for further information.
 
 Binary Outcomes
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 By default, ``TimeFixedGFormula`` implements a binary outcome model (i.e. logistic regression). The following is an
 example to obtain estimates of the g-formula for a binary outcome (death) in regards to a binary exposure
 (antiretroviral therapy). First, we will initialize the time-fixed g-formula class
@@ -46,12 +45,14 @@ example to obtain estimates of the g-formula for a binary outcome (death) in reg
 
   import zepid as ze
   from zepid.causal.gformula import TimeFixedGFormula
-  #Preparing dataframe
+
+  # Preparing dataframe
   df = ze.load_sample_data(timevary=False)
-  df[['cd4_rs1','cd4_rs2']] = ze.spline(df,'cd40',n_knots=3,term=2,restricted=True)
-  df[['age_rs1','age_rs2']] = ze.spline(df,'age0',n_knots=3,term=2,restricted=True)
-  #Initializing the g-formula
-  g = TimeFixedGFormula(df,exposure='art',outcome='dead')
+  df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+  df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+  # Initializing the g-formula
+  g = TimeFixedGFormula(df, exposure='art', outcome='dead')
 
 Now that our class is specified, we can fit a model to predict the outcome. This is referred to as the Q-model. For
 user ease, ``TimeFixedGFormula`` refers to this as ``outcome_model()`` instead. We can fit the following outcome model
@@ -123,8 +124,8 @@ two new variables based on CD4 count.
 
 .. code:: python
 
-  df['cd4_1'] = np.where(((df['cd40']>=200)&(df['cd40']<400)),1,0)
-  df['cd4_2'] = np.where(df['cd40']>=400,1,0)
+  df['cd4_1'] = np.where(((df['cd40'] >= 200) & (df['cd40'] < 400)), 1, 0)
+  df['cd4_2'] = np.where(df['cd40'] >= 400, 1, 0)
 
 
 Now we can initialize the g-formula. For multivariate exposures, we will instead pass a list of the disjoint indicator
@@ -132,7 +133,7 @@ terms for our exposure. In our context this corresponds to ``cd4_1`` and ``cd4_2
 
 .. code:: python
 
-  g = TimeFixedGFormula(df,exposure=['art_male','art_female'],outcome='dead')
+  g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead')
   g.outcome_model(model='cd4_1 + cd4_2 + art + male + age0 + age_rs1 + age_rs2 + dvl0')
 
 For multivariate exposures, a custom exposure pattern must be specified. Either ``all`` or ``none`` will generate an
@@ -170,7 +171,7 @@ count for each participant
 
 .. code:: python
 
-  g = TimeFixedGFormula(df,exposure='art',outcome='cd4',outcome_type='continuous')
+  g = TimeFixedGFormula(df, exposure='art', outcome='cd4', outcome_type='continuous')
   g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0 + cd40 + cd4_rs1 + cd4_rs2')
   g.fit(treatment='all')
   g.marginal_outcome
@@ -225,7 +226,8 @@ Then estimate IPMW using ``zepid.causal.ipw.IPMW``
 
   from zepid.causal.ipw import IPMW
   ipm = IPMW(df, 'dead')
-  ipm.fit(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  ipm.regression_models(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  ipm.fit()
   df['mweight'] = ipm.Weight
 
 To fit ``TimeFixedGFormula`` with weighted data, the optional argument ``weights`` is specified. This optional argument
@@ -350,7 +352,8 @@ For further discussion on doubly robust estimators, see
 
 `Robins J et al 2007 <https://arxiv.org/abs/0804.2965>`_
 
-`Glynn AN and Quinn KM 2009 <https://www.cambridge.org/core/journals/political-analysis/article/div-classtitlean-introduction-to-the-augmented-inverse-propensity-weighted-estimatordiv/4B1B8301E46F4432C4DCC91FE20780DB>`_
+`Glynn AN and Quinn KM 2009 <https://www.cambridge.org/core/journals/political-analysis/article/div-classtitlean-intr
+oduction-to-the-augmented-inverse-propensity-weighted-estimatordiv/4B1B8301E46F4432C4DCC91FE20780DB>`_
 
 `Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_
 
@@ -421,7 +424,7 @@ Again, this code may take a little while to run since 1000 regression models are
 models).
 
 Targeted Maximum Likelihood Estimation
---------------------------------------------
+--------------------------------------
 TMLE is a doubly robust method proposed by van der Laan
 (`van der Laan MJ, Rubin D 2006 <https://biostats.bepress.com/ucbbiostat/paper213/>`_). You can read the following
 papers for an introduction to TMLE
@@ -430,36 +433,34 @@ papers for an introduction to TMLE
 
 `Schuler MS, Rose S 2017 <https://www.ncbi.nlm.nih.gov/pubmed/27941068>`_
 
-Currently, only a simple TMLE is implemented. Future work will include variable selection procedures and allow
-predictions to be generated with machine learning algorithms (or other user models). For now, we will go through a
-simple (naive) TMLE.
-
-First, the data is loaded and prepared
+The TMLE implementation allows use of logistic regression models (standard) or user-specified models (like ``sklearn``
+machine learning algorithms or the super learner procedure). We will first demonstrate the logistic regression model
+approach. First, the data is loaded and prepared
 
 .. code:: python
+
+  import zepid as ze
+  from zepid.causal.doublyrobust import TMLE
 
   df = ze.load_sample_data(False)
   df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
 
 Next, the ``zepid.causal.doublyrobust.TMLE`` class is initialized. It is initialized with the pandas dataframe
 containing the data, column name of the exposure, and column name of the outcome. By default, the risk difference is
-estimated. To estimate the risk ratio or odds ratio specify the optional argument ``psi`` to be ``risk_ratio`` or
+estimated. To estimate the risk ratio or odds ratio specify the optional argument ``measure`` to be ``risk_ratio`` or
 ``odds_ratio``, respectively.
 
 .. code:: python
 
-  from zepid.causal.doublyrobust import TMLE
   tmle = TMLE(df, exposure='art', outcome='dead')
 
-After initialization, the exposure model and outcome models are specified. This is the same process as the Augmented
-Inverse Probability Weight fitting procedure.
+After initialization, the exposure model and outcome models are specified. This is the same process as the AIPW fitting
+procedure.
 
 .. code:: python
 
-  tm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                    print_results=False)
-  tm.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                   print_results=False)
+  tm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  tm.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
 
 After both models are specified the TMLE model can be fit. Results can be printed to the console via ``TMLE.summary()``
 
@@ -468,28 +469,23 @@ After both models are specified the TMLE model can be fit. Results can be printe
   tm.fit()
   tm.summary()
 
-I am still learning about TMLE and some of the background processes. The confidence intervals come from influence
-curves. You can see the step-by-step process of basically what ``zepid.causal.doublyrobust.TMLE`` calculates in the
-following `LINK <https://migariane.github.io/TMLE.nb.html>`_ As of version 0.3.2, the formula used to calculate the
-efficient influence curve confidence intervals is based on the formula in ``tmle.R``.
-
-TMLE with custom model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Still deciding if this needs to be separate from the machine learning section... Process is the same as the TMLE with
-machine learning, as described below
+Confidence intervals for TMLE come from influence curves. You can see the step-by-step process of basically what
+``zepid.causal.doublyrobust.TMLE`` calculates in the following `LINK <https://migariane.github.io/TMLE.nb.html>`_ As of
+version 0.4.0, the formula used to calculate the efficient influence curve confidence intervals is based on the
+formulas in ``tmle.R``. For further reading, I recommend Schuler and Rose 2017, or van der Laan's *Targeted Learning*
+book for further information
 
 TMLE with Machine Learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-One of the great things about TMLE is the ability to incorporate Machine Learning models and return valid confidence
+One of the great things about TMLE is the ability to incorporate machine learning models and return valid confidence
 intervals. I recommend reading one of van der Laan's publications or another publication detailing TMLE. The
-``zepid.causal.doublyrobust.TMLE`` class allows using machine learning models (or basically whatever model a user wants
-to use to generate predictions). The one stipulation is that the class which contains the model must have the
-``predict()`` function, which returns predict values for an array / matrix.
+``zepid.causal.doublyrobust.TMLE`` class allows using machine learning models. The one stipulation is that the class
+which contains the model must have the ``fit()`` function, and the ``predict()`` or ``predict_proba()`` functions.
 
 In the following example, I will demonstrate ``zepid.causal.doublyrobust.TMLE`` with a Python implementation of
 SuperLearner (SuPyLearner). You will have to download SuPyLearner from GitHub
 (`original <https://github.com/lendle/SuPyLearner>`_ but I recommend the
-`updated <https://github.com/alexpkeil1/SuPyLearner>`_ since it removes some errors as a result of ``sklearn`` updates).
+`updated <https://github.com/alexpkeil1/SuPyLearner>`_ since it resolves some errors as a result of ``sklearn`` updates).
 
 First, we load the data
 
@@ -514,46 +510,28 @@ is available at their site
 
 .. code:: python
 
-  def SuPyFitter(X,y):
-      svm = SVC(kernel='linear', probability=True, random_state=101)
-      log1 = LogisticRegression(penalty='l1', random_state=201)
-      log2 = LogisticRegression(penalty='l2', random_state=103)
-      randf = RandomForestClassifier(random_state=141)
-      adaboost = AdaBoostClassifier(random_state=505)
-      bayes = GaussianNB()
-      lib = [svm, log1, log2, randf, adaboost, bayes]
-      libnames = ["SVM", "Log_L1", "Log_L2", "Random Forest", "AdaBoost", "Bayes"]
-      sl = supylearner.SuperLearner(lib, libnames, loss="nloglik", K=10)
-      sl.fit(X,y)
-      sl.summarize()
-      return sl
+  svm = SVC(kernel='linear', probability=True, random_state=101)
+  log1 = LogisticRegression(penalty='l1', random_state=201)
+  log2 = LogisticRegression(penalty='l2', random_state=103)
+  randf = RandomForestClassifier(random_state=141)
+  adaboost = AdaBoostClassifier(random_state=505)
+  bayes = GaussianNB()
+  lib = [svm, log1, log2, randf, adaboost, bayes]
+  libnames = ["SVM", "Log_L1", "Log_L2", "Random Forest", "AdaBoost", "Bayes"]
+  sl = supylearner.SuperLearner(lib, libnames, loss="nloglik", K=10)
 
-Now that everything is set up, I can fit each of the SuPyLearner models
+*Note* that the super learner is not fit yet. It will be fit within the TMLE procedure. This is an update change from
+0.3.0 to 0.4.0
 
-.. code:: python
-
-  X = np.asarray(df[['male', 'age0', 'cd40', 'dvl0']])
-  y = np.asarray(df['art'])
-  sl_exp = SuPyFitter(X, y)
-
-  X = np.asarray(df[['art', 'male', 'age0', 'cd40', 'dvl0']])
-  y = np.asarray(df['dead'])
-  sl_out = SuPyFitter(X, y)
-
-Now that all our models are set up and estimated, we can fit TMLE. This is done by calling the
-``zepid.causal.doublyrobust.TMLE`` as standard. However, we add an option to both ``exposure_model`` and
-``outcome_model``. We add the option ``custom_model`` and set it equal to our fitted models. Remember that the fitted
-models **MUST** have the ``predict()`` function which returns the predicted probabilities for an array. This is true
-for SuPyLearner.
-
-One final important item to take note of is the order of the standard ``model`` argument. The order in this model
-**MUST** match the order of the previously fitted models. If it does NOT match, this can result in incorrect estimation.
+To implement super learner with ``zepid.causal.doublyrobust.TMLE`` , we add an option to both ``exposure_model`` and
+``outcome_model``. We add the option ``custom_model`` and set it equal to ``supylearner`` object. Remember that the
+functions **MUST** have the ``fit()`` , and either ``predict()`` or ``predict_proba()`` functions.
 
 .. code:: python
 
   tmle = TMLE(df, 'art', 'dead')
-  tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=sl_exp)
-  tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=sl_out)
+  tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=sl)
+  tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=sl)
   tmle.fit()
   tmle.summary()
 
@@ -561,56 +539,49 @@ One final important item to take note of is the order of the standard ``model`` 
 Comparison between methods
 ----------------------------------------
 For fun, we can demonstrate a comparison between the different methods implemented in ``zepid.causal``. We will display
-these results using ``zepid.graphics.EffectMeasurePlot`` for both Risk Difference and Risk Ratio
-
-.. code:: python
-
-  labs = ['Crude', 'GLM', 'G-formula', 'G-formula w/ IPMW', 'IPTW', 'AIPW', 'TMLE', 'TMLE-ML']
-  measure = [-0.045, np.nan, -0.076, -0.074, -0.082, -0.068, -0.084, -0.091]
-  lower = [-0.129, np.nan, -0.151, -0.142, -0.156, -0.122, -0.154, -0.157]
-  upper = [0.038, np.nan, -0.001, 0.002, -0.007, -0.004, -0.015, -0.024]
-  p = ze.graphics.EffectMeasurePlot(label=labs, effect_measure=measure, lcl=lower, ucl=upper)
-  p.labels(center=0, effectmeasure='RD')
-  p.plot(figsize=(8.5, 4),t_adjuster=0.05, max_value=0.1, min_value=-0.25)
-  plt.tight_layout()
-  plt.show()
-
+these results using ``zepid.graphics.EffectMeasurePlot`` for the Risk Differences
 
 .. image:: images/zepid_effrd.png
 
 Our results are fairly consistent between the methods with similar point estimates and largely overlapping confidence
-intervals. Note that the conditional regression model results (GLM) are not included in the plot. This is because the
-conditional regression models did not converge. This demonstrates an additional utility of these methods over standard
-conditional regression model. Also, the TMLE confidence intervals are much larger than the other methods. I do not have
-an explanation for this observation currently
+intervals. However, the conditional results are different (and suspect since the confidence intervals are so narrow).
 
 Time-Varying Exposures
-==============================================
+=======================
 One of the difficulties of time-varying exposures is to deal with time-varying confounding. For an example baseline
 smoking status may be a confounder for the relationship between exercise and heart disease. Smoking status at ``t=1``
 is a mediator between exercise at ``t=0`` and heart disease at ``t=1``. However, smoking status at ``t=1`` is a
 confounder between exercise at ``t=1`` and heart disease at ``t=2``. In this scenario, smoking status at ``t=1`` is
 both a mediator or confounder, what do we do? We are doomed whether we adjust for it or don't adjust for it. One
 solution is to use an intent-to-treat analysis where we only look at exercise at ``t=0`` as our exposure. This is not
-an ideal solution in all scenarios. The other solution is to use special methods that deal with time-varying exposures
-and subsequent confounding. These methods include the g-formula and IPTW. For a further description of time-varying see
+an ideal solution for all scenarios. To properly account for time-varying exposures and confounders, we use special
+methods. Broadly speaking, most of these methods are referred to as g-methods (g-computation algorithm, inverse
+probability weights of a marginal structural model, and structural nested model).
+
+The methods that currently are implemented in *zEpid* includes the time-varying parametric g-formula, and IPTW. The
+time-varying g-formula can be estimated either through a Monte Carlo procedure, or using sequential regression
+(iterative conditionals). The longitudinal targeted maximum likelihood estimator will be implemented in future versions.
+
+G-Computation Algorithm (Monte Carlo)
+-------------------------------------
+For a description of the time-varying Monte Carlo g-formula, we direct readers to the following resources
 
 `Keil AP et al. 2014 <https://www.ncbi.nlm.nih.gov/pubmed/25140837>`_
 
 `Westreich D et al. 2012 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3641816/>`_
 
-The methods that currently are implemented in *zEpid* includes the time-varying parametric g-formula, and IPTW.
-
-G-computation Algorithm
----------------------------
 Buckle-up this section is going to get a little complex. The main advantage of the g-formula is that it is flexible.
-The hard part of coding the generalized time-varying g-formula is maintaining that flexibility. As a result, things are
-going to get a little complicated. I will attempt to break down the implementation piece by piece. Let's begin our
-g-formula journey!
+The hard part of coding the generalized Monte Carlo time-varying g-formula is maintaining that flexibility. As a result,
+things are going to get a little complicated. I will attempt to break down the implementation piece by piece. Let's
+begin our time-varying g-formula journey!
 
-As standard, we need to do some background data preparation.
+As standard, we need to do some background data preparation. The input dataframe should have multiple rows per person,
+where each row corresponds to a one unit time interval
 
 .. code:: python
+
+  import zepid as ze
+  from zepid.causal.gformula import TimeVaryGFormula
 
   df = ze.load_sample_data(timevary=True)
   df['lag_art'] = df['art'].shift(1)
@@ -627,29 +598,25 @@ As standard, we need to do some background data preparation.
   df['enter_sq'] = df['enter'] ** 2  # entry time
   df['enter_cu'] = df['enter'] ** 3
 
-Now that our dataframe variables are all prepared, we can initialize the ``TimeVaryGFormula`` class. The ``TimeVaryGFormula``
-class is initialized with a unique identifier for each participant, the exposure column name, the outcome column name,
-start time for the interval, and the end time for the interval.
-
-The dataframe should have multiple rows per person, where each row corresponds to a one unit time interval
+Now that our dataframe variables are all prepared, we can initialize the ``TimeVaryGFormula`` class. The
+``TimeVaryGFormula`` class is initialized with a unique identifier for each participant, the exposure column name, the
+outcome column name, start time for the interval, and the end time for the interval. By default, the
+``TimeVaryGFormula`` uses the Monte Carlo estimator. See the following section for a description of the sequential
+regression procedure.
 
 .. code:: python
 
-  import zepid as ze
-  from zepid.causal.gformula import TimeVaryGFormula
-
-  df = ze.load_sample_data(timevary=True)
   g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
 
-Once initialized, we need to fix models for; the outcome, the exposure, and the time-varying confounders.
+Once initialized, we need to fit models for; the outcome, the exposure, and all the time-varying confounders.
 
 Specifying Exposure Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 First, we will fit a logistic regression model for the exposure ``art``. To fit the exposure model, we need to specify
-the independent variables, and any restrictions for the model. We will be using an intent-to-treat assumption (one ART
+the independent variables, and any restrictions for the model. We will be using an intent-to-treat assumption (once ART
 is given, the participant always takes it for the future), so we specify ``g['lag_art']==0``. This fits the exposure
 regression model only to those who have NOT previously taken ART. This argument is optional and should be used depending
-on your theoretical model of exposure and the question you are attempting to answer
+on your theoretical model of exposure and the question you are attempting to answer.
 
 Note that the dataframe is referred to as ``g`` . Similar to the ``TimeFixedGFormula`` , the syntax for ``restriction``
 used the structure of the inner part of a ``pd.loc[...]`` statement. This statement can be linked with other restrictions
@@ -663,12 +630,10 @@ through ``|`` and ``&`` for 'or' and 'and', respectively.
 
 
 Specifying Outcome Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This will produce the summary results of the fitted logistic regression model. This can be suppressed by specifying the
-``print_results=False`` as an option.
-
+~~~~~~~~~~~~~~~~~~~~~~~~
 Next, we will fit the outcome regression model. The syntax for the outcome regression model is similar to the exposure
-model. Similarly, we will restrict the outcome regression model to only those who are uncensored (``drop==0``).
+model. Similarly, we will restrict the outcome regression model to only those who are uncensored (``drop==0`` in this
+data set).
 
 .. code:: python
 
@@ -677,17 +642,17 @@ model. Similarly, we will restrict the outcome regression model to only those wh
   g.outcome_model(out_m, restriction="g['drop']==0")
 
 Specifying Time-Varying Confounder Models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A multitude of time-varying confounder models can be specified. In this example, we will fit two time-varying confounder
 models (one for CD4 T cell count ``cd4`` and diagnosed viral load ``dvl``).
 
 First, we will specify the predictive model for ``dvl``. It takes several inputs. First the ``label`` parameter needs to
 be specified. The ``label`` refers to what order the confounder models are fit within the g-formula. We want the ``dvl``
-model to be fit first, so we set ``label=1``. Next, we need to specify the covariate we are modeling (``covariate=dvl``).
-Next, we specify the predictive model form (*think carefully about what variables are included based on the order of the
-model fitting*). Lastly, we specify the type of variable that the confounder is. ``dvl`` is binary, so we specify
-``var_type='binary'``. Also available is the ``restriction`` option, but we will not be applying any restrictions to our
-model.
+model to be fit first, so we set ``label=1``. Next, we need to specify the covariate we are modeling
+(``covariate='dvl'``). Next, we specify the predictive model form (*think carefully about what variables are included
+based on the order of the model fitting*). Lastly, we specify the type of variable that the confounder is. ``dvl`` is
+binary, so we specify ``var_type='binary'``. Also available is the ``restriction`` option, but we will not be applying
+any restrictions to this confounder model.
 
 .. code:: python
 
@@ -701,14 +666,17 @@ with some restrictions. To account for this, we will use some other options with
 Since we want the CD4 predictive model to be fit after the ``dvl`` model, we set the label argument to be ``label=2``.
 We specify CD4 as the variable to predict, set ``var_type='continuous``, and state the predictive model to use.
 
-Lastly, we will specify a recode option. The recode option executes specified lines of code during the MCMC fitting
-process. For our purposes, we have several restrictions/recoding to apply. Our first line of code to execute is to
-restrict predictions to a value of at least one. This prevents invalid values (like -5) occurring for CD4 count, which
-could cause our model results to be poor. Our next lines of code make new square and cubic terms for the predicted CD4
-counts. Any variable with a flexible form in any other predictive model within the g-formula would need to have this
-recoding option. If not, the variable will remain static (unchanged) in the MCMC process and provide invalid results.
+Lastly, we will specify a recode option. The recode option executes specified lines of code during the Monte Carlo
+fitting process. For our purposes, we have several restrictions/recoding to apply. Our first line of code to execute is
+to restrict predictions to a value of at least one (CD4 count cannot be negative). This prevents invalid values
+(like -5) occurring for CD4 count, which could cause our model results to be poor. Our next lines of code make new
+square and cubic terms for the predicted CD4 counts. Any variable with a flexible form in any other predictive model
+within the g-formula would need to have this recoding option. If not, the variable will remain static (unchanged) in
+the Monte Carlo process and provide invalid results.
+
 I will reiterate here again that careful thought needs to be made into the model order, the variables included in
-predictive models, and any recoding/restrictions that need to be applied in each MCMC step.
+predictive models, and any recoding/restrictions that need to be applied in each Monte Carlo step. If you have further
+questions, or need help applying this, please reach out to us on GitHub.
 
 .. code:: python
 
@@ -725,23 +693,26 @@ Now that we have all our predictive models set, we can estimate the marginal ris
 patterns.
 
 Estimating Marginal Risk
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 After all our models are specified, we first need to check that our model is similar to the observed risk curve. This
-is referred to as the natural course. There is an option to fit the natural course model via ``treatment='natural``.
+is referred to as the natural course. There is an option to fit the natural course model via ``treatment='natural'``.
 However, for our example we made the intent-to-treat assumption. For this we need to specify a custom treatment.
 Essentially, once an individual is treated, they remain treated. This is done by using a similar syntax for custom
 treatments in the ``TimeFixedGFormula``. In our example, we will specify that either ``art`` or ``lag_art`` is equal to
-``1`` (since the custom treatment option gives us access to the model predicted ART exposure)
+``1`` , then their future value of ``art`` is ``1`` (since the custom treatment option gives us access to the model
+predicted ART exposure)
 
 We also need to specify some other parameters. First, we specify a dictionary linking variables to their lagged variable
-names. This allows the MCMC algorithm to lag the variables properly as it goes forward in time. The ART at t=1 will
-become the lagged ART at t=2. All time-varying variables with lagged terms need to be specified as such. Next, we specify
-``sample=10000``, which samples with replacement from initial observations. These are used as the starting points for
-the MCMC. By default, 10000 samples are used. Next, I wrote the optional argument ``t_max`` out. By default
+names. This allows the Monte Carlo algorithm to lag the variables properly as it goes forward in time. The ``art`` at
+``t=1`` will become the ``lag_art`` at ``t=2``. All time-varying variables with lagged terms need to be specified as
+such. Next, we specify ``sample=10000``, which samples with replacement from initial observations. These are used as
+the starting points for the Monte Carlo simulation process. By default, 10000 samples are used. A high number of samples
+should be used to minimize simulation error. Next, I wrote the optional argument ``t_max`` out. By default
 ``TimeVaryGFormula`` uses the maximum time as the stopping point for the MCMC process. The MCMC process can be terminated
 at an earlier iteration point by setting ``t_max`` to the desired stopping point. Lastly is the ``recode`` option. This
 is similar to the ``recode`` option in ``TimeVaryGFormula.add_covariate_model``. This is used to change the functional
-form for the entrance times. Syntax is also similar.
+form for the entrance times or other variables not included in models, but need to be updated throughout the
+Monte Carlo process.
 
 .. code:: python
 
@@ -756,9 +727,9 @@ form for the entrance times. Syntax is also similar.
 
 This may take awhile to run, based on the number of samples and the number of time units to simulate through.
 
-Now that we have the g-formula estimated natural course, we can compared to the observed cases. We will use ``lifelines``
-to fit Kaplan-Meier curves for the last observations for each unique sampled ID. As for the observed data, we will fit
-a Kaplan-Meier curve to the entire observed dataframe.
+Now that we have the g-formula estimated natural course, we can compared to the observed cases. We will use
+``KaplanMeierFitter`` from the ``lifelines`` package to fit Kaplan-Meier curves for the last observations for each
+unique sampled ID. As for the observed data, we will fit a Kaplan-Meier curve to the entire observed dataframe.
 
 We can access the g-formula predicted values through the ``predicted_outcomes`` option. The returned dataframe contains
 all variables that were predicted forward in time.
@@ -787,9 +758,9 @@ curve using Kaplan Meier on the observed data and generate a plot
 
 .. image:: images/zepid_tvg1.png
 
-Based on this plot, I am happy with how the parametric g-formula is specified. We can now estimate some different treatment
-plans. In this example, we will compare the situation where everyone is treated with ART, no one is treated with ART,
-and ART is only given when the CD4 T cell count drops below 250. Below is code for each of the three different
+Based on this plot, I am happy with how the parametric g-formula is specified. We can now estimate some different
+treatment plans. In this example, we will compare the situation where everyone is treated with ART, no one is treated
+with ART, and ART is only given when the CD4 T cell count drops below 250. Below is code for each of the three different
 treatment patterns and the corresponding Kaplan Meier fitting.
 
 .. code:: python
@@ -839,24 +810,99 @@ The risk curves for the three treatment patterns looks like the following
 .. image:: images/zepid_tvg2.png
 
 We can also use the ``zepid.graphics.dynamic_risk_plot`` to generate the risk difference plot comparing all treated
-vs none treated.
+vs all untreated.
 
 .. code:: python
 
-  ze.graphics.dyanmic_risk_plot(1-kma.survival_function_, 1 - kmu.survival_function_)
+  ze.graphics.dynamic_risk_plot(1 - kma.survival_function_, 1 - kmu.survival_function_)
   plt.show()
 
 .. image:: images/zepid_tvg3.png
 
 Confidence Intervals
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 To obtain confidence intervals, nonparametric bootstrapping should be used. Take note that this will take awhile to
 finish (especially if a high number of resampling is used).
 
-As of version 0.2.0, TimeVaryGFormula is slower than SAS. I am working on speeding up TimeVaryGFormula to be competitive
-but this is going to take time. My next plan is to look into Cython. Hopefully, giving me a speed boost. If you are
-interested in optimization problems or have some experience, please contact me on GitHub. I am happy to have all the help
-I can get.
+As of version 0.4.0, TimeVaryGFormula is slower than SAS. If you are interested in optimization problems or have some
+experience with optimization problems, please contact me on GitHub.
+
+G-Computation Algorithm (Sequential Regression)
+-----------------------------------------------
+As demonstrated in the last section, the Monte Carlo time-varying g-formula has lots of errors where model
+miss-specification can occur. One approach around this is to use the sequential regression estimator (also referred to
+as iterative conditionals). This approach only requires specification of the outcome regression model. However, this
+approach does not deal well with sparse survival data. It is best suited for longitudinal data collected at specified
+time-points.
+
+For an in-depth description of the sequential regression g-formula, we direct readers to
+
+`Kreif N et al. 2017 <https://academic.oup.com/aje/article/186/12/1370/3886032>`_
+
+To demonstrate the sequential regression g-formula, we will use a simulated data set. First, we load the necessary
+functions
+
+.. code:: python
+
+  from zepid import load_longitudinal_data
+  from zepid.causal.gformula import TimeVaryGFormula
+
+  df = load_longitudinal_data()
+
+The sequential regression g-formula can be estimated by specifying the ``method='SequentialRegression'`` option in the
+initial ``TimeVaryGFormula``
+
+.. code:: python
+
+  g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t', method='SequentialRegression')
+
+*Note*: for the sequential regression estimator, only the ``time_out`` needs to be specified. ``time_in`` is only
+necessary for the Monte Carlo g-formula.
+
+Specifying Outcome Model
+~~~~~~~~~~~~~~~~~~~~~~~~
+After initialized, the outcome model must be specified. Note that this model will apply to each successive estimation
+(sequential regression) applied to estimate the model. The model is re-fit to each time point for previously predicted
+data. Please see Kreif et al. *AJE* 2017 for a full description
+
+.. code:: python
+
+  g.outcome_model('A + L', print_results=False)
+
+Estimating Marginal Risk
+~~~~~~~~~~~~~~~~~~~~~~~~~
+Now we are ready to estimate the marginal risk under our intervention of interest! This is done by using the fit
+statement with either the treatment keywords, or a custom treatment.
+
+.. code:: python
+
+  g.fit(treatment="all")
+  print(g.predicted_outcomes)
+
+*Note* this treatment applies to the **last** time point observed in the data set (``t=3``). To estimate the marginal
+risk at other time points, the ``t_max`` argument can be specified. To get the marginal risk at ``t=2`` and ``t=1`` , we
+can use the following code
+
+.. code:: python
+
+  g.fit(treatment="all", t_max=2)
+  print(g.predicted_outcomes)
+
+  g.fit(treatment="all", t_max=1)
+  print(g.predicted_outcomes)
+
+Custom treatment can be specified like the following. We will look at an intervention which does not treat any one at
+the second follow-up time.
+
+.. code:: python
+
+  g.fit(treatment="g['t'] != 2")
+
+Confidence Intervals
+~~~~~~~~~~~~~~~~~~~~
+Same as the Monte Carlo g-formula, non-parametric bootstrapping should be used to obtain confidence intervals for the
+sequential regression estimator.
+
 
 Inverse Probability of Treatment Weights
 ------------------------------------------
@@ -870,10 +916,14 @@ version of the data set and do some data prep.
 .. code:: python
 
   import zepid as ze
+  from zepid.causal.ipw import IPTW
+
   df = ze.load_sample_data(timevary=True)
+
   #Generating lagged variables
   df['lagart'] = df.groupby('id')['art'].shift(1)
   df['lagart'] = np.where(df.groupby('id').cumcount() == 0,0,df['lagart'])
+
   #Generating polynomial (quadratic) terms
   df['cd40_q'] = df['cd40']**2
   df['cd40_c'] = df['cd40']**3
@@ -886,8 +936,8 @@ version of the data set and do some data prep.
 
 Now that our data is prepared, we can calculate the weights. Note, in our model we assume that once an individual is
 treated with ART, they are given ART until their death. Essentially, once someone is exposed, our marginal structural
-model assumes that they will always be exposed (ie intent-to-treat). Since we will need to do further manipulation of
-the predicted probabilities, we will have ``zepid.ipw.iptw`` return the predicted probabilities of the denominator and
+model assumes that they will always be exposed (i.e. intent-to-treat). Since we will need to do further manipulation of
+the predicted probabilities, we will have ``IPTW`` return the predicted probabilities of the denominator and
 numerator, respectively. We do this through the following code
 
 .. code:: python
@@ -897,9 +947,10 @@ numerator, respectively. We do this through the following code
           cd40_q + cd40_c + dvl + cd4 + cd4_q + cd4_c'''
   dfs = df.loc[df['lagart']==0].copy()
   ipt = IPTW(dfs,treatment='art')
-  ipt.regression_models(model_denominator=modeld,model_numerator=modeln)
+  ipt.regression_models(model_denominator=modeld, model_numerator=modeln)
   ipt.fit()
   df['p_denom'] = ipt.ProbabilityDenominator
+  df['p_numer'] = ipt.ProbabilityNumerator
 
 Now that we have predicted probabilities, we can calculate our numerator and denominator based on the following conditionals
 
@@ -960,9 +1011,9 @@ You can also create a dynamic risk plot, like the following. See the graphics pa
 
 .. image:: images/zepid_msm_rd.png
 
-LTMLE
-------------------------
-Coming soon, longitudinal TMLE...
+Longitudinal Targeted Maximum Likelihood Estimator
+--------------------------------------------------
+Coming soon
 
 Other Inverse Probability Weights
 ===============================================
@@ -988,7 +1039,8 @@ the model to fit to.
   ipc = IPCW(df, idvar='id', time='t', event='dead', flat_df=True)
 
 When ``flat_df=True``, a check for the generated dataframe is printed to the Terminal. Please use this to verify that the
-long version of the dataframe was created properly
+long version of the dataframe was created properly. In general, it is recommended to convert the data set yourself and
+check for consistency
 
 For the rest of this example, we will use the time-varying version of the example dataframe. For ``IPCW``, we set
 ``flat_df=False`` so no data preparation is done behind the scenes. This is the default for ``IPCW``.
@@ -1067,7 +1119,8 @@ To generate the weights, the fit statement is specified with the model.
 
 .. code:: python
 
-  ipm.fit(model='male + age0 + age0_q + age0_c')
+  ipm.regression_models('male + age0 + age0_q + age0_c')
+  ipm.fit()
 
 The weights can be accessed via the ``IPMW.Weight`` attribute.
 
