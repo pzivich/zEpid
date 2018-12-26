@@ -22,7 +22,7 @@ def graphics_check():
     lower = [np.nan, 0.77, np.nan, np.nan, '0.80', np.nan, np.nan, '0.40', np.nan, np.nan, 0.83]
     upper = [np.nan, 1.15, np.nan, np.nan, 1.84, np.nan, np.nan, 0.85, np.nan, np.nan, 1.44]
     p = EffectMeasurePlot(label=labs, effect_measure=measure, lcl=lower, ucl=upper)
-    p.plot()
+    p.plot(figsize=[7, 4])
     plt.show()
 
     # 2) Check Functional form plots
@@ -171,7 +171,7 @@ def mc_gformula_check():
           lags={'art': 'lag_art',
                 'cd4': 'lag_cd4',
                 'dvl': 'lag_dvl'},
-          sample=10000,t_max=None,
+          sample=10000, t_max=None,
           in_recode=("g['enter_sq'] = g['enter']**2;"
                      "g['enter_cu'] = g['enter']**3"))
     gf = g.predicted_outcomes

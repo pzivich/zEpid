@@ -187,7 +187,38 @@ class TestIPMW:
         with pytest.raises(ValueError):
             IPMW(mdata, missing_variable='L', stabilized=True)
 
-    # TODO add tests after update from Docs_overhaul
+    def test_missing_count(self, mdata):
+        ipm = IPMW(mdata, missing_variable='M', stabilized=True)
+        assert 6 == np.sum(ipm.df['_observed_indicator_'])
+        assert 4 == np.sum(1 - ipm.df['_observed_indicator_'])
+
+    def test_missing_count2(self):
+        df = load_sample_data(False)
+        ipm = IPMW(df, missing_variable='dead', stabilized=True)
+        assert 517 == np.sum(ipm.df['_observed_indicator_'])
+        assert 30 == np.sum(1 - ipm.df['_observed_indicator_'])
+
+    def test_error_numerator_with_unstabilized(self):
+        df = load_sample_data(False)
+        ipm = IPMW(df, missing_variable='dead', stabilized=False)
+        with pytest.raises(ValueError):
+            ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40', model_numerator='male')
+
+    def test_unstabilized_weights(self):
+        df = load_sample_data(False)
+        ipm = IPMW(df, missing_variable='dead', stabilized=False)
+        ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40')
+        ipm.fit()
+        npt.assert_allclose(np.mean(ipm.Weight), 1.0584533)
+        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.0212298, rtol=1e-5)
+
+    def test_stabilized_weights(self):
+        df = load_sample_data(False)
+        ipm = IPMW(df, missing_variable='dead', stabilized=True)
+        ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40')
+        ipm.fit()
+        npt.assert_allclose(np.mean(ipm.Weight), 1.0004029)
+        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.0200655, rtol=1e-5)
 
 
 class TestIPCW:
