@@ -172,7 +172,7 @@ class EffectMeasurePlot:
         tval = []
         ytick = []
         for i in range(len(self.df)):
-            if np.isnan(self.df['OR2'][i]) is False:
+            if not np.isnan(self.df['OR2'][i]):
                 if ((isinstance(self.df['OR'][i], float)) & (isinstance(self.df['LCL'][i], float)) &
                         (isinstance(self.df['UCL'][i], float))):
                     tval.append([round(self.df['OR2'][i], decimal), (
