@@ -17,7 +17,11 @@ demonstrates how to calculated cumulative probabilities for multiple time points
 All calculator functions now return named tuples. The returned tuples can be index via ``returned[0]`` or 
 ``returned.point_estimate``
 
+Documentation has been overhauled for all functions and at ReadTheDocs
+
 Tests have been added for all currently available functions. 
+
+Travis CI has been integrated for continuous testing
 
 **MINOR CHANGES**:
 
@@ -28,6 +32,9 @@ used ``StandardDifference``. This change is to follow PEP guidelines
 
 The ``psi`` argument has been replaced with ``measure`` in ``TMLE``. The print out still refers to psi. This update is 
 to help new users better understand what the argument is for
+
+Better errors for ``IPTW`` and ``IPMW``, when a unstabilized weight is requested but a numerator for the model is 
+specified
 
 #### v0.3.2
 **MAJOR CHANGES**:
