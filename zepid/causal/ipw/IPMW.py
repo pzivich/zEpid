@@ -54,8 +54,12 @@ class IPMW:
         self.df['__denom__'] = dmodel.predict(self.df)
         self.denominator_model = True
 
-        nmodel = propensity_score(self.df, '_observed_indicator_ ~ ' + model_numerator, print_results=print_results)
-        self.df['__numer__'] = nmodel.predict(self.df)
+        if self.stabilized is True:
+            nmodel = propensity_score(self.df, '_observed_indicator_ ~ ' + model_numerator, print_results=print_results)
+            self.df['__numer__'] = nmodel.predict(self.df)
+        else:
+            if model_numerator != '1':
+                raise ValueError('Argument for model_numerator is only used for stabilized=True')
 
     def fit(self):
         """

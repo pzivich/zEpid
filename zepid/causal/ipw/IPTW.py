@@ -131,7 +131,7 @@ class IPTW:
                                                     print_results=print_results)
         else:
             if model_numerator != '1':
-                warnings.warn('Argument for model_numerator is only used for stabilized=True')
+                raise ValueError('Argument for model_numerator is only used for stabilized=True')
 
     def fit(self):
         """Uses the specified regression models from 'regression_models' to generate the corresponding inverse
