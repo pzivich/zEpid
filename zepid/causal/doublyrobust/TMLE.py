@@ -115,13 +115,9 @@ class TMLE:
         model : str
             Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
         custom_model : optional
-            Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
-            This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
-            any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
-            logistic regression. Please see online for an example
-            NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
-            The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
-            to unexpected estimates
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
@@ -173,13 +169,9 @@ class TMLE:
         model : str
             Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
         custom_model : optional
-            Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
-            This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
-            any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
-            logistic regression. Please see online for an example
-            NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
-            The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
-            to unexpected estimates
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
