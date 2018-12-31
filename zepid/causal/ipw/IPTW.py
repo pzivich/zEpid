@@ -2,9 +2,11 @@ import warnings
 import math
 import patsy
 import numpy as np
-from scipy import stats
+from scipy.stats.kde import gaussian_kde
 import matplotlib.pyplot as plt
 from .utils import propensity_score
+
+from zepid.calc import probability_to_odds
 
 
 class IPTW:
@@ -213,13 +215,16 @@ class IPTW:
         self.ProbabilityDenominator = self.df['__denom__']
         self.ProbabilityNumerator = self.df['__numer__']
 
-    def plot_kde(self, bw_method='scott', fill=True, color_e='b', color_u='r'):
+    def plot_kde(self, measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
         """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
         kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
         Alternative option to the boxplot of probabilities
 
         Parameters
         ------------
+        measure : str, optional
+            Measure to plot. Options include either the probabilities or log-odds stratified by treatment received.
+            Default is probabilities (measure='probability'). Log-odds can be requested via measure='logit'
         bw_method : str, optional
             Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
         fill : bool, optional
@@ -233,37 +238,70 @@ class IPTW:
         ---------------
         matplotlib axes
         """
-        x = np.linspace(0, 1, 10000)
-        density_t = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
-                                           bw_method=bw_method)
-        density_u = stats.kde.gaussian_kde(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna(),
-                                           bw_method=bw_method)
+        if measure == 'probability':
+            x = np.linspace(0, 1, 10000)
+            density_t = gaussian_kde(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
+                                     bw_method=bw_method)
+            density_u = gaussian_kde(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna(),
+                                     bw_method=bw_method)
+        elif measure == 'logit':
+            t = np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna()))
+            density_t = gaussian_kde(t, bw_method=bw_method)
+
+            u = np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna()))
+            density_u = gaussian_kde(u, bw_method=bw_method)
+            x = np.linspace(np.min((np.min(t), np.min(u))) - 1, np.max((np.max(t), np.max(u))) + 1, 10000)
+        else:
+            raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
+                             "'probability' or 'logit")
+
         ax = plt.gca()
         if fill:
             ax.fill_between(x, density_t(x), color=color_e, alpha=0.2, label=None)
             ax.fill_between(x, density_u(x), color=color_u, alpha=0.2, label=None)
         ax.plot(x, density_t(x), color=color_e, label='Treat = 1')
         ax.plot(x, density_u(x), color=color_u, label='Treat = 0')
-        ax.set_xlabel('Probability')
+        if measure == 'probability':
+            ax.set_xlabel('Probability')
+        else:
+            ax.set_xlabel('Log-Odds')
         ax.set_ylabel('Density')
         ax.legend()
         return ax
 
-    def plot_boxplot(self):
+    def plot_boxplot(self, measure='probability'):
         """Generates a stratified boxplot that can be used to visually check whether positivity may be violated,
         qualitatively. Alternative option to the kernel density plot.
+
+        Parameters
+        ----------
+        measure : str, optional
+            Measure to plot. Options include either the probabilities or log-odds stratified by treatment received.
+            Default is probabilities (measure='probability'). Log-odds can be requested via measure='logit'
 
         Returns
         -------------
         matplotlib axes
         """
-        boxes = (self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
-                 self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna())
+        if measure == 'probability':
+            boxes = (self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
+                     self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna())
+
+        elif measure == 'logit':
+            boxes = (np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna())),
+                     np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna())))
+        else:
+            raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
+                             "'probability' or 'logit")
+
         labs = ['Treat = 1', 'Treat = 0']
         meanpointprops = dict(marker='D', markeredgecolor='black', markerfacecolor='black')
         ax = plt.gca()
         ax.boxplot(boxes, labels=labs, meanprops=meanpointprops, showmeans=True)
-        ax.set_ylabel('Probability')
+        if measure == 'probability':
+            ax.set_ylabel('Probability')
+        else:
+            ax.set_ylabel('Log-Odds')
         return ax
 
     def positivity(self, decimal=3):

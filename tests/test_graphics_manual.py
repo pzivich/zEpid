@@ -120,6 +120,7 @@ def senstivity_check():
     mcrr.prop_confounder_unexposed(trapezoidal(mini=0.55, mode1=0.58, mode2=0.62, maxi=0.65, size=10000))
     mcrr.fit()
     mcrr.plot()
+    plt.show()
 
 
 def causal_check():
@@ -132,7 +133,11 @@ def causal_check():
     ipt.fit()
     ipt.plot_kde()
     plt.show()
+    ipt.plot_kde(measure='logit')
+    plt.show()
     ipt.plot_boxplot()
+    plt.show()
+    ipt.plot_boxplot(measure='logit')
     plt.show()
 
 
@@ -189,5 +194,5 @@ def mc_gformula_check():
 # graphics_check()
 # senstivity_check()
 # measures_check()
-# causal_check()
+causal_check()
 # mc_gformula_check()
