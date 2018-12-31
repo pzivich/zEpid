@@ -1,5 +1,6 @@
 import warnings
 import math
+import patsy
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -106,7 +107,8 @@ class IPTW:
             raise ValueError('Please specify one of the currently supported weighting schemes: ' +
                              'population, exposed, unexposed')
 
-    def regression_models(self, model_denominator, model_numerator='1', print_results=True):
+    def regression_models(self, model_denominator, model_numerator='1', print_results=True,
+                          custom_model_denominator=None, custom_model_numerator=None):
         """Logistic regression model(s) for propensity score models. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
@@ -123,15 +125,77 @@ class IPTW:
             also only used when calculating stabilized weights
         print_results : bool, optional
             Whether to print the model results from the regression models. Default is True
+        custom_model_denominator : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
+        custom_model_numerator : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
+
+        Notes
+        -----
+        If custom models are used, it is important that GEE is used to obtain the variance. Bootstrapped confidence
+        intervals are incorrect with the usage of some machine learning models
         """
-        self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
-                                                  print_results=print_results)
+        # Calculating denominator probabilities
+        if custom_model_denominator is None:
+            self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
+                                                      print_results=print_results)
+            d = self.denominator_model.predict(self.df)
+        else:
+            data = patsy.dmatrix(model_denominator + ' - 1', self.df)
+            try:
+                fm = custom_model_denominator.fit(X=data, y=self.df[self.ex])
+            except TypeError:
+                raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                                "covers both sklearn and supylearner. If there is a predictive model you would "
+                                "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                                "can work on adding support")
+            if print_results and hasattr(fm, 'summarize'):
+                fm.summarize()
+            if hasattr(fm, 'predict_proba'):
+                d = fm.predict_proba(data)[:, 1]
+            elif hasattr(fm, 'predict'):
+                d = fm.predict(data)
+            else:
+                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+            self.denominator_model = fm
+
+        self.df['__denom__'] = d
+
+        # Calculating numerator probabilities (if stabilized)
         if self.stabilized is True:
-            self.numerator_model = propensity_score(self.df, self.ex + ' ~ ' + model_numerator,
-                                                    print_results=print_results)
+            if custom_model_numerator is None:
+                self.numerator_model = propensity_score(self.df, self.ex + ' ~ ' + model_numerator,
+                                                        print_results=print_results)
+                n = self.numerator_model.predict(self.df)
+
+            else:
+                data = patsy.dmatrix(model_numerator + ' - 1', self.df)
+                try:
+                    fm = custom_model_numerator.fit(X=data, y=self.df[self.ex])
+                except TypeError:
+                    raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                                    "covers both sklearn and supylearner. If there is a predictive model you would "
+                                    "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                                    "can work on adding support")
+                if print_results and hasattr(fm, 'summarize'):
+                    fm.summarize()
+                if hasattr(fm, 'predict_proba'):
+                    n = fm.predict_proba(data)[:, 1]
+                elif hasattr(fm, 'predict'):
+                    n = fm.predict(data)
+                else:
+                    raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+        # If unstabilized, numerator is always 1
         else:
             if model_numerator != '1':
                 raise ValueError('Argument for model_numerator is only used for stabilized=True')
+            n = 1
+        self.df['__numer__'] = n
 
     def fit(self):
         """Uses the specified regression models from 'regression_models' to generate the corresponding inverse
@@ -145,12 +209,6 @@ class IPTW:
         if self.denominator_model is None:
             raise ValueError('No model has been fit to generated predicted probabilities')
 
-        self.df['__denom__'] = self.denominator_model.predict(self.df)
-        if self.stabilized:
-            n = self.numerator_model.predict(self.df)
-        else:
-            n = 1
-        self.df['__numer__'] = n
         self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
         self.ProbabilityDenominator = self.df['__denom__']
         self.ProbabilityNumerator = self.df['__numer__']

@@ -6,6 +6,7 @@ import pandas.testing as pdt
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import family, links
+from sklearn.linear_model import LogisticRegression
 
 from zepid import load_sample_data, spline
 from zepid.causal.ipw import IPTW, IPMW, IPCW
@@ -169,6 +170,20 @@ class TestIPTW:
         linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
         npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
         npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
+
+    def test_custom_models(self, sdata):
+        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+        logd = LogisticRegression(penalty='l1', C=1.0, random_state=203)
+
+        ipt = IPTW(sdata, treatment='art', standardize='unexposed', stabilized=True)
+        ipt.regression_models(model, custom_model_denominator=logd)
+        ipt.fit()
+        sdata['iptw'] = ipt.Weight
+
+        # Estimating GEE
+        ind = sm.cov_struct.Independence()
+        f = sm.families.family.Binomial(sm.families.links.identity)
+        smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
 
     # TODO add standardized differences check (after adding the plot functionality)
 
