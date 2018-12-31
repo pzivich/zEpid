@@ -194,5 +194,5 @@ def mc_gformula_check():
 # graphics_check()
 # senstivity_check()
 # measures_check()
-causal_check()
+# causal_check()
 # mc_gformula_check()
