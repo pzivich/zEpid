@@ -2,7 +2,10 @@ Data sets
 =========
 Descriptions of the data sets included within zEpid
 
+.. automodule:: zepid
+
 .. autosummary::
+  :toctree: generated/
 
   load_sample_data
   load_ewing_sarcoma_data
