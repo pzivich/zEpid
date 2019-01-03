@@ -131,6 +131,8 @@ def causal_check():
     ipt = IPTW(data, treatment='art', stabilized=True)
     ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     ipt.fit()
+    ipt.plot_love()
+    plt.show()
     ipt.plot_kde()
     plt.show()
     ipt.plot_kde(measure='logit')

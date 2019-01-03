@@ -2,6 +2,7 @@ import warnings
 import math
 import patsy
 import numpy as np
+import pandas as pd
 from scipy.stats.kde import gaussian_kde
 import matplotlib.pyplot as plt
 from .utils import propensity_score
@@ -47,14 +48,14 @@ class IPTW:
         df : DataFrame
             Pandas dataframe object containing all variables of interest
         treatment : str
-            Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment, while 0
-            indicates no treatment
+            Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment,
+            while 0 indicates no treatment
         stabilized : bool, optional
             Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
         standardize : str, optional
-            Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. See Sato
-            & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the exposed or
-            unexposed is also referred to as SMR weighting. Options for standardization are:
+            Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. See
+            Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the
+            exposed or unexposed is also referred to as SMR weighting. Options for standardization are:
             * 'population'    :   weight to entire population
             * 'exposed'       :   weight to exposed individuals
             * 'unexposed'     :   weight to unexposed individuals
@@ -80,21 +81,20 @@ class IPTW:
         >>>ipt.fit()
 
         Diagnostics
-        1) Standard differences
-        >>>ipt.StandardizedDifference('male', var_type='binary')
-        >>>ipt.StandardizedDifference('age0', var_type='continuous')
-
-        2) Positivity
+        - Positivity
         >>>ipt.positivity()
 
-        3) Plots
         >>>ipt.plot_boxplot()
         >>>plt.show()
+
         >>>ipt.plot_kde()
         >>>plt.show()
+        - Balance
+
         """
         self.denominator_model = None
         self.numerator_model = None
+        self.__mdenom = None
 
         self.Weight = None
         self.ProbabilityNumerator = None
@@ -142,6 +142,7 @@ class IPTW:
         intervals are incorrect with the usage of some machine learning models
         """
         # Calculating denominator probabilities
+        self.__mdenom = model_denominator
         if custom_model_denominator is None:
             self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
                                                       print_results=print_results)
@@ -214,6 +215,7 @@ class IPTW:
         self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
         self.ProbabilityDenominator = self.df['__denom__']
         self.ProbabilityNumerator = self.df['__numer__']
+        self.df['iptw'] = self.df['__numer__'] / self.df['__denom__']
 
     def plot_kde(self, measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
         """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
@@ -340,7 +342,49 @@ class IPTW:
         print('Maximum weight:\t\t\t', round(self._pos_max, decimal))
         print('----------------------------------------------------------------------')
 
-    def standardized_difference(self, variable, var_type, decimal=3):
+    def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
+        """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
+        this plot are available in Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
+
+        """
+        # Step 0: process formula with patsy
+        vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
+        w_diff = []
+        u_diff = []
+        vlabel = []
+
+        # Step 1: for loop to calculate each standardized mean difference
+        for v in vars.columns:
+            # parse out the variable type
+            vtype = self._var_detector(self.df[v])
+            # calculate the absolute standardized difference
+            wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
+            w_diff.append(wsmd)
+            usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
+            u_diff.append(usmd)
+            vlabel.append(v)
+
+        # Step 2: put into data frame
+        to_plot = pd.DataFrame()
+        to_plot['varia'] = vlabel
+        to_plot['w_smd'] = np.abs(w_diff)
+        to_plot['u_smd'] = np.abs(u_diff)
+        to_plot = to_plot.sort_values(by='u_smd', ascending=True).reset_index(drop=True)
+        print(to_plot)
+
+        # Step 3: generate plot
+        ax = plt.gca()
+        ax.plot(to_plot.u_smd, to_plot.index, shape_unweighted, c=color_unweighted)
+        ax.plot(to_plot.w_smd, to_plot.index, shape_weighted, c=color_weighted)
+        ax.set_xlim([0, np.max([np.max(to_plot['w_smd']), np.max(to_plot['u_smd'])]) + 0.5])
+        ax.set_xlabel('Absolute Standardized Difference')
+        ax.axvline(0.1, color='gray')
+        ax.set_yticks([i for i in range(to_plot.shape[0])])
+        ax.set_yticklabels(to_plot['varia'])
+        return ax
+
+
+    def standardized_difference(self, variable, var_type, weighted=True):
         """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
@@ -351,38 +395,45 @@ class IPTW:
             Label for variable to calculate the standardized difference
         var_type : str
             Variable type. Options are 'binary' or 'continuous'
-        decimal : int, optional
-            Decimal places to display in results. Default is 3
+        weighted : bool, optional
+            Whether to return the weighted standardized mean difference or the unweighted. Default is to return the
+            weighted.
 
         Returns
         --------------
         None
             Prints the positivity results to the console but does not return any objects
         """
-        # TODO add plotter of this... (needs variable type detector, patsy extractor, loop to calculate, plot df)
         if var_type == 'binary':
-            wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
-            wt2 = np.sum(self.df.loc[(self.df[self.ex] == 1)].dropna()['iptw'])
+            if weighted:
+                wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
+                wt2 = np.sum(self.df.loc[(self.df[self.ex] == 1)].dropna()['iptw'])
+                wn1 = np.sum(self.df.loc[(self.df[variable] == 1) & (self.df[self.ex] == 0)]['iptw'].dropna())
+                wn2 = np.sum(self.df.loc[self.df[self.ex] == 0]['iptw'].dropna())
+            else:
+                wt1 = self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna().shape[0]
+                wt2 = self.df.loc[(self.df[self.ex] == 1)]['iptw'].dropna().shape[0]
+                wn1 = self.df.loc[(self.df[variable] == 1) & (self.df[self.ex] == 0)]['iptw'].dropna().shape[0]
+                wn2 = self.df.loc[self.df[self.ex] == 0]['iptw'].dropna().shape[0]
             wt = wt1 / wt2
-            wn1 = np.sum(self.df.loc[(self.df[variable] == 1) & (self.df[self.ex] == 0)]['iptw'].dropna())
-            wn2 = np.sum(self.df.loc[self.df[self.ex] == 0]['iptw'].dropna())
             wn = wn1 / wn2
-            wsmd = (wt - wn) / math.sqrt((wt*(1 - wt) + wn*(1 - wn))/2)
+            smd = (wt - wn) / math.sqrt((wt*(1 - wt) + wn*(1 - wn))/2)
+
         elif var_type == 'continuous':
-            wmn, wmt = self._weighted_avg(self.df, v=variable, w='iptw', t=self.ex)
-            wsn, wst = self._weighted_std(self.df, v=variable, w='iptw', t=self.ex, xbar=[wmn, wmt])
-            wsmd = (wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2)
+            if weighted:
+                wmn, wmt = self._weighted_avg(self.df, v=variable, w='iptw', t=self.ex)
+                wsn, wst = self._weighted_std(self.df, v=variable, w='iptw', t=self.ex, xbar=[wmn, wmt])
+            else:
+                wmn = np.mean(self.df[self.df[self.ex] == 0][variable])
+                wmt = np.mean(self.df[self.df[self.ex] == 1][variable])
+                wsn = np.std(self.df[self.df[self.ex] == 1][variable], ddof=1)
+                wst = np.std(self.df[self.df[self.ex] == 1][variable], ddof=1)
+            smd = (wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2)
+
         else:
             raise ValueError('The only variable types currently supported are binary and continuous')
-        print('----------------------------------------------------------------------')
-        print('IPW Diagnostic for balance: Standardized Differences')
-        if var_type == 'binary':
-            print('\tBinary variable: ' + variable)
-        if var_type == 'continuous':
-            print('\tContinuous variable: ' + variable)
-        print('----------------------------------------------------------------------')
-        print('Weighted SMD: \t', round(wsmd, decimal))
-        print('----------------------------------------------------------------------')
+
+        return smd
 
     def _weight_calculator(self, df, denominator, numerator):
         """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
@@ -449,3 +500,15 @@ class IPTW:
             a = ((n1 / (d1 - d2)) * n2)
             l.append(a)
         return l[0], l[1]
+
+    @staticmethod
+    def _var_detector(variable):
+        """This function detects whether the input variable column is a binary variable or a continuous variable. It is
+        used in the background for the Love plot, so that the standardized mean differences are calculated appropriately
+
+        Returns either 'binary' or 'continuous'
+        """
+        if variable.dropna().isin([0, 1]).all():
+            return 'binary'
+        else:
+            return 'continuous'

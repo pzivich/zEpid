@@ -185,7 +185,18 @@ class TestIPTW:
         f = sm.families.family.Binomial(sm.families.links.identity)
         smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
 
-    # TODO add standardized differences check (after adding the plot functionality)
+    def test_variable_detector(self):
+        df = pd.DataFrame()
+        df['bin'] = [0, 1, 0, np.nan]
+        df['con'] = [0.1, 0.0, 1.0, 1.1]
+        df['dis'] = [0, 1, 3, 5]
+        df['boo'] = [True, True, False, True]
+        assert 'binary' == IPTW._var_detector(df['bin'])
+        assert 'continuous' == IPTW._var_detector(df['con'])
+        assert 'continuous' == IPTW._var_detector(df['dis'])
+        assert 'binary' == IPTW._var_detector(df['boo'])
+
+    # TODO add standardized differences checks (after adding the plot functionality)
 
 
 class TestIPMW:
