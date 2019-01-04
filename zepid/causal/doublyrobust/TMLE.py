@@ -11,7 +11,7 @@ from zepid.calc import probability_to_odds
 
 
 class TMLE:
-    def __init__(self, df, exposure, outcome, measure='risk_difference', alpha = 0.05):
+    def __init__(self, df, exposure, outcome, measure='risk_difference', alpha=0.05):
         """Implementation of a single time-point target maximum likelihood estimator. It uses standard logistic
         regression models to calculate Psi. The TMLE estimator allows a standard logistic regression to be used.
         Alternatively, users are able to directly input predicted outcomes from other methods (like machine learning
@@ -361,4 +361,122 @@ class TMLE:
         return v
 
 
-# TODO longitudinal TMLE; estimated by E[...E[Y_n|A=abar]...] working from center to outside
+class LTMLE:
+    def __init__(self, df, exposure, outcome, id, time, measure='risk_difference', alpha=0.05):
+        """Longitudinal TMLE for longitudinal (not survival data). Doubly robust version of iterative-conditional
+        (sequential-regression) g-formula.
+
+        """
+        if df.dropna().shape[0] != df.shape[0]:
+            warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
+                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations', UserWarning)
+
+        # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
+        self._psi_correspond = measure
+        self.df = df.copy().dropna().reset_index()
+        self.id = id
+        self.time = time
+        self.alpha = alpha
+        self._exposure = exposure
+        self._outcome = outcome
+        self._out_model = None
+        self._exp_model = None
+        self._fit_exposure_model = False
+        self._fit_outcome_model = False
+        self.QA0W = None
+        self.QA1W = None
+        self.QAW = None
+        self.g1W = None
+        self.g0W = None
+        self._epsilon = None
+        self.psi = None
+        self.confint = None
+
+    def exposure_model(self, model, custom_model=None, bound=False, print_results=True, parametric_time=False):
+        """Estimate the treatment model (g-model). Default is to use non-parameteric time
+
+        """
+        self._exp_model = self._exposure + ' ~ ' + model
+        # call to self._model_fitter()
+        # Pull from IPTW style to estimate. Then cumulative product (like time-varying MSM)
+
+    def outcome_model(self, model, custom_model=None, bound=False, print_results=True):
+        """Estimate the outcome model (Q-model).
+
+        """
+        self._out_model = self._outcome + ' ~ ' + model
+        # call to self._model_fitter()
+        # Follow the iterative-g-formula procedure
+
+    def fit(self):
+        """Estimates
+
+        """
+        # Follow TMLE procedure as detailed above
+        if (self._fit_exposure_model is False) or (self._fit_outcome_model is False):
+            raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
+                             'be generated')
+
+    def summary(self, decimal=3):
+        """Prints summary of model results
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
+        """
+        if (self._fit_exposure_model is False) or (self._fit_exposure_model is False):
+            raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
+                             'be generated')
+
+        print('----------------------------------------------------------------------')
+        print('Psi: ', round(float(self.psi), decimal))
+        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' + str(round(self.confint[0], decimal)), ',',
+              str(round(self.confint[1], decimal)) + ')')
+        print('----------------------------------------------------------------------')
+        print('Psi corresponds to '+self._psi_correspond)
+        print('----------------------------------------------------------------------')
+
+    @staticmethod
+    def _model_fitter(custom_model):
+        """Background functionality to do the model estimation procedures (shorten the code and make easier to maintain)
+        """
+        if custom_model is None:
+            None
+            # Fit regular logit model
+        else:
+            None
+            # Do the custom model
+
+    @staticmethod
+    def _bounding(v, bounds):
+        """Background function to perform bounding feature. Not intended for users to access
+
+        v:
+            -Values to be bounded
+        bounds:
+            -Percentile thresholds for bounds
+        """
+        if type(bounds) is float:  # Symmetric bounding
+            if bounds < 0 or bounds > 1:
+                raise ValueError('Bound value must be between (0, 1)')
+            v = np.where(v < bounds, bounds, v)
+            v = np.where(v > 1-bounds, 1-bounds, v)
+        elif type(bounds) is str:  # Catching string inputs
+            raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+        else:  # Asymmetric bounds
+            if bounds[0] > bounds[1]:
+                raise ValueError('Bound thresholds must be listed in ascending order')
+            if len(bounds) > 2:
+                warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
+                              'specified bounds are used by the bound statement. So only ' +
+                              str(bounds[0:2]) + ' will be used', UserWarning)
+            if type(bounds[0]) is str or type(bounds[1]) is str:
+                raise ValueError('Bounds must be floats between (0, 1)')
+            if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
+                raise ValueError('Both bound values must be between (0, 1)')
+            v = np.where(v < bounds[0], bounds[0], v)
+            v = np.where(v > bounds[1], bounds[1], v)
+        print(np.max(v))
+        return v
+
