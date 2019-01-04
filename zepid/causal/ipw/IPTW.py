@@ -344,9 +344,10 @@ class IPTW:
 
     def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
         """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
-        this plot are available in Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
+        this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
 
         """
+        # TODO add docs, have SMD calculate it for everything
         # Step 0: process formula with patsy
         vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
         w_diff = []
