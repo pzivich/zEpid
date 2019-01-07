@@ -172,7 +172,7 @@ class TimeFixedGFormula:
                                   'specified', UserWarning)
 
         else:
-            raise ValueError('Still working on allowing for continuous exposures')
+            raise ValueError('Still working on allowing for continuous treatments...')
             # TODO fill in this part of continuous exposures
 
         # Getting predictions
