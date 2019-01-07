@@ -449,6 +449,31 @@ class IPTW:
         None
             Prints the positivity results to the console but does not return any objects
         """
+
+        def _weighted_avg(df, v, w, t):
+            """Calculates the weighted mean for continuous variables. Used by StandardizedDifferences
+            """
+            l = []
+            for i in [0, 1]:
+                n = sum(df.loc[df[t] == i][v] * df.loc[df[t] == i][w])
+                d = sum(df.loc[df[t] == i][w])
+                a = n / d
+                l.append(a)
+            return l[0], l[1]
+
+        def _weighted_std(df, v, w, t, xbar):
+            """Calculates the weighted standard deviation for continuous variables. Used by StandardizedDifferences
+            """
+            l = []
+            for i in [0, 1]:
+                n1 = sum(df.loc[df[t] == i][w])
+                d1 = sum(df.loc[df[t] == i][w]) ** 2
+                d2 = sum(df.loc[df[t] == i][w] ** 2)
+                n2 = sum(df.loc[df[t] == i][w] * ((df.loc[df[t] == i][v] - xbar[i]) ** 2))
+                a = ((n1 / (d1 - d2)) * n2)
+                l.append(a)
+            return l[0], l[1]
+
         if var_type == 'binary':
             if weighted:
                 wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
@@ -466,8 +491,8 @@ class IPTW:
 
         elif var_type == 'continuous':
             if weighted:
-                wmn, wmt = self._weighted_avg(self.df, v=variable, w='iptw', t=self.ex)
-                wsn, wst = self._weighted_std(self.df, v=variable, w='iptw', t=self.ex, xbar=[wmn, wmt])
+                wmn, wmt = _weighted_avg(self.df, v=variable, w='iptw', t=self.ex)
+                wsn, wst = _weighted_std(self.df, v=variable, w='iptw', t=self.ex, xbar=[wmn, wmt])
             else:
                 wmn = np.mean(self.df[self.df[self.ex] == 0][variable])
                 wmt = np.mean(self.df[self.df[self.ex] == 1][variable])
@@ -519,32 +544,6 @@ class IPTW:
                 df['w'] = np.where(df[self.ex] == 1, ((1 - df[denominator]) / df[denominator]), 1)
                 df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
         return df['w']
-
-    @staticmethod
-    def _weighted_avg(df, v, w, t):
-        """Calculates the weighted mean for continuous variables. Used by StandardizedDifferences
-        """
-        l = []
-        for i in [0, 1]:
-            n = sum(df.loc[df[t] == i][v] * df.loc[df[t] == i][w])
-            d = sum(df.loc[df[t] == i][w])
-            a = n / d
-            l.append(a)
-        return l[0], l[1]
-
-    @staticmethod
-    def _weighted_std(df, v, w, t, xbar):
-        """Calculates the weighted standard deviation for continuous variables. Used by StandardizedDifferences
-        """
-        l = []
-        for i in [0, 1]:
-            n1 = sum(df.loc[df[t] == i][w])
-            d1 = sum(df.loc[df[t] == i][w]) ** 2
-            d2 = sum(df.loc[df[t] == i][w] ** 2)
-            n2 = sum(df.loc[df[t] == i][w] * ((df.loc[df[t] == i][v] - xbar[i]) ** 2))
-            a = ((n1 / (d1 - d2)) * n2)
-            l.append(a)
-        return l[0], l[1]
 
     @staticmethod
     def _var_detector(variable):
