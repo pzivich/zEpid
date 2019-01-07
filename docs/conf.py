@@ -1,8 +1,6 @@
+################################################################################
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#
-# lifelines documentation build configuration file, created by
-# sphinx-quickstart on Sun Feb  2 17:10:21 2014.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -12,18 +10,19 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
-
+#
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
+################################################################################
 
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 # needs_sphinx = '1.0'
 
+# Specify necessary extensions
 extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
@@ -32,7 +31,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "nbsphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -40,7 +38,6 @@ templates_path = ["_templates"]
 
 # The suffix of source filenames.
 source_suffix = ".rst"
-
 
 # The master toctree document.
 master_doc = "index"
