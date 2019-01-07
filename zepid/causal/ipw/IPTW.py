@@ -109,6 +109,11 @@ class IPTW:
             raise ValueError('Please specify one of the currently supported weighting schemes: ' +
                              'population, exposed, unexposed')
 
+        self._pos_avg = None
+        self._pos_min = None
+        self._pos_max = None
+        self._pos_sd = None
+
     def regression_models(self, model_denominator, model_numerator='1', print_results=True,
                           custom_model_denominator=None, custom_model_numerator=None):
         """Logistic regression model(s) for propensity score models. The model denominator must be specified for both
@@ -346,49 +351,88 @@ class IPTW:
         """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
         this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
 
+        The Love plot generates a dashed line at standardized mean difference of 0.10. In general, it is recommended
+        that weighted SMD are below this level. Variables above this level may be unbalanced despite the weighting
+        procedure. Different functional forms (or approaches like machine learning) can be considered
+
+        Returns
+        -------
+        axes
+            Matplotlib axes of the Love plot
         """
-        # TODO add docs, have SMD calculate it for everything
-        # Step 0: process formula with patsy
+        to_plot = self.standardized_mean_differences(subset=None)
+        to_plot['smd_w'] = np.absolute(to_plot['smd_w'])
+        to_plot['smd_u'] = np.absolute(to_plot['smd_u'])
+        to_plot = to_plot.sort_values(by='smd_u', ascending=True).reset_index(drop=True)
+
+        # Generate plot
+        ax = plt.gca()
+        ax.plot(to_plot.smd_u, to_plot.index, shape_unweighted, c=color_unweighted)
+        ax.plot(to_plot.smd_w, to_plot.index, shape_weighted, c=color_weighted)
+        ax.set_xlim([0, np.max([np.max(to_plot['smd_w']), np.max(to_plot['smd_u'])]) + 0.5])
+        ax.set_xlabel('Absolute Standardized Difference')
+        ax.axvline(0.1, color='gray')
+        ax.set_yticks([i for i in range(to_plot.shape[0])])
+        ax.set_yticklabels(to_plot['labels'])
+        return ax
+
+    def standardized_mean_differences(self, subset=None):
+        """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
+        difference for all variables include in the IPTW denominator
+
+        Parameters
+        ----------
+        subset : iterable
+            Iterable object (list, set) of variables to calculate standardized differences. Use this if you only want to
+            calculate the standardized mean differences for a subset of variables
+
+        Returns
+        -------
+        DataFrame
+            Returns pandas DataFrame of calculated standardized mean differences
+        """
         vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
         w_diff = []
         u_diff = []
         vlabel = []
 
-        # Step 1: for loop to calculate each standardized mean difference
-        for v in vars.columns:
-            # parse out the variable type
-            vtype = self._var_detector(self.df[v])
-            # calculate the absolute standardized difference
-            wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
-            w_diff.append(wsmd)
-            usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
-            u_diff.append(usmd)
-            vlabel.append(v)
+        if subset is None:
+            for v in vars.columns:
+                # parse out the variable type
+                vtype = self._var_detector(self.df[v])
+                # calculate the absolute standardized difference
+                wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
+                w_diff.append(wsmd)
+                usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
+                u_diff.append(usmd)
+                vlabel.append(v)
+        else:
+            for v in subset:
+                if v not in list(vars.columns):
+                    warnings.warn('Variable ' + v + ' is not in the input DataFrame', UserWarning)
+                else:
+                    vtype = self._var_detector(self.df[v])
+                    # calculate the absolute standardized difference
+                    wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
+                    w_diff.append(wsmd)
+                    usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
+                    u_diff.append(usmd)
+                    vlabel.append(v)
 
-        # Step 2: put into data frame
-        to_plot = pd.DataFrame()
-        to_plot['varia'] = vlabel
-        to_plot['w_smd'] = np.abs(w_diff)
-        to_plot['u_smd'] = np.abs(u_diff)
-        to_plot = to_plot.sort_values(by='u_smd', ascending=True).reset_index(drop=True)
-        print(to_plot)
-
-        # Step 3: generate plot
-        ax = plt.gca()
-        ax.plot(to_plot.u_smd, to_plot.index, shape_unweighted, c=color_unweighted)
-        ax.plot(to_plot.w_smd, to_plot.index, shape_weighted, c=color_weighted)
-        ax.set_xlim([0, np.max([np.max(to_plot['w_smd']), np.max(to_plot['u_smd'])]) + 0.5])
-        ax.set_xlabel('Absolute Standardized Difference')
-        ax.axvline(0.1, color='gray')
-        ax.set_yticks([i for i in range(to_plot.shape[0])])
-        ax.set_yticklabels(to_plot['varia'])
-        return ax
-
+        # Setting up DataFrame to return with calculated differences
+        s = pd.DataFrame()
+        s['labels'] = vlabel
+        s['smd_w'] = w_diff
+        s['smd_u'] = u_diff
+        return s
 
     def standardized_difference(self, variable, var_type, weighted=True):
         """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
+
+        For efficiency, it is recommended you use standardized_mean_differences(). That function calculates the
+        standardized mean differences for all variables included in the denominator
 
         Parameters
         ---------------
