@@ -116,7 +116,7 @@ class TestTimeFixedGFormula:
         assert r1 < rc < r0
 
     def test_continuous_outcome(self, continuous_data):
-        g = TimeFixedGFormula(continuous_data, exposure='A', outcome='Y', outcome_type='continuous')
+        g = TimeFixedGFormula(continuous_data, exposure='A', outcome='Y', outcome_type='normal')
         g.outcome_model(model='A + W1 + W2 + W3', print_results=False)
         g.fit(treatment='all')
         npt.assert_allclose(g.marginal_outcome, -0.730375, rtol=1e-5)
@@ -128,7 +128,7 @@ class TestTimeFixedGFormula:
             g.fit(treatment=['True', 'False'])
 
     def test_categorical_treat(self, cat_data):
-        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], outcome='Y')
+        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], exposure_type='categorical', outcome='Y')
         g.outcome_model(model='A1 + A2', print_results=False)
         g.fit(treatment=["False", "False"])
         npt.assert_allclose(g.marginal_outcome, 0.373091, rtol=1e-5)
@@ -138,19 +138,19 @@ class TestTimeFixedGFormula:
         npt.assert_allclose(g.marginal_outcome, 0.5025, rtol=1e-5)
 
     def test_error_noncategorical_treatment(self, cat_data):
-        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], outcome='Y')
+        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], exposure_type='categorical', outcome='Y')
         g.outcome_model(model='A1 + A2', print_results=False)
         with pytest.raises(ValueError):
             g.fit(treatment='all')
 
     def test_error_mismatch_categorical_treatment(self, cat_data):
-        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], outcome='Y')
+        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], exposure_type='categorical', outcome='Y')
         g.outcome_model(model='A1 + A2', print_results=False)
         with pytest.raises(ValueError):
             g.fit(treatment=['True', 'False', 'False'])
 
     def test_warn_categorical_treatment(self, cat_data):
-        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], outcome='Y')
+        g = TimeFixedGFormula(cat_data, exposure=['A1', 'A2'], exposure_type='categorical', outcome='Y')
         g.outcome_model(model='A1 + A2', print_results=False)
         with pytest.warns(UserWarning):
             g.fit(treatment=['True', 'True'])
@@ -164,6 +164,8 @@ class TestTimeFixedGFormula:
         g.fit(treatment='none')
         r0 = g.marginal_outcome
         npt.assert_allclose(r0, 0.404286, rtol=1e-5)
+
+    # TODO add test for Poisson distributed outcome
 
 
 class TestTimeVaryGFormula:
