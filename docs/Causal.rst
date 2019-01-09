@@ -35,8 +35,8 @@ variable type of the outcome. Currently, only binary or continuous outcomes are 
 parametric outcome model is specified. After we specify the outcome model, we can obtain our marginal estimates for the
 outcome. I recommend reviewing one of the above articles for further information.
 
-Binary Outcomes
-~~~~~~~~~~~~~~~
+Binary Treatments and Outcomes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 By default, ``TimeFixedGFormula`` implements a binary outcome model (i.e. logistic regression). The following is an
 example to obtain estimates of the g-formula for a binary outcome (death) in regards to a binary exposure
 (antiretroviral therapy). First, we will initialize the time-fixed g-formula class
@@ -116,11 +116,11 @@ Now we can make our comparison between our custom treatment compared to the coun
   print('RR = ',r_custom / r_none)
 
 
-Multivariate Exposures
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Multivariate exposures are also available. To create a multivariate exposure, first a disjoint indicator variable must
-be generated. Our sample dataframe does not contain a multivariate exposure. Instead we will create one by creating a
-two new variables based on CD4 count.
+Categorical Treatments
+~~~~~~~~~~~~~~~~~~~~~~
+Exposures with more than two options are also implemented. To create a multivariate exposure, first a disjoint indicator
+variable must be generated (categories must be exclusive). Since our sample dataframe does not contain a categorical
+exposure, we will create one by creating a two new variables based on CD4 count.
 
 .. code:: python
 
@@ -133,7 +133,7 @@ terms for our exposure. In our context this corresponds to ``cd4_1`` and ``cd4_2
 
 .. code:: python
 
-  g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead')
+  g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead', exposure_type='categorical')
   g.outcome_model(model='cd4_1 + cd4_2 + art + male + age0 + age_rs1 + age_rs2 + dvl0')
 
 For multivariate exposures, a custom exposure pattern must be specified. Either ``all`` or ``none`` will generate an
@@ -143,18 +143,15 @@ as ``False`` .
 
 .. code:: python
 
-  exposure_patterns = ["False",
-                      "False"]
+  exposure_patterns = ["False", "False"]
   g.fit(treatment=exposure_patterns)  # Everyone <200 CD4 T cell count
   rcd1 = g.marginal_outcome
 
-  exposure_patterns = ["True",
-                      "False"]
+  exposure_patterns = ["True", "False"]
   g.fit(treatment=exposure_patterns)  # Everyone 200-400 CD4 T cell count
   rcd2 = g.marginal_outcome
 
-  exposure_patterns = ["False",
-                      "True"]
+  exposure_patterns = ["False", "True"]
   g.fit(treatment=exposure_patterns)  # Everyone >400 CD4 T cell count
   rcd3 = g.marginal_outcome
 
@@ -163,18 +160,24 @@ initializing ``TimeFixedGFormula``. These options make absolute comparisons, but
 be specified, like discussed in the binary exposure section
 
 Continuous Outcomes
-~~~~~~~~~~~~~~~~~~~~~~~
-For continuous outcome variables, the ``outcome_type='continuous'`` must be specified. Instead of logistic regression,
-the outcomes are predicted via linear regression. The remaining syntax is the same between binary outcomes and
-continuous outcomes. We will demonstrate the functionality by switching our outcome to the last measured CD4 T cell
-count for each participant
+~~~~~~~~~~~~~~~~~~~
+For continuous outcome variables, the ``outcome_type`` argument can be specified. Instead of logistic regression,
+the outcomes are predicted via either a Gaussian model or a Poisson model. The remaining syntax is the same between
+binary outcomes and continuous outcomes. We will demonstrate the functionality by switching our outcome to the last
+measured CD4 T cell count for each participant. For the example, we will use assume the outcome is normally distributed
 
 .. code:: python
 
-  g = TimeFixedGFormula(df, exposure='art', outcome='cd4', outcome_type='continuous')
+  g = TimeFixedGFormula(df, exposure='art', outcome='cd4', outcome_type='normal')
   g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0 + cd40 + cd4_rs1 + cd4_rs2')
   g.fit(treatment='all')
   g.marginal_outcome
+
+For a Poisson distributed outcome, we can instead specify
+
+.. code:: python
+
+  g = TimeFixedGFormula(df, exposure='art', outcome='cd4', outcome_type='poisson')
 
 Generating Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -320,33 +323,64 @@ stratified by treatment. The density plot is implemented in a similar way
 
 .. image:: images/zepid_iptdensity.png
 
+Another graphical diagnostic is the Love plot. The Love plot was proposed by Thomas Love (Graphical Display of Covariate
+Balance, 2004) in order to determine potential imbalance of covariates by treatment. This assessment is done by
+visualizing the absolute standardized differences.
+
+.. code:: python
+
+  ipt.plot_love()
+  plt.show()
+
+.. image:: images/zepid_iptbalance.png
+
+As you can see in the graph, most of the variables appear to be balanced in the weighted data set. However, diagnosis
+viral load (dvl) and gender (male) seem to be imbalanced somewhat (above a absolute standardized difference of 0.1). We
+might consider other functional forms to achieve better balance. Other ways to achieve better balance are permutation
+weights (to be implemented in the future).
+
+For a publication-quality graph, I recommend using ``standard_mean_differences`` to calculate the standard mean
+differences then using that output to create a new graphic. The above plot functionality is meant to generate a quick
+assessment of balance during the analysis, not necessarily create a publication quality graph.
+
 For non-graphical diagnostics, standardized mean differences and positivity (via distribution of weights). Two
-diagnostics are implemented through ``positivity`` and ``StandardizedDifference``. As the name implies, ``positivity``
-is helpful for checking for positivity violations. This is done by looking at the mean, min, and max weights
+diagnostics are implemented through ``positivity`` and ``standard_mean_differences``. As the name implies,
+``positivity`` is helpful for checking for positivity violations, by assessing the weight distribution. This is done
+by looking at the mean, min, and max weights. **Note** this only is valid for stabilized weights
 
 .. code:: python
 
    ipt.positivity()
 
-``StandardizedDifference`` calculates the standardized mean difference between the specified confounder. The confounder must
-be specified, along with the variable type. Only binary and continuous variables are currently supported. For categorical
-variables, dummy variables can be used (will add list option for dummy variable column names in future version)
+``standard_mean_differences`` calculates the standardized mean difference for all variables included in
+``model_denominator``. An algorithm in the background detects the variable type (binary or continuous) and calcualtes
+the standard mean differences accordingly
 
 .. code:: python
 
-  ipt.StandardizedDifference('age0',var_type='continuous')
-  ipt.StandardizedDifference('male',var_type='binary')
+  print(ipt.standard_mean_differences())
 
-For further discussion on IPTW diagnostics, I direct you to `Austin PC and Stuart EA <https://doi.org/10.1002/sim.6607>`_
+To calculate the standardized mean difference for a single variable, you can use ``IPTW.standardized_difference``.
+*Note* that the variable type must be specified for this function
 
-Augmented Inverse Probability Weights
-----------------------------------------
-Augmented inverse probability weight estimator is a doubly robust method. Simply put, a doubly robust estimator combines
-estimates from two statistical models (one for the exposure and one for the outcome) together. This has a nice property
-for investigators. As long as one of the specified statistical models (either the exposure or the outcome) is correct
-in a causal identifiable way, then the doubly robust estimate will be consistent. Essentially, you get two "tries" at
-the correct model form rather than just one. The doubly robust estimators do not avoid the common causal identification
-assumptions, and still require the use of causal graphs.
+.. code:: python
+
+  ipt.standardized_difference('male', var_type='binary')
+  ipt.standardized_difference('cd40', var_type='continuous')
+
+For further discussion on IPTW diagnostics, I direct you to
+`Austin PC and Stuart EA <https://doi.org/10.1002/sim.6607>`_ and
+`Cole SR and Hernan MA <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2732954/>`_
+
+Augmented Inverse Probability of Treatment Weights
+--------------------------------------------------
+Augmented inverse probability of treatment weight estimator is a doubly robust method. Simply put, a doubly robust
+estimator combines estimates from two statistical models (one for the treatment and one for the outcome) together. This
+has a nice property for investigators. As long as one of the specified statistical models (either the exposure or the
+outcome) is correctly specified, then the doubly robust estimate will be consistent. Essentially, you get two "tries" at
+the correct model rather than just one. The doubly robust estimators do not avoid the common causal identification
+assumptions, and still require the use of causal graphs. Additionally, the variance estimates are incorrect if both
+models are not correctly specified (they still outperform IPTW though)
 
 For further discussion on doubly robust estimators, see 
 
@@ -359,29 +393,29 @@ oduction-to-the-augmented-inverse-propensity-weighted-estimatordiv/4B1B8301E46F4
 
 `Keil AP et al 2018 <https://www.ncbi.nlm.nih.gov/pubmed/29394330>`_
 
-The AIPW doubly robust estimator described by `Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_ is
-implemented in *zEpid* through the ``AIPW`` class. This is referred to as simple, since it does *not*
+The AIPTW doubly robust estimator described by `Funk MJ et al. 2011 <https://www.ncbi.nlm.nih.gov/pubmed/21385832>`_ is
+implemented in *zEpid* through the ``AIPTW`` class. This is referred to as simple, since it does *not*
 handle missing data or other complex issues. Additionally, it only handles a binary exposure and binary outcome.
 
 To obtain the double robust estimate, we first do all our background data preparation, then initialize the
-``AIPW`` with the pandas dataframe, exposure column name, and outcome column name.
+``AIPTW`` with the pandas dataframe, exposure column name, and outcome column name.
 
 .. code:: python
 
   import zepid as ze
-  from zepid.causal.doublyrobust import AIPW
+  from zepid.causal.doublyrobust import AIPTW
   df = ze.load_sample_data(timevary=False)
   df[['cd4_rs1','cd4_rs2']] = ze.spline(df,'cd40',n_knots=3,term=2,restricted=True)
   df[['age_rs1','age_rs2']] = ze.spline(df,'age0',n_knots=3,term=2,restricted=True)
 
-  sdr = AIPW(df,exposure='art',outcome='dead')
+  aipw = AIPTW(df,exposure='art',outcome='dead')
 
 After initialized, we need to fit an exposure model and an outcome model, as such
 
 .. code:: python
 
-  sdr.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-  sdr.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
 
 If at least one of these models is not fit, the ``fit()`` option will generate an error saying that both models must be
 fit before the double-robust estimates can be produced.
@@ -390,11 +424,16 @@ After both an exposure and outcome model are fit, we can estimate the double rob
 
 .. code:: python
 
-  sdr.fit()
+  aipw.fit()
 
 After the ``fit()`` is run, the ``AIPW`` class gains the following attributes; ``riskdiff`` corresponding
 to the risk difference, ``riskratio`` corresponding to the risk ratio, and the function ``summary()`` which prints both
-estimates.
+estimates. The individual estimates can be extracted from the ``AIPTW`` class by using the following
+
+.. code:: python
+
+  aipw.risk_difference
+  aipw.risk_ratio
 
 Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -409,12 +448,12 @@ code
   rr = []
   for i in range(500):
       dfs = df.sample(n=df.shape[0],replace=True)
-      s = AIPW(dfs,exposure='art',outcome='dead')
-      s.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_results=False)
-      s.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_result=False)
-      s.fit()
-      rd.append(s.riskdiff)
-      rr.append(s.riskratio)
+      a = AIPTW(dfs,exposure='art',outcome='dead')
+      a.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_results=False)
+      a.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_result=False)
+      a.fit()
+      rd.append(a.risk_difference)
+      rr.append(a.risk_ratio)
 
 
   print('RD 95% CI: ',np.percentile(rd,q=[2.5,97.5]))
@@ -455,25 +494,36 @@ estimated. To estimate the risk ratio or odds ratio specify the optional argumen
   tmle = TMLE(df, exposure='art', outcome='dead')
 
 After initialization, the exposure model and outcome models are specified. This is the same process as the AIPW fitting
-procedure.
+procedure. To estimate the risk ratio or odds ratio, the ``measure`` argument should be set as ``risk_ratio`` or
+``odds_ratio``, respectively
 
 .. code:: python
 
-  tm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-  tm.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
 
 After both models are specified the TMLE model can be fit. Results can be printed to the console via ``TMLE.summary()``
 
 .. code:: python
 
-  tm.fit()
-  tm.summary()
+  tmle.fit()
+  tmle.summary()
 
 Confidence intervals for TMLE come from influence curves. You can see the step-by-step process of basically what
 ``zepid.causal.doublyrobust.TMLE`` calculates in the following `LINK <https://migariane.github.io/TMLE.nb.html>`_ As of
 version 0.4.0, the formula used to calculate the efficient influence curve confidence intervals is based on the
-formulas in ``tmle.R``. For further reading, I recommend Schuler and Rose 2017, or van der Laan's *Targeted Learning*
+procedure in ``tmle.R``. For further reading, I recommend Schuler and Rose 2017, or van der Laan's *Targeted Learning*
 book for further information
+
+To extract the point estimate and confidence intervals, the following attributes can be used
+
+.. code:: python
+
+  tmle.psi
+  tmle.confint
+
+The term ``psi`` is used, since this is the terminology/notation used by van der Laan is all his TMLE papers. It
+is general and corresponds to the specified ``measure``.
 
 TMLE with Machine Learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -485,7 +535,8 @@ which contains the model must have the ``fit()`` function, and the ``predict()``
 In the following example, I will demonstrate ``zepid.causal.doublyrobust.TMLE`` with a Python implementation of
 SuperLearner (SuPyLearner). You will have to download SuPyLearner from GitHub
 (`original <https://github.com/lendle/SuPyLearner>`_ but I recommend the
-`updated <https://github.com/alexpkeil1/SuPyLearner>`_ since it resolves some errors as a result of ``sklearn`` updates).
+`updated <https://github.com/alexpkeil1/SuPyLearner>`_ since it resolves some errors as a result of ``sklearn``
+updates).
 
 First, we load the data
 
