@@ -64,7 +64,7 @@ class TMLE:
             Column label for the exposure of interest
         outcome : str
             Column label for the outcome of interest
-        psi : str, optional
+        measure : str, optional
             What the TMLE psi estimates. Current options include; risk difference comparing treated to untreated
             (F(A=1) - F(A=0)), risk ratio (F(A=1) / F(A=0)), and odds ratio. The following keywords are available
             * 'risk_difference'  :   F(A=1) - F(A=0)
