@@ -35,6 +35,27 @@ class RiskRatio:
     Notes
     -------------
     Outcome must be coded as (1: yes, 0:no). Only works supports binary outcomes
+
+    Examples
+    --------
+    Calculate the risk ratio in a data set
+    >>>from zepid import RiskRatio, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>rr = RiskRatio()
+    >>>rr.fit(df, exposure='art', outcome='dead')
+    >>>rr.summary()
+
+    Calculate the risk ratio with exposure of '1' as the reference category
+    >>>rr = RiskRatio(reference=1)
+    >>>rr.fit(df, exposure='art', outcome='dead')
+    >>>rr.summary()
+
+    Generate a plot of the calculated risk ratio(s)
+    >>>import matplotlib.pyplot as plt
+    >>>rr = RiskRatio()
+    >>>rr.fit(df, exposure='art', outcome='dead')
+    >>>rr.plot()
+    >>>plt.show()
     """
 
     def __init__(self, reference=0, alpha=0.05):
@@ -218,6 +239,27 @@ class RiskDifference:
     Notes
     -------------
     Outcome must be coded as (1: yes, 0:no). Only supports binary outcomes
+
+        Examples
+    --------
+    Calculate the risk difference in a data set
+    >>>from zepid import RiskDifference, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>rd = RiskDifference()
+    >>>rd.fit(df, exposure='art', outcome='dead')
+    >>>rd.summary()
+
+    Calculate the risk difference with exposure of '1' as the reference category
+    >>>rd = RiskDifference(reference=1)
+    >>>rd.fit(df, exposure='art', outcome='dead')
+    >>>rd.summary()
+
+    Generate a plot of the calculated risk difference(s)
+    >>>import matplotlib.pyplot as plt
+    >>>rd = RiskDifference()
+    >>>rd.fit(df, exposure='art', outcome='dead')
+    >>>rd.plot()
+    >>>plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
         """
@@ -402,6 +444,20 @@ class NNT:
     Notes
     -------------
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Examples
+    --------
+    Calculate the number needed to treat in a data set
+    >>>from zepid import NNT, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>nnt = NNT()
+    >>>nnt.fit(df, exposure='art', outcome='dead')
+    >>>nnt.summary()
+
+    Calculate the number needed to treat with '1' as the reference category
+    >>>nnt = NNT(reference=1)
+    >>>nnt.fit(df, exposure='art', outcome='dead')
+    >>>nnt.summary()
     """
     def __init__(self, reference=0, alpha=0.05):
         """
@@ -535,7 +591,30 @@ class OddsRatio:
 
         SE = (\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d})^{\frac{1}{2}}
 
-    WARNING: Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+    Notes
+    -------------
+    Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Examples
+    --------
+    Calculate the odds ratio in a data set
+    >>>from zepid import OddsRatio, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>ort = OddsRatio()
+    >>>ort.fit(df, exposure='art', outcome='dead')
+    >>>ort.summary()
+
+    Calculate the odds ratio with exposure of '1' as the reference category
+    >>>ort = OddsRatio(reference=1)
+    >>>ort.fit(df, exposure='art', outcome='dead')
+    >>>ort.summary()
+
+    Generate a plot of the calculated odds ratio(s)
+    >>>import matplotlib.pyplot as plt
+    >>>ort = OddsRatio()
+    >>>ort.fit(df, exposure='art', outcome='dead')
+    >>>ort.plot()
+    >>>plt.show()
     """
 
     def __init__(self, reference=0, alpha=0.05):
@@ -684,6 +763,27 @@ class IncidenceRateRatio:
     Notes
     -------------
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Examples
+    --------
+    Calculate the incidence rate ratio in a data set
+    >>>from zepid import IncidenceRateRatio, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>irr = IncidenceRateRatio()
+    >>>irr.fit(df, exposure='art', outcome='dead', time='t')
+    >>>irr.summary()
+
+    Calculate the incidence rate ratio with exposure of '1' as the reference category
+    >>>irr = IncidenceRateRatio(reference=1)
+    >>>irr.fit(df, exposure='art', outcome='dead', time='t')
+    >>>irr.summary()
+
+    Generate a plot of the calculated incidence rate ratio(s)
+    >>>import matplotlib.pyplot as plt
+    >>>irr = IncidenceRateRatio()
+    >>>irr.fit(df, exposure='art', outcome='dead', time='t')
+    >>>irr.plot()
+    >>>plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
         """
@@ -871,6 +971,27 @@ class IncidenceRateDifference:
     Notes
     --------------
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Examples
+    --------
+    Calculate the incidence rate difference in a data set
+    >>>from zepid import IncidenceRateDifference, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>ird = IncidenceRateDifference()
+    >>>ird.fit(df, exposure='art', outcome='dead', time='t')
+    >>>ird.summary()
+
+    Calculate the incidence rate difference with exposure of '1' as the reference category
+    >>>ird = IncidenceRateDifference(reference=1)
+    >>>ird.fit(df, exposure='art', outcome='dead', time='t')
+    >>>ird.summary()
+
+    Generate a plot of the calculated incidence rate difference(s)
+    >>>import matplotlib.pyplot as plt
+    >>>ird = IncidenceRateDifference()
+    >>>ird.fit(df, exposure='art', outcome='dead', time='t')
+    >>>ird.plot()
+    >>>plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
         """
@@ -1039,7 +1160,8 @@ def _plotter(estimate, lcl, ucl, labels, center=0, **errorbar_kwargs):
     Plot functionality to be used by all the measure classes. Internal functional for all the other plotting
     functionalities.
 
-    The main function is matplotlib.errorbar, see defaults here: https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
+    The main function is matplotlib.errorbar, see defaults here:
+    https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
     """
     ypoints = np.arange(len(labels))
 
@@ -1071,7 +1193,7 @@ class Sensitivity:
 
     .. math::
 
-        Se = \frac{TP}{P}
+        Sensitivity = \frac{TP}{P}
 
     Wald standard error is
 
@@ -1082,6 +1204,15 @@ class Sensitivity:
     Notes
     ----------------
     Disease & Test must be coded as (1: yes, 0:no)
+
+    Examples
+    --------
+    Calculate the sensitivity in a data set
+    >>>from zepid import Sensitivity, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>sens = Sensitivity()
+    >>>sens.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
+    >>>sens.summary()
     """
     def __init__(self, alpha=0.05):
         """
@@ -1161,6 +1292,15 @@ class Specificity:
     Notes
     -------------
     Disease & Test must be coded as (1: yes, 0:no)
+
+    Examples
+    --------
+    Calculate the specificity in a data set
+    >>>from zepid import Specificity, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>spec = Specificity()
+    >>>spec.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
+    >>>spec.summary()
     """
     def __init__(self, alpha=0.05):
         """
@@ -1252,6 +1392,15 @@ class Diagnostics:
     Notes
     ---------------
     Disease & Test must be coded as (1: yes, 0:no)
+
+    Examples
+    --------
+    Calculate the sensitivity and specificity in a data set
+    >>>from zepid import Diagnostics, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>diag = Diagnostics()
+    >>>diag.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
+    >>>diag.summary()
     """
     def __init__(self, alpha=0.05):
         """
@@ -1343,7 +1492,7 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
     -----------------
     statsmodels may produce a domain error in some versions.
 
-    Example of Output
+    Example of output
     .. code::
 
                          Generalized Linear Model Regression Results
@@ -1560,7 +1709,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
 
     Notes
     -------------
-    Example of Output
+    Example of output
 
     .. code::
 
@@ -1571,6 +1720,25 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
         3   4465.272901     7.614501   0.000000
         4  10972.041543  1655.208555  52.167821
         ..          ...          ...        ...
+
+    Examples
+    ---------
+    Calculate unrestricted linear spline with 3 automatic knots
+    >>>from zepid import spline, load_sample_data
+    >>>df = load_sample_data(False)
+    >>>spline(df, var='cd40', n_knots=3)
+
+    Calculate unrestricted quadratic spline with 3 automatic knots
+    >>>spline(df, var='cd40', n_knots=3, term=2)
+
+    Calculate restricted linear spline with 3 automatic knots
+    >>>spline(df, var='cd40', n_knot=3, restricted=True)
+
+    Calculate unrestricted linear spline with 3 specified knots
+    >>>spline(df, var='cd40', n_knots=3, knots=[200, 250, 750])
+
+    Calculate restricted cubic spline with 5 automatic knots
+    >>>spline(df, var='cd40', n_knots=5, term=3, restricted=True)
     """
     if knots is None:
         if n_knots == 1:

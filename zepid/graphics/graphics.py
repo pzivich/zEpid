@@ -46,16 +46,21 @@ class EffectMeasurePlot:
 
     Examples
     -------------
-    >>>lab = ['One','Two'] #generating lists of data to plot
+    Setting up the data to plot
+    >>> from zepid.graphics import EffectMeasurePlot
+    >>>lab = ['One','Two']
     >>>emm = [1.01,1.31]
     >>>lcl = ['0.90',1.01]
     >>>ucl = [1.11,1.53]
-    >>>x = zepid.graphics.effectmeasure_plot(lab,emm,lcl,ucl) #initializing effectmeasure_plot with the above lists
-    >>>x.labels(effectmeasure='RR') #changing the table label to 'RR'
-    >>>x.colors(pointcolor='r') #changing the point colors to red
-    >>>x.plot(t_adjuster=0.13) #generating the effect measure plot
-    """
 
+    Setting up the plot, measure labels, and point colors
+    >>>x = EffectMeasurePlot(lab, emm, lcl, ucl)
+    >>>x.labels(effectmeasure='RR')  # Changing label of measure
+    >>>x.colors(pointcolor='r')  # Changing color of the points
+
+    Generating matplotlib axes object of forest plot
+    >>>x.plot(t_adjuster=0.13)
+    """
     def __init__(self, label, effect_measure, lcl, ucl):
         """Initializes effectmeasure_plot with desired data to plot. All lists should be the same
         length. If a blank space is desired in the plot, add an empty character object (' ') to
@@ -240,8 +245,8 @@ class EffectMeasurePlot:
         return plot
 
 
-def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', link_dist=None, ylims=None,
-                         loess_value=0.4, legend=True, model_results=True, loess=True, points=False, discrete=False):
+def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', discrete=False, link_dist=None,
+                         loess=True, loess_value=0.4, legend=True, model_results=True, points=False):
     """Creates a functional form plot to aid in functional form assessment for continuous/discrete variables. Plots can
     be created for binary and continuous outcomes. Default options are set to create a functional form plot for a
     binary outcome. To convert to a continuous outcome, outcome_type needs to be changed, in addition to the link_dist
@@ -263,10 +268,6 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
     link_dist : optional
         Link and distribution for the GLM regression equation. Change this to any valid link and distributions
         supported by statsmodels. Default is None, which conducts logistic regression
-    ylims : list, optional
-        List object of length 2 that holds the upper and lower limits of the y-axis. Y-axis limits should be
-        specified when comparing multiple graphs. These need to be user-specified since the results between
-        models and datasets can be so variable. Default is None, which returns the matplotlib y-axis of best fit.
     loess_value : float, optional
         Fraction of observations to use to fit the LOESS curve. This will need to be changed iteratively to determine
         which percent works best for the data. Default is 0.4
@@ -292,10 +293,36 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
 
     Examples
     ------------
-    >>> import zepid as ze
-    >>>df = ze.load_sample_data(timevary=False)
+    Setting up the environment
+    >>>from zepid import load_sample_data
+    >>>from zepid.graphics import functional_form_plot
+    >>>import matplotlib.pyplot as plt
+    >>>df = load_sample_data(timevary=False)
     >>>df['cd4_sq'] = df['cd4']**2
-    >>>ze.graphics.functional_form_plot(df,outcome='dead',var='cd4',f_form='cd4 + cd4_sq')
+
+    Creating a functional form plot for a linear functional form
+    >>>functional_form_plot(df, outcome='dead', var='cd4')
+    >>>plt.show()
+
+    Functional form assessment for a quadractic functional form
+    >>>functional_form_plot(df, outcome='dead', var='cd4', f_form='cd4 + cd4_sq')
+    >>>plt.show()
+
+    Varying the LOESS value (increased LOESS value to smooth LOESS curve further)
+    >>>functional_form_plot(df, outcome='dead', var='cd4', loess_value=0.5)
+    >>>plt.show()
+
+    Removing the LOESS curve and the legend from the plot
+    >>>functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False)
+    >>>plt.show()
+
+    Adding summary points to the plot. Points are grouped together and their size reflects their relative n
+    >>>functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False, points=True)
+    >>>plt.show()
+
+    Functional form assessment for a discrete variable (age)
+    >>>functional_form_plot(df, outcome='dead', var='age0', discrete=True)
+    >>>plt.show()
     """
     # Copying out the dataframe to a new object we will manipulate a bit
     rf = df.copy()
@@ -378,7 +405,6 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', l
     ax.set_ylabel('Outcome')
     if legend is True:
         ax.legend()
-    ax.set_ylim(ylims)
     return ax
 
 
@@ -412,8 +438,21 @@ def pvalue_plot(point, sd, color='b', fill=True, null=0, alpha=None):
 
     Examples
     -----------
-    >>>import zepid as ze
-    >>>ze.graphics.pvalue_plot(point=-0.1,sd=0.061,alpha=0.025)
+    Setting up the environment
+    >>>from zepid.graphics import pvalue_plot
+    >>>import matplotlib.pyplot as plt
+
+    Basic P-value plot
+    >>>pvalue_plot(point=-0.1, sd=0.061, color='r')
+    >>>plt.show()
+
+    P-value plot with significance line drawn at 'alpha'
+    >>>pvalue_plot(point=-0.1, sd=0.061, color='r', alpha=0.025)
+    >>>plt.show()
+
+    P-value plot with different comparison value
+    >>>pvalue_plot(point=-0.1, sd=0.061, color='r', null=0.1)
+    >>>plt.show()
     """
     if point <= null:
         lower = (point - 3 * sd)
@@ -465,9 +504,14 @@ def spaghetti_plot(df, idvar, variable, time):
 
     Examples
     -----------
-    >>>import zepid as ze
-    >>>ze.load_sample_data(timevary=True)
-    >>>ze.graphics.spaghetti_plot(df, idvar='id', variable='cd4', time='enter')
+    Setting up the environment
+    >>>from zepid import load_sample_data
+    >>>from zepid.graphics import spaghetti_plot
+    >>>df = load_sample_data(timevary=True)
+
+    Generating spaghetti plot for changing CD4 count
+    >>>spaghetti_plot(df, idvar='id', variable='cd4', time='enter')
+    >>>plt.show()
     """
     ax = plt.gca()
     for i in df[idvar].unique():
@@ -581,6 +625,10 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     Returns
     -----------
     matplotlib axes
+
+    Examples
+    --------
+    See graphics documentation or causal documentation
     """
     re = risk_exposed.drop_duplicates(keep='first').iloc[:, 0].rename('exposed').reset_index()
     ru = risk_unexposed.drop_duplicates(keep='first').iloc[:, 0].rename('unexposed').reset_index()

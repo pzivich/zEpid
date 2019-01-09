@@ -60,8 +60,8 @@ class IPTW:
             * 'exposed'       :   weight to exposed individuals
             * 'unexposed'     :   weight to unexposed individuals
 
-        Example
-        -------
+        Examples
+        --------
         Stabilized IPTW weights
         >>>import zepid as ze
         >>>from zepid.causal.ipw import IPTW
@@ -80,17 +80,20 @@ class IPTW:
         >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
         >>>ipt.fit()
 
-        Diagnostics
-        - Positivity
+        Diagnostics:
         >>>ipt.positivity()
 
+        >>>print(ipt.standardized_mean_differences())
+
+        >>>import matplotlib.pyplot as plt
         >>>ipt.plot_boxplot()
         >>>plt.show()
 
         >>>ipt.plot_kde()
         >>>plt.show()
-        - Balance
 
+        >>>ipt.plot_love()
+        >>>plt.show()
         """
         self.denominator_model = None
         self.numerator_model = None

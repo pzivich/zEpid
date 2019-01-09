@@ -21,13 +21,21 @@ class MonteCarloRR:
 
         Examples
         -------------
+        Monte Carlo bias analysis with trapezoidal distributions
         >>>from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
         >>>mcrr = MonteCarloRR(observed_RR=0.73322, sample=10000)
         >>>mcrr.confounder_RR_distribution(trapezoidal(mini=0.9, mode1=1.1, mode2=1.7, maxi=1.8, size=10000))
         >>>mcrr.prop_confounder_exposed(trapezoidal(mini=0.25, mode1=0.28, mode2=0.32, maxi=0.35, size=10000))
         >>>mcrr.prop_confounder_unexposed(trapezoidal(mini=0.55, mode1=0.58, mode2=0.62, maxi=0.65, size=10000))
         >>>mcrr.fit()
+
+        Printing a summarization of the bias analysis to the console
         >>>mcrr.summary()
+
+        Creating a density plot of the bias analysis results
+        >>>import matplotlib.pyplot as plt
+        >>>mcrr.plot()
+        >>>plt.show()
         """
         self.RRo = observed_RR
         self.sample = sample

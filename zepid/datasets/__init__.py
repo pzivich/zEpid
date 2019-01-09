@@ -43,6 +43,15 @@ def load_sample_data(timevary):
     ----------
     DataFrame
         Returns either a time-varying or time-fixed pandas DataFrame
+
+    Examples
+    --------
+    Load the time-fixed exposure data set
+    >>>from zepid import load_sample_data
+    >>>load_sample_data(timevary=False)
+
+    Load the time-varying exposure data set
+    >>>load_sample_data(timevary=True)
     """
     cols = ['id', 'enter', 'out', 'male', 'age0', 'cd40', 'dvl0', 'cd4', 'dvl', 'art', 'drop', 'dead']
     df = pd.read_csv(resource_filename('zepid', 'datasets/data.dat'),

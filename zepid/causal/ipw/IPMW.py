@@ -17,13 +17,20 @@ class IPMW:
         stabilized : bool, optional
             Whether to return the stabilized or unstabilized IPMW. Default is to return stabilized weights
 
-        Example
-        -------
-        >>>import zepid as ze
+        Examples
+        --------
+        Setting up the environment
+        >>>from zepid import load_sample_data
         >>>from zepid.causal.ipw import IPMW
-        >>>df = ze.load_sample_data(timevary=False)
-        >>>ipm = IPMW(df,missing='dead')
-        >>>ipm.fit(model='age0 + art + male')
+        >>>df = load_sample_data(timevary=False)
+
+        Calculating stabilized Inverse Probability of Missingness Weights
+        >>>ipm = IPMW(df, missing='dead', stabilized=True)
+        >>>ipm.regression_models(model_denominator='age0 + art + male')
+        >>>ipm.fit()
+
+        Extracting calculated weights
+        >>>ipm.Weight
         """
         if df.loc[df[missing_variable].isnull()][missing_variable].shape[0] == 0:
             raise ValueError('IPMW requires that missing data is coded as np.nan')

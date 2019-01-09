@@ -44,15 +44,53 @@ class TimeFixedGFormula:
 
         Examples
         --------
-        >>>import zepid as ze
+        Setting up the environment
+        >>>from zepid import load_sample_data, spline
         >>>from zepid.causal.gformula import TimeFixedGFormula
-        >>>df = ze.load_sample_data(timevary=False)
-        >>>df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
-        >>>df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        >>>df = load_sample_data(timevary=False)
+        >>>df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        >>>df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+        G-formula with a binary treatment and outcome
         >>>g = TimeFixedGFormula(df, exposure='art', outcome='dead')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+        >>># Return the estimated marginal outcome under treat-all
         >>>g.fit(treatment='all')
-        >>>print(g.marginal_outcome)
+        >>>g.marginal_outcome
+
+        >>># Return the estimated marginal outcome under treat-none
+        >>>g.fit(treatment='all')
+        >>>g.marginal_outcome
+
+        >>># Return the estimated marginal outcome under custom treatment (treat all females under 40)
+        >>>g.fit(treatment="((g['male']==0) & (g['age0']<=40))")
+        >>>g.marginal_outcome
+
+        G-formula with a categorical treatment and binary outcome
+        >>># Creating categorical variable for CD4 count
+        >>>df['cd4_1'] = np.where(((df['cd40'] >= 200) & (df['cd40'] < 400)), 1, 0)
+        >>>df['cd4_2'] = np.where(df['cd40'] >= 400, 1, 0)
+
+        >>>g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead', exposure_type='categorical')
+        >>>g.outcome_model(model='cd4_1 + cd4_2 + art + male + age0 + age_rs1 + age_rs2 + dvl0')
+
+        >>># Return marginal outcome under all in reference category (CD4 < 200)
+        >>>g.fit(treatment=["False", "False"])
+
+        >>># Return marginal outcome under all in category 1 (CD4 >= 200 & CD4 < 400)
+        >>>g.fit(treatment=["True", "False"])
+
+        >>># Return marginal outcome under all in category 2 (CD4 > 400)
+        >>>g.fit(treatment=["False", "True"])
+
+        G-formula with binary exposure and continuous (normal-distributed) outcome
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='normal')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+
+        G-formula with binary exposure and continuous (Poisson-distributed) outcome
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
 
         References
         ----------

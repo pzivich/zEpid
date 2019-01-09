@@ -30,10 +30,38 @@ class AIPW:
         outcome : str
             Column name of the outcome variable. Currently only binary is supported
 
+        Examples
+        --------
+        Set up the environment and the data set
+        >>>from zepid import load_sample_data, spline
+        >>>from zepid.causal.doublyrobust import AIPW
+        >>>df = load_sample_data(timevary=False)
+        >>>df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
+        >>>df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
+
+        Initialize the AIPTW model
+        >>>aipw = AIPW(df, exposure='art', outcome='dead')
+
+        Specify the exposure/treatment model
+        >>>aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+        Specify the outcome model
+        >>>aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+        Estimate the risk difference and risk ratio
+        >>>aipw.fit()
+
+        Displaying the results
+        >>>aipw.summary()
+
+        Extracting risk difference and risk ratio respectively
+        >>>aipw.risk_difference
+        >>>aipw.risk_ratio
+
         References
         ----------
         Funk, M. J., Westreich, D., Wiesen, C., Stürmer, T., Brookhart, M. A., & Davidian, M. (2011). Doubly robust
-        estimation of causal effects. American journal of epidemiology, 173(7), 761-767.
+        estimation of causal effects. American Journal of Epidemiology, 173(7), 761-767.
         """
         self.df = df.copy()
         if df.dropna().shape[0] != df.shape[0]:
