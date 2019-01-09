@@ -2,7 +2,7 @@ Data sets
 =========
 Descriptions of the data sets included within zEpid
 
-.. automodule:: zepid
+.. automodule:: zepid.datasets
 
 .. autosummary::
   :toctree: generated/

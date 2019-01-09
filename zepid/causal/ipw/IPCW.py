@@ -41,18 +41,31 @@ class IPCW:
 
         Example
         ------------
-        >>>import zepid as ze
+        Setting up the environment
+        >>>from zepid import load_sample_data
         >>>from zepid.causal.ipw import IPCW
-        >>>df = ze.load_sample_data(timevary=True)
+        >>>df = load_sample_data(timevary=True)
         >>>df['enter_q'] = df['enter'] ** 2
         >>>df['enter_c'] = df['enter'] ** 3
         >>>df['age0_q'] = df['age0'] ** 2
         >>>df['age0_c'] = df['age0'] ** 3
-        >>>cmodeln = 'enter + enter_q + enter_c'
-        >>>modeld = '''enter + enter_q + enter_c + male + age0 + age0_q + age0_c'''
+
+        Calculating IPCW with a long data set
         >>>ipc = IPCW(df, idvar='id', time='enter', event='dead')
-        >>>ipc.regression_models(modeld, cmodeln)
+        >>>ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
+        >>>                      model_numerator='enter + enter_q + enter_c')
         >>>ipc.fit()
+
+        Extracting calculated IPCW
+        >>>ipc.Weight
+
+        Calculating IPCW with a wide data set
+        >>>df = load_sample_data(False)
+        >>>ipc = IPCW(df, idvar='id', time='t', event='dead', flat_df=True)
+        >>>ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
+        >>>                      model_numerator='enter + enter_q + enter_c')
+        >>>ipc.fit()
+
         """
         if np.sum(df[time].isnull()) > 0:
             raise ValueError('Time is missing for at least one individual in the dataset. They must be removed before '

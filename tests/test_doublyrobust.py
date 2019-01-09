@@ -3,7 +3,7 @@ import numpy.testing as npt
 from sklearn.linear_model import LogisticRegression
 
 import zepid as ze
-from zepid.causal.doublyrobust import TMLE, AIPW
+from zepid.causal.doublyrobust import TMLE, AIPTW
 
 
 class TestTMLE:
@@ -137,7 +137,7 @@ class TestTMLE:
         # Test now only checks no errors are thrown. To fix later
 
 
-class TestAIPW:
+class TestAIPTW:
 
     @pytest.fixture
     def df(self):
@@ -148,29 +148,29 @@ class TestAIPW:
 
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
-        aipw = AIPW(df, exposure='art', outcome='dead')
+        aipw = AIPTW(df, exposure='art', outcome='dead')
         assert df.dropna().shape[0] == aipw.df.shape[0]
 
     def test_error_when_no_models_specified1(self, df):
-        aipw = AIPW(df, exposure='art', outcome='dead')
+        aipw = AIPTW(df, exposure='art', outcome='dead')
         with pytest.raises(ValueError):
             aipw.fit()
 
     def test_error_when_no_models_specified2(self, df):
-        aipw = AIPW(df, exposure='art', outcome='dead')
+        aipw = AIPTW(df, exposure='art', outcome='dead')
         aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         with pytest.raises(ValueError):
             aipw.fit()
 
     def test_error_when_no_models_specified3(self, df):
-        aipw = AIPW(df, exposure='art', outcome='dead')
+        aipw = AIPTW(df, exposure='art', outcome='dead')
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
         with pytest.raises(ValueError):
             aipw.fit()
 
     def test_match_rd(self, df):
-        aipw = AIPW(df, exposure='art', outcome='dead')
+        aipw = AIPTW(df, exposure='art', outcome='dead')
         aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
@@ -178,7 +178,7 @@ class TestAIPW:
         npt.assert_allclose(aipw.risk_difference, -0.06857139263248598)
 
     def test_match_rr(self, df):
-        aipw = AIPW(df, exposure='art', outcome='dead')
+        aipw = AIPTW(df, exposure='art', outcome='dead')
         aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)

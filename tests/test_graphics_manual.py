@@ -120,6 +120,7 @@ def senstivity_check():
     mcrr.prop_confounder_unexposed(trapezoidal(mini=0.55, mode1=0.58, mode2=0.62, maxi=0.65, size=10000))
     mcrr.fit()
     mcrr.plot()
+    plt.show()
 
 
 def causal_check():
@@ -130,9 +131,15 @@ def causal_check():
     ipt = IPTW(data, treatment='art', stabilized=True)
     ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     ipt.fit()
+    ipt.plot_love()
+    plt.show()
     ipt.plot_kde()
     plt.show()
+    ipt.plot_kde(measure='logit')
+    plt.show()
     ipt.plot_boxplot()
+    plt.show()
+    ipt.plot_boxplot(measure='logit')
     plt.show()
 
 

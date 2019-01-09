@@ -74,8 +74,23 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
 
     Note
     ----
-    Relies on the Central Limit Theorem, so there must be at least 5 events
-    and 5 nonevents
+    Relies on the Central Limit Theorem, so there must be at least 5 events and 5 nonevents
+
+    Examples
+    --------
+    Estimate the risk, standard error, and confidence intervals
+    >>>from zepid.calc import risk_ci
+    >>>r = risk_ci(45, 100)
+
+    Extracting the estimated risk
+    >>>r.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>r.lower_bound
+    >>>r.upper_bound
+
+    Extracting the standard error
+    >>>r.standard_error
     """
     risk = events / total
     c = 1 - alpha / 2
@@ -125,6 +140,22 @@ def incidence_rate_ci(events, time, alpha=0.05):
     ------------
     tuple
         Tuple containing incidence rate, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Estimate the incidence rate, standard error, and confidence intervals
+    >>>from zepid.calc import incidence_rate_ci
+    >>>i = incidence_rate_ci(56, 503)
+
+    Extracting the estimated incidence rate
+    >>>i.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>i.lower_bound
+    >>>i.upper_bound
+
+    Extracting the standard error
+    >>>i.standard_error
     """
     c = 1 - alpha / 2
     ir = events / time
@@ -171,6 +202,22 @@ def risk_ratio(a, b, c, d, alpha=0.05):
     --------------
     tuple
         Tuple of risk ratio, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Estimate the risk ratio, standard error, and confidence intervals
+    >>>from zepid.calc import risk_ratio
+    >>>rr = risk_ratio(45, 55, 21, 79)
+
+    Extracting the estimated risk ratio
+    >>>rr.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>rr.lower_bound
+    >>>rr.upper_bound
+
+    Extracting the standard error
+    >>>rr.standard_error
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -218,6 +265,22 @@ def risk_difference(a, b, c, d, alpha=0.05):
     --------------
     tuple
         Tuple of risk difference, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Estimate the risk difference, standard error, and confidence intervals
+    >>>from zepid.calc import risk_difference
+    >>>rd = risk_difference(45, 55, 21, 79)
+
+    Extracting the estimated risk difference
+    >>>rd.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>rd.lower_bound
+    >>>rd.upper_bound
+
+    Extracting the standard error
+    >>>rd.standard_error
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -259,6 +322,22 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
     --------------
     tuple
         Tuple of NNT, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Estimate the number needed to treat, standard error, and confidence intervals
+    >>>from zepid.calc import number_needed_to_treat
+    >>>nnt = number_needed_to_treat(45, 55, 21, 79)
+
+    Extracting the estimated number needed to treat
+    >>>nnt.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>nnt.lower_bound
+    >>>nnt.upper_bound
+
+    Extracting the standard error
+    >>>nnt.standard_error
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -319,6 +398,22 @@ def odds_ratio(a, b, c, d, alpha=0.05):
     --------------
     tuple
         Tuple of OR, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Estimate the odds ratio, standard error, and confidence intervals
+    >>>from zepid.calc import odds_ratio
+    >>>odr = odds_ratio(45, 55, 21, 79)
+
+    Extracting the estimated odds ratio
+    >>>odr.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>odr.lower_bound
+    >>>odr.upper_bound
+
+    Extracting the standard error
+    >>>odr.standard_error
     """
     check_positivity_or_throw(a, b, c, d)
     warn_if_normal_approximation_invalid(a, b, c, d)
@@ -366,6 +461,22 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
     --------------
     tuple
         Tuple of IR, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Estimate the incidence rate ratio, standard error, and confidence intervals
+    >>>from zepid.calc import incidence_rate_ratio
+    >>>ir = incidence_rate_ratio(45, 21, 109, 158)
+
+    Extracting the estimated incidence rate ratio
+    >>>ir.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>ir.lower_bound
+    >>>ir.upper_bound
+
+    Extracting the standard error
+    >>>ir.standard_error
     """
     check_positivity_or_throw(a, c)
     check_nonnegativity_or_throw(t2, t1)
@@ -414,6 +525,22 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     --------------
     tuple
         Tuple of ID, lower CL, upper CL, SE)
+
+    Examples
+    --------
+    Estimate the incidence rate ratio, standard error, and confidence intervals
+    >>>from zepid.calc import incidence_rate_difference
+    >>>ird = incidence_rate_difference(45, 21, 109, 158)
+
+    Extracting the estimated incidence rate ratio
+    >>>ird.point_estimate
+
+    Extracting the lower and upper confidence intervals, respectively
+    >>>ird.lower_bound
+    >>>ird.upper_bound
+
+    Extracting the standard error
+    >>>ird.standard_error
     """
     check_positivity_or_throw(a, c)
     check_nonnegativity_or_throw(t2, t1)
@@ -455,6 +582,12 @@ def attributable_community_risk(a, b, c, d):
     --------------
     float
         Attributable community risk
+
+    Examples
+    --------
+    Return the attributable community risk
+    >>>from zepid.calc import attributable_community_risk
+    >>>attributable_community_risk(45, 55, 21, 79)
     """
     check_positivity_or_throw(a, b, c, d)
 
@@ -487,6 +620,12 @@ def population_attributable_fraction(a, b, c, d):
     --------------
     float
         Population attributable fraction
+
+    Examples
+    --------
+    Return the population attributable fraction
+    >>>from zepid.calc import population_attributable_fraction
+    >>>population_attributable_fraction(45, 55, 21, 79)
     """
     check_positivity_or_throw(a, b, c, d)
 
@@ -513,6 +652,17 @@ def probability_to_odds(prob):
     ----------
     odds
         Float or array of odds
+
+    Examples
+    --------
+    Convert a single probability to an odds
+    >>>from zepid.calc import probability_to_odds
+    >>>probability_to_odds(0.3)
+
+    Convert an array of probabilities to odds
+    >>>import numpy as np
+    >>>probs = np.array([0.3, 0.1, 0.2, 0.5, 0.01])
+    >>>probability_to_odds(probs)
     """
     return prob / (1 - prob)
 
@@ -535,6 +685,17 @@ def odds_to_probability(odds):
     ----------
     prob
         Float or array of probabilities
+
+    Examples
+    --------
+    Convert a single odds to a probability
+    >>>from zepid.calc import odds_to_probability
+    >>>odds_to_probability(0.45)
+
+    Convert an array of odds to probabilities
+    >>>import numpy as np
+    >>>odds = np.array([0.3, 0.5, 1, 3.1, 1.1])
+    >>>odds_to_probability(odds)
     """
     return odds / (1 + odds)
 
@@ -571,6 +732,12 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     Notes
     --------
     Make sure that the confidence interval points put into the equation match the alpha level calculation
+
+    Examples
+    --------
+    Calculate the counternull p-value for a single estimate and confidence interval
+    >>>from zepid.calc import counternull_pvalue
+    >>>counternull_pvalue(-0.1, -0.3, 0.1)
     """
     zalpha = normal_ppf(1 - alpha / 2)
     se = (ucl - lcl) / (zalpha * 2)
@@ -596,7 +763,8 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
 def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=False, alpha=0.05,
               decimal=3, print_results=True):
     """A simple Bayesian Analysis. Note that this analysis assumes normal distribution for the
-    continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340)
+    continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340 for this
+    procedure)
 
     The posterior estimate and variance are calculated as
 
@@ -640,6 +808,15 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     Warning; Make sure that the alpha used to generate the confidence intervals matches the alpha
     used in this calculation. Additionally, this calculation can only handle normally distributed
     priors and observed
+
+    Examples
+    --------
+    Posterior Risk Difference
+    >>>from zepid.calc import semibayes
+    >>>semibayes(prior_mean=-0.15, prior_lcl=-0.5, prior_ucl=0.2, mean=-0.1, lcl=-0.3, ucl=0.1, print_results=False)
+
+    Posterior Risk Ratio
+    >>>semibayes(prior_mean=0.9, prior_lcl=0.75, prior_ucl=1.2, mean=0.85, lcl=0.77, ucl=0.91, ln_transform=True)
     """
     # Transforming to log scale if ratio measure
     if ln_transform:
@@ -700,7 +877,7 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
         print('----------------------------------------------------------------------')
         print('Data Estimate: ', round(mean, decimal))
         print(str(round((1 - alpha) * 100, 1)) + '% Confidence Interval: (',
-              round(lcl, decimal), ', ', round(ucl, decimal),')')
+              round(lcl, decimal), ', ', round(ucl, decimal), ')')
         print('----------------------------------------------------------------------')
         print('Posterior Estimate: ', round(post_mean, decimal))
         print(str(round((1 - alpha) * 100, 1)) + '% Posterior Probability Interval: (', round(post_lcl, decimal), ', ',
@@ -728,6 +905,21 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     --------
     tuple
         Tuple of sensitivity, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Calculating sensitivity
+    >>>from zepid.calc import sensitivity
+    >>>se = sensitivity(90, 100)
+
+    Extract sensitivity
+    >>>se[0]
+
+    Extract confidence intervals for sensitivity
+    >>>se[1:3]
+
+    Extract standard error
+    >>>se[3]
     """
     check_positivity_or_throw(detected, cases)
     warn_if_normal_approximation_invalid(cases)
@@ -770,6 +962,21 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
     --------
     tuple
         Tuple of specificity, lower CL, upper CL, SE
+
+    Examples
+    --------
+    Calculating specificity
+    >>>from zepid.calc import specificity
+    >>>sp = specificity(88, 100)
+
+    Extract specificity
+    >>>sp[0]
+
+    Extract confidence intervals for specificity
+    >>>sp[1:3]
+
+    Extract standard error
+    >>>sp[3]
     """
     check_positivity_or_throw(detected, noncases)
     warn_if_normal_approximation_invalid(noncases)
@@ -815,6 +1022,12 @@ def ppv_converter(sensitivity, specificity, prevalence):
     ------------
     float
         Positive predictive value
+
+    Examples
+    --------
+    Calculate the positivity predictive value
+    >>>from zepid.calc import ppv_converter
+    >>>ppv_converter(0.9, 0.88, 0.15)
     """
     if (sensitivity > 1) or (specificity > 1) or (prevalence > 1):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -846,6 +1059,12 @@ def npv_converter(sensitivity, specificity, prevalence):
     ------------
     float
         Negative predictive value
+
+    Examples
+    --------
+    Calculate the positivity predictive value
+    >>>from zepid.calc import npv_converter
+    >>>npv_converter(0.9, 0.88, 0.15)
     """
     if (sensitivity > 1) or (specificity > 1) or (prevalence > 1):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
@@ -877,7 +1096,8 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
     specificity : float
         The specificity level of the screening test. Must be a float
     population : float
-        The population size to set. Choose a larger value since this is only necessary for total calculations. Default is 10,000
+        The population size to set. Choose a larger value since this is only necessary for total calculations. Default
+        is 10,000
     decimal : integer
         Amount of decimal points to display. Default value is 3
 
@@ -891,6 +1111,12 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
     When calculating costs, be sure to consult experts in health policy or related fields.  Costs should encompass more
     than just monetary costs, like relative costs (regret, disappointment, stigma, disutility, etc.). Careful
     consideration of relative costs between false positive and false negatives needs to be considered.
+
+    Examples
+    --------
+    Calculate the (relative) cost for the proposed screening strategy
+    >>>from zepid.calc import screening_cost_analyzer
+    >>>screening_cost_analyzer(cost_miss_case=1, cost_false_pos=3, prevalence=0.15, sensitivity=0.9, specificity=0.88)
     """
     print('----------------------------------------------------------------------')
     print('''NOTE: When calculating costs, be sure to consult experts in health\npolicy or related fields.  

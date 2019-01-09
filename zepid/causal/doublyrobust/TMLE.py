@@ -73,6 +73,43 @@ class TMLE:
         alpha : int, optional
             Alpha for confidence interval level. Default is 0.05
 
+        Examples
+        --------
+        Setting up environment
+        >>>from zepid import load_sample_data, spline
+        >>>from zepid.causal.doublyrobust import TMLE
+        >>>df = load_sample_data(False).dropna()
+        >>>df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+
+        Estimating TMLE using logistic regression
+        >>>tmle = TMLE(df, exposure='art', outcome='dead')
+        >>># Specifying exposure/treatment model
+        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        >>># Specifying outcome model
+        >>>tmle.exposure_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        >>># TMLE estimation procedure
+        >>>tmle.fit()
+        >>># Printing main results
+        >>>tmle.summary()
+        >>># Extracting point estimate and confidence intervals, respectively
+        >>>tmle.psi
+        >>>tmle.confint
+
+        Estimating TMLE with machine learning algorithm from sklearn
+        >>>from sklearn.linear_model import LogisticRegression
+        >>>log1 = LogisticRegression(penalty='l1', random_state=201)
+        >>>tmle = TMLE(df, 'art', 'dead')
+        >>># custom_model allows specification of machine learning algorithms
+        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
+        >>>tmle.outcome_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
+        >>>tmle.fit()
+
+        Demonstration of estimating g-model with symmetric bounds
+        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', bound=0.05)
+
+        Demonstration of estimating g-model with asymmetric bounds
+        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', bound=[0.05, 0.9])
+
         References
         ----------
         Schuler, Megan S., and Sherri Rose. "Targeted maximum likelihood estimation for causal inference in
@@ -115,13 +152,9 @@ class TMLE:
         model : str
             Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
         custom_model : optional
-            Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
-            This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
-            any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
-            logistic regression. Please see online for an example
-            NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
-            The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
-            to unexpected estimates
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
@@ -173,13 +206,9 @@ class TMLE:
         model : str
             Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
         custom_model : optional
-            Input for a custom model. The model must already be estimated and have the "predict()" attribute to work.
-            This allows the user to use any outside model they want and bring it into TMLE. For example, you can use
-            any sklearn model, ensemble model (SuPyLearner), or just different statsmodels regression models than
-            logistic regression. Please see online for an example
-            NOTE: if a custom model is used, patsy in the background does the data filtering from the equation above.
-            The equation order of variables MUST match that of the custom_model when it was fit. If not, this can lead
-            to unexpected estimates
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """

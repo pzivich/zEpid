@@ -28,7 +28,7 @@ def propensity_score(df, model, print_results=True):
     >>>df = ze.load_sample_data(timevary=False)
     >>>ze.causal.ipw.propensity_score(df=df,model='dead ~ art0 + male + dvl0')
     """
-    f = sm.families.family.Binomial(sm.families.links.logit)
+    f = sm.families.family.Binomial()
     log = smf.glm(model, df, family=f).fit()
     if print_results:
         print('\n----------------------------------------------------------------')

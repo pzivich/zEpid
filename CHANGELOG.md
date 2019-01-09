@@ -1,5 +1,23 @@
 ### Change logs
 
+#### v0.4.1:
+** MAJOR CHANGES**:
+
+``IPTW``'s ``plot_kde`` and ``plot_boxplot`` can plot either the probabilities of treatment or the log-odds
+
+``IPTW`` allows for sklearn or supylearner to generate predicted probabilities. Similar to ``TMLE``
+
+``IPTW`` now allows for Love plot to be generated. These plots are valuable for assessing covariate balance via absolute
+standardized mean differences. See Austin & Stuart 2015 for an example. In its current state ``IPTW.plot_love`` is 
+"dumb", in the sense that it plots all variables in the model. If you have a quadratic term in the model for a 
+continuous variable, it plots both the linear and quadratic terms. However, it is my understanding that you only need 
+to look at the linear term. These plots are not quite for publication, rather they are useful for quick diagnostics
+
+``IPTW.standardized_mean_differences`` now calculates for all variables automatically. This is used in the background 
+for the ``plot_love``. For making publication-quality Love plots, I would recommend using the returned DataFrame from 
+this function and creating a plot manually. *Note* it only returns standardized differeneces, not absolute standardized 
+differences. Love plots use the standardized differences.
+
 #### v0.4.0:
 **MAJOR CHANGES**:
 

@@ -5,6 +5,8 @@ Below is documentation for each of the implemented calculation functionalities f
 Measures
 --------
 
+.. automodule:: zepid.calc.utils
+
 .. autosummary::
 
   risk_ci
@@ -21,6 +23,8 @@ Measures
 Diagnostics
 -----------
 
+.. automodule:: zepid.calc.utils
+
 .. autosummary::
 
   sensitivity
@@ -31,6 +35,8 @@ Diagnostics
 
 Others
 ------
+
+.. automodule:: zepid.calc.utils
 
 .. autosummary::
 

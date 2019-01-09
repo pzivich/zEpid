@@ -7,7 +7,7 @@ from statsmodels.genmod.families import links
 
 
 class TimeFixedGFormula:
-    def __init__(self, df, exposure, outcome, outcome_type='binary', weights=None):
+    def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', weights=None):
         """Time-fixed implementation of the g-formula, also referred to as the g-computation algorithm formula. This
         implementation has three options for the treatment courses:
 
@@ -38,21 +38,59 @@ class TimeFixedGFormula:
         outcome : str
             Column name for outcome variable
         outcome_type : str, optional
-            Outcome variable type. Currently only 'binary' or 'continuous' variable types are supported
+            Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
         weights : str, optional
             Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
 
         Examples
         --------
-        >>>import zepid as ze
+        Setting up the environment
+        >>>from zepid import load_sample_data, spline
         >>>from zepid.causal.gformula import TimeFixedGFormula
-        >>>df = ze.load_sample_data(timevary=False)
-        >>>df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
-        >>>df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        >>>df = load_sample_data(timevary=False)
+        >>>df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        >>>df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+        G-formula with a binary treatment and outcome
         >>>g = TimeFixedGFormula(df, exposure='art', outcome='dead')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+        >>># Return the estimated marginal outcome under treat-all
         >>>g.fit(treatment='all')
-        >>>print(g.marginal_outcome)
+        >>>g.marginal_outcome
+
+        >>># Return the estimated marginal outcome under treat-none
+        >>>g.fit(treatment='all')
+        >>>g.marginal_outcome
+
+        >>># Return the estimated marginal outcome under custom treatment (treat all females under 40)
+        >>>g.fit(treatment="((g['male']==0) & (g['age0']<=40))")
+        >>>g.marginal_outcome
+
+        G-formula with a categorical treatment and binary outcome
+        >>># Creating categorical variable for CD4 count
+        >>>df['cd4_1'] = np.where(((df['cd40'] >= 200) & (df['cd40'] < 400)), 1, 0)
+        >>>df['cd4_2'] = np.where(df['cd40'] >= 400, 1, 0)
+
+        >>>g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead', exposure_type='categorical')
+        >>>g.outcome_model(model='cd4_1 + cd4_2 + art + male + age0 + age_rs1 + age_rs2 + dvl0')
+
+        >>># Return marginal outcome under all in reference category (CD4 < 200)
+        >>>g.fit(treatment=["False", "False"])
+
+        >>># Return marginal outcome under all in category 1 (CD4 >= 200 & CD4 < 400)
+        >>>g.fit(treatment=["True", "False"])
+
+        >>># Return marginal outcome under all in category 2 (CD4 > 400)
+        >>>g.fit(treatment=["False", "True"])
+
+        G-formula with binary exposure and continuous (normal-distributed) outcome
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='normal')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+
+        G-formula with binary exposure and continuous (Poisson-distributed) outcome
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
 
         References
         ----------
@@ -63,11 +101,19 @@ class TimeFixedGFormula:
         self.gf = df.copy()
         self.exposure = exposure
         self.outcome = outcome
-        if (outcome_type == 'binary') or (outcome_type == 'continuous'):
+
+        if (outcome_type == 'binary') or (outcome_type == 'normal') or (outcome_type == 'poisson'):
             self.outcome_type = outcome_type
         else:
-            raise ValueError('Only binary or continuous outcomes are currently supported. Please specify "binary" or '
-                             '"continuous"')
+            raise ValueError('Only binary or continuous outcomes are currently supported. Please specify "binary" '
+                             '"normal", or "poisson"')
+
+        if (exposure_type == 'binary') or (exposure_type == 'continuous') or (exposure_type == 'categorical'):
+            self.exposure_type = exposure_type
+        else:
+            raise ValueError('Only binary or continuous exposures are currently supported. Please specify "binary", '
+                             '"categorical", or "continuous".')
+
         self._weights = weights
         self._outcome_model = None
         self.marginal_outcome = np.nan
@@ -87,8 +133,10 @@ class TimeFixedGFormula:
         """
         if self.outcome_type == 'binary':
             linkdist = sm.families.family.Binomial()
+        elif self.outcome_type == 'normal':
+            linkdist = sm.families.family.Gaussian()
         else:
-            linkdist = sm.families.family.Gaussian(sm.families.links.identity)
+            linkdist = sm.families.family.Poisson()
 
         # Modeling the outcome
         if self._weights is None:
@@ -100,7 +148,7 @@ class TimeFixedGFormula:
             self._outcome_model = m.fit()
 
         # Printing results of the model and if any observations were dropped
-        if print_results is True:
+        if print_results:
             print(self._outcome_model.summary())
 
     def fit(self, treatment):
@@ -135,22 +183,7 @@ class TimeFixedGFormula:
         g = self.gf.copy()
 
         # Setting treatment (either multivariate or binary)
-        if type(self.exposure) == list:  # Multivariate exposure
-            if (treatment == 'all') or (treatment == 'none'):  # Check to make sure custom treatment
-                raise ValueError('A multivariate exposure has been specified. A custom treatment must be '
-                                 'specified by the user')
-            else:
-                if len(self.exposure) != len(treatment):  # Check to make sure same about of treatments specified
-                    raise ValueError('The list of custom treatment conditions must be the same size as the number of '
-                                     'treatments')
-                for i in range(len(self.exposure)):
-                    g[self.exposure[i]] = np.where(eval(treatment[i]),1,0)
-                if np.sum(np.where(g[self.exposure].sum(axis=1) > 1, 1, 0)) > 1:
-                    warnings.warn('It looks like your specified treatment strategy results in some individuals '
-                                  'receiving at least two exposures. Reconsider how the custom treatments are '
-                                  'specified', UserWarning)
-
-        else:  # Binary exposure
+        if self.exposure_type == 'binary':
             if type(treatment) == list:
                 raise ValueError('A binary exposure is specified. Treatment plan should be a string object')
             if treatment == 'all':
@@ -159,6 +192,26 @@ class TimeFixedGFormula:
                 g[self.exposure] = 0
             else:  # custom exposure pattern
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
+
+        elif self.exposure_type == 'categorical':
+            if (treatment == 'all') or (treatment == 'none'):  # Check to make sure custom treatment
+                raise ValueError('A multivariate exposure has been specified. A custom treatment must be '
+                                 'specified by the user')
+            else:
+                if len(self.exposure) != len(treatment):  # Check to make sure same about of treatments specified
+                    raise ValueError('The list of custom treatment conditions must be the same size as the number of '
+                                     'treatments')
+                for i in range(len(self.exposure)):
+                    g[self.exposure[i]] = np.where(eval(treatment[i]), 1, 0)
+
+                if np.sum(np.where(g[self.exposure].sum(axis=1) > 1, 1, 0)) > 1:
+                    warnings.warn('It looks like your specified treatment strategy results in some individuals '
+                                  'receiving at least two exposures. Reconsider how the custom treatments are '
+                                  'specified', UserWarning)
+
+        else:
+            raise ValueError('Still working on allowing for continuous treatments...')
+            # TODO fill in this part of continuous exposures
 
         # Getting predictions
         g[self.outcome] = np.nan
