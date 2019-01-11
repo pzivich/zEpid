@@ -323,6 +323,9 @@ stratified by treatment. The density plot is implemented in a similar way
 
 .. image:: images/zepid_iptdensity.png
 
+**NOTE**: standardized mean differences does NOT support categorical outcomes currently. As such the calculated values
+for categorical variables are INCORRECT!
+
 Another graphical diagnostic is the Love plot. The Love plot was proposed by Thomas Love (Graphical Display of Covariate
 Balance, 2004) in order to determine potential imbalance of covariates by treatment. This assessment is done by
 visualizing the absolute standardized differences.
