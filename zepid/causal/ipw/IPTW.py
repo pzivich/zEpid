@@ -392,8 +392,10 @@ class IPTW:
         Returns
         -------
         DataFrame
-            Returns pandas DataFrame of calculated standardized mean differences
+            Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
+            smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
         """
+        # TODO for categorical, need to interact with patsy's C(...)
         vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
         w_diff = []
         u_diff = []
@@ -477,6 +479,7 @@ class IPTW:
                 l.append(a)
             return l[0], l[1]
 
+        # TODO add categorical option. Needs to interact with a list of vars / patsy
         if var_type == 'binary':
             if weighted:
                 wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
@@ -499,7 +502,7 @@ class IPTW:
             else:
                 wmn = np.mean(self.df[self.df[self.ex] == 0][variable])
                 wmt = np.mean(self.df[self.df[self.ex] == 1][variable])
-                wsn = np.std(self.df[self.df[self.ex] == 1][variable], ddof=1)
+                wsn = np.std(self.df[self.df[self.ex] == 0][variable], ddof=1)
                 wst = np.std(self.df[self.df[self.ex] == 1][variable], ddof=1)
             smd = (wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2)
 

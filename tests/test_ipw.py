@@ -191,12 +191,25 @@ class TestIPTW:
         df['con'] = [0.1, 0.0, 1.0, 1.1]
         df['dis'] = [0, 1, 3, 5]
         df['boo'] = [True, True, False, True]
+        # TODO add categorical detector (once implemented in v0.4.2)
         assert 'binary' == IPTW._var_detector(df['bin'])
         assert 'continuous' == IPTW._var_detector(df['con'])
         assert 'continuous' == IPTW._var_detector(df['dis'])
         assert 'binary' == IPTW._var_detector(df['boo'])
 
-    # TODO add standardized differences checks (after adding the plot functionality)
+    def test_standardized_differences(self, sdata):
+        ipt = IPTW(sdata, treatment='art', stabilized=True)
+        ipt.regression_models('male + age0 + cd40 + dvl0')
+        ipt.fit()
+        smd = ipt.standardized_mean_differences()
+
+        npt.assert_allclose(np.array(smd['smd_u']),
+                            np.array([-0.015684, 0.022311, -0.4867, -0.015729]),
+                            rtol=1e-4)  # for unweighted
+        npt.assert_allclose(np.array(smd['smd_w']),
+                            np.array([-0.090465, 0.000465, -0.003576, 0.106043]),
+                            rtol=1e-4)  # for weighted
+        # TODO add categorical once implemented
 
 
 class TestIPMW:

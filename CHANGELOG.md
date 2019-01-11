@@ -1,7 +1,9 @@
 ### Change logs
 
 #### v0.4.1:
-** MAJOR CHANGES**:
+**MAJOR CHANGES**:
+
+``TimeFixedGFormula`` supports Poisson and normal distributed continuous outcomes
 
 ``IPTW``'s ``plot_kde`` and ``plot_boxplot`` can plot either the probabilities of treatment or the log-odds
 
@@ -17,6 +19,12 @@ to look at the linear term. These plots are not quite for publication, rather th
 for the ``plot_love``. For making publication-quality Love plots, I would recommend using the returned DataFrame from 
 this function and creating a plot manually. *Note* it only returns standardized differeneces, not absolute standardized 
 differences. Love plots use the standardized differences.
+*WARNING:* standardized differences **only** supports binary or continuous variables. Categorical variables are NOT 
+supported. This will be fixed in v0.4.2 update
+
+**MINOR CHANGES**:
+
+Website updated to reflect above changes and correcting errors I had missed on last check
 
 #### v0.4.0:
 **MAJOR CHANGES**:
