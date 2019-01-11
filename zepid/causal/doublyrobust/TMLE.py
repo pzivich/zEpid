@@ -307,6 +307,8 @@ class TMLE:
             zalpha = 1.96
         else:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
+
+        # p-values are not implemented (doing my part to enforce CL over p-values)
         if self._psi_correspond == 'risk_difference':
             self.psi = np.mean(Qstar1 - Qstar0)
             # Influence Curve for CL
@@ -314,7 +316,6 @@ class TMLE:
             varIC = np.var(ic, ddof=1) / self.df.shape[0]
             self.confint = [self.psi - zalpha * math.sqrt(varIC),
                             self.psi + zalpha * math.sqrt(varIC)]
-            # TODO add p-values? Against my bias to add though
 
         elif self._psi_correspond == 'risk_ratio':
             self.psi = np.mean(Qstar1) / np.mean(Qstar0)
@@ -389,5 +390,3 @@ class TMLE:
         print(np.max(v))
         return v
 
-
-# TODO longitudinal TMLE; estimated by E[...E[Y_n|A=abar]...] working from center to outside

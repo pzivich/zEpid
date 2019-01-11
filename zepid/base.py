@@ -1607,9 +1607,9 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     df.loc[((df[exposure] != 1) | (df[modifier] != 1)), 'E1M1'] = 0
     df.loc[((df[exposure].isnull()) | (df[modifier].isnull())), 'E1M1'] = np.nan
     if regression == 'logit':
-        f = sm.families.family.Binomial(sm.families.links.logit)
-        print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
-        # TODO replace this with a warning looking at prevalence. Now should default to logit
+        f = sm.families.family.Binomial()
+        warnings.warn('Using the Odds Ratio to calculate the ICR is only valid when the OR approximates the RR',
+                      UserWarning)
     elif regression == 'log':
         f = sm.families.family.Binomial(sm.families.links.log)
     if adjust is None:
