@@ -1,5 +1,13 @@
 ### Change logs
 
+#### v0.4.2:
+
+**MAJOR CHANGES**:
+
+``TMLE`` defaults to calculate all possible measures (risk difference, risk ratio, odds ratio) rather than individual 
+ones
+
+
 #### v0.4.1:
 **MAJOR CHANGES**:
 

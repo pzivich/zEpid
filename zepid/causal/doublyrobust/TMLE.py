@@ -11,7 +11,7 @@ from zepid.calc import probability_to_odds
 
 
 class TMLE:
-    def __init__(self, df, exposure, outcome, measure='risk_difference', alpha = 0.05):
+    def __init__(self, df, exposure, outcome, measure=None, alpha=0.05):
         """Implementation of a single time-point target maximum likelihood estimator. It uses standard logistic
         regression models to calculate Psi. The TMLE estimator allows a standard logistic regression to be used.
         Alternatively, users are able to directly input predicted outcomes from other methods (like machine learning
@@ -65,11 +65,7 @@ class TMLE:
         outcome : str
             Column label for the outcome of interest
         measure : str, optional
-            What the TMLE psi estimates. Current options include; risk difference comparing treated to untreated
-            (F(A=1) - F(A=0)), risk ratio (F(A=1) / F(A=0)), and odds ratio. The following keywords are available
-            * 'risk_difference'  :   F(A=1) - F(A=0)
-            * 'risk_ratio'       :   F(A=1) / F(A=0)
-            * 'odds_ratio'       :   (F(A=1) / (1 - F(A=1)) / (F(A=0) / (1 - F(A=0))
+            No longer supported. By default risk difference, risk ratio, and odds ratio are all calculated
         alpha : int, optional
             Alpha for confidence interval level. Default is 0.05
 
@@ -91,9 +87,9 @@ class TMLE:
         >>>tmle.fit()
         >>># Printing main results
         >>>tmle.summary()
-        >>># Extracting point estimate and confidence intervals, respectively
-        >>>tmle.psi
-        >>>tmle.confint
+        >>># Extracting risk difference and confidence intervals, respectively
+        >>>tmle.risk_difference
+        >>>tmle.risk_difference_ci
 
         Estimating TMLE with machine learning algorithm from sklearn
         >>>from sklearn.linear_model import LogisticRegression
@@ -126,23 +122,30 @@ class TMLE:
                           "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations', UserWarning)
 
         # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
-        self._psi_correspond = measure
+        if measure is not None:
+            warnings.warn('As of v0.4.2, TMLE defaults to calculate all implemented measures (RD, RR, OR)', UserWarning)
         self.df = df.copy().dropna().reset_index()
-        self.alpha = alpha
         self._exposure = exposure
         self._outcome = outcome
         self._out_model = None
         self._exp_model = None
         self._fit_exposure_model = False
         self._fit_outcome_model = False
+        self.alpha = alpha
+
         self.QA0W = None
         self.QA1W = None
         self.QAW = None
         self.g1W = None
         self.g0W = None
         self._epsilon = None
-        self.psi = None
-        self.confint = None
+
+        self.risk_difference = None
+        self.risk_difference_ci = None
+        self.risk_ratio = None
+        self.risk_ratio_ci = None
+        self.odds_ratio = None
+        self.odds_ratio_ci = None
 
     def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
         """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
@@ -278,7 +281,8 @@ class TMLE:
         self._fit_outcome_model = True
 
     def fit(self):
-        """Estimates psi based on the gAW and QAW. Confidence intervals come from the influence curve
+        """Estimates risk difference, risk ratio, and odds ratio based on the gAW and QAW. Confidence intervals come
+        from the influence curve
 
         Returns
         -------
@@ -309,34 +313,31 @@ class TMLE:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
         # p-values are not implemented (doing my part to enforce CL over p-values)
-        if self._psi_correspond == 'risk_difference':
-            self.psi = np.mean(Qstar1 - Qstar0)
-            # Influence Curve for CL
-            ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.psi
-            varIC = np.var(ic, ddof=1) / self.df.shape[0]
-            self.confint = [self.psi - zalpha * math.sqrt(varIC),
-                            self.psi + zalpha * math.sqrt(varIC)]
+        # Calculating Risk Difference
+        self.risk_difference = np.mean(Qstar1 - Qstar0)
+        # Influence Curve for CL
+        ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference
+        varIC = np.var(ic, ddof=1) / self.df.shape[0]
+        self.risk_difference_ci = [self.risk_difference - zalpha * math.sqrt(varIC),
+                                   self.risk_difference + zalpha * math.sqrt(varIC)]
 
-        elif self._psi_correspond == 'risk_ratio':
-            self.psi = np.mean(Qstar1) / np.mean(Qstar0)
-            # Influence Curve for CL
-            ic = (1/np.mean(Qstar1)*(H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
-                  (1/np.mean(Qstar0))*(-1*H0W * (self.df[self._outcome] - Qstar) + Qstar0 - np.mean(Qstar0)))
-            varIC = np.var(ic, ddof=1) / self.df.shape[0]
-            self.confint = [np.exp(np.log(self.psi) - zalpha * math.sqrt(varIC)),
-                            np.exp(np.log(self.psi) + zalpha * math.sqrt(varIC))]
+        # Calculating Risk Ratio
+        self.risk_ratio = np.mean(Qstar1) / np.mean(Qstar0)
+        # Influence Curve for CL
+        ic = (1/np.mean(Qstar1)*(H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
+              (1/np.mean(Qstar0))*(-1*H0W * (self.df[self._outcome] - Qstar) + Qstar0 - np.mean(Qstar0)))
+        varIC = np.var(ic, ddof=1) / self.df.shape[0]
+        self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * math.sqrt(varIC)),
+                              np.exp(np.log(self.risk_ratio) + zalpha * math.sqrt(varIC))]
 
-        elif self._psi_correspond == 'odds_ratio':
-            self.psi = (np.mean(Qstar1) / (1 - np.mean(Qstar1))) / (np.mean(Qstar0) / (1 - np.mean(Qstar0)))
-            # Influence Curve for CL
-            ic = ((1/(np.mean(Qstar1)*(1-np.mean(Qstar1))) * (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
-                  (1/(np.mean(Qstar0)*(1 - np.mean(Qstar0))) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0)))
-            seIC = math.sqrt(np.var(ic, ddof=1) / self.df.shape[0])
-            self.confint = [np.exp(np.log(self.psi) - zalpha * seIC),
-                            np.exp(np.log(self.psi) + zalpha * seIC)]
-
-        else:
-            raise ValueError('Specified parameter is not implemented. Please use one of the available options')
+        # Calculating Odds Ratio
+        self.odds_ratio = (np.mean(Qstar1) / (1 - np.mean(Qstar1))) / (np.mean(Qstar0) / (1 - np.mean(Qstar0)))
+        # Influence Curve for CL
+        ic = ((1/(np.mean(Qstar1)*(1-np.mean(Qstar1))) * (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
+              (1/(np.mean(Qstar0)*(1 - np.mean(Qstar0))) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0)))
+        seIC = math.sqrt(np.var(ic, ddof=1) / self.df.shape[0])
+        self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * seIC),
+                              np.exp(np.log(self.odds_ratio) + zalpha * seIC)]
 
     def summary(self, decimal=3):
         """Prints summary of model results
@@ -351,11 +352,20 @@ class TMLE:
                              'be generated')
 
         print('----------------------------------------------------------------------')
-        print('Psi: ', round(float(self.psi), decimal))
-        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' + str(round(self.confint[0], decimal)), ',',
-              str(round(self.confint[1], decimal)) + ')')
+        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+              str(round(self.risk_difference_ci[0], decimal)), ',',
+              str(round(self.risk_difference_ci[1], decimal)) + ')')
         print('----------------------------------------------------------------------')
-        print('Psi corresponds to '+self._psi_correspond)
+        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+              str(round(self.risk_ratio_ci[0], decimal)), ',',
+              str(round(self.risk_ratio_ci[1], decimal)) + ')')
+        print('----------------------------------------------------------------------')
+        print('Odds Ratio: ', round(float(self.odds_ratio), decimal))
+        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+              str(round(self.odds_ratio_ci[0], decimal)), ',',
+              str(round(self.odds_ratio_ci[1], decimal)) + ')')
         print('----------------------------------------------------------------------')
 
     @staticmethod
