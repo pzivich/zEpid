@@ -92,11 +92,29 @@ class TimeFixedGFormula:
         >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
 
+        G-formula with binary outcome and exposure. With a stochastic treatment/intervention
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+        >>>g.fit_stochastic(p=0.75)
+
+        G-formula with binary outcome and exposure. With a conditional stochastic treatment/intervention
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+        >>>g.fit_stochastic(p=[0.65, 0.85], conditional=["g['male']==1", "g['male']==0"])
+
         References
         ----------
         Snowden, Jonathan M., Sherri Rose, and Kathleen M. Mortimer. "Implementation of G-computation on a simulated
         data set: demonstration of a causal inference technique." American Journal of Epidemiology 173.7 (2011):
         731-738.
+
+        Ahern, J., Colson, K. E., Margerson-Zilko, C., Hubbard, A., & Galea, S. (2016). Predicting the population
+        health impacts of community interventions: the case of alcohol outlets and binge drinking. American
+        Journal of Public Health, 106(11), 1938-1943.
+
+        Ahern, J., Hubbard, A., & Galea, S. (2009). Estimating the effects of potential public health interventions on
+        population disease burden: a step-by-step illustration of causal inference methods. American Journal of
+        Epidemiology, 169(9), 1140-1147.
         """
         self.gf = df.copy()
         self.exposure = exposure
@@ -224,18 +242,24 @@ class TimeFixedGFormula:
 
     def fit_stochastic(self, p, conditional=None, samples=100, seed=None):
         """Fits the g-formula for a stochastic intervention. As currently implemented, 'p' percent of the population is
-        randomly treated. This process is repeated 'n' times and the mean is the marginal stochastic outcome
+        randomly treated. This process is repeated 'n' times and the mean is the marginal stochastic outcome.
 
         Parameters
         ----------
         p: float, list
             Percent of the population to randomly treat
-        conditional:
-            List of selection #TODO write this better
+        conditional: list
+            Exclusive conditions to place on the data set for treatment percents. If specified, must match the length
+            of the list of probabilities in 'p'
         samples: int, optional
             Number of resamples to calculate the marginal outcome. Default is 100
         seed: int, optional
             Seed for the random process selection
+
+        References
+        ----------
+        Muñoz, I. D., & van der Laan, M. (2012). Population intervention causal effects based on stochastic
+        interventions. Biometrics, 68(2), 541-549. discusses what a stochastic intervention is
         """
         if self._outcome_model is None:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
@@ -253,7 +277,7 @@ class TimeFixedGFormula:
         else:
             np.random.seed(seed)
 
-        if conditional is not None:
+        if conditional is not None:  # Check exclusive conditional categories
             self._check_conditional(conditional)
 
         marginals = []
@@ -262,27 +286,16 @@ class TimeFixedGFormula:
 
             # Selecting out observations
             if conditional is None:  # Unconditional probabilities
-                if self._weights is None:
-                    treated = np.random.choice(g.index, size=int(p*g.shape[0]), replace=False)
-                else:  # Weighting observations for random treatment
-                    treated = np.random.choice(g.index, size=int(p*g.shape[0]), replace=False,
-                                               p=g[self._weights]/np.sum(g[self._weights]))
+                pr = g[self._weights] / np.sum(g[self._weights]) if self._weights is not None else None
+                treated = np.random.choice(g.index, size=int(p*g.shape[0]), replace=False, p=pr)
+
             else:  # Conditional probabilities based on eval()
-                # TODO Checking conditionals are mutually exclusive
-                if self._weights is None:
-                    treated = []
-                    for c, prop in zip(conditional, p):
-                        gs = g.loc[eval(c)].copy()
-                        tr = np.random.choice(gs.index, size=int(prop*gs.shape[0]), replace=False)
-                        treated.extend(tr)
-                else:
-                    treated = []
-                    for c, prop in zip(conditional, p):
-                        gs = g.loc[eval(c)].copy()
-                        tr = np.random.choice(gs.index,
-                                              size=int(prop*gs.shape[0]), replace=False,
-                                              p=gs[self._weights] / np.sum(gs[self._weights]))
-                        treated.extend(tr)
+                treated = []
+                for c, prop in zip(conditional, p):
+                    gs = g.loc[eval(c)].copy()
+                    pr = gs[self._weights] / np.sum(gs[self._weights]) if self._weights is not None else None
+                    tr = np.random.choice(gs.index, size=int(prop*gs.shape[0]), replace=False, p=pr)
+                    treated.extend(tr)
 
             # Applying treatment (binary only currently)
             g[self.exposure] = np.where(g.index.isin(treated), 1, 0)
