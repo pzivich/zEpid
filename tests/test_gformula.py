@@ -167,6 +167,108 @@ class TestTimeFixedGFormula:
 
     # TODO add test for Poisson distributed outcome
 
+    def test_stochastic_conditional_probability(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+        with pytest.raises(ValueError):
+            g.fit_stochastic(p=[0.0], conditional=["g['L']==1", "g['L']==0"])
+
+    def test_stochastic_matches_marginal(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+
+        g.fit(treatment='all')
+        rm = g.marginal_outcome
+        g.fit_stochastic(p=1.0)
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm, rs, rtol=1e-7)
+
+        g.fit(treatment='none')
+        rm = g.marginal_outcome
+        g.fit_stochastic(p=0.0)
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm, rs, rtol=1e-7)
+
+    def test_stochastic_between_marginal(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+        g.fit(treatment='all')
+        r1 = g.marginal_outcome
+        g.fit(treatment='none')
+        r0 = g.marginal_outcome
+        g.fit_stochastic(p=0.5)
+        r_star = g.marginal_outcome
+        assert r0 < r_star < r1
+
+    def test_weight_stochastic_matches_marginal(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y', weights='w')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+
+        g.fit(treatment='all')
+        rm = g.marginal_outcome
+        g.fit_stochastic(p=1.0)
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm, rs, rtol=1e-7)
+
+        g.fit(treatment='none')
+        rm = g.marginal_outcome
+        g.fit_stochastic(p=0.0)
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm, rs, rtol=1e-7)
+
+    def test_weight_stochastic_between_marginal(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y', weights='w')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+        g.fit(treatment='all')
+        r1 = g.marginal_outcome
+        g.fit(treatment='none')
+        r0 = g.marginal_outcome
+        g.fit_stochastic(p=0.5)
+        r_star = g.marginal_outcome
+        assert r0 < r_star < r1
+
+    def test_conditional_stochastic_matches_marginal(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+
+        g.fit(treatment='all')
+        rm = g.marginal_outcome
+        g.fit_stochastic(p=[1.0, 1.0], conditional=["g['L']==1", "g['L']==0"])
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm, rs, rtol=1e-7)
+
+        g.fit(treatment='none')
+        rn = g.marginal_outcome
+        g.fit_stochastic(p=[0.0, 0.0], conditional=["g['L']==1", "g['L']==0"])
+        rs = g.marginal_outcome
+        npt.assert_allclose(rn, rs, rtol=1e-7)
+
+    def test_conditional_weight_stochastic_matches_marginal(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y', weights='w')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+
+        g.fit(treatment='all')
+        rm = g.marginal_outcome
+        g.fit_stochastic(p=[1.0, 1.0], conditional=["g['L']==1", "g['L']==0"])
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm, rs, rtol=1e-7)
+
+        g.fit(treatment='none')
+        rn = g.marginal_outcome
+        g.fit_stochastic(p=[0.0, 0.0], conditional=["g['L']==1", "g['L']==0"])
+        rs = g.marginal_outcome
+        npt.assert_allclose(rn, rs, rtol=1e-7)
+
+    def test_conditional_stochastic_warning(self):
+        data = pd.DataFrame()
+        data['A'] = [1]*50 + [0]*50
+        data['L'] = [1]*25 + [0]*25 + [1]*40 + [0]*10
+        data['Y'] = [1]*25 + [0]*25 + [1]*25 + [0]*25
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+        with pytest.warns(UserWarning):
+            g.fit_stochastic(p=[1.0, 1.0], conditional=["(g['L']==1) | (g['L']==0)", "g['L']==0"])
+
 
 class TestTimeVaryGFormula:
 

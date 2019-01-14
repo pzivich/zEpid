@@ -221,3 +221,90 @@ class TimeFixedGFormula:
         else:  # weighted marginal estimate
             self.marginal_outcome = np.average(g[self.outcome], weights=self.gf[self._weights])
         self.predicted_df = g
+
+    def fit_stochastic(self, p, conditional=None, samples=100, seed=None):
+        """Fits the g-formula for a stochastic intervention. As currently implemented, 'p' percent of the population is
+        randomly treated. This process is repeated 'n' times and the mean is the marginal stochastic outcome
+
+        Parameters
+        ----------
+        p: float, list
+            Percent of the population to randomly treat
+        conditional:
+            List of selection #TODO write this better
+        samples: int, optional
+            Number of resamples to calculate the marginal outcome. Default is 100
+        seed: int, optional
+            Seed for the random process selection
+        """
+        if self._outcome_model is None:
+            raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
+        if self.exposure_type != 'binary':
+            raise ValueError('Only binary exposures are currently available for the stochastic treatment g-formula')
+        if conditional is not None:
+            if len(p) != len(conditional):
+                raise ValueError("'p' and 'conditional' must be the same length")
+        else:
+            if type(p) != float:
+                raise ValueError("Specified percent must be a float when 'conditional' is not specified")
+
+        if seed is None:
+            pass
+        else:
+            np.random.seed(seed)
+
+        if conditional is not None:
+            self._check_conditional(conditional)
+
+        marginals = []
+        for s in range(samples):
+            g = self.gf.reset_index(drop=True).copy()
+
+            # Selecting out observations
+            if conditional is None:  # Unconditional probabilities
+                if self._weights is None:
+                    treated = np.random.choice(g.index, size=int(p*g.shape[0]), replace=False)
+                else:  # Weighting observations for random treatment
+                    treated = np.random.choice(g.index, size=int(p*g.shape[0]), replace=False,
+                                               p=g[self._weights]/np.sum(g[self._weights]))
+            else:  # Conditional probabilities based on eval()
+                # TODO Checking conditionals are mutually exclusive
+                if self._weights is None:
+                    treated = []
+                    for c, prop in zip(conditional, p):
+                        gs = g.loc[eval(c)].copy()
+                        tr = np.random.choice(gs.index, size=int(prop*gs.shape[0]), replace=False)
+                        treated.extend(tr)
+                else:
+                    treated = []
+                    for c, prop in zip(conditional, p):
+                        gs = g.loc[eval(c)].copy()
+                        tr = np.random.choice(gs.index,
+                                              size=int(prop*gs.shape[0]), replace=False,
+                                              p=gs[self._weights] / np.sum(gs[self._weights]))
+                        treated.extend(tr)
+
+            # Applying treatment (binary only currently)
+            g[self.exposure] = np.where(g.index.isin(treated), 1, 0)
+
+            # Getting predictions
+            g[self.outcome] = np.nan
+            g[self.outcome] = self._outcome_model.predict(g)
+            if self._weights is None:  # unweighted marginal estimate
+                marginals.append(np.mean(g[self.outcome]))
+            else:  # weighted marginal estimate
+                marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
+
+        self.marginal_outcome = np.mean(marginals)
+
+    def _check_conditional(self, conditional):
+        """Check that conditionals are exclusive for the stochastic fit process
+        """
+        g = self.gf.copy()
+        a = np.array([0]*g.shape[0])
+        for c in conditional:
+            a = np.add(a, np.where(eval(c), 1, 0))
+
+        if np.sum(np.where(a > 1, 1, 0)):
+            warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
+                          "the conditions that designate each category should be exclusive", UserWarning)
