@@ -104,15 +104,15 @@ class TimeFixedGFormula:
 
         References
         ----------
-        Snowden, Jonathan M., Sherri Rose, and Kathleen M. Mortimer. "Implementation of G-computation on a simulated
+        JM Snowden, S Rose, and KM Mortimer. "Implementation of G-computation on a simulated
         data set: demonstration of a causal inference technique." American Journal of Epidemiology 173.7 (2011):
         731-738.
 
-        Ahern, J., Colson, K. E., Margerson-Zilko, C., Hubbard, A., & Galea, S. (2016). Predicting the population
+        J Ahern, KE Colson, C Margerson-Zilko, A Hubbard, & S Galea. (2016). Predicting the population
         health impacts of community interventions: the case of alcohol outlets and binge drinking. American
         Journal of Public Health, 106(11), 1938-1943.
 
-        Ahern, J., Hubbard, A., & Galea, S. (2009). Estimating the effects of potential public health interventions on
+        J Ahern, A Hubbard, & S Galea. (2009). Estimating the effects of potential public health interventions on
         population disease burden: a step-by-step illustration of causal inference methods. American Journal of
         Epidemiology, 169(9), 1140-1147.
         """
@@ -258,9 +258,10 @@ class TimeFixedGFormula:
 
         References
         ----------
-        Muñoz, I. D., & van der Laan, M. (2012). Population intervention causal effects based on stochastic
+        Muñoz, ID, & van der Laan, M (2012). Population intervention causal effects based on stochastic
         interventions. Biometrics, 68(2), 541-549. discusses what a stochastic intervention is
         """
+        # Checking for common problems before estimation
         if self._outcome_model is None:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
         if self.exposure_type != 'binary':
