@@ -207,7 +207,7 @@ class TestIPTW:
                             np.array([-0.015684, 0.022311, -0.4867, -0.015729]),
                             rtol=1e-4)  # for unweighted
         npt.assert_allclose(np.array(smd['smd_w']),
-                            np.array([-0.090465, 0.000465, -0.003576, 0.106043]),
+                            np.array([-0.132613628, 0.00483533759, -0.450481258, 0.0327253358]),
                             rtol=1e-4)  # for weighted
         # TODO add categorical once implemented
 
