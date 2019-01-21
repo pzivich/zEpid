@@ -343,8 +343,7 @@ might consider other functional forms to achieve better balance. Other ways to a
 weights (to be implemented in the future).
 
 For a publication-quality graph, I recommend using ``standard_mean_differences`` to calculate the standard mean
-differences then using that output to create a new graphic. The above plot functionality is meant to generate a quick
-assessment of balance during the analysis, not necessarily create a publication quality graph.
+differences then using that output to create a new graphic.
 
 For non-graphical diagnostics, standardized mean differences and positivity (via distribution of weights). Two
 diagnostics are implemented through ``positivity`` and ``standard_mean_differences``. As the name implies,
@@ -356,7 +355,7 @@ by looking at the mean, min, and max weights. **Note** this only is valid for st
    ipt.positivity()
 
 ``standard_mean_differences`` calculates the standardized mean difference for all variables included in
-``model_denominator``. An algorithm in the background detects the variable type (binary or continuous) and calcualtes
+``model_denominator``. An algorithm in the background detects the variable type (binary or continuous) and calculates
 the standard mean differences accordingly
 
 .. code:: python
