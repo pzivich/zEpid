@@ -395,16 +395,32 @@ class IPTW:
         u_diff = []
         vlabel = []
 
-        for v in vars.columns:
-            # TODO need to somehow find the categorical columns
-            # parse out the variable type
-            vtype = self._var_detector(vars[v])
+        # Pull out list of terms and the corresponding dataframe slice(s)
+        term_dict = vars.design_info.term_name_slices
+
+        # Looping through the terms
+        for term in vars.design_info.terms:
+            # Adding term labels
+            vlabel.append(term.name())
+
+            # Pulling out data corresponding to term
+            chunk = term_dict[term.name()]
+            v = vars.iloc[:, chunk].copy()
+
+            # Detecting variable type
+            if v.shape[1] != 1:
+                vtype = 'categorical'
+            elif v.dropna().isin([0, 1]).all(axis=None):
+                vtype = 'binary'
+            else:
+                vtype = 'continuous'
+
             # calculate the absolute standardized difference
-            wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
+            dat = pd.concat([v, self.df[[self.ex, 'iptw']]], axis=1)
+            wsmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=True)
             w_diff.append(wsmd)
-            usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
+            usmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=False)
             u_diff.append(usmd)
-            vlabel.append(v)
 
         # Setting up DataFrame to return with calculated differences
         s = pd.DataFrame()
@@ -413,7 +429,7 @@ class IPTW:
         s['smd_u'] = u_diff
         return s
 
-    def standardized_difference(self, variable, var_type, weighted=True):
+    def _standardized_difference(self, variable, var_type, weighted=True):
         """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
@@ -439,53 +455,52 @@ class IPTW:
             Prints the positivity results to the console but does not return any objects
         """
         # Pulling out relevant data
-        dft = self.df.loc[(self.df[self.ex] == 1) & (self.df['iptw'].notnull())]
-        dfn = self.df.loc[(self.df[self.ex] == 0) & (self.df['iptw'].notnull())]
+        dft = variable.loc[(variable[self.ex] == 1) & (variable['iptw'].notnull())].copy()
+        dfn = variable.loc[(variable[self.ex] == 0) & (variable['iptw'].notnull())].copy()
+        # removing self.ex and 'iptw' from vars to calculate for
+        vcols = list(variable.columns)
+        vcols.remove(self.ex)
+        vcols.remove('iptw')
 
         if var_type == 'binary':
-            if weighted:  # TODO see why weighted answers are different...
-                wt = np.average(dft[variable].dropna(), weights=dft['iptw'], axis=0)
-                wn = np.average(dfn[variable].dropna(), weights=dfn['iptw'], axis=0)
-                t = np.sum(dft['iptw'] * dft[variable]) / np.sum(dft['iptw'])
-                n = np.sum(dfn['iptw'] * dfn[variable]) / np.sum(dfn['iptw'])
-            else:
-                wt = np.mean(dft[variable].dropna(), axis=0)
-                wn = np.mean(dfn[variable].dropna(), axis=0)
-            return (wt - wn) / math.sqrt((wt*(1 - wt) + wn*(1 - wn))/2)
-
-        elif var_type == 'continuous':
             if weighted:
-                dwt = DescrStatsW(dft[variable], weights=dft['iptw'], ddof=1)
+                dwt = DescrStatsW(dft[vcols], weights=dft['iptw'])
+                wt = dwt.mean
+                dwn = DescrStatsW(dfn[vcols], weights=dfn['iptw'])
+                wn = dwn.mean
+            else:
+                wt = np.mean(dft[vcols].dropna(), axis=0)
+                wn = np.mean(dfn[vcols].dropna(), axis=0)
+            return float((wt - wn) / np.sqrt((wt*(1 - wt) + wn*(1 - wn))/2))
+
+        if var_type == 'continuous':
+            if weighted:
+                dwt = DescrStatsW(dft[vcols], weights=dft['iptw'], ddof=1)
                 wmt = dwt.mean
                 wst = dwt.std
-                dwn = DescrStatsW(dfn[variable], weights=dfn['iptw'], ddof=1)
+                dwn = DescrStatsW(dfn[vcols], weights=dfn['iptw'], ddof=1)
                 wmn = dwn.mean
                 wsn = dwn.std
-                print((wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2))
             else:
-                dwt = DescrStatsW(dft[variable], ddof=1)
+                dwt = DescrStatsW(dft[vcols], ddof=1)
                 wmt = dwt.mean
                 wst = dwt.std
-                dwn = DescrStatsW(dfn[variable], ddof=1)
+                dwn = DescrStatsW(dfn[vcols], ddof=1)
                 wmn = dwn.mean
                 wsn = dwn.std
-            return (wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2)
+            return float((wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2))
 
-        elif var_type == 'categorical':
+        if var_type == 'categorical':
             if weighted:
-                wt = np.average(dft[variable], weights=dft['iptw'], axis=0)
-                wn = np.average(dfn[variable], weights=dfn['iptw'], axis=0)
+                wt = np.average(dft[vcols], weights=dft['iptw'], axis=0)
+                wn = np.average(dfn[vcols], weights=dfn['iptw'], axis=0)
             else:
-                wt = np.mean(dft[variable], axis=0)
-                wn = np.mean(dfn[variable], axis=0)
+                wt = np.average(dft[vcols], axis=0)
+                wn = np.mean(dfn[vcols], axis=0)
 
             t_c = wt - wn
             s_inv = np.linalg.inv(self._categorical_cov(treated=wt, untreated=wn))
-            return np.sqrt(np.dot(np.transpose(t_c), np.dot(s_inv, t_c)))
-
-        else:
-            raise ValueError('The only variable types currently supported are '
-                             '"binary", "continuous", and "categorical"')
+            return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
 
     def _weight_calculator(self, df, denominator, numerator):
         """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
@@ -528,20 +543,6 @@ class IPTW:
         return df['w']
 
     @staticmethod
-    def _var_detector(variable):
-        """This function detects whether the input variable column is a binary variable or a continuous variable. It is
-        used in the background for the Love plot, so that the standardized mean differences are calculated appropriately
-
-        Returns either 'binary' or 'continuous'
-        """
-        #if variable.shape[1] > 1:  # TODO fix this line for SMD calculations!!
-        #    return 'categorical'
-        if variable.dropna().isin([0, 1]).all():
-            return 'binary'
-        else:
-            return 'continuous'
-
-    @staticmethod
     def _categorical_cov(treated, untreated):
         """Turns out, pandas and numpy don't have the correct covariance matrix I need for categorical variables.
         The covariance matrix is defined as
@@ -554,13 +555,17 @@ class IPTW:
         cv2 = []
         for i, v in enumerate(treated):
             cv1 = []
-            for j, w in enumerate(untreated):
-                if i == j:
-                    cv = (v * (1 - v) + w * (1 - w)) / 2
-                else:
-                    cv = (treated[i] * treated[j] + untreated[i] * untreated[j]) / 2
-                cv1.append(cv)
-            cv2.append(cv1)
+            if i == 0:
+                pass
+            else:
+                for j, w in enumerate(untreated):
+                    if j == 0:
+                        pass
+                    elif i == j:
+                        cv1.append((v * (1 - v) + w * (1 - w)) / 2)
+                    else:
+                        cv1.append((treated[i] * treated[j] + untreated[i] * untreated[j]) / -2)
+                cv2.append(cv1)
 
         return np.array(cv2)
 
