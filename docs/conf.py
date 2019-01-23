@@ -26,7 +26,6 @@
 extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
-    "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",

@@ -135,3 +135,17 @@ class TestBingeData:
         df = ze.load_binge_drinking_data()
         assert df.shape[0] == 4000
 
+
+class TestCaseControl:
+
+    def test_return_pandas(self):
+        df = ze.load_case_control_data()
+        assert isinstance(df, type(pd.DataFrame()))
+
+    def test_correct_ncols(self):
+        df = ze.load_case_control_data()
+        assert df.shape[1] == 9
+
+    def test_correct_nobs(self):
+        df = ze.load_case_control_data()
+        assert df.shape[0] == 11

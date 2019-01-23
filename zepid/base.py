@@ -1876,7 +1876,7 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
             if continuous_measure == 'mean':
                 if variable_type[vn] == 'continuous':
                     rf = pd.DataFrame({'n / Mean': [np.mean(df[i].dropna()), df[i].isnull().sum()],
-                                       '% / SE': [np.std(df[i].dropna()).round(decimals=decimal), '']},
+                                       '% / SE': [np.round(np.std(df[i].dropna()), decimals=decimal), '']},
                                       index=['', 'Missing'])
                 if variable_type[vn] == 'category':
                     x = df[i].value_counts(dropna=False)
@@ -1915,7 +1915,7 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
                                                        '']}, index=['', 'Missing'])
                     if continuous_measure == 'mean':
                         rf = pd.DataFrame({'n / Mean': [np.mean(sf[i].dropna()), sf[i].isnull().sum()],
-                                          '% / SD': [np.std(sf[i].dropna()).round(decimals=decimal), '']},
+                                          '% / SD': [np.round(np.std(sf[i].dropna()), decimals=decimal), '']},
                                           index=['', 'Missing'])
                 rlist.append(rf)
             if continuous_measure == 'median':

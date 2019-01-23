@@ -1,5 +1,27 @@
 ### Change logs
 
+#### v0.4.2:
+
+**MAJOR CHANGES**:
+
+``TMLE`` defaults to calculate all possible measures (risk difference, risk ratio, odds ratio) rather than individual 
+ones
+
+``TimeFixedGFormula`` allows stochastic interventions for binary exposures. For a stochastic intervention, *p* percent 
+of the population is randomly treated. This process is repeated *n* times and mean is the marginal outcome. Stochastic
+interventions may better align with real-world interventions (often you intervention will **not** be able to treat 
+*everyone*). Additionally, conditional probabilities are implemented for stochastic interventions. For example, those 
+with *C=1* might be treated randomly at *p*, while those with *C=0* are treated at *q*.
+
+``IPTW.standard_mean_difference`` and ``IPTW.plot_love`` both support categorical variables. Categorical variables must 
+be modeled with ``patsy``'s ``C(.)`` keyword. Otherwise, the dummy variables will be treated as binary variables
+
+**MINOR CHANGES**:
+
+Added case-control example data set. ``load_case_control_data()``
+
+Changed rounding in Table 1 generator
+
 #### v0.4.1:
 **MAJOR CHANGES**:
 

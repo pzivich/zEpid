@@ -185,18 +185,6 @@ class TestIPTW:
         f = sm.families.family.Binomial(sm.families.links.identity)
         smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
 
-    def test_variable_detector(self):
-        df = pd.DataFrame()
-        df['bin'] = [0, 1, 0, np.nan]
-        df['con'] = [0.1, 0.0, 1.0, 1.1]
-        df['dis'] = [0, 1, 3, 5]
-        df['boo'] = [True, True, False, True]
-        # TODO add categorical detector (once implemented in v0.4.2)
-        assert 'binary' == IPTW._var_detector(df['bin'])
-        assert 'continuous' == IPTW._var_detector(df['con'])
-        assert 'continuous' == IPTW._var_detector(df['dis'])
-        assert 'binary' == IPTW._var_detector(df['boo'])
-
     def test_standardized_differences(self, sdata):
         ipt = IPTW(sdata, treatment='art', stabilized=True)
         ipt.regression_models('male + age0 + cd40 + dvl0')
@@ -206,10 +194,33 @@ class TestIPTW:
         npt.assert_allclose(np.array(smd['smd_u']),
                             np.array([-0.015684, 0.022311, -0.4867, -0.015729]),
                             rtol=1e-4)  # for unweighted
+        # TODO find R package to test these weighted SMD's
         npt.assert_allclose(np.array(smd['smd_w']),
-                            np.array([-0.090465, 0.000465, -0.003576, 0.106043]),
+                            np.array([-0.132613628, 0.00483533759, -0.450481258, 0.0327253358]),
                             rtol=1e-4)  # for weighted
-        # TODO add categorical once implemented
+
+    def test_match_r_stddiff(self):
+        # Simulated data for variable detection and standardized differences
+        df = pd.DataFrame()
+        df['treat'] = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+        df['bin'] = [0, 1, 0, np.nan, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1]
+        df['con'] = [0.1, 0.0, 1.0, 1.1, 2.2, 1.3, 0.1, 0.5, 0.9, 0.5, 0.3, 0.2, 0.7, 0.9, 1.4]
+        df['dis'] = [0, 1, 3, 2, 1, 0, 0, 0, 0, 0, 1, 3, 2, 2, 1]
+        df['cat'] = [1, 2, 3, 1, 1, 2, 3, 1, 3, 2, 1, 2, 3, 2, 1]
+
+        ipt = IPTW(df, treatment='treat', stabilized=True)
+        ipt.regression_models('bin + con + dis + C(cat)')
+        ipt.fit()
+        smd = ipt.standardized_mean_differences()
+
+        npt.assert_allclose(np.array(smd['smd_u']),
+                            np.array([0.342997, 0.0, 0.06668, -0.513553]),
+                            rtol=1e-4)  # for unweighted
+        # TODO need to find an R package or something that calculates weighted SMD
+        # currently compares to my own calculations
+        npt.assert_allclose(np.array(smd['smd_w']),
+                            np.array([0.675418, -0.406542,  0.298688, -0.308256]),
+                            rtol=1e-4)  # for weighted
 
 
 class TestIPMW:

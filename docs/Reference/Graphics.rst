@@ -5,7 +5,7 @@ Below is documentation for each of the implemented graphic generators.
 Data Diagnostics
 ----------------
 
-.. automodule:: zepid.graphics.graphics
+.. currentmodule:: zepid.graphics.graphics
 
 .. autosummary::
 
@@ -16,7 +16,7 @@ Data Diagnostics
 Displaying Results
 ------------------
 
-.. automodule:: zepid.graphics.graphics
+.. currentmodule:: zepid.graphics.graphics
 
 .. autosummary::
 

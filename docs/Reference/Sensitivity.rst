@@ -5,7 +5,7 @@ Details for sensitivity analysis tools implemented within zEpid.
 Distributions
 -------------
 
-.. automodule:: zepid.sensitivity_analysis.distributions
+.. currentmodule:: zepid.sensitivity_analysis.distributions
 
 .. autosummary::
 
@@ -14,7 +14,7 @@ Distributions
 Sensitivity analyzers
 ---------------------
 
-.. automodule:: zepid.sensitivity_analysis.Simple
+.. currentmodule:: zepid.sensitivity_analysis.Simple
 
 .. autosummary::
 

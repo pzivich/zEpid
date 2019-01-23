@@ -129,7 +129,8 @@ def causal_check():
     data[['cd4_rs1', 'cd4_rs2']] = spline(data, 'cd40', n_knots=3, term=2, restricted=True)
     data[['age_rs1', 'age_rs2']] = spline(data, 'age0', n_knots=3, term=2, restricted=True)
     ipt = IPTW(data, treatment='art', stabilized=True)
-    ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    ipt.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0 + '
+                          'male:cd40 + male:cd4_rs1 + male:cd4_rs2')
     ipt.fit()
     ipt.plot_love()
     plt.show()

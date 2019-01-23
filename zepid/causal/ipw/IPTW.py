@@ -4,6 +4,7 @@ import patsy
 import numpy as np
 import pandas as pd
 from scipy.stats.kde import gaussian_kde
+from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
 from .utils import propensity_score
 
@@ -363,7 +364,7 @@ class IPTW:
         axes
             Matplotlib axes of the Love plot
         """
-        to_plot = self.standardized_mean_differences(subset=None)
+        to_plot = self.standardized_mean_differences()
         to_plot['smd_w'] = np.absolute(to_plot['smd_w'])
         to_plot['smd_u'] = np.absolute(to_plot['smd_u'])
         to_plot = to_plot.sort_values(by='smd_u', ascending=True).reset_index(drop=True)
@@ -379,15 +380,9 @@ class IPTW:
         ax.set_yticklabels(to_plot['labels'])
         return ax
 
-    def standardized_mean_differences(self, subset=None):
+    def standardized_mean_differences(self):
         """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
         difference for all variables include in the IPTW denominator
-
-        Parameters
-        ----------
-        subset : iterable
-            Iterable object (list, set) of variables to calculate standardized differences. Use this if you only want to
-            calculate the standardized mean differences for a subset of variables
 
         Returns
         -------
@@ -395,34 +390,37 @@ class IPTW:
             Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
             smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
         """
-        # TODO for categorical, need to interact with patsy's C(...)
         vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
         w_diff = []
         u_diff = []
         vlabel = []
 
-        if subset is None:
-            for v in vars.columns:
-                # parse out the variable type
-                vtype = self._var_detector(self.df[v])
-                # calculate the absolute standardized difference
-                wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
-                w_diff.append(wsmd)
-                usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
-                u_diff.append(usmd)
-                vlabel.append(v)
-        else:
-            for v in subset:
-                if v not in list(vars.columns):
-                    warnings.warn('Variable ' + v + ' is not in the input DataFrame', UserWarning)
-                else:
-                    vtype = self._var_detector(self.df[v])
-                    # calculate the absolute standardized difference
-                    wsmd = self.standardized_difference(variable=v, var_type=vtype, weighted=True)
-                    w_diff.append(wsmd)
-                    usmd = self.standardized_difference(variable=v, var_type=vtype, weighted=False)
-                    u_diff.append(usmd)
-                    vlabel.append(v)
+        # Pull out list of terms and the corresponding dataframe slice(s)
+        term_dict = vars.design_info.term_name_slices
+
+        # Looping through the terms
+        for term in vars.design_info.terms:
+            # Adding term labels
+            vlabel.append(term.name())
+
+            # Pulling out data corresponding to term
+            chunk = term_dict[term.name()]
+            v = vars.iloc[:, chunk].copy()
+
+            # Detecting variable type
+            if v.shape[1] != 1:
+                vtype = 'categorical'
+            elif v.dropna().isin([0, 1]).all(axis=None):
+                vtype = 'binary'
+            else:
+                vtype = 'continuous'
+
+            # calculate the absolute standardized difference
+            dat = pd.concat([v, self.df[[self.ex, 'iptw']]], axis=1)
+            wsmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=True)
+            w_diff.append(wsmd)
+            usmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=False)
+            u_diff.append(usmd)
 
         # Setting up DataFrame to return with calculated differences
         s = pd.DataFrame()
@@ -431,7 +429,7 @@ class IPTW:
         s['smd_u'] = u_diff
         return s
 
-    def standardized_difference(self, variable, var_type, weighted=True):
+    def _standardized_difference(self, variable, var_type, weighted=True):
         """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
@@ -441,10 +439,12 @@ class IPTW:
 
         Parameters
         ---------------
-        variable : str
-            Label for variable to calculate the standardized difference
+        variable : str, list
+            Label for variable to calculate the standardized difference. If categorical variables, it should be a list
+            of variable labels
         var_type : str
-            Variable type. Options are 'binary' or 'continuous'
+            Variable type. Options are 'binary' 'continuous' or 'categorical'. For categorical variable should be a
+            list of columns labels
         weighted : bool, optional
             Whether to return the weighted standardized mean difference or the unweighted. Default is to return the
             weighted.
@@ -454,62 +454,53 @@ class IPTW:
         None
             Prints the positivity results to the console but does not return any objects
         """
+        # Pulling out relevant data
+        dft = variable.loc[(variable[self.ex] == 1) & (variable['iptw'].notnull())].copy()
+        dfn = variable.loc[(variable[self.ex] == 0) & (variable['iptw'].notnull())].copy()
+        # removing self.ex and 'iptw' from vars to calculate for
+        vcols = list(variable.columns)
+        vcols.remove(self.ex)
+        vcols.remove('iptw')
 
-        def _weighted_avg(df, v, w, t):
-            """Calculates the weighted mean for continuous variables. Used by StandardizedDifferences
-            """
-            l = []
-            for i in [0, 1]:
-                n = sum(df.loc[df[t] == i][v] * df.loc[df[t] == i][w])
-                d = sum(df.loc[df[t] == i][w])
-                a = n / d
-                l.append(a)
-            return l[0], l[1]
-
-        def _weighted_std(df, v, w, t, xbar):
-            """Calculates the weighted standard deviation for continuous variables. Used by StandardizedDifferences
-            """
-            l = []
-            for i in [0, 1]:
-                n1 = sum(df.loc[df[t] == i][w])
-                d1 = sum(df.loc[df[t] == i][w]) ** 2
-                d2 = sum(df.loc[df[t] == i][w] ** 2)
-                n2 = sum(df.loc[df[t] == i][w] * ((df.loc[df[t] == i][v] - xbar[i]) ** 2))
-                a = ((n1 / (d1 - d2)) * n2)
-                l.append(a)
-            return l[0], l[1]
-
-        # TODO add categorical option. Needs to interact with a list of vars / patsy
         if var_type == 'binary':
             if weighted:
-                wt1 = np.sum(self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna())
-                wt2 = np.sum(self.df.loc[(self.df[self.ex] == 1)].dropna()['iptw'])
-                wn1 = np.sum(self.df.loc[(self.df[variable] == 1) & (self.df[self.ex] == 0)]['iptw'].dropna())
-                wn2 = np.sum(self.df.loc[self.df[self.ex] == 0]['iptw'].dropna())
+                dwt = DescrStatsW(dft[vcols], weights=dft['iptw'])
+                wt = dwt.mean
+                dwn = DescrStatsW(dfn[vcols], weights=dfn['iptw'])
+                wn = dwn.mean
             else:
-                wt1 = self.df.loc[((self.df[variable] == 1) & (self.df[self.ex] == 1))]['iptw'].dropna().shape[0]
-                wt2 = self.df.loc[(self.df[self.ex] == 1)]['iptw'].dropna().shape[0]
-                wn1 = self.df.loc[(self.df[variable] == 1) & (self.df[self.ex] == 0)]['iptw'].dropna().shape[0]
-                wn2 = self.df.loc[self.df[self.ex] == 0]['iptw'].dropna().shape[0]
-            wt = wt1 / wt2
-            wn = wn1 / wn2
-            smd = (wt - wn) / math.sqrt((wt*(1 - wt) + wn*(1 - wn))/2)
+                wt = np.mean(dft[vcols].dropna(), axis=0)
+                wn = np.mean(dfn[vcols].dropna(), axis=0)
+            return float((wt - wn) / np.sqrt((wt*(1 - wt) + wn*(1 - wn))/2))
 
-        elif var_type == 'continuous':
+        if var_type == 'continuous':
             if weighted:
-                wmn, wmt = _weighted_avg(self.df, v=variable, w='iptw', t=self.ex)
-                wsn, wst = _weighted_std(self.df, v=variable, w='iptw', t=self.ex, xbar=[wmn, wmt])
+                dwt = DescrStatsW(dft[vcols], weights=dft['iptw'], ddof=1)
+                wmt = dwt.mean
+                wst = dwt.std
+                dwn = DescrStatsW(dfn[vcols], weights=dfn['iptw'], ddof=1)
+                wmn = dwn.mean
+                wsn = dwn.std
             else:
-                wmn = np.mean(self.df[self.df[self.ex] == 0][variable])
-                wmt = np.mean(self.df[self.df[self.ex] == 1][variable])
-                wsn = np.std(self.df[self.df[self.ex] == 0][variable], ddof=1)
-                wst = np.std(self.df[self.df[self.ex] == 1][variable], ddof=1)
-            smd = (wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2)
+                dwt = DescrStatsW(dft[vcols], ddof=1)
+                wmt = dwt.mean
+                wst = dwt.std
+                dwn = DescrStatsW(dfn[vcols], ddof=1)
+                wmn = dwn.mean
+                wsn = dwn.std
+            return float((wmt - wmn) / np.sqrt((wst**2 + wsn**2)/2))
 
-        else:
-            raise ValueError('The only variable types currently supported are binary and continuous')
+        if var_type == 'categorical':
+            if weighted:
+                wt = np.average(dft[vcols], weights=dft['iptw'], axis=0)
+                wn = np.average(dfn[vcols], weights=dfn['iptw'], axis=0)
+            else:
+                wt = np.average(dft[vcols], axis=0)
+                wn = np.mean(dfn[vcols], axis=0)
 
-        return smd
+            t_c = wt - wn
+            s_inv = np.linalg.inv(self._categorical_cov(treated=wt, untreated=wn))
+            return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
 
     def _weight_calculator(self, df, denominator, numerator):
         """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
@@ -552,13 +543,29 @@ class IPTW:
         return df['w']
 
     @staticmethod
-    def _var_detector(variable):
-        """This function detects whether the input variable column is a binary variable or a continuous variable. It is
-        used in the background for the Love plot, so that the standardized mean differences are calculated appropriately
+    def _categorical_cov(treated, untreated):
+        """Turns out, pandas and numpy don't have the correct covariance matrix I need for categorical variables.
+        The covariance matrix is defined as
 
-        Returns either 'binary' or 'continuous'
+        S = [S_{kl}] = (P_{1k}*(1-P_{1k}) + P_{2k}*(1-P{2k})) / 2     if k == l
+                       (P_{1k}*P_{1l} + P_{2k}*P_{2l}) / 2            if k != l
+
+        Returns covariance matrix
         """
-        if variable.dropna().isin([0, 1]).all():
-            return 'binary'
-        else:
-            return 'continuous'
+        cv2 = []
+        for i, v in enumerate(treated):
+            cv1 = []
+            if i == 0:
+                pass
+            else:
+                for j, w in enumerate(untreated):
+                    if j == 0:
+                        pass
+                    elif i == j:
+                        cv1.append((v * (1 - v) + w * (1 - w)) / 2)
+                    else:
+                        cv1.append((treated[i] * treated[j] + untreated[i] * untreated[j]) / -2)
+                cv2.append(cv1)
+
+        return np.array(cv2)
+

@@ -347,3 +347,29 @@ def load_longitudinal_data():
 
     df = pd.concat([d1, d2, d3], sort=False).dropna()
     return df
+
+
+def load_case_control_data():
+    """Loads example case-control data, meant to reflect observed data. The goal of this case-control is to try to
+    determine the causative agent / route
+
+    Notes
+    -----
+    Variables included are:
+        id: id number
+        case: whether individual is a case or control (0: control, 1:case)
+        breakfast: whether individual ate breakfast (0: no, 1: yes)
+        lunch: lunch eaten by individual (0: no lunch, 1: salad, 2: chicken)
+        snack: whether individual ate snack (0: no, 1:yes)
+        dinner: whether individual ate dinner (0: no, 1:yes)
+        sleep: hours of sleep last night (0: 6-8 hours, 1: 8+ hours)
+        sunscreen: sunscreen usage (0: no, 1: yes)
+        hand_wash: hand hygiene habits (1: none, 2: poor, 3: average, 4: high, 5: optimal)
+
+    Returns
+    -------
+    DataFrame
+        Returns pandas DataFrame
+    """
+    df = pd.read_csv(resource_filename('zepid', 'datasets/case_control.dat'), delim_whitespace=True, index_col=False)
+    return df

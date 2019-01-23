@@ -92,11 +92,29 @@ class TimeFixedGFormula:
         >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
 
+        G-formula with binary outcome and exposure. With a stochastic treatment/intervention
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+        >>>g.fit_stochastic(p=0.75)
+
+        G-formula with binary outcome and exposure. With a conditional stochastic treatment/intervention
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4')
+        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+        >>>g.fit_stochastic(p=[0.65, 0.85], conditional=["g['male']==1", "g['male']==0"])
+
         References
         ----------
-        Snowden, Jonathan M., Sherri Rose, and Kathleen M. Mortimer. "Implementation of G-computation on a simulated
+        JM Snowden, S Rose, and KM Mortimer. "Implementation of G-computation on a simulated
         data set: demonstration of a causal inference technique." American Journal of Epidemiology 173.7 (2011):
         731-738.
+
+        J Ahern, KE Colson, C Margerson-Zilko, A Hubbard, & S Galea. (2016). Predicting the population
+        health impacts of community interventions: the case of alcohol outlets and binge drinking. American
+        Journal of Public Health, 106(11), 1938-1943.
+
+        J Ahern, A Hubbard, & S Galea. (2009). Estimating the effects of potential public health interventions on
+        population disease burden: a step-by-step illustration of causal inference methods. American Journal of
+        Epidemiology, 169(9), 1140-1147.
         """
         self.gf = df.copy()
         self.exposure = exposure
@@ -221,3 +239,86 @@ class TimeFixedGFormula:
         else:  # weighted marginal estimate
             self.marginal_outcome = np.average(g[self.outcome], weights=self.gf[self._weights])
         self.predicted_df = g
+
+    def fit_stochastic(self, p, conditional=None, samples=100, seed=None):
+        """Fits the g-formula for a stochastic intervention. As currently implemented, 'p' percent of the population is
+        randomly treated. This process is repeated 'n' times and the mean is the marginal stochastic outcome.
+
+        Parameters
+        ----------
+        p: float, list
+            Percent of the population to randomly treat
+        conditional: list
+            Exclusive conditions to place on the data set for treatment percents. If specified, must match the length
+            of the list of probabilities in 'p'
+        samples: int, optional
+            Number of resamples to calculate the marginal outcome. Default is 100
+        seed: int, optional
+            Seed for the random process selection
+
+        References
+        ----------
+        Muñoz, ID, & van der Laan, M (2012). Population intervention causal effects based on stochastic
+        interventions. Biometrics, 68(2), 541-549. discusses what a stochastic intervention is
+        """
+        # Checking for common problems before estimation
+        if self._outcome_model is None:
+            raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
+        if self.exposure_type != 'binary':
+            raise ValueError('Only binary exposures are currently available for the stochastic treatment g-formula')
+        if conditional is not None:
+            if len(p) != len(conditional):
+                raise ValueError("'p' and 'conditional' must be the same length")
+        else:
+            if type(p) != float:
+                raise ValueError("Specified percent must be a float when 'conditional' is not specified")
+
+        if seed is None:
+            pass
+        else:
+            np.random.seed(seed)
+
+        if conditional is not None:  # Check exclusive conditional categories
+            self._check_conditional(conditional)
+
+        marginals = []
+        for s in range(samples):
+            g = self.gf.reset_index(drop=True).copy()
+
+            # Selecting out observations
+            if conditional is None:  # Unconditional probabilities
+                pr = g[self._weights] / np.sum(g[self._weights]) if self._weights is not None else None
+                treated = np.random.choice(g.index, size=int(p*g.shape[0]), replace=False, p=pr)
+
+            else:  # Conditional probabilities based on eval()
+                treated = []
+                for c, prop in zip(conditional, p):
+                    gs = g.loc[eval(c)].copy()
+                    pr = gs[self._weights] / np.sum(gs[self._weights]) if self._weights is not None else None
+                    tr = np.random.choice(gs.index, size=int(prop*gs.shape[0]), replace=False, p=pr)
+                    treated.extend(tr)
+
+            # Applying treatment (binary only currently)
+            g[self.exposure] = np.where(g.index.isin(treated), 1, 0)
+
+            # Getting predictions
+            g[self.outcome] = np.nan
+            g[self.outcome] = self._outcome_model.predict(g)
+            if self._weights is None:  # unweighted marginal estimate
+                marginals.append(np.mean(g[self.outcome]))
+            else:  # weighted marginal estimate
+                marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
+
+        self.marginal_outcome = np.mean(marginals)
+
+    def _check_conditional(self, conditional):
+        """Check that conditionals are exclusive for the stochastic fit process
+        """
+        g = self.gf.copy()
+        a = np.array([0]*g.shape[0])
+        for c in conditional:
+            a = np.add(a, np.where(eval(c), 1, 0))
+
+        if np.sum(np.where(a > 1, 1, 0)):
+            warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
+                          "the conditions that designate each category should be exclusive", UserWarning)
