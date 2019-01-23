@@ -5,9 +5,10 @@ Below is documentation for each of the implemented calculation functionalities f
 Measures
 --------
 
-.. automodule:: zepid.calc.utils
+.. currentmodule:: zepid.calc.utils
 
 .. autosummary::
+  :toctree: generated/
 
   risk_ci
   incidence_rate_ci
@@ -23,9 +24,10 @@ Measures
 Diagnostics
 -----------
 
-.. automodule:: zepid.calc.utils
+.. currentmodule:: zepid.calc.utils
 
 .. autosummary::
+  :toctree: generated/
 
   sensitivity
   specificity
@@ -36,9 +38,10 @@ Diagnostics
 Others
 ------
 
-.. automodule:: zepid.calc.utils
+.. currentmodule:: zepid.calc.utils
 
 .. autosummary::
+  :toctree: generated/
 
   probability_to_odds
   odds_to_probability
