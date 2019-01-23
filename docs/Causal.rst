@@ -464,7 +464,8 @@ After initialized, we need to fit an exposure model and an outcome model, as suc
 
 .. code:: python
 
-  aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0 + '
+                      'male:cd40 + male:cd4_rs1 + male:cd4_rs2 + male:age0 + male:age_rs1 + male:age_rs2')
   aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
 
 If at least one of these models is not fit, the ``fit()`` option will generate an error saying that both models must be
@@ -499,8 +500,11 @@ code
   for i in range(500):
       dfs = df.sample(n=df.shape[0],replace=True)
       a = AIPTW(dfs,exposure='art',outcome='dead')
-      a.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_results=False)
-      a.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',print_model_result=False)
+      a.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0 + '
+                       'male:cd40 + male:cd4_rs1 + male:cd4_rs2 + male:age0 + male:age_rs1 + male:age_rs2',
+                       print_results=False)
+      a.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                      print_model_result=False)
       a.fit()
       rd.append(a.risk_difference)
       rr.append(a.risk_ratio)
@@ -549,7 +553,8 @@ procedure. To estimate the risk ratio or odds ratio, the ``measure`` argument sh
 
 .. code:: python
 
-  tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+  tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0 + '
+                      'male:cd40 + male:cd4_rs1 + male:cd4_rs2 + male:age0 + male:age_rs1 + male:age_rs2')
   tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
 
 After both models are specified the TMLE model can be fit. Results can be printed to the console via ``TMLE.summary()``

@@ -488,7 +488,7 @@ class IPTW:
                 dwn = DescrStatsW(dfn[vcols], ddof=1)
                 wmn = dwn.mean
                 wsn = dwn.std
-            return float((wmt - wmn) / math.sqrt((wst**2 + wsn**2)/2))
+            return float((wmt - wmn) / np.sqrt((wst**2 + wsn**2)/2))
 
         if var_type == 'categorical':
             if weighted:
