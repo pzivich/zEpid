@@ -262,9 +262,10 @@ logistic regression model to predict ``art`` and generate the weights
 
 .. code:: python 
 
-   model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
    ipt = IPTW(df, treatment='art', stabilized=True)
-   ipt.regression_models(model)
+   ipt.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0 + '
+                         'male:cd40 + male:cd4_rs1 + male:cd4_rs2 + male:age0 + male:age_rs1 + male:age_rs2',
+                         custom_model_denominator=log)
    ipt.fit()
    df['iptw'] = ipt.Weight
    df.iptw.describe()
@@ -280,11 +281,12 @@ conservative) confidence interval. We will do this through ``statsmodels``
    
    ind = sm.cov_struct.Independence()
    f = sm.families.family.Binomial(sm.families.links.identity) 
-   linrisk = smf.gee('dead ~ art',df['id'],df,cov_struct=ind,family=f,weights=df['iptw']).fit()
+   linrisk = smf.gee('dead ~ art', df['id'], df, cov_struct=ind, family=f, weights=df['iptw']).fit()
    print(linrisk.summary())
 
 
-Note that ``statsmodels`` will generate a ``DomainWarning`` for log-binomial or identity-binomial models.
+Note that ``statsmodels`` will generate a ``DomainWarning`` for log-binomial or identity-binomial models. The estimated
+RD = -0.097 (95% CL: -0.16, -0.03).
 
 In this example, IPTW are stabilized weights and weighted to reflect the entire population (comparing everyone exposed
 vs. everyone unexposed). Stabilized weights are the default. Unstabilized weights can be requested by
@@ -335,9 +337,9 @@ visualizing the absolute standardized differences.
 .. image:: images/zepid_iptbalance.png
 
 As you can see in the graph, most of the variables appear to be balanced in the weighted data set. However, diagnosis
-viral load (dvl) and gender (male) seem to be imbalanced somewhat (above a absolute standardized difference of 0.1). We
-might consider other functional forms to achieve better balance. Other ways to achieve better balance are permutation
-weights (to be implemented in the future).
+CD4 count is still unbalanced to be imbalanced somewhat (above a absolute standardized difference of 0.1). We
+might consider other model specifications to achieve better balance. Other ways to achieve better balance are
+permutation weights (to be implemented in the future).
 
 For a publication-quality graph, I recommend using ``standard_mean_differences`` to calculate the standard mean
 differences then using that output to create a new graphic. The above plot functionality is meant to generate a quick
@@ -363,14 +365,62 @@ the standard mean differences accordingly
 To calculate the standardized mean difference for a single variable, you can use ``IPTW.standardized_difference``.
 *Note* that the variable type must be specified for this function
 
-.. code:: python
-
-  ipt.standardized_difference('male', var_type='binary')
-  ipt.standardized_difference('cd40', var_type='continuous')
-
 For further discussion on IPTW diagnostics, I direct you to
 `Austin PC and Stuart EA <https://doi.org/10.1002/sim.6607>`_ and
 `Cole SR and Hernan MA <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2732954/>`_
+
+Machine Learning
+~~~~~~~~~~~~~~~~
+``IPTW`` additionally supports the usage of machine learning models to estimate inverse probability weights. As long as
+GEE is used to obtain confidence intervals, IPTW with machine learning will produce valid confidence intervals. IPTW
+confidence intervals obtained via bootstrapping will be invalid if certain machine learning algorithms are used. In this
+example I will demonstrate ``sklearn``'s ``LogisticRegression`` with a L2 penalty.
+
+First we load the data and the necessary functions
+
+.. code:: python
+
+  from sklearn.linear_model import LogisticRegression
+  import statsmodels.api as sm
+  import statsmodels.formula.api as smf
+  from statsmodels.genmod.families import family,links
+  from zepid import load_sample_data,spline
+  from zepid.causal.ipw import IPTW
+
+  log2 = LogisticRegression(penalty='l2', random_state=103)
+  df = load_sample_data(False)
+  df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+  df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+We specify the ``IPTW`` class as previously described
+
+.. code:: python
+
+  ipt = IPTW(df, treatment='art', stabilized=True)
+
+Now, when we specify ``regression_models()``, we include the optional parameter ``custom_model_denominator``. This
+parameter uses the specified model to generate predicted probabilities. Currently, only ``sklearn`` models or
+``supylearner`` is supported in the custom models
+
+.. code:: python
+
+  ipt.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0 + '
+                        'male:cd40 + male:cd4_rs1 + male:cd4_rs2 + male:age0 + male:age_rs1 + male:age_rs2',
+                        custom_model_denominator=log)
+   ipt.fit()
+   df['iptw'] = ipt.Weight
+
+Afterwards, we can estimate the causal effect of treatment using ``statsmodels`` GEE
+
+.. code:: python
+
+   ind = sm.cov_struct.Independence()
+   f = sm.families.family.Binomial(sm.families.links.identity)
+   linrisk = smf.gee('dead ~ art',df['id'], df, cov_struct=ind, family=f, weights=df['iptw']).fit()
+   print(linrisk.summary())
+
+The result from this model is RD = -0.092 (95% CL: -0.16, -0.02), similar to the previous results. However, there is
+still substantial imbalance by CD4 count. In practice, we would look for better models
 
 Augmented Inverse Probability of Treatment Weights
 --------------------------------------------------
