@@ -373,3 +373,48 @@ def load_case_control_data():
     """
     df = pd.read_csv(resource_filename('zepid', 'datasets/case_control.dat'), delim_whitespace=True, index_col=False)
     return df
+
+
+def load_monotone_missing_data():
+    """Loads simulated data the is monotone missing. This data is for demonstration with inverse probability of missing
+    weights with data that is has a monotone missing pattern.
+
+    Notes
+    -----
+    Variables included are:
+        id: id number
+        A: variable with no missing data
+        B: variable with missing data, conditional on A and L
+        C: variable with missing data, conditional on B and L
+        L: variable related to the missingness mechanism
+
+    The above data is monotone missing with all individuals missing C are also missing B.
+
+    True means in the observed data:
+        A: 0.5402
+        B: 0.4037
+        C: 0.3469
+        L: 0.0019
+
+    Returns
+    -------
+    DataFrame
+        Returns pandas DataFrame
+    """
+    n = 100000
+    np.random.seed(2019126)
+    df = pd.DataFrame()
+    df['A1_true'] = np.random.binomial(1, 0.35, size=n)
+    df['A2_true'] = np.random.binomial(1, p=logistic.cdf(-0.5 + 0.3 * df['A1_true']), size=n)
+    df['A3_true'] = np.random.binomial(1, p=logistic.cdf(-0.2 + 0.9 * df['A2_true']), size=n)
+    df['L'] = np.random.normal(size=n)
+
+    df['M2'] = np.random.binomial(1, size=n, p=logistic.cdf(-2.5 + 0.25 * df['L'] + 1.25 * df['A1_true']))
+    df['M3'] = np.where(df['M2'] == 1,
+                        1,
+                        np.random.binomial(1, size=n, p=logistic.cdf(-0.05 - 0.15 * df['L'] + 3.75 * df['A2_true'])))
+
+    # Observed data
+    df['A1'] = df['A1_true']
+    df['A2'] = np.where(df['M2'] == 1, np.nan, df['A2_true'])
+    df['A3'] = np.where(df['M3'] == 1, np.nan, df['A3_true'])
