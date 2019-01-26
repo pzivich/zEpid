@@ -70,8 +70,8 @@ class IPMW:
                 raise ValueError('Argument for model_numerator is only used for stabilized=True')
 
         # IPMW for a single missing variable
-        if len(list(self.missing)) == 1:
-            if len(list(model_denominator)) > 1:
+        if type(self.missing) is not list:
+            if type(model_denominator) is list:
                 raise ValueError('For a single missing variable, the model denominator cannot be a list of models')
             self._single_variable(model_denominator, model_numerator=model_numerator, print_results=True)
 
@@ -163,18 +163,15 @@ class IPMW:
                 pass
             else:
                 df = df.loc[df[self.missing[self.missing.index(mv) - 1]].notnull()].copy()
-            print(df.shape[0])
-            df.loc[df[mv].isnull(), '_not_observed_indicator_'] = 1
-            df.loc[df[mv].notnull(), '_not_observed_indicator_'] = 0
-            dmodel = propensity_score(df, '_not_observed_indicator_ ~ ' + model_d, print_results=print_results)
-            pden = dmodel.predict(df)
-            probs_denom = probs_denom - pden
+            df.loc[df[mv].isnull(), '_observed_indicator_'] = 0
+            df.loc[df[mv].notnull(), '_observed_indicator_'] = 1
+            dmodel = propensity_score(df, '_observed_indicator_ ~ ' + model_d, print_results=print_results)
+            probs_denom = probs_denom * dmodel.predict(self.df)
 
             # Only for stabilized IPMW with monotone missing data
             if self.stabilized:
                 nmodel = propensity_score(df, '_observed_indicator_ ~ ' + model_n, print_results=print_results)
-                pnum = 1 - nmodel.predict(df)
-                probs_num -= pnum
+                probs_num = probs_num * nmodel.predict(self.df)
 
         # Calculating Probabilities
         self.df['__denom__'] = probs_denom
