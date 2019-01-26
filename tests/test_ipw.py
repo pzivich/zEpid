@@ -239,12 +239,14 @@ class TestIPMW:
 
     def test_missing_count(self, mdata):
         ipm = IPMW(mdata, missing_variable='M', stabilized=True)
+        ipm.regression_models(model_denominator='A')
         assert 6 == np.sum(ipm.df['_observed_indicator_'])
         assert 4 == np.sum(1 - ipm.df['_observed_indicator_'])
 
     def test_missing_count2(self):
         df = load_sample_data(False)
         ipm = IPMW(df, missing_variable='dead', stabilized=True)
+        ipm.regression_models(model_denominator='art')
         assert 517 == np.sum(ipm.df['_observed_indicator_'])
         assert 30 == np.sum(1 - ipm.df['_observed_indicator_'])
 
