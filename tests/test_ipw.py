@@ -261,16 +261,16 @@ class TestIPMW:
         ipm = IPMW(df, missing_variable='dead', stabilized=False)
         ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40')
         ipm.fit()
-        npt.assert_allclose(np.mean(ipm.Weight), 1.0584533)
-        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.0212298, rtol=1e-5)
+        npt.assert_allclose(np.mean(ipm.Weight), 1.0579602715)
+        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.021019729152)
 
     def test_stabilized_weights(self):
         df = load_sample_data(False)
         ipm = IPMW(df, missing_variable='dead', stabilized=True)
         ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40')
         ipm.fit()
-        npt.assert_allclose(np.mean(ipm.Weight), 1.0004029)
-        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.0200655, rtol=1e-5)
+        npt.assert_allclose(np.mean(ipm.Weight), 0.99993685627)
+        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.019866910369)
 
 
 class TestIPCW:

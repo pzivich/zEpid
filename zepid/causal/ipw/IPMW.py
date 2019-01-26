@@ -128,14 +128,14 @@ class IPMW:
         self.df.loc[self.df[self.missing].notnull(), '_observed_indicator_'] = 1
 
         dmodel = propensity_score(self.df, '_observed_indicator_ ~ ' + model_denominator, print_results=print_results)
-        self.df['__denom__'] = dmodel.predict(self.df)
+        self.df['__denom__'] = np.where(self.df[self.missing].notnull(), dmodel.predict(self.df), np.nan)
         self._denominator_model = True
 
         if self.stabilized:
             nmodel = propensity_score(self.df, '_observed_indicator_ ~ ' + model_numerator, print_results=print_results)
-            self.df['__numer__'] = nmodel.predict(self.df)
+            self.df['__numer__'] = np.where(self.df[self.missing].notnull(), nmodel.predict(self.df), np.nan)
         else:
-            self.df['__numer__'] = 1
+            self.df['__numer__'] = np.where(self.df[self.missing].notnull(), 1, np.nan)
 
     def _monotone_variables(self, model_denominator, model_numerator, print_results):
         """Estimates probabilities under the monotone missing mechanism
@@ -174,10 +174,10 @@ class IPMW:
                 probs_num = probs_num * nmodel.predict(self.df)
 
         # Calculating Probabilities
-        self.df['__denom__'] = probs_denom
+        self.df['__denom__'] = np.where(self.df[self.missing[-1]].notnull(), probs_denom, np.nan)
         if self.stabilized:
-            self.df['__numer__'] = probs_num
+            self.df['__numer__'] = np.where(self.df[self.missing[-1]].notnull(), probs_num, np.nan)
         else:
-            self.df['__numer__'] = 1
+            self.df['__numer__'] = np.where(self.df[self.missing[-1]].notnull(), 1, np.nan)
         self._denominator_model = True
 
