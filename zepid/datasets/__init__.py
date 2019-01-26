@@ -391,10 +391,8 @@ def load_monotone_missing_data():
     The above data is monotone missing with all individuals missing C are also missing B.
 
     True means in the observed data:
-        A: 0.5402
-        B: 0.4037
-        C: 0.3469
-        L: 0.0019
+        B: 0.40315
+        C: 0.53911
 
     Returns
     -------
@@ -404,17 +402,16 @@ def load_monotone_missing_data():
     n = 100000
     np.random.seed(2019126)
     df = pd.DataFrame()
-    df['A1_true'] = np.random.binomial(1, 0.35, size=n)
-    df['A2_true'] = np.random.binomial(1, p=logistic.cdf(-0.5 + 0.3 * df['A1_true']), size=n)
-    df['A3_true'] = np.random.binomial(1, p=logistic.cdf(-0.2 + 0.9 * df['A2_true']), size=n)
+    df['A'] = np.random.binomial(1, 0.35, size=n)
     df['L'] = np.random.normal(size=n)
-
-    df['M2'] = np.random.binomial(1, size=n, p=logistic.cdf(-2.5 + 0.25 * df['L'] + 1.25 * df['A1_true']))
-    df['M3'] = np.where(df['M2'] == 1,
-                        1,
-                        np.random.binomial(1, size=n, p=logistic.cdf(-0.05 - 0.15 * df['L'] + 3.75 * df['A2_true'])))
+    df['B_true'] = np.random.binomial(1, p=logistic.cdf(-0.5 - 0.05*df['L'] + 0.3*df['A']), size=n)
+    df['C_true'] = np.random.binomial(1, p=logistic.cdf(-0.2 - 0.07*df['L'] + 0.9 * df['B_true']), size=n)
+    df['M2'] = np.random.binomial(1, size=n, p=logistic.cdf(-2.5 + 0.25 * df['L'] + 1.25 * df['A']))
+    df['M3'] = np.where(df['M2'] == 1, 1,
+                        np.random.binomial(1, size=n, p=logistic.cdf(-0.05 - 0.15 * df['L'] + 3.75 * df['B_true'])))
 
     # Observed data
-    df['A1'] = df['A1_true']
-    df['A2'] = np.where(df['M2'] == 1, np.nan, df['A2_true'])
-    df['A3'] = np.where(df['M3'] == 1, np.nan, df['A3_true'])
+    df['B'] = np.where(df['M2'] == 1, np.nan, df['B_true'])
+    df['C'] = np.where(df['M3'] == 1, np.nan, df['C_true'])
+    df['id'] = df.index
+    return df[['id', 'A', 'B', 'C', 'L']]
