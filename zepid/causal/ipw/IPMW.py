@@ -34,8 +34,8 @@ class IPMW:
         >>>ipm.Weight
         """
         # Checking input data has missing labeled as np.nan
-        if type(missing_variable) is str:
-            if df.loc[df[missing_variable].isnull()][missing_variable].shape[0] == 0:
+        if isinstance(missing_variable, str):
+            if df.loc[df[missing_variable].isnull(), missing_variable].shape[0] == 0:
                 raise ValueError('IPMW requires that missing data is coded as np.nan')
         else:
             for m in missing_variable:
@@ -70,8 +70,8 @@ class IPMW:
                 raise ValueError('Argument for model_numerator is only used for stabilized=True')
 
         # IPMW for a single missing variable
-        if type(self.missing) is not list:
-            if type(model_denominator) is list:
+        if not isinstance(self.missing, list):
+            if isinstance(model_denominator, list):
                 raise ValueError('For a single missing variable, the model denominator cannot be a list of models')
             self._single_variable(model_denominator, model_numerator=model_numerator, print_results=True)
 
@@ -107,19 +107,26 @@ class IPMW:
         """
         miss_order = list(reversed(self.missing))
         for m in range(len(miss_order)):
-            if m == 0:
-                pass
-            elif miss_order[m] == len(miss_order):
-                pass
-            else:
-                post = np.where(self.df[miss_order[m]].isnull(), 1, 0)
-                prior = np.where(self.df[miss_order[m-1]].isnull(), 1, 0)
+            if m == 0 or miss_order[m] == len(miss_order):
+                continue
 
-                # Post must be zero where prior is zero
-                check = np.where((post == 1) & (prior == 0))
-                if np.any(check):
-                    raise ValueError('It looks like your data is not monotonic. Please check that the missing variables'
-                                     'are input in the right order and that your data is missing monotonically')
+            # Checking adjacent variables
+            post = np.where(self.df[miss_order[m]].isnull(), 1, 0)
+            prior = np.where(self.df[miss_order[m-1]].isnull(), 1, 0)
+
+            # Post must be zero where prior is zero
+            check = np.where((post == 1) & (prior == 0))
+            if np.any(check):
+                raise ValueError('It looks like your data is not monotonic. Please check that the missing variables'
+                                 'are input in the right order and that your data is missing monotonically')
+
+    def _check_uniform(self):
+        """Checks whether the missing variables are missing uniformly. If so, then the algorithm treats it as a single
+        missing variable
+        """
+        # Should go through each combination of variables.
+        # If not uniform, keep both variables
+        # If uniform, only keep one of the two variables. Remove other variable from remaining comparisons
 
     def _single_variable(self, model_denominator, model_numerator, print_results):
         """Estimates probabilities when only a single variable is missing
