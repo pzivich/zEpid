@@ -399,19 +399,5 @@ def load_monotone_missing_data():
     DataFrame
         Returns pandas DataFrame
     """
-    n = 100000
-    np.random.seed(2019126)
-    df = pd.DataFrame()
-    df['A'] = np.random.binomial(1, 0.35, size=n)
-    df['L'] = np.random.normal(size=n)
-    df['B_true'] = np.random.binomial(1, p=logistic.cdf(-0.5 - 0.05*df['L'] + 0.3*df['A']), size=n)
-    df['C_true'] = np.random.binomial(1, p=logistic.cdf(-0.2 - 0.07*df['L'] + 0.9 * df['B_true']), size=n)
-    df['M2'] = np.random.binomial(1, size=n, p=logistic.cdf(-2.5 + 0.25 * df['L'] + 1.25 * df['A']))
-    df['M3'] = np.where(df['M2'] == 1, 1,
-                        np.random.binomial(1, size=n, p=logistic.cdf(-0.05 - 0.15 * df['L'] + 3.75 * df['B_true'])))
-
-    # Observed data
-    df['B'] = np.where(df['M2'] == 1, np.nan, df['B_true'])
-    df['C'] = np.where(df['M3'] == 1, np.nan, df['C_true'])
-    df['id'] = df.index
+    df = pd.read_csv(resource_filename('zepid', 'datasets/monotone.dat'), index_col=False)
     return df[['id', 'A', 'B', 'C', 'L']]
