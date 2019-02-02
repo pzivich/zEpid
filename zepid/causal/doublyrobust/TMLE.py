@@ -11,7 +11,7 @@ from zepid.calc import probability_to_odds
 
 
 class TMLE:
-    def __init__(self, df, exposure, outcome, measure=None, alpha=0.05):
+    def __init__(self, df, exposure, outcome, measure=None, alpha=0.05, continuous_bound=0.005):
         """Implementation of a single time-point target maximum likelihood estimator. It uses standard logistic
         regression models to calculate Psi. The TMLE estimator allows a standard logistic regression to be used.
         Alternatively, users are able to directly input predicted outcomes from other methods (like machine learning
@@ -68,6 +68,10 @@ class TMLE:
             No longer supported. By default risk difference, risk ratio, and odds ratio are all calculated
         alpha : int, optional
             Alpha for confidence interval level. Default is 0.05
+        continuous_bound : float, optional
+            Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
+            in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
+            0,1 respectively
 
         Examples
         --------
@@ -82,7 +86,7 @@ class TMLE:
         >>># Specifying exposure/treatment model
         >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
         >>># Specifying outcome model
-        >>>tmle.exposure_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        >>>tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
         >>># TMLE estimation procedure
         >>>tmle.fit()
         >>># Printing main results
@@ -127,6 +131,15 @@ class TMLE:
         self.df = df.copy().dropna().reset_index()
         self._exposure = exposure
         self._outcome = outcome
+
+        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+            self._continuous_outcome = False
+        else:
+            self._continuous_outcome = True
+            self._continuous_min = np.min(df[outcome])
+            self._continuous_max = np.max(df[outcome])
+            self._cb = continuous_bound
+
         self._out_model = None
         self._exp_model = None
         self._fit_exposure_model = False
@@ -146,6 +159,8 @@ class TMLE:
         self.risk_ratio_ci = None
         self.odds_ratio = None
         self.odds_ratio_ci = None
+        self.average_treatment_effect = None
+        self.average_treatment_effect_ic = None
 
     def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
         """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
@@ -178,7 +193,7 @@ class TMLE:
         else:
             data = patsy.dmatrix(model + ' - 1', self.df)
             try:
-                fm = custom_model.fit(X=data, y=self.df[self._outcome])
+                fm = custom_model.fit(X=data, y=self.df[self._exposure])
             except TypeError:
                 raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
                                 "covers both sklearn and supylearner. If there is a predictive model you would "
@@ -219,8 +234,12 @@ class TMLE:
 
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
-            f = sm.families.family.Binomial()
-            log = smf.glm(self._out_model, self.df, family=f).fit()
+            if self._continuous_outcome:
+                f = sm.families.family.Gaussian()
+                log = smf.glm(self._out_model, self.df, family=f).fit()
+            else:
+                f = sm.families.family.Binomial()
+                log = smf.glm(self._out_model, self.df, family=f).fit()
 
             if print_results:
                 print('\n----------------------------------------------------------------')
@@ -278,6 +297,14 @@ class TMLE:
             else:
                 raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
+        if self._continuous_outcome:
+            self.QAW = self._unit_bounds(y=self.QAW, mini=self._continuous_min,
+                                         maxi=self._continuous_max, bound=self._cb)
+            self.QA1W = self._unit_bounds(y=self.QA1W, mini=self._continuous_min,
+                                          maxi=self._continuous_max, bound=self._cb)
+            self.QA0W = self._unit_bounds(y=self.QA0W, mini=self._continuous_min,
+                                          maxi=self._continuous_max, bound=self._cb)
+
         self._fit_outcome_model = True
 
     def fit(self):
@@ -294,13 +321,19 @@ class TMLE:
 
         # Step 4) Calculating clever covariate (HAW)
         H1W = self.df[self._exposure] / self.g1W
-        H0W = -(1 - self.df[self._exposure]) / (self.g0W)
+        H0W = -(1 - self.df[self._exposure]) / self.g0W
         HAW = H1W + H0W
 
         # Step 5) Estimating TMLE
         f = sm.families.family.Binomial()
-        log = sm.GLM(self.df[self._outcome], np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
+        if self._continuous_outcome:
+            y = self._unit_bounds(self.df[self._outcome], mini=self._continuous_min,
+                                  maxi=self._continuous_max, bound=self._cb)
+        else:
+            y = self.df[self._outcome]
+        log = sm.GLM(y, np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
                      family=f).fit()
+        print(log.summary())
         self._epsilon = log.params
         Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] * 1/self.g1W)
         Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) + self._epsilon[1] * -1/self.g0W)
@@ -313,31 +346,44 @@ class TMLE:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
         # p-values are not implemented (doing my part to enforce CL over p-values)
-        # Calculating Risk Difference
-        self.risk_difference = np.mean(Qstar1 - Qstar0)
-        # Influence Curve for CL
-        ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference
-        varIC = np.var(ic, ddof=1) / self.df.shape[0]
-        self.risk_difference_ci = [self.risk_difference - zalpha * math.sqrt(varIC),
-                                   self.risk_difference + zalpha * math.sqrt(varIC)]
+        if self._continuous_outcome:
+            # Calculating Average Treatement Effect
+            Qstar = self._unit_unbound(Qstar, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar1 = self._unit_unbound(Qstar1, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar0 = self._unit_unbound(Qstar0, mini=self._continuous_min, maxi=self._continuous_max)
 
-        # Calculating Risk Ratio
-        self.risk_ratio = np.mean(Qstar1) / np.mean(Qstar0)
-        # Influence Curve for CL
-        ic = (1/np.mean(Qstar1)*(H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
-              (1/np.mean(Qstar0))*(-1*H0W * (self.df[self._outcome] - Qstar) + Qstar0 - np.mean(Qstar0)))
-        varIC = np.var(ic, ddof=1) / self.df.shape[0]
-        self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * math.sqrt(varIC)),
-                              np.exp(np.log(self.risk_ratio) + zalpha * math.sqrt(varIC))]
+            self.average_treatment_effect = np.mean(Qstar1 - Qstar0)
+            # Influence Curve for CL
+            ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect
+            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            self.average_treatment_effect_ic = [self.average_treatment_effect - zalpha * math.sqrt(varIC),
+                                                self.average_treatment_effect + zalpha * math.sqrt(varIC)]
+        else:
+            # Calculating Risk Difference
+            self.risk_difference = np.mean(Qstar1 - Qstar0)
+            # Influence Curve for CL
+            ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference
+            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            self.risk_difference_ci = [self.risk_difference - zalpha * math.sqrt(varIC),
+                                       self.risk_difference + zalpha * math.sqrt(varIC)]
 
-        # Calculating Odds Ratio
-        self.odds_ratio = (np.mean(Qstar1) / (1 - np.mean(Qstar1))) / (np.mean(Qstar0) / (1 - np.mean(Qstar0)))
-        # Influence Curve for CL
-        ic = ((1/(np.mean(Qstar1)*(1-np.mean(Qstar1))) * (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
-              (1/(np.mean(Qstar0)*(1 - np.mean(Qstar0))) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0)))
-        seIC = math.sqrt(np.var(ic, ddof=1) / self.df.shape[0])
-        self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * seIC),
-                              np.exp(np.log(self.odds_ratio) + zalpha * seIC)]
+            # Calculating Risk Ratio
+            self.risk_ratio = np.mean(Qstar1) / np.mean(Qstar0)
+            # Influence Curve for CL
+            ic = (1/np.mean(Qstar1)*(H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
+                  (1/np.mean(Qstar0))*(-1*H0W * (self.df[self._outcome] - Qstar) + Qstar0 - np.mean(Qstar0)))
+            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * math.sqrt(varIC)),
+                                  np.exp(np.log(self.risk_ratio) + zalpha * math.sqrt(varIC))]
+
+            # Calculating Odds Ratio
+            self.odds_ratio = (np.mean(Qstar1) / (1 - np.mean(Qstar1))) / (np.mean(Qstar0) / (1 - np.mean(Qstar0)))
+            # Influence Curve for CL
+            ic = ((1/(np.mean(Qstar1)*(1-np.mean(Qstar1))) * (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
+                  (1/(np.mean(Qstar0)*(1 - np.mean(Qstar0))) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0)))
+            seIC = math.sqrt(np.var(ic, ddof=1) / self.df.shape[0])
+            self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * seIC),
+                                  np.exp(np.log(self.odds_ratio) + zalpha * seIC)]
 
     def summary(self, decimal=3):
         """Prints summary of model results
@@ -351,22 +397,30 @@ class TMLE:
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
                              'be generated')
 
-        print('----------------------------------------------------------------------')
-        print('Risk Difference: ', round(float(self.risk_difference), decimal))
-        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-              str(round(self.risk_difference_ci[0], decimal)), ',',
-              str(round(self.risk_difference_ci[1], decimal)) + ')')
-        print('----------------------------------------------------------------------')
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
-        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-              str(round(self.risk_ratio_ci[0], decimal)), ',',
-              str(round(self.risk_ratio_ci[1], decimal)) + ')')
-        print('----------------------------------------------------------------------')
-        print('Odds Ratio: ', round(float(self.odds_ratio), decimal))
-        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-              str(round(self.odds_ratio_ci[0], decimal)), ',',
-              str(round(self.odds_ratio_ci[1], decimal)) + ')')
-        print('----------------------------------------------------------------------')
+        if self._continuous_outcome:
+            print('----------------------------------------------------------------------')
+            print('Average Treatment Effect: ', round(float(self.average_treatment_effect), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                  str(round(self.average_treatment_effect_ic[0], decimal)), ',',
+                  str(round(self.average_treatment_effect_ic[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
+        else:
+            print('----------------------------------------------------------------------')
+            print('Risk Difference: ', round(float(self.risk_difference), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                  str(round(self.risk_difference_ci[0], decimal)), ',',
+                  str(round(self.risk_difference_ci[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
+            print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                  str(round(self.risk_ratio_ci[0], decimal)), ',',
+                  str(round(self.risk_ratio_ci[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
+            print('Odds Ratio: ', round(float(self.odds_ratio), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                  str(round(self.odds_ratio_ci[0], decimal)), ',',
+                  str(round(self.odds_ratio_ci[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
 
     @staticmethod
     def _bounding(v, bounds):
@@ -397,6 +451,15 @@ class TMLE:
                 raise ValueError('Both bound values must be between (0, 1)')
             v = np.where(v < bounds[0], bounds[0], v)
             v = np.where(v > bounds[1], bounds[1], v)
-        print(np.max(v))
         return v
 
+    @staticmethod
+    def _unit_bounds(y, mini, maxi, bound):
+        v = (y - mini) / (maxi - mini)
+        v = np.where(v < bound, bound, v)
+        v = np.where(v > 1-bound, 1-bound, v)
+        return v
+
+    @staticmethod
+    def _unit_unbound(ystar, mini, maxi):
+        return ystar*(maxi - mini) + mini
