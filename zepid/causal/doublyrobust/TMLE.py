@@ -268,34 +268,54 @@ class TMLE:
                                 "can work on adding support")
             if print_results and hasattr(fm, 'summarize'):
                 fm.summarize()
-            if hasattr(fm, 'predict_proba'):
-                self.QAW = fm.predict_proba(data)[:, 1]
 
-                dfx = self.df.copy()
-                dfx[self._exposure] = 1
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA1W = fm.predict_proba(data)[:, 1]
+            # Continuous outcomes should only support `predict` function
+            if self._continuous_outcome:
+                if hasattr(fm, 'predict'):
+                    self.QAW = fm.predict(data)
 
-                dfx = self.df.copy()
-                dfx[self._exposure] = 0
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA0W = fm.predict_proba(data)[:, 1]
+                    dfx = self.df.copy()
+                    dfx[self._exposure] = 1
+                    data = patsy.dmatrix(model + ' - 1', dfx)
+                    self.QA1W = fm.predict(data)
 
-            elif hasattr(fm, 'predict'):
-                self.QAW = fm.predict(data)
+                    dfx = self.df.copy()
+                    dfx[self._exposure] = 0
+                    data = patsy.dmatrix(model + ' - 1', dfx)
+                    self.QA0W = fm.predict(data)
+                else:
+                    raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
-                dfx = self.df.copy()
-                dfx[self._exposure] = 1
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA1W = fm.predict(data)
-
-                dfx = self.df.copy()
-                dfx[self._exposure] = 0
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA0W = fm.predict(data)
-
+            # Binary outcomes can support either the `predict` or `predict_proba`
             else:
-                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+                if hasattr(fm, 'predict_proba'):
+                    self.QAW = fm.predict_proba(data)[:, 1]
+
+                    dfx = self.df.copy()
+                    dfx[self._exposure] = 1
+                    data = patsy.dmatrix(model + ' - 1', dfx)
+                    self.QA1W = fm.predict_proba(data)[:, 1]
+
+                    dfx = self.df.copy()
+                    dfx[self._exposure] = 0
+                    data = patsy.dmatrix(model + ' - 1', dfx)
+                    self.QA0W = fm.predict_proba(data)[:, 1]
+
+                elif hasattr(fm, 'predict'):
+                    self.QAW = fm.predict(data)
+
+                    dfx = self.df.copy()
+                    dfx[self._exposure] = 1
+                    data = patsy.dmatrix(model + ' - 1', dfx)
+                    self.QA1W = fm.predict(data)
+
+                    dfx = self.df.copy()
+                    dfx[self._exposure] = 0
+                    data = patsy.dmatrix(model + ' - 1', dfx)
+                    self.QA0W = fm.predict(data)
+
+                else:
+                    raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
         if self._continuous_outcome:
             self.QAW = self._unit_bounds(y=self.QAW, mini=self._continuous_min,
@@ -333,7 +353,6 @@ class TMLE:
             y = self.df[self._outcome]
         log = sm.GLM(y, np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
                      family=f).fit()
-        print(log.summary())
         self._epsilon = log.params
         Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] * 1/self.g1W)
         Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) + self._epsilon[1] * -1/self.g0W)
