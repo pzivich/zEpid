@@ -391,8 +391,8 @@ def load_monotone_missing_data():
     The above data is monotone missing with all individuals missing C are also missing B.
 
     True means in the observed data:
-        B: 0.40315
-        C: 0.53911
+        B: 0.4258
+        C: 0.5343
 
     Returns
     -------

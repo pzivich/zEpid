@@ -336,7 +336,8 @@ class TestIPMW:
         ipm.fit()
         df['w'] = ipm.Weight
         dfs = df.dropna(subset=['w'])
-        npt.assert_allclose(np.average(dfs['C'], weights=dfs['w']), 0.535937826725)
+        npt.assert_allclose(np.average(dfs['B'], weights=dfs['w']), 0.41877344861340654)
+        npt.assert_allclose(np.average(dfs['C'], weights=dfs['w']), 0.5637116735464095)
 
 
 class TestIPCW:
