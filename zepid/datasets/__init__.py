@@ -57,16 +57,24 @@ def load_sample_data(timevary):
     df = pd.read_csv(resource_filename('zepid', 'datasets/data.dat'),
                      delim_whitespace=True, header=None, names=cols, index_col=False)
     df.sort_values(by=['id', 'enter'], inplace=True)
-    if timevary is True:
+    if timevary:
         return df
     else:
-        dfi = df.loc[df.groupby('id').cumcount() == 0][['id', 'male', 'age0', 'cd40', 'dvl0', 'art']].copy()
+        dfi = df.loc[df.groupby('id').cumcount() == 0, ['id', 'male', 'age0', 'cd40', 'dvl0', 'art']].copy()
         dfo = df.loc[df.id != df.id.shift(-1)][['id', 'dead', 'drop', 'out']].copy()
         dfo.loc[(dfo['drop'] == 1) & (dfo['out'] <= 45), 'dead'] = np.nan
         dfo['dead'] = np.where((dfo['dead'] == 1) & (dfo['out'] > 45), 0, dfo['dead'])
         dff = pd.merge(dfi, dfo, left_on='id', right_on='id')
         dff.rename(columns={'out': 't'}, inplace=True)
         dff.drop('drop', axis=1, inplace=True)
+
+        # Adding last CD4 T-cell count for continuous outcome data
+        dfl = df.loc[df['out'] <= 45, ['id', 'cd4']].copy()
+        dfll = dfl.loc[dfl.id != dfl.id.shift(-1)].copy()
+        dfll.rename(columns={'cd4': 'cd4_wk45'}, inplace=True)
+        dff = pd.merge(dff, dfll, left_on='id', right_on='id')
+        dff['cd4_wk45'] = np.where(dff['dead'] == 1, np.nan, dff['cd4_wk45'])
+
         return dff
 
 
