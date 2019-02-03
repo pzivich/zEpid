@@ -17,7 +17,7 @@ def sdata():
     df = load_sample_data(False)
     df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
     df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
-    return df
+    return df.drop(columns=['cd4_wk45'])
 
 
 class TestIPTW:
