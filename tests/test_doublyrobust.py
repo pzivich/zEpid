@@ -191,6 +191,18 @@ class TestTMLE:
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
         npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
 
+    def test_match_r_continuous_poisson(self, cf):
+        r_ate = 223.4648
+        r_ci = 118.6276, 328.3019
+
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False, continous_distribution='poisson')
+        tmle.fit()
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+
     def test_sklearn_in_tmle(self, df):
         log = LogisticRegression(penalty='l1', C=1.0, random_state=201)
         tmle = TMLE(df, exposure='art', outcome='dead')

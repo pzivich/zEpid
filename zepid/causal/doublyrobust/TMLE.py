@@ -222,7 +222,7 @@ class TMLE:
 
         self._fit_exposure_model = True
 
-    def outcome_model(self, model, custom_model=None, print_results=True):
+    def outcome_model(self, model, custom_model=None, print_results=True, continous_distribution='gaussian'):
         """Estimation of E(Y|A,L), which is also written sometimes as Q(A,W) or Pr(Y=1|A,W)
 
         Parameters
@@ -241,7 +241,12 @@ class TMLE:
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
             if self._continuous_outcome:
-                f = sm.families.family.Gaussian()
+                if continous_distribution == 'gaussian':
+                    f = sm.families.family.Gaussian()
+                elif continous_distribution == 'poisson':
+                    f = sm.families.family.Poisson()
+                else:
+                    raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
                 log = smf.glm(self._out_model, self.df, family=f).fit()
             else:
                 f = sm.families.family.Binomial()
