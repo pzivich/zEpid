@@ -11,14 +11,39 @@ from zepid.calc import probability_to_odds
 
 
 class TMLE:
-    def __init__(self, df, exposure, outcome, measure=None, alpha=0.05, continuous_bound=0.005):
-        """Implementation of a single time-point target maximum likelihood estimator. It uses standard logistic
-        regression models to calculate Psi. The TMLE estimator allows a standard logistic regression to be used.
-        Alternatively, users are able to directly input predicted outcomes from other methods (like machine learning
-        algorithms).
+    def __init__(self, df, exposure, outcome, measure=None, alpha=0.05, continuous_bound=0.0005):
+        """Implementation of a single time-point target maximum likelihood estimator. It uses standard
+        regression models to calculate the estimate of interest. The TMLE estimator allows users are able to directly
+        input predicted outcomes from other methods (like machine learning algorithms from sklearn).
 
-        TMLE is a double robust substitution estimator. For further details, see the listed references. The following
-        is a general description of the estimation process for TMLE
+        Parameters
+        ----------
+        df : DataFrame
+            Pandas dataframe containing the variables of interest
+        exposure : str
+            Column label for the exposure of interest
+        outcome : str
+            Column label for the outcome of interest
+        measure : str, optional
+            No longer supported. By default risk difference, risk ratio, and odds ratio are all calculated
+        alpha : int, optional
+            Alpha for confidence interval level. Default is 0.05
+        continuous_bound : float, optional
+            Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
+            in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
+            0,1 respectively. Default value is 0.0005
+
+        Notes
+        -----
+        TMLE is a double robust substitution estimator. TMLE obtains the target estimate in a single step. The
+        single-step TMLE is described further by van der Laan. For further details, see the listed references.
+
+        Continuous outcomes must be bounded between 0 and 1. TMLE does this automatically for the user. Additionally,
+        the average treatment effect is estimate is back converted to the original scale of Y. When scaling Y as Y*,
+        some values may take the value of 0 or 1, which breaks a logit(Y*) transformation. To avoid this issue, Y* is
+        bounded by the `continuous_bound` argument. The default is 0.0005, the same as R's tmle
+
+        The following is a general outline of the estimation process for TMLE
 
         1. Initial estimates for Y are predicted from a regression model. Expected values for each individual are
         generated under the scenarios of all treated vs all untreated
@@ -46,32 +71,9 @@ class TMLE:
 
             logit(E(Y|A,L)) = logit(Y_a) + \sigma * H_a
 
-        4. The targeted Psi is estimated via one of the following formulas
+        4. The targeted Psi is estimated, representing the causal effect of all treated vs. all untreated
 
-        .. math::
-
-            RD = \frac{1}{n} \sum_{i=1}^{n} (\hat{Y}_1 - \hat{Y}_0)
-
-            RR = \frac{1}{n} \sum_{i=1}^{n} (\hat{Y}_1) / \frac{1}{n} \sum_{i=1}^{n} (\hat{Y}_0)
-
-        Confidence intervals are constructed using influence curve theory
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing the variables of interest
-        exposure : str
-            Column label for the exposure of interest
-        outcome : str
-            Column label for the outcome of interest
-        measure : str, optional
-            No longer supported. By default risk difference, risk ratio, and odds ratio are all calculated
-        alpha : int, optional
-            Alpha for confidence interval level. Default is 0.05
-        continuous_bound : float, optional
-            Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
-            in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
-            0,1 respectively
+        Confidence intervals are constructed using influence curve theory.
 
         Examples
         --------
@@ -120,6 +122,8 @@ class TMLE:
 
         Van Der Laan, Mark J., and Daniel Rubin. "Targeted maximum likelihood learning." The International Journal of
         Biostatistics 2.1 (2006).
+
+        Gruber, S., & van der Laan, M. J. (2011). tmle: An R package for targeted maximum likelihood estimation.
         """
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
@@ -139,6 +143,8 @@ class TMLE:
             self._continuous_min = np.min(df[outcome])
             self._continuous_max = np.max(df[outcome])
             self._cb = continuous_bound
+            self.df[outcome] = self._unit_bounds(y=df[outcome], mini=self._continuous_min,
+                                                 maxi=self._continuous_max, bound=self._cb)
 
         self._out_model = None
         self._exp_model = None
@@ -317,14 +323,6 @@ class TMLE:
                 else:
                     raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
-        if self._continuous_outcome:
-            self.QAW = self._unit_bounds(y=self.QAW, mini=self._continuous_min,
-                                         maxi=self._continuous_max, bound=self._cb)
-            self.QA1W = self._unit_bounds(y=self.QA1W, mini=self._continuous_min,
-                                          maxi=self._continuous_max, bound=self._cb)
-            self.QA0W = self._unit_bounds(y=self.QA0W, mini=self._continuous_min,
-                                          maxi=self._continuous_max, bound=self._cb)
-
         self._fit_outcome_model = True
 
     def fit(self):
@@ -346,11 +344,7 @@ class TMLE:
 
         # Step 5) Estimating TMLE
         f = sm.families.family.Binomial()
-        if self._continuous_outcome:
-            y = self._unit_bounds(self.df[self._outcome], mini=self._continuous_min,
-                                  maxi=self._continuous_max, bound=self._cb)
-        else:
-            y = self.df[self._outcome]
+        y = self.df[self._outcome]
         log = sm.GLM(y, np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
                      family=f).fit()
         self._epsilon = log.params
@@ -373,7 +367,8 @@ class TMLE:
 
             self.average_treatment_effect = np.mean(Qstar1 - Qstar0)
             # Influence Curve for CL
-            ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect
+            y_unbound = self._unit_unbound(self.df[self._outcome], mini=self._continuous_min, maxi=self._continuous_max)
+            ic = HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect
             varIC = np.var(ic, ddof=1) / self.df.shape[0]
             self.average_treatment_effect_ic = [self.average_treatment_effect - zalpha * math.sqrt(varIC),
                                                 self.average_treatment_effect + zalpha * math.sqrt(varIC)]
