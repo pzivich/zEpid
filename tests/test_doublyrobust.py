@@ -67,7 +67,7 @@ class TestTMLE:
 
     def test_match_r_tmle_riskratio(self, df):
         r_rr = 0.5344266
-        tmle = TMLE(df, exposure='art', outcome='dead', measure='risk_ratio')
+        tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
@@ -76,7 +76,7 @@ class TestTMLE:
 
     def test_match_r_tmle_rr_ci(self, df):
         r_ci = 0.2773936, 1.0296262
-        tmle = TMLE(df, exposure='art', outcome='dead', measure='risk_ratio')
+        tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
@@ -85,7 +85,7 @@ class TestTMLE:
 
     def test_match_r_tmle_oddsratio(self, df):
         r_or = 0.4844782
-        tmle = TMLE(df, exposure='art', outcome='dead', measure='odds_ratio')
+        tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
@@ -94,7 +94,7 @@ class TestTMLE:
 
     def test_match_r_tmle_or_ci(self, df):
         r_ci = 0.232966, 1.007525
-        tmle = TMLE(df, exposure='art', outcome='dead', measure='odds_ratio')
+        tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
@@ -126,15 +126,21 @@ class TestTMLE:
         npt.assert_allclose(tmle.risk_difference_ci, r_ci, rtol=1e-5)
 
     def test_sklearn_in_tmle(self, df):
-        log = LogisticRegression(penalty='l1', C=1.0, random_state=201)
-        tmle = TMLE(df, exposure='art', outcome='dead', measure='risk_difference')
+        log = LogisticRegression(C=1.0)
+        tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
         tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=log)
         tmle.fit()
-        # Dropping since Linux RNG does not match my OS (windows)
-        # npt.assert_allclose(tmle.psi, -0.07507877527854623)
-        # npt.assert_allclose(tmle.confint, [-0.15278930211034644, 0.002631751553253986], rtol=1e-5)
-        # TODO Test now only checks no errors are thrown. To fix later
+
+        # Testing RD match
+        npt.assert_allclose(tmle.risk_difference, -0.091372098)
+        npt.assert_allclose(tmle.risk_difference_ci, [-0.1595425678, -0.0232016282], rtol=1e-5)
+        # Testing RR match
+        npt.assert_allclose(tmle.risk_ratio, 0.4998833415)
+        npt.assert_allclose(tmle.risk_ratio_ci, [0.2561223823, 0.9756404452], rtol=1e-5)
+        # Testing OR match
+        npt.assert_allclose(tmle.odds_ratio, 0.4496171689)
+        npt.assert_allclose(tmle.odds_ratio_ci, [0.2139277755, 0.944971255], rtol=1e-5)
 
 
 class TestAIPTW:
