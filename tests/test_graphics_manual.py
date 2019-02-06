@@ -8,13 +8,22 @@ from lifelines import KaplanMeierFitter
 
 from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, IncidenceRateDifference, IncidenceRateRatio,
                    spline)
-from zepid.graphics import EffectMeasurePlot, functional_form_plot, pvalue_plot, spaghetti_plot, roc, dynamic_risk_plot
+from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot, spaghetti_plot,
+                            roc, dynamic_risk_plot, labbe_plot)
 from zepid.causal.ipw import IPTW
 from zepid.causal.gformula import TimeVaryGFormula
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 
 def graphics_check():
+    # L'Abbe Plots
+    labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], color='r')
+    plt.show()
+    labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', marker='+', linestyle='')
+    plt.show()
+    labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='multiplicative', markersize=10)
+    plt.show()
+
     # 1) Check EffectMeasurePlot
     labs = ['Overall', 'Adjusted', '', '2012-2013', 'Adjusted', '', '2013-2014', 'Adjusted', '', '2014-2015',
             'Adjusted']
@@ -199,3 +208,4 @@ def mc_gformula_check():
 # measures_check()
 # causal_check()
 # mc_gformula_check()
+
