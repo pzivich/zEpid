@@ -10,6 +10,60 @@ from zepid.causal.ipw import propensity_score
 from zepid.calc import probability_to_odds
 
 
+def _exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
+    """Function to fit machine learning predictions. Used by TMLE to generate predicted probabilities of being
+    treated (i.e. Pr(A=1 | L))
+    """
+    # Trying to fit the Machine Learning model
+    try:
+        fm = ml_model.fit(X=xdata, y=ydata)
+    except TypeError:
+        raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                        "covers both sklearn and supylearner. If there is a predictive model you would "
+                        "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                        "can work on adding support")
+    if print_results and hasattr(fm, 'summarize'):  # SuPyLearner has a nice summarize function
+        fm.summarize()
+
+    # Generating predictions
+    if hasattr(fm, 'predict_proba'):
+        g = fm.predict_proba(xdata)[:, 1]
+        return g
+    elif hasattr(fm, 'predict'):
+        g = fm.predict(xdata)
+        return g
+    else:
+        raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
+def _outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, print_results=True):
+    """Function to fit machine learning predictions. Used by TMLE to generate predicted probabilities of outcome
+    (i.e. Pr(Y=1 | A=1, L) and Pr(Y=1 | A=0, L)). Future update will include continuous Y functionality (i.e. E(Y))
+    """
+    # Trying to fit Machine Learning model
+    try:
+        fm = ml_model.fit(X=xdata, y=ydata)
+    except TypeError:
+        raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                        "covers both sklearn and supylearner. If there is a predictive model you would "
+                        "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                        "can work on adding support")
+    if print_results and hasattr(fm, 'summarize'):  # Nice summarize option from SuPyLearner
+        fm.summarize()
+
+    # Generating predictions
+    if hasattr(fm, 'predict_proba'):
+        qa1 = fm.predict_proba(all_a)[:, 1]
+        qa0 = fm.predict_proba(none_a)[:, 1]
+        return qa1, qa0
+    elif hasattr(fm, 'predict'):
+        qa1 = fm.predict(all_a)
+        qa0 = fm.predict(none_a)
+        return qa1, qa0
+    else:
+        raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
 class TMLE:
     def __init__(self, df, exposure, outcome, measure=None, alpha=0.05):
         """Implementation of a single time-point target maximum likelihood estimator. It uses standard logistic
@@ -177,21 +231,8 @@ class TMLE:
         # User-specified prediction model
         else:
             data = patsy.dmatrix(model + ' - 1', self.df)
-            try:
-                fm = custom_model.fit(X=data, y=self.df[self._outcome])
-            except TypeError:
-                raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
-                                "covers both sklearn and supylearner. If there is a predictive model you would "
-                                "like to use, please open an issue at https://github.com/pzivich/zepid and I "
-                                "can work on adding support")
-            if print_results and hasattr(fm, 'summarize'):
-                fm.summarize()
-            if hasattr(fm, 'predict_proba'):
-                self.g1W = fm.predict_proba(data)[:, 1]
-            elif hasattr(fm, 'predict'):
-                self.g1W = fm.predict(data)
-            else:
-                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+            self.g1W = _exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self._exposure]),
+                                                 ml_model=custom_model, print_results=print_results)
 
         self.g0W = 1 - self.g1W
         if bound:  # Bounding predicted probabilities if requested
@@ -229,54 +270,30 @@ class TMLE:
                 print(log.summary())
 
             # Step 2) Estimation under the scenarios
-            self.QAW = log.predict(self.df)
             dfx = self.df.copy()
             dfx[self._exposure] = 1
             self.QA1W = log.predict(dfx)
             dfx = self.df.copy()
             dfx[self._exposure] = 0
             self.QA0W = log.predict(dfx)
+            self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
 
         # User-specified model
         else:
             data = patsy.dmatrix(model + ' - 1', self.df)
-            try:
-                fm = custom_model.fit(X=data, y=self.df[self._outcome])
-            except TypeError:
-                raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
-                                "covers both sklearn and supylearner. If there is a predictive model you would "
-                                "like to use, please open an issue at https://github.com/pzivich/zepid and I "
-                                "can work on adding support")
-            if print_results and hasattr(fm, 'summarize'):
-                fm.summarize()
-            if hasattr(fm, 'predict_proba'):
-                self.QAW = fm.predict_proba(data)[:, 1]
 
-                dfx = self.df.copy()
-                dfx[self._exposure] = 1
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA1W = fm.predict_proba(data)[:, 1]
+            dfx = self.df.copy()
+            dfx[self._exposure] = 1
+            adata = patsy.dmatrix(model + ' - 1', dfx)
+            dfx = self.df.copy()
+            dfx[self._exposure] = 0
+            ndata = patsy.dmatrix(model + ' - 1', dfx)
 
-                dfx = self.df.copy()
-                dfx[self._exposure] = 0
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA0W = fm.predict_proba(data)[:, 1]
-
-            elif hasattr(fm, 'predict'):
-                self.QAW = fm.predict(data)
-
-                dfx = self.df.copy()
-                dfx[self._exposure] = 1
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA1W = fm.predict(data)
-
-                dfx = self.df.copy()
-                dfx[self._exposure] = 0
-                data = patsy.dmatrix(model + ' - 1', dfx)
-                self.QA0W = fm.predict(data)
-
-            else:
-                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+            self.QA1W, self.QA0W = _outcome_machine_learner(xdata=np.asarray(data),
+                                                            ydata=np.asarray(self.df[self._outcome]),
+                                                            all_a=adata, none_a=ndata,
+                                                            ml_model=custom_model, print_results=True)
+            self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
 
         self._fit_outcome_model = True
 
@@ -294,7 +311,7 @@ class TMLE:
 
         # Step 4) Calculating clever covariate (HAW)
         H1W = self.df[self._exposure] / self.g1W
-        H0W = -(1 - self.df[self._exposure]) / (self.g0W)
+        H0W = -(1 - self.df[self._exposure]) / self.g0W
         HAW = H1W + H0W
 
         # Step 5) Estimating TMLE
@@ -397,6 +414,5 @@ class TMLE:
                 raise ValueError('Both bound values must be between (0, 1)')
             v = np.where(v < bounds[0], bounds[0], v)
             v = np.where(v > bounds[1], bounds[1], v)
-        print(np.max(v))
         return v
 
