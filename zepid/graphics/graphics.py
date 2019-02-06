@@ -673,3 +673,112 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     ax.set_xlabel('Time')
     ax.set_xlim([0, np.max(r['timeline']) + 0.5])
     return ax
+
+
+def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12, figsize=(7, 4), **plot_kwargs):
+    """L'Abbe plots are useful for summarizing measure modification on the difference or ratio scale. Primarily
+    invented for meta-analysis usage, these plots display risk differences (or ratios) by their individual risks
+    by an exposure. I find them most useful for a visualization of why if there is an association and there is no
+    modfication on one scale (additive or multiplicative), there must be modification on the other scale.
+
+    Parameters
+    ----------
+    r1 : float, int, list
+        Single probability or a list of probabilities when exposure is 1
+    r0 : float, int, list
+        Single probability or a list of probabilities when exposure is 0
+    scale : str, optional
+        Which scale to plot. The default is 'both', which generates side-by-side plots of additive scale and
+        multiplicative scale. Other options are; 'additive' to display the additive plot, and 'multiplicative' to
+        display the multiplicative plot
+    additive_tuner : int, optional
+        Optional parameter to change the number of lines displayed in the additive L'Abbe plot. Higher integer
+        produces more reference lines
+    multiplicative_tuner : int, optional
+        Optional parameter to change the number of lines displayed in the multiplicative L'Abbe plot. Higher integer
+        produces more reference lines
+    figsize : set, optional
+        Optional parameter to change the L'Abbe plot size. Only changes the plot size when scale='both'
+    **plot_kwargs : optional
+        Optional keyword arguments for matplotlib. kwargs will pass matplotlib.pyploy.plot kwargs are accepted. See
+        matplotlib 'plot()' function documentation for further details
+
+    Returns
+    -------
+    matplotlib axes
+
+    Examples
+    --------
+    See graphics documentation
+    """
+    ya0 = np.linspace(0.0001, 0.9999, 12)
+
+    if scale == 'both':
+        fig, ax = plt.subplots(1, 2, figsize=figsize)
+        ax[0].plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
+        for i in np.linspace(-1, 1, additive_tuner):
+            ax[0].plot(ya0, ya0 + i, color='gray', linewidth=1)
+        if 'marker' in plot_kwargs:
+            ax[0].plot(r0, r1, **plot_kwargs)
+        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+            ax[0].plot(r0, r1, 'o', **plot_kwargs)
+        ax[0].set_xlim([0, 1])
+        ax[0].set_ylim([0, 1])
+        ax[0].set_yticks([0, 1])
+        ax[0].set_xticks([0, 1])
+        ax[0].set_xlabel("$\Pr(Y|A=0)$")
+        ax[0].set_ylabel("$\Pr(Y|A=1)$")
+        ax[0].set_title("Additive")
+
+        ax[1].plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
+        for i in np.linspace(-3.5, 3.5, multiplicative_tuner):
+            ax[1].plot(ya0, np.exp(np.log(ya0) + i), color='gray', linewidth=1)
+        if 'marker' in plot_kwargs:
+            ax[1].plot(r0, r1, **plot_kwargs)
+        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+            ax[1].plot(r0, r1, 'o', **plot_kwargs)
+        ax[1].set_xlim([0, 1])
+        ax[1].set_ylim([0, 1])
+        ax[1].set_yticks([])
+        ax[1].set_xticks([0, 1])
+        ax[1].set_xlabel("$\Pr(Y|A=0)$")
+        ax[1].set_title("Multiplicative")
+
+    elif scale == 'additive':
+        ax = plt.gca()
+        ax.plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
+        for i in np.linspace(-1, 1, additive_tuner):
+            ax.plot(ya0, ya0 + i, color='gray', linewidth=1)
+        if 'marker' in plot_kwargs:
+            ax.plot(r0, r1, **plot_kwargs)
+        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+            ax.plot(r0, r1, 'o', **plot_kwargs)
+        ax.set_xlim([0, 1])
+        ax.set_ylim([0, 1])
+        ax.set_yticks([0, 1])
+        ax.set_xticks([0, 1])
+        ax.set_xlabel("$\Pr(Y|A=0)$")
+        ax.set_ylabel("$\Pr(Y|A=1)$")
+        ax.set_title("Additive")
+
+    elif scale == 'multiplicative':
+        ax = plt.gca()
+        ax.plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
+        for i in np.linspace(-3.2, 3.2, multiplicative_tuner):
+            plt.plot(ya0, np.exp(np.log(ya0) + i), color='gray', linewidth=1)
+        if 'marker' in plot_kwargs:
+            ax.plot(r0, r1, **plot_kwargs)
+        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+            ax.plot(r0, r1, 'o', **plot_kwargs)
+        ax.set_xlim([0, 1])
+        ax.set_ylim([0, 1])
+        ax.set_yticks([0, 1])
+        ax.set_xticks([0, 1])
+        ax.set_xlabel("$\Pr(Y|A=0)$")
+        ax.set_ylabel("$\Pr(Y|A=1)$")
+        ax.set_title("Multiplicative")
+
+    else:
+        raise ValueError("`scale` must be either 'additive', 'multplicative', or 'both'")
+
+    return ax
