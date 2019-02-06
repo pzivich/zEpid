@@ -371,13 +371,14 @@ class IPTW:
 
         # Generate plot
         ax = plt.gca()
-        ax.plot(to_plot.smd_u, to_plot.index, shape_unweighted, c=color_unweighted)
-        ax.plot(to_plot.smd_w, to_plot.index, shape_weighted, c=color_weighted)
+        ax.plot(to_plot.smd_u, to_plot.index, shape_unweighted, c=color_unweighted, label='Unweighted')
+        ax.plot(to_plot.smd_w, to_plot.index, shape_weighted, c=color_weighted, label='Weighted')
         ax.set_xlim([0, np.max([np.max(to_plot['smd_w']), np.max(to_plot['smd_u'])]) + 0.5])
         ax.set_xlabel('Absolute Standardized Difference')
         ax.axvline(0.1, color='gray')
         ax.set_yticks([i for i in range(to_plot.shape[0])])
         ax.set_yticklabels(to_plot['labels'])
+        ax.legend()
         return ax
 
     def standardized_mean_differences(self):
