@@ -1,6 +1,8 @@
 ![zepid](docs/images/zepid_logo.png)
 # zEpid
 
+[![Join the chat at https://gitter.im/zEpid/community](https://badges.gitter.im/zEpid/community.svg)](https://gitter.im/zEpid/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 zEpid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The 
 purpose of this package is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be 
 generated through various functions. For a sample walkthrough of what this package is capable of, please look to the 
