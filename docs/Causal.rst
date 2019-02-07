@@ -670,26 +670,39 @@ The methods that currently are implemented in *zEpid* includes the time-varying 
 time-varying g-formula can be estimated either through a Monte Carlo procedure, or using sequential regression
 (iterative conditionals). The longitudinal targeted maximum likelihood estimator will be implemented in future versions.
 
-G-Computation Algorithm (Monte Carlo)
--------------------------------------
-For a description of the time-varying Monte Carlo g-formula, we direct readers to the following resources
+**NOTE:** As of v0.4.3, `TimeVaryGFormula` is no longer supported. It has been divided into the `MonteCarloGFormula`
+class for the Monte Carlo Estimator and the `IterativeCondGFormula` for the Iterative Conditional (sequential
+regression) Estimator.
+
+Monte Carlo G-Computation Algorithm
+-----------------------------------
+For a description of the time-varying treatment g-formula with the Monte Carlo estimator, we direct readers to the
+following resources
 
 `Keil AP et al. 2014 <https://www.ncbi.nlm.nih.gov/pubmed/25140837>`_
 
 `Westreich D et al. 2012 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3641816/>`_
 
+Briefly, the Monte Carlo estimator fits regression models to the outcome, the exposure/treatment, and every
+time-varying confounder. After fitting all the necessary models (the models depends on your DAG or SWIG), you sample
+a large number of baseline observations from your data set with replacement. This is to reduce simulation error. With
+this sample, you simulate their time-varying variables using the fit regression models. You continue this iterative
+prediction process for every time-point till the end of follow-up. I highly recommend Keil et al. 2014 for a detailed
+description.
+
 Buckle-up this section is going to get a little complex. The main advantage of the g-formula is that it is flexible.
-The hard part of coding the generalized Monte Carlo time-varying g-formula is maintaining that flexibility. As a result,
+The hard part of coding the generalized Monte Carlo g-formula is maintaining that flexibility. As a result,
 things are going to get a little complicated. I will attempt to break down the implementation piece by piece. Let's
-begin our time-varying g-formula journey!
+begin our Monte Carlo g-formula journey!
 
 As standard, we need to do some background data preparation. The input dataframe should have multiple rows per person,
-where each row corresponds to a one unit time interval
+where each row corresponds to a one unit time interval. Here we will do some background data preparation before
+starting the estimation procedure
 
 .. code:: python
 
   import zepid as ze
-  from zepid.causal.gformula import TimeVaryGFormula
+  from zepid.causal.gformula import MonteCarloGFormula
 
   df = ze.load_sample_data(timevary=True)
   df['lag_art'] = df['art'].shift(1)
@@ -706,15 +719,13 @@ where each row corresponds to a one unit time interval
   df['enter_sq'] = df['enter'] ** 2  # entry time
   df['enter_cu'] = df['enter'] ** 3
 
-Now that our dataframe variables are all prepared, we can initialize the ``TimeVaryGFormula`` class. The
-``TimeVaryGFormula`` class is initialized with a unique identifier for each participant, the exposure column name, the
-outcome column name, start time for the interval, and the end time for the interval. By default, the
-``TimeVaryGFormula`` uses the Monte Carlo estimator. See the following section for a description of the sequential
-regression procedure.
+Now that our dataframe variables are all prepared, we can initialize the ``MonteCarloGFormula`` class. The
+``MonteCarloGFormula`` class is initialized with a unique identifier for each participant, the exposure column name, the
+outcome column name, start time for the interval, and the end time for the interval.
 
 .. code:: python
 
-  g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+  g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
 
 Once initialized, we need to fit models for; the outcome, the exposure, and all the time-varying confounders.
 
@@ -724,7 +735,7 @@ First, we will fit a logistic regression model for the exposure ``art``. To fit 
 the independent variables, and any restrictions for the model. We will be using an intent-to-treat assumption (once ART
 is given, the participant always takes it for the future), so we specify ``g['lag_art']==0``. This fits the exposure
 regression model only to those who have NOT previously taken ART. This argument is optional and should be used depending
-on your theoretical model of exposure and the question you are attempting to answer.
+on your theoretical model of exposure and the causal question you are attempting to answer.
 
 Note that the dataframe is referred to as ``g`` . Similar to the ``TimeFixedGFormula`` , the syntax for ``restriction``
 used the structure of the inner part of a ``pd.loc[...]`` statement. This statement can be linked with other restrictions
@@ -784,7 +795,7 @@ the Monte Carlo process and provide invalid results.
 
 I will reiterate here again that careful thought needs to be made into the model order, the variables included in
 predictive models, and any recoding/restrictions that need to be applied in each Monte Carlo step. If you have further
-questions, or need help applying this, please reach out to us on GitHub.
+questions, or need help applying this, please reach out to us on GitHub or Gitter.
 
 .. code:: python
 
@@ -816,11 +827,11 @@ names. This allows the Monte Carlo algorithm to lag the variables properly as it
 such. Next, we specify ``sample=10000``, which samples with replacement from initial observations. These are used as
 the starting points for the Monte Carlo simulation process. By default, 10000 samples are used. A high number of samples
 should be used to minimize simulation error. Next, I wrote the optional argument ``t_max`` out. By default
-``TimeVaryGFormula`` uses the maximum time as the stopping point for the MCMC process. The MCMC process can be terminated
-at an earlier iteration point by setting ``t_max`` to the desired stopping point. Lastly is the ``recode`` option. This
-is similar to the ``recode`` option in ``TimeVaryGFormula.add_covariate_model``. This is used to change the functional
-form for the entrance times or other variables not included in models, but need to be updated throughout the
-Monte Carlo process.
+``MonteCarloGFormula`` uses the maximum time as the stopping point for the Monte-Carlo-Markov-Chain process. The MCMC
+process can be terminated at an earlier iteration point by setting ``t_max`` to the desired stopping point. Lastly is
+the ``recode`` option. This is similar to the ``recode`` option in ``TimeVaryGFormula.add_covariate_model``. This is
+used to change the functional form for the entrance times or other variables not included in models, but need to be
+updated throughout the Monte Carlo process.
 
 .. code:: python
 
@@ -930,48 +941,45 @@ vs all untreated.
 Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~
 To obtain confidence intervals, nonparametric bootstrapping should be used. Take note that this will take awhile to
-finish (especially if a high number of resampling is used).
+finish (especially if a high number of resamples are used).
 
-As of version 0.4.0, TimeVaryGFormula is slower than SAS. If you are interested in optimization problems or have some
-experience with optimization problems, please contact me on GitHub.
+As of version 0.4.3, `MonteCarloGFormula` is slower than SAS. If you are interested in optimization problems or have
+some experience with optimization problems, please contact me on GitHub.
 
-G-Computation Algorithm (Sequential Regression)
------------------------------------------------
+Iterative Conditional G-Computation Algorithm
+---------------------------------------------
 As demonstrated in the last section, the Monte Carlo time-varying g-formula has lots of errors where model
-miss-specification can occur. One approach around this is to use the sequential regression estimator (also referred to
-as iterative conditionals). This approach only requires specification of the outcome regression model. However, this
-approach does not deal well with sparse survival data. It is best suited for longitudinal data collected at specified
-time-points.
-
-For an in-depth description of the sequential regression g-formula, we direct readers to
+miss-specification can occur. Specifically, you need to have all of your parametric models correctly specified. This
+can be an unreasonable assumption when you have many time-varying confounders. One approach around this is to use the
+Iterative Conditional estimator (also referred to as sequential regression). This approach only requires specification
+of the outcome regression model. However, this approach does not deal well with sparse survival data. It is best
+suited for longitudinal data collected at specified time-points. For an in-depth description of the iterative
+conditional g-formula, we direct readers to
 
 `Kreif N et al. 2017 <https://academic.oup.com/aje/article/186/12/1370/3886032>`_
 
-To demonstrate the sequential regression g-formula, we will use a simulated data set. First, we load the necessary
-functions
+To demonstrate the sequential regression g-formula, we will use a simulated longitudinal data set. First, we load the
+necessary functions
 
 .. code:: python
 
   from zepid import load_longitudinal_data
-  from zepid.causal.gformula import TimeVaryGFormula
+  from zepid.causal.gformula import IterativeCondGFormula
 
   df = load_longitudinal_data()
 
-The sequential regression g-formula can be estimated by specifying the ``method='SequentialRegression'`` option in the
-initial ``TimeVaryGFormula``
+The sequential regression g-formula can be estimated by ``IterativeCondGFormula``
 
 .. code:: python
 
-  g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t', method='SequentialRegression')
+  g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t')
 
-*Note*: for the sequential regression estimator, only the ``time_out`` needs to be specified. ``time_in`` is only
-necessary for the Monte Carlo g-formula.
 
 Specifying Outcome Model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 After initialized, the outcome model must be specified. Note that this model will apply to each successive estimation
 (sequential regression) applied to estimate the model. The model is re-fit to each time point for previously predicted
-data. Please see Kreif et al. *AJE* 2017 for a full description
+data. Please see Kreif et al. *AJE* 2017 for a full description of the procedure
 
 .. code:: python
 
@@ -987,9 +995,9 @@ statement with either the treatment keywords, or a custom treatment.
   g.fit(treatment="all")
   print(g.predicted_outcomes)
 
-*Note* this treatment applies to the **last** time point observed in the data set (``t=3``). To estimate the marginal
-risk at other time points, the ``t_max`` argument can be specified. To get the marginal risk at ``t=2`` and ``t=1`` , we
-can use the following code
+*Note* this estimated causal effect applies to the **last** time point observed in the data set (``t=3``). To estimate
+the marginal risk at other time points, the ``t_max`` argument can be specified. To get the marginal risk at ``t=2``
+and ``t=1`` , we can use the following code
 
 .. code:: python
 
@@ -1010,7 +1018,6 @@ Confidence Intervals
 ~~~~~~~~~~~~~~~~~~~~
 Same as the Monte Carlo g-formula, non-parametric bootstrapping should be used to obtain confidence intervals for the
 sequential regression estimator.
-
 
 Inverse Probability of Treatment Weights
 ------------------------------------------
