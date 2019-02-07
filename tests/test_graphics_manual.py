@@ -11,7 +11,7 @@ from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, Incid
 from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot, spaghetti_plot,
                             roc, dynamic_risk_plot, labbe_plot)
 from zepid.causal.ipw import IPTW
-from zepid.causal.gformula import TimeVaryGFormula
+from zepid.causal.gformula import MonteCarloGFormula
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 
@@ -19,7 +19,7 @@ def graphics_check():
     # L'Abbe Plots
     labbe_plot()
     plt.show()
-    labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], color='r')
+    labbe_plot(r1=[0.25, 0.5], r0=[0.1, 0.2], color='r')
     plt.show()
     labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', marker='+', linestyle='')
     plt.show()
@@ -144,6 +144,7 @@ def causal_check():
                           'male:cd40 + male:cd4_rs1 + male:cd4_rs2')
     ipt.fit()
     ipt.plot_love()
+    plt.tight_layout()
     plt.show()
     ipt.plot_kde()
     plt.show()
@@ -170,7 +171,7 @@ def mc_gformula_check():
     df['cd4_cu'] = df['cd4'] ** 3
     df['enter_sq'] = df['enter'] ** 2  # entry time cubic
     df['enter_cu'] = df['enter'] ** 3
-    g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+    g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
     exp_m = '''male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq + 
             cd4_cu + dvl + enter + enter_sq + enter_cu'''
     g.exposure_model(exp_m, restriction="g['lag_art']==0")
@@ -210,4 +211,3 @@ def mc_gformula_check():
 # measures_check()
 # causal_check()
 # mc_gformula_check()
-

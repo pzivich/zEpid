@@ -1,5 +1,21 @@
 ### Change logs
 
+#### v0.4.3:
+
+``TimeVaryGFormula`` is separated into ``MonteCarloGFormula`` and ``IterativeCondGFormula``. This change is for 
+maintenance of the estimators and to avoid confusion since they are sufficiently distinct. Originally, I was unaware of
+the iterative conditional estimator, which is why the original name was based on time-varying g-formula. While they are 
+related, it is more confusing to wrap them both in the same class. ``TimeVaryGFormula`` will stick around to v0.6.0. 
+Going forward it will be cut. It will not be updated going forward
+
+L'Abbe plots are now supported. These plots are useful for visualizing additive and multiplicative interactions for 
+risk estimates. These are valid for either associations or causal effects.
+
+``IPTW.plot_love`` now displays the legend. I have previously not included this in the function (I should have)
+
+``TMLE`` refactored to estimate machine learners via an outside function. Also converts all pd.Series to np.array to 
+avoid some unhappiness with sklearn / supylearner models
+
 #### v0.4.2:
 
 **MAJOR CHANGES**:
