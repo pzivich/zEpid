@@ -4,10 +4,9 @@ import pandas as pd
 import numpy.testing as npt
 import pandas.testing as pdt
 from scipy.stats import logistic
-from lifelines import KaplanMeierFitter
 
 from zepid import load_sample_data, spline
-from zepid.causal.gformula import TimeFixedGFormula, TimeVaryGFormula
+from zepid.causal.gformula import TimeFixedGFormula, MonteCarloGFormula, IterativeCondGFormula
 
 
 @pytest.fixture
@@ -326,93 +325,39 @@ class TestTimeVaryGFormula:
 
     def test_error_continuous_treatment(self, sim_t_fixed_data):
         with pytest.raises(ValueError):
-            TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='W1', outcome='Y', time_out='t', time_in='t0')
+            MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='W1', outcome='Y', time_out='t', time_in='t0')
 
     def test_error_continuous_outcome(self, sim_t_fixed_data):
         with pytest.raises(ValueError):
-            TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='W1', time_out='t', time_in='t0')
-
-    def test_error_monte_carlo1(self, sim_t_fixed_data):
-        with pytest.raises(ValueError):
-            TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='W1', time_out='t')
-
-    def test_error_estimation_method(self, sim_t_fixed_data):
-        with pytest.raises(ValueError):
-            TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='W1', time_out='t', method='Fail')
+            MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='W1', time_out='t', time_in='t0')
 
     def test_error_covariate_label(self, sim_t_fixed_data):
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
+        g = MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
         with pytest.raises(ValueError):
             g.add_covariate_model(label='first', covariate='W1', model='W2')
 
     def test_error_covariate_type(self, sim_t_fixed_data):
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
+        g = MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
         with pytest.raises(ValueError):
             g.add_covariate_model(label=1, covariate='W1', model='W2', var_type='categorical')
 
     def test_error_no_outcome_model(self, sim_t_fixed_data):
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
-        with pytest.raises(ValueError):
-            g.fit(treatment='all')
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y',
-                             time_out='t', method='SequentialRegression')
+        g = MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
         with pytest.raises(ValueError):
             g.fit(treatment='all')
 
     def test_error_treatment_type(self, sim_t_fixed_data):
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
+        g = MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
         with pytest.raises(ValueError):
             g.fit(treatment=1)
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y',
-                             time_out='t', method='SequentialRegression')
-        with pytest.raises(ValueError):
-            g.fit(treatment=1)
-
-    def test_error_sr_other_models(self, sim_t_fixed_data):
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y',
-                             time_out='t', method='SequentialRegression')
-        g.outcome_model('A + W1_sq + W2 + W3', print_results=False)
-        g.exposure_model('W1_sq', print_results=False)
-        with pytest.raises(ValueError):
-            g.fit(treatment='all')
-
-    def test_error_sr_natural_course(self, sim_t_fixed_data):
-        g = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y',
-                             time_out='t', method='SequentialRegression')
-        g.outcome_model('A + W1_sq + W2 + W3', print_results=False)
-        with pytest.raises(ValueError):
-            g.fit(treatment='natural')
-
-    def test_error_sr_recurrent_outcomes(self):
-        df = pd.DataFrame()
-        df['id'] = [1, 1, 1]
-        df['Y'] = [0, 1, 1]
-        df['A'] = [0, 1, 1]
-        df['t'] = [0, 1, 2]
-        g = TimeVaryGFormula(df, idvar='id', exposure='A', outcome='Y', time_out='t', method='SequentialRegression')
-        g.outcome_model('A', print_results=False)
-        with pytest.raises(ValueError):
-            g.fit(treatment='all')
-
-    def test_long_to_wide_conversion(self, longdata):
-        g = TimeVaryGFormula(longdata, idvar='id', exposure='A', outcome='Y',
-                             time_out='t', method='SequentialRegression')
-        lf = g._long_to_wide(longdata, id='id', t='t')
-        expected_lf = pd.DataFrame.from_records([{'A_0': 0, 'A_1': 1, 'A_2': 1,
-                                                  'Y_0': 0, 'Y_1': 0, 'Y_2': 1,
-                                                  'W_0': 5, 'W_1': 5, 'W_2': 5,
-                                                  'L_0': 25, 'L_1': 20, 'L_2': 31,
-                                                  'id': 1}]).set_index('id')
-        pdt.assert_frame_equal(lf, expected_lf[['A_0', 'A_1', 'A_2', 'Y_0', 'Y_1', 'Y_2', 'W_0', 'W_1', 'W_2', 'L_0',
-                                                'L_1', 'L_2']], check_names=False)
 
     def test_monte_carlo_for_single_t(self, sim_t_fixed_data):
         # Estimating monte carlo for single t
-        gt = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y',
-                              time_out='t', time_in='t0')
+        gt = MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t', time_in='t0')
         gt.outcome_model('A + W1_sq + W2 + W3', print_results=False)
         gt.exposure_model('W1_sq', print_results=False)
         gt.fit(treatment="all", sample=1000000)  # Keep this a high number to reduce simulation errors
+        print(gt.predicted_outcomes)
 
         # Estimating with TimeFixedGFormula
         gf = TimeFixedGFormula(sim_t_fixed_data, exposure='A', outcome='Y')
@@ -421,21 +366,6 @@ class TestTimeVaryGFormula:
 
         # Expected behavior; same results between the estimation methods
         npt.assert_allclose(gf.marginal_outcome, np.mean(gt.predicted_outcomes['Y']), rtol=1e-3)
-
-    def test_sequential_regression_for_single_t(self, sim_t_fixed_data):
-        # Estimating sequential regression for single t
-        gt = TimeVaryGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y',
-                              time_out='t', method='SequentialRegression')
-        gt.outcome_model('A + W1_sq + W2 + W3', print_results=False)
-        gt.fit(treatment="all")
-
-        # Estimating with TimeFixedGFormula
-        gf = TimeFixedGFormula(sim_t_fixed_data, exposure='A', outcome='Y')
-        gf.outcome_model(model='A + W1_sq + W2 + W3', print_results=False)
-        gf.fit(treatment='all')
-
-        # Expected behavior; same results between the estimation methods
-        npt.assert_allclose(gf.marginal_outcome, gt.predicted_outcomes)
 
     def test_complete_mc_procedure_completes(self):
         df = load_sample_data(timevary=True)
@@ -452,7 +382,7 @@ class TestTimeVaryGFormula:
         df['cd4_cu'] = df['cd4'] ** 3
         df['enter_sq'] = df['enter'] ** 2
         df['enter_cu'] = df['enter'] ** 3
-        g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+        g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
         exp_m = '''male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq + 
                 cd4_cu + dvl + enter + enter_sq + enter_cu'''
         g.exposure_model(exp_m, restriction="g['lag_art']==0")
@@ -477,56 +407,96 @@ class TestTimeVaryGFormula:
                          "g['enter_cu'] = g['enter']**3"))
         assert isinstance(g.predicted_outcomes, type(pd.DataFrame()))
 
+    # TODO still need to come up with an approach to test MC-g-formula results...
+
+    def test_long_to_wide_conversion(self, longdata):
+        g = IterativeCondGFormula(longdata, idvar='id', exposure='A', outcome='Y', time_out='t')
+        lf = g._long_to_wide(longdata, id='id', t='t')
+        expected_lf = pd.DataFrame.from_records([{'A_0': 0, 'A_1': 1, 'A_2': 1,
+                                                  'Y_0': 0, 'Y_1': 0, 'Y_2': 1,
+                                                  'W_0': 5, 'W_1': 5, 'W_2': 5,
+                                                  'L_0': 25, 'L_1': 20, 'L_2': 31,
+                                                  'id': 1}]).set_index('id')
+        pdt.assert_frame_equal(lf, expected_lf[['A_0', 'A_1', 'A_2', 'Y_0', 'Y_1', 'Y_2', 'W_0', 'W_1', 'W_2', 'L_0',
+                                                'L_1', 'L_2']], check_names=False)
+
+    def test_error_iterative_recurrent_outcomes(self):
+        df = pd.DataFrame()
+        df['id'] = [1, 1, 1]
+        df['Y'] = [0, 1, 1]
+        df['A'] = [0, 1, 1]
+        df['t'] = [0, 1, 2]
+        g = IterativeCondGFormula(df, idvar='id', exposure='A', outcome='Y', time_out='t')
+        g.outcome_model('A', print_results=False)
+        with pytest.raises(ValueError):
+            g.fit(treatment='all')
+
+    def test_iterative_error_treatment_type(self, sim_t_fixed_data):
+        g = IterativeCondGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t')
+        with pytest.raises(ValueError):
+            g.fit(treatment=1)
+
+    def test_error_iterative_no_outcome(self, sim_t_fixed_data):
+        g = IterativeCondGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t')
+        with pytest.raises(ValueError):
+            g.fit(treatment='all')
+
+    def test_iterative_for_single_t(self, sim_t_fixed_data):
+        # Estimating sequential regression for single t
+        gt = IterativeCondGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t')
+        gt.outcome_model('A + W1_sq + W2 + W3', print_results=False)
+        gt.fit(treatment="all")
+
+        # Estimating with TimeFixedGFormula
+        gf = TimeFixedGFormula(sim_t_fixed_data, exposure='A', outcome='Y')
+        gf.outcome_model(model='A + W1_sq + W2 + W3', print_results=False)
+        gf.fit(treatment='all')
+
+        # Expected behavior; same results between the estimation methods
+        npt.assert_allclose(gf.marginal_outcome, gt.marginal_outcome)
+
     def test_match_r_ltmle(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y',
-                             time_out='t', method='SequentialRegression')
-        out_m = 'A + L'
-        g.outcome_model(out_m, print_results=False)
+        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t')
+        g.outcome_model('A + L', print_results=False)
         g.fit(treatment="all")
-        npt.assert_allclose(g.predicted_outcomes, 0.4051569, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.4051569, rtol=1e-5)
         g.fit(treatment="none")
-        npt.assert_allclose(g.predicted_outcomes, 0.661226, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.661226, rtol=1e-5)
 
-    def test_sr_gap_time(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression')
-        out_m = 'A + L'
-        g.outcome_model(out_m, print_results=False)
+    def test_iterative_gap_time(self, data):
+        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2')
+        g.outcome_model('A + L', print_results=False)
         g.fit(treatment="all")
-        npt.assert_allclose(g.predicted_outcomes, 0.4051569, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.4051569, rtol=1e-5)
         g.fit(treatment="none")
-        npt.assert_allclose(g.predicted_outcomes, 0.661226, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.661226, rtol=1e-5)
 
-    def test_sr_weights1(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression',
-                             weights='w')
-        out_m = 'A + L'
-        g.outcome_model(out_m, print_results=False)
+    def test_iterative_weights1(self, data):
+        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', weights='w')
+        g.outcome_model('A + L', print_results=False)
         g.fit(treatment="all")
-        npt.assert_allclose(g.predicted_outcomes, 0.4051569, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.4051569, rtol=1e-5)
         g.fit(treatment="none")
-        npt.assert_allclose(g.predicted_outcomes, 0.661226, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.661226, rtol=1e-5)
 
-    def test_sr_custom_treatment(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression')
-        out_m = 'A + L'
-        g.outcome_model(out_m, print_results=False)
+    def test_iterative_custom_treatment(self, data):
+        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2')
+        g.outcome_model('A + L', print_results=False)
         g.fit(treatment="g['t'] != 2")
-        npt.assert_allclose(g.predicted_outcomes, 0.48543, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.48543, rtol=1e-5)
 
-    def test_sr_custom_time_point(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t', method='SequentialRegression')
+    def test_iterative_custom_time_point(self, data):
+        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t')
         g.outcome_model('A + L', print_results=False)
         # values come from R's ltmle package
         g.fit(treatment="all", t_max=2)
-        npt.assert_allclose(g.predicted_outcomes, 0.33492, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.33492, rtol=1e-5)
         g.fit(treatment="none", t_max=2)
-        npt.assert_allclose(g.predicted_outcomes, 0.51228, rtol=1e-5)
+        npt.assert_allclose(g.marginal_outcome, 0.51228, rtol=1e-5)
 
-    def test_sr_warning_outside_time_point(self, data):
-        g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', method='SequentialRegression')
+    def test_iterative_warning_outside_time_point(self, data):
+        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2')
         g.outcome_model('A + L', print_results=False)
         with pytest.warns(UserWarning):
             g.fit(treatment="all", t_max=6)
-        npt.assert_allclose(g.predicted_outcomes, 0.33492, rtol=1e-5)
-
-    # TODO still need to come up with an approach to test MC-g-formula results...
+        npt.assert_allclose(g.marginal_outcome, 0.33492, rtol=1e-5)
