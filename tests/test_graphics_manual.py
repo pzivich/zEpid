@@ -17,6 +17,8 @@ from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 def graphics_check():
     # L'Abbe Plots
+    labbe_plot()
+    plt.show()
     labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], color='r')
     plt.show()
     labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', marker='+', linestyle='')

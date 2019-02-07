@@ -675,7 +675,7 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     return ax
 
 
-def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12, figsize=(7, 4), **plot_kwargs):
+def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative_tuner=12, figsize=(7, 4), **plot_kwargs):
     """L'Abbe plots are useful for summarizing measure modification on the difference or ratio scale. Primarily
     invented for meta-analysis usage, these plots display risk differences (or ratios) by their individual risks
     by an exposure. I find them most useful for a visualization of why if there is an association and there is no
@@ -683,10 +683,10 @@ def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12,
 
     Parameters
     ----------
-    r1 : float, int, list
-        Single probability or a list of probabilities when exposure is 1
-    r0 : float, int, list
-        Single probability or a list of probabilities when exposure is 0
+    r1 : float, list, optional
+        Single probability or a list of probabilities when exposure is 1. Default is None, which does not display points
+    r0 : float, list, optional
+        Single probability or a list of probabilities when exposure is 0. Default is None, which does not display points
     scale : str, optional
         Which scale to plot. The default is 'both', which generates side-by-side plots of additive scale and
         multiplicative scale. Other options are; 'additive' to display the additive plot, and 'multiplicative' to
@@ -711,6 +711,10 @@ def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12,
     --------
     See graphics documentation
     """
+    if r1 is not None or r0 is not None:
+        if len(list(r1)) != len(list(r0)):
+            raise ValueError('The length of `r1` must be the same as `r0`')
+
     ya0 = np.linspace(0.0001, 0.9999, 12)
 
     if scale == 'both':
@@ -718,10 +722,11 @@ def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12,
         ax[0].plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
         for i in np.linspace(-1, 1, additive_tuner):
             ax[0].plot(ya0, ya0 + i, color='gray', linewidth=1)
-        if 'marker' in plot_kwargs:
-            ax[0].plot(r0, r1, **plot_kwargs)
-        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
-            ax[0].plot(r0, r1, 'o', **plot_kwargs)
+        if r1 is not None and r0 is not None:
+            if 'marker' in plot_kwargs:
+                ax[0].plot(r0, r1, **plot_kwargs)
+            else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+                ax[0].plot(r0, r1, 'o', **plot_kwargs)
         ax[0].set_xlim([0, 1])
         ax[0].set_ylim([0, 1])
         ax[0].set_yticks([0, 1])
@@ -733,10 +738,11 @@ def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12,
         ax[1].plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
         for i in np.linspace(-3.5, 3.5, multiplicative_tuner):
             ax[1].plot(ya0, np.exp(np.log(ya0) + i), color='gray', linewidth=1)
-        if 'marker' in plot_kwargs:
-            ax[1].plot(r0, r1, **plot_kwargs)
-        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
-            ax[1].plot(r0, r1, 'o', **plot_kwargs)
+        if r1 is not None and r0 is not None:
+            if 'marker' in plot_kwargs:
+                ax[1].plot(r0, r1, **plot_kwargs)
+            else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+                ax[1].plot(r0, r1, 'o', **plot_kwargs)
         ax[1].set_xlim([0, 1])
         ax[1].set_ylim([0, 1])
         ax[1].set_yticks([])
@@ -749,10 +755,11 @@ def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12,
         ax.plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
         for i in np.linspace(-1, 1, additive_tuner):
             ax.plot(ya0, ya0 + i, color='gray', linewidth=1)
-        if 'marker' in plot_kwargs:
-            ax.plot(r0, r1, **plot_kwargs)
-        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
-            ax.plot(r0, r1, 'o', **plot_kwargs)
+        if r1 is not None and r0 is not None:
+            if 'marker' in plot_kwargs:
+                ax.plot(r0, r1, **plot_kwargs)
+            else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+                ax.plot(r0, r1, 'o', **plot_kwargs)
         ax.set_xlim([0, 1])
         ax.set_ylim([0, 1])
         ax.set_yticks([0, 1])
@@ -766,10 +773,11 @@ def labbe_plot(r1, r0, scale='both', additive_tuner=12, multiplicative_tuner=12,
         ax.plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
         for i in np.linspace(-3.2, 3.2, multiplicative_tuner):
             plt.plot(ya0, np.exp(np.log(ya0) + i), color='gray', linewidth=1)
-        if 'marker' in plot_kwargs:
-            ax.plot(r0, r1, **plot_kwargs)
-        else:  # When markers are unspecified, point estimates aren't displayed. This avoids
-            ax.plot(r0, r1, 'o', **plot_kwargs)
+        if r1 is not None and r0 is not None:
+            if 'marker' in plot_kwargs:
+                ax.plot(r0, r1, **plot_kwargs)
+            else:  # When markers are unspecified, point estimates aren't displayed. This avoids
+                ax.plot(r0, r1, 'o', **plot_kwargs)
         ax.set_xlim([0, 1])
         ax.set_ylim([0, 1])
         ax.set_yticks([0, 1])
