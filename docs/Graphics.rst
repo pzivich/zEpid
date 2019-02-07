@@ -7,7 +7,7 @@ Graphics
 ''''''''
 
 Several different graphics are implemented through *zEpid* and include the following; functional form assessment,
-p-value plots, spaghetti plots, and effect measure plots (forest plots)
+p-value plots, spaghetti plots, effect measure plots (forest plots), and L'Abbe plots
 
 Functional Form Assessment
 ==========================
@@ -361,6 +361,57 @@ You can also request a log-transformed RR
  plt.show()
 
 .. image:: images/zepid_msm_rr2.png
+
+L'Abbe Plots
+============
+L'Abbe plots have generally been use to display meta-analysis results. However, I also find them to be a useful too to
+explain effect/association measure modification on the additive or the multiplicative scales. Furthermore, it
+visually demonstrates that when there is a non-null average causal effect, then there must be modification on at least
+one scale.
+
+To generate a L'Abbe plot, you can use the ``labbe_plot()`` function. Below is example code to generate an empty L'Abbe
+plot.
+
+.. code:: python
+
+ from zepid.graphics import labbe_plot
+
+ labbe_plot()
+ plt.show()
+
+The basic plot generated is the following
+
+.. image:: images/zepid_labbe1.png
+
+In this plot, you are presented lines that indicate where stratified measures would need to lie on for there to be
+no additive / multiplicative interaction. By default, both the additive and multiplicative plots are presented. Let's
+look at an example with some data
+
+.. code:: python
+
+ from zepid.graphics import labbe_plot
+
+ labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], color='red')
+ plt.show()
+
+.. image:: images/zepid_labbe2.png
+
+As seen in the plot, there is both additive and multiplicative interaction. As would be described by Hernan, Robins, and
+others, there is qualitative modification (estimates are on opposite sides of the null, the dashed-line). Let's look at
+one more example,
+
+.. code:: python
+
+ from zepid.graphics import labbe_plot
+
+ labbe_plot(r1=[0.25, 0.5], r0=[0.1, 0.2], color='red')
+ plt.show()
+
+.. image:: images/zepid_labbe3.png
+
+In this example, there is additive modification, but *no multiplicative modification*. These plots also can have the
+number of reference lines displayed changed, and support the keyword arguments of `plt.plot()` function. See the
+function documentation for further details.
 
 This concludes the section on implemented graphics in *zEpid*. If you have additional items you believe would make a
 good addition to the graphic functions, or *zEpid* in general, please reach out to us on GitHub or Twitter (@zepidpy)
