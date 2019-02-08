@@ -3,6 +3,11 @@ from setuptools import setup
 exec(compile(open('zepid/version.py').read(),
              'zepid/version.py', 'exec'))
 
+
+with open("README.md") as f:
+    descript = f.read()
+
+
 setup(name='zepid',
       version=__version__,
       description='Tool package for epidemiologic analyses',
@@ -29,4 +34,6 @@ setup(name='zepid',
                         'scipy',
                         'tabulate',
                         'patsy'],
+      long_description=descript,
+      long_description_content_type="text/markdown",
       )
