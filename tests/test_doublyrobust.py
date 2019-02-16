@@ -23,6 +23,20 @@ class TestTMLE:
         df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
         return df.drop(columns=['dead']).dropna()
 
+    @pytest.fixture
+    def mf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45'])
+
+    @pytest.fixture
+    def mcf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead'])
+
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
         tmle = TMLE(df, exposure='art', outcome='dead')
@@ -205,27 +219,82 @@ class TestTMLE:
         npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
 
     def test_sklearn_in_tmle(self, df):
-        log = LogisticRegression(penalty='l1', C=1.0, random_state=201)
+        log = LogisticRegression(C=1.0)
         tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
         tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=log)
         tmle.fit()
-        # Dropping since Linux RNG does not match my OS (windows)
-        # npt.assert_allclose(tmle.psi, -0.07507877527854623)
-        # npt.assert_allclose(tmle.confint, [-0.15278930211034644, 0.002631751553253986], rtol=1e-5)
-        # TODO Test now only checks no errors are thrown when adding sklearn
+
+        # Testing RD match
+        npt.assert_allclose(tmle.risk_difference, -0.091372098)
+        npt.assert_allclose(tmle.risk_difference_ci, [-0.1595425678, -0.0232016282], rtol=1e-5)
+        # Testing RR match
+        npt.assert_allclose(tmle.risk_ratio, 0.4998833415)
+        npt.assert_allclose(tmle.risk_ratio_ci, [0.2561223823, 0.9756404452], rtol=1e-5)
+        # Testing OR match
+        npt.assert_allclose(tmle.odds_ratio, 0.4496171689)
+        npt.assert_allclose(tmle.odds_ratio_ci, [0.2139277755, 0.944971255], rtol=1e-5)
 
     def test_sklearn_in_tmle2(self, cf):
-        log = LogisticRegression(penalty='l1', C=1.0, random_state=201)
+        log = LogisticRegression(C=1.0)
         lin = LinearRegression()
         tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
         tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=lin)
         tmle.fit()
-        # Dropping since Linux RNG does not match my OS (windows)
-        # npt.assert_allclose(tmle.psi, -0.07507877527854623)
-        # npt.assert_allclose(tmle.confint, [-0.15278930211034644, 0.002631751553253986], rtol=1e-5)
-        # TODO Test now only checks no errors are thrown when adding sklearn
+
+        npt.assert_allclose(tmle.average_treatment_effect, 236.049719, rtol=1e-5)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, [135.999264, 336.100175], rtol=1e-5)
+
+    def test_missing_binary_outcome(self, mf):
+        r_rd = -0.08168098
+        r_rd_ci = -0.15163818, -0.01172378
+        r_rr = 0.5495056
+        r_rr_ci = 0.2893677, 1.0435042
+        r_or = 0.4996546
+        r_or_ci = 0.2435979, 1.0248642
+
+        tmle = TMLE(mf, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+
+        npt.assert_allclose(tmle.risk_difference, r_rd)
+        npt.assert_allclose(tmle.risk_difference_ci, r_rd_ci, rtol=1e-5)
+        npt.assert_allclose(tmle.risk_ratio, r_rr)
+        npt.assert_allclose(tmle.risk_ratio_ci, r_rr_ci, rtol=1e-5)
+        npt.assert_allclose(tmle.odds_ratio, r_or)
+        npt.assert_allclose(tmle.odds_ratio_ci, r_or_ci, rtol=1e-5)
+
+    def test_no_missing_data(self, df):
+        tmle = TMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        with pytest.raises(ValueError):
+            tmle.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                               print_results=False)
+
+    def test_missing_continuous_outcome(self, mcf):
+        r_ate = 211.8295
+        r_ci = 107.7552, 315.9038
+
+        tmle = TMLE(mcf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+
 
 
 class TestAIPTW:
