@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 import numpy.testing as npt
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
@@ -25,7 +26,7 @@ class TestTMLE:
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
         tmle = TMLE(df, exposure='art', outcome='dead')
-        assert df.dropna().shape[0] == tmle.df.shape[0]
+        assert df.dropna(subset=['cd4_wk45']).shape[0] == tmle.df.shape[0]
 
     def test_error_when_no_models_specified1(self, df):
         tmle = TMLE(df, exposure='art', outcome='dead')
@@ -198,7 +199,7 @@ class TestTMLE:
         tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           print_results=False, continous_distribution='poisson')
+                           print_results=False, continuous_distribution='poisson')
         tmle.fit()
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
         npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)

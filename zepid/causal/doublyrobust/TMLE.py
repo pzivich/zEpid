@@ -10,6 +10,32 @@ from zepid.causal.ipw import propensity_score
 from zepid.calc import probability_to_odds
 
 
+def _missing_machine_learner(xdata, mdata, ml_model, print_results=True):
+    """Function to fit machine learning predictions. Used by TMLE to generate predicted probabilities of missing
+     outcome data, Pr(M=1|A,L)
+    """
+    # Trying to fit the Machine Learning model
+    try:
+        fm = ml_model.fit(X=xdata, y=mdata)
+    except TypeError:
+        raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                        "covers both sklearn and supylearner. If there is a predictive model you would "
+                        "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                        "can work on adding support")
+    if print_results and hasattr(fm, 'summarize'):  # SuPyLearner has a nice summarize function
+        fm.summarize()
+
+    # Generating predictions
+    if hasattr(fm, 'predict_proba'):
+        g = fm.predict_proba(xdata)[:, 1]
+        return g
+    elif hasattr(fm, 'predict'):
+        g = fm.predict(xdata)
+        return g
+    else:
+        raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
 class TMLE:
     def __init__(self, df, exposure, outcome, measure=None, alpha=0.05, continuous_bound=0.0005):
         """Implementation of a single time-point target maximum likelihood estimator. It uses standard
@@ -25,7 +51,7 @@ class TMLE:
         outcome : str
             Column label for the outcome of interest
         measure : str, optional
-            No longer supported. By default risk difference, risk ratio, and odds ratio are all calculated
+            Depreciated. By default risk difference, risk ratio, and odds ratio are all calculated
         alpha : int, optional
             Alpha for confidence interval level. Default is 0.05
         continuous_bound : float, optional
@@ -125,14 +151,30 @@ class TMLE:
 
         Gruber, S., & van der Laan, M. J. (2011). tmle: An R package for targeted maximum likelihood estimation.
         """
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, TMLE will drop all missing data. TMLE will"
-                          "fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations', UserWarning)
-
-        # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
         if measure is not None:
             warnings.warn('As of v0.4.2, TMLE defaults to calculate all implemented measures (RD, RR, OR)', UserWarning)
-        self.df = df.copy().dropna().reset_index()
+
+        # Going through missing data (that is not the outcome)
+        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
+            warnings.warn("There is missing data that is not the outcome in the data set. TMLE will drop "
+                          "all missing data that is not missing outcome data. TMLE will fit "
+                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
+                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
+            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
+            print(self.df.shape[0])
+        else:
+            self.df = df.copy().reset_index()
+
+        # Checking to see if missing outcome data occurs
+        self._missing_indicator = '__missing_indicator__'
+        if df.dropna(subset=[outcome]).shape[0] != df.shape[0]:
+            self._miss_flag = True
+            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
+        else:
+            self._miss_flag = False
+            self.df[self._missing_indicator] = 1
+
+        # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
         self._exposure = exposure
         self._outcome = outcome
 
@@ -148,8 +190,10 @@ class TMLE:
 
         self._out_model = None
         self._exp_model = None
+        self._miss_model = None
         self._fit_exposure_model = False
         self._fit_outcome_model = False
+        self._fit_missing_model = False
         self.alpha = alpha
 
         self.QA0W = None
@@ -157,6 +201,7 @@ class TMLE:
         self.QAW = None
         self.g1W = None
         self.g0W = None
+        self.mW = None
         self._epsilon = None
 
         self.risk_difference = None
@@ -222,8 +267,51 @@ class TMLE:
 
         self._fit_exposure_model = True
 
-    def outcome_model(self, model, custom_model=None, print_results=True, continous_distribution='gaussian'):
-        """Estimation of E(Y|A,L), which is also written sometimes as Q(A,W) or Pr(Y=1|A,W)
+    def missing_model(self, model, custom_model=None, print_results=True):
+        """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
+        probabilities are used to update the clever covariates for estimation of Qn.
+
+        The initial estimate of Q is still based on complete observations only
+
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'. The treatment must be
+            included for the missing data model
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results)
+        """
+        # Error if no missing outcome data
+        if not self._miss_flag:
+            raise ValueError("No missing outcome data is present in the data set")
+
+        # Warning if exposure is not included in the missingness of outcome model
+        if self._exposure not in model:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
+        self._miss_model = self._missing_indicator + ' ~ ' + model
+
+        # Step 3b) Prediction for M if missing outcome data exists
+        if custom_model is None:  # Logistic Regression model for predictions
+            fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
+            self.mW = fitmodel.predict(self.df)
+        # User-specified model
+        else:
+            data = patsy.dmatrix(model + ' - 1', self.df)
+            self.mW = _missing_machine_learner(xdata=np.asarray(data),
+                                               mdata=np.asarray(self.df[self._missing_indicator]),
+                                               ml_model=custom_model, print_results=print_results)
+
+        self._fit_missing_model = True
+
+    def outcome_model(self, model, custom_model=None, print_results=True, continuous_distribution='gaussian'):
+        """Estimation of E(Y|A,L,M=1), which is also written sometimes as Q(A,W,M=1) or Pr(Y=1|A,W,M=1). Estimation
+        of this model is based on complete observations of Y only
 
         Parameters
         ----------
@@ -235,22 +323,30 @@ class TMLE:
             background, TMLE will fit the custom model and generate the predicted probablities
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
+        continuous_distribution : str, optional
+            Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
+            for Poisson distributions
         """
         self._out_model = self._outcome + ' ~ ' + model
+
+        if self._miss_flag:
+            cc = self.df.copy().dropna()
+        else:
+            cc = self.df.copy()
 
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
             if self._continuous_outcome:
-                if continous_distribution == 'gaussian':
+                if continuous_distribution == 'gaussian':
                     f = sm.families.family.Gaussian()
-                elif continous_distribution == 'poisson':
+                elif continuous_distribution == 'poisson':
                     f = sm.families.family.Poisson()
                 else:
                     raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
-                log = smf.glm(self._out_model, self.df, family=f).fit()
+                log = smf.glm(self._out_model, cc, family=f).fit()
             else:
                 f = sm.families.family.Binomial()
-                log = smf.glm(self._out_model, self.df, family=f).fit()
+                log = smf.glm(self._out_model, cc, family=f).fit()
 
             if print_results:
                 print('\n----------------------------------------------------------------')
@@ -269,9 +365,9 @@ class TMLE:
 
         # User-specified model
         else:
-            data = patsy.dmatrix(model + ' - 1', self.df)
+            data = patsy.dmatrix(model + ' - 1', cc)
             try:
-                fm = custom_model.fit(X=data, y=self.df[self._outcome])
+                fm = custom_model.fit(X=data, y=cc[self._outcome])
             except TypeError:
                 raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
                                 "covers both sklearn and supylearner. If there is a predictive model you would "
@@ -328,6 +424,15 @@ class TMLE:
                 else:
                     raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
+        if self._miss_flag:
+            self.QAW = np.where(self.df[self._missing_indicator].isna(), np.nan, self.QAW)
+            dfx = self.df.copy()
+            dfx[self._exposure] = 1
+            self.QA1W = np.where(self.df[self._missing_indicator].isna(), np.nan, self.QA1W)
+            dfx = self.df.copy()
+            dfx[self._exposure] = 0
+            self.QA0W = np.where(self.df[self._missing_indicator].isna(), np.nan, self.QA0W)
+
         self._fit_outcome_model = True
 
     def fit(self):
@@ -341,21 +446,34 @@ class TMLE:
         if (self._fit_exposure_model is False) or (self._fit_outcome_model is False):
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
                              'be generated')
+        if self._miss_flag and not self._fit_missing_model:
+            warnings.warn("No missing data model has been specified. All missing outcome data is assumed to be "
+                          "missing completely at random. To relax this assumption to outcome data is missing at random"
+                          "please use the `missing_model()` function", UserWarning)
 
         # Step 4) Calculating clever covariate (HAW)
-        H1W = self.df[self._exposure] / self.g1W
-        H0W = -(1 - self.df[self._exposure]) / self.g0W
+        if self._miss_flag:
+            H1W = self.df[self._exposure] / (self.g1W * self.mW)
+            H0W = (1 - self.df[self._exposure]) / (self.g0W * self.mW)
+        else:
+            H1W = self.df[self._exposure] / self.g1W
+            H0W = -(1 - self.df[self._exposure]) / self.g0W
         HAW = H1W + H0W
 
         # Step 5) Estimating TMLE
+        # TODO restrict to observed data alone
         f = sm.families.family.Binomial()
         y = self.df[self._outcome]
         log = sm.GLM(y, np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
-                     family=f).fit()
+                     family=f, missing='drop').fit()
         self._epsilon = log.params
-        Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] * 1/self.g1W)
-        Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) + self._epsilon[1] * -1/self.g0W)
         Qstar = log.predict(np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)))
+        if self._miss_flag:
+            Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] * 1/(self.g1W * self.mW))
+            Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) + self._epsilon[1] * -1/(self.g1W * self.mW))
+        else:
+            Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] * 1/self.g1W)
+            Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) + self._epsilon[1] * -1/self.g0W)
 
         # Step 6) Calculating Psi
         if self.alpha == 0.05:  # Without this, won't match R exactly. R relies on 1.96, while I use SciPy
@@ -365,44 +483,45 @@ class TMLE:
 
         # p-values are not implemented (doing my part to enforce CL over p-values)
         if self._continuous_outcome:
-            # Calculating Average Treatement Effect
+            # Calculating Average Treatment Effect
             Qstar = self._unit_unbound(Qstar, mini=self._continuous_min, maxi=self._continuous_max)
             Qstar1 = self._unit_unbound(Qstar1, mini=self._continuous_min, maxi=self._continuous_max)
             Qstar0 = self._unit_unbound(Qstar0, mini=self._continuous_min, maxi=self._continuous_max)
 
-            self.average_treatment_effect = np.mean(Qstar1 - Qstar0)
+            self.average_treatment_effect = np.nanmean(Qstar1 - Qstar0)
             # Influence Curve for CL
             y_unbound = self._unit_unbound(self.df[self._outcome], mini=self._continuous_min, maxi=self._continuous_max)
             ic = HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect
-            varIC = np.var(ic, ddof=1) / self.df.shape[0]
+            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
             self.average_treatment_effect_ic = [self.average_treatment_effect - zalpha * math.sqrt(varIC),
                                                 self.average_treatment_effect + zalpha * math.sqrt(varIC)]
         else:
             # Calculating Risk Difference
-            self.risk_difference = np.mean(Qstar1 - Qstar0)
+            self.risk_difference = np.nanmean(Qstar1 - Qstar0)
             # Influence Curve for CL
             ic = HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference
-            varIC = np.var(ic, ddof=1) / self.df.shape[0]
-            self.risk_difference_ci = [self.risk_difference - zalpha * math.sqrt(varIC),
-                                       self.risk_difference + zalpha * math.sqrt(varIC)]
+            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
+            self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(varIC),
+                                       self.risk_difference + zalpha * np.sqrt(varIC)]
 
             # Calculating Risk Ratio
-            self.risk_ratio = np.mean(Qstar1) / np.mean(Qstar0)
+            self.risk_ratio = np.nanmean(Qstar1) / np.nanmean(Qstar0)
             # Influence Curve for CL
-            ic = (1/np.mean(Qstar1)*(H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
-                  (1/np.mean(Qstar0))*(-1*H0W * (self.df[self._outcome] - Qstar) + Qstar0 - np.mean(Qstar0)))
-            varIC = np.var(ic, ddof=1) / self.df.shape[0]
-            self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * math.sqrt(varIC)),
-                                  np.exp(np.log(self.risk_ratio) + zalpha * math.sqrt(varIC))]
+            ic = (1/np.nanmean(Qstar1)*(H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.nanmean(Qstar1)) -
+                  (1/np.nanmean(Qstar0))*(-1*H0W * (self.df[self._outcome] - Qstar) + Qstar0 - np.nanmean(Qstar0)))
+            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
+            self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * np.sqrt(varIC)),
+                                  np.exp(np.log(self.risk_ratio) + zalpha * np.sqrt(varIC))]
 
             # Calculating Odds Ratio
-            self.odds_ratio = (np.mean(Qstar1) / (1 - np.mean(Qstar1))) / (np.mean(Qstar0) / (1 - np.mean(Qstar0)))
+            self.odds_ratio = (np.nanmean(Qstar1) / (1 - np.nanmean(Qstar1)
+                                                     )) / (np.nanmean(Qstar0) / (1 - np.nanmean(Qstar0)))
             # Influence Curve for CL
-            ic = ((1/(np.mean(Qstar1)*(1-np.mean(Qstar1))) * (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
-                  (1/(np.mean(Qstar0)*(1 - np.mean(Qstar0))) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0)))
-            seIC = math.sqrt(np.var(ic, ddof=1) / self.df.shape[0])
-            self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * seIC),
-                                  np.exp(np.log(self.odds_ratio) + zalpha * seIC)]
+            ic = ((1/(np.nanmean(Qstar1)*(1-np.nanmean(Qstar1))) * (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
+                  (1/(np.nanmean(Qstar0)*(1 - np.nanmean(Qstar0))) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0)))
+            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
+            self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * np.sqrt(varIC)),
+                                  np.exp(np.log(self.odds_ratio) + zalpha * np.sqrt(varIC))]
 
     def summary(self, decimal=3):
         """Prints summary of model results
