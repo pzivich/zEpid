@@ -36,7 +36,7 @@ def _exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
         raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
 
-def _outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, print_results=True):
+def _outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, print_results=True):
     """Function to fit machine learning predictions. Used by TMLE to generate predicted probabilities of outcome
     (i.e. Pr(Y=1 | A=1, L) and Pr(Y=1 | A=0, L)). Future update will include continuous Y functionality (i.e. E(Y))
     """
@@ -52,16 +52,25 @@ def _outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, print_result
         fm.summarize()
 
     # Generating predictions
-    if hasattr(fm, 'predict_proba'):
-        qa1 = fm.predict_proba(all_a)[:, 1]
-        qa0 = fm.predict_proba(none_a)[:, 1]
-        return qa1, qa0
-    elif hasattr(fm, 'predict'):
-        qa1 = fm.predict(all_a)
-        qa0 = fm.predict(none_a)
-        return qa1, qa0
+    if continuous:
+        if hasattr(fm, 'predict'):
+            qa1 = fm.predict(all_a)
+            qa0 = fm.predict(none_a)
+            return qa1, qa0
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
     else:
-        raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+        if hasattr(fm, 'predict_proba'):
+            qa1 = fm.predict_proba(all_a)[:, 1]
+            qa0 = fm.predict_proba(none_a)[:, 1]
+            return qa1, qa0
+        elif hasattr(fm, 'predict'):
+            qa1 = fm.predict(all_a)
+            qa0 = fm.predict(none_a)
+            return qa1, qa0
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
 
 def _missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results=True):
@@ -420,7 +429,6 @@ class TMLE:
             dfx = self.df.copy()
             dfx[self._exposure] = 0
             self.QA0W = log.predict(dfx)
-            self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
 
         # User-specified model
         else:
@@ -432,13 +440,15 @@ class TMLE:
             dfx = self.df.copy()
             dfx[self._exposure] = 0
             ndata = patsy.dmatrix(model + ' - 1', dfx)
-            # TODO have ML interact with binary v continuous. only .predict() for continuous
+
             self.QA1W, self.QA0W = _outcome_machine_learner(xdata=np.asarray(data),
                                                             ydata=np.asarray(self.df[self._outcome]),
                                                             all_a=adata, none_a=ndata,
-                                                            ml_model=custom_model, print_results=True)
-            self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
+                                                            ml_model=custom_model,
+                                                            continuous=self._continuous_outcome,
+                                                            print_results=True)
 
+        self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
         self._fit_outcome_model = True
 
     def fit(self):
