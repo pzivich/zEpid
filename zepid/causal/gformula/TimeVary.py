@@ -638,6 +638,8 @@ class TimeVaryGFormula:
         return pd.concat(reshaped, axis=1)
 
 
+# TODO add_competing_risk function
+# TODO censoring_model function
 class MonteCarloGFormula:
     def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
         """Time-varying implementation of the Monte Carlo g-formula, also referred to as the g-computation algorithm
@@ -986,6 +988,7 @@ class MonteCarloGFormula:
 
         # Monte Carlo for loop
         for i in range(int(t_max)):
+            # TODO only select observations as below AS WELL AS not censored/no competing events
             g = g.loc[g[self.outcome] == 0].reset_index(drop=True).copy()
             g[self.time_in] = i
             if in_recode is not None:
@@ -1009,9 +1012,13 @@ class MonteCarloGFormula:
                 g[self.exposure] = self._predict(df=g, model=self.exp_model, variable='binary')
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
+            # TODO evaluate censoring model
+
             # predict outcome
             g[self.outcome] = self._predict(df=g, model=self.out_model, variable='binary')
             g[self.time_out] = i + 1
+
+            # TODO evaluate competing risks
 
             # executing any code before appending
             if out_recode is not None:
@@ -1023,6 +1030,7 @@ class MonteCarloGFormula:
                     g[v] = g[k]
 
             # stacking simulated data in a list
+            # TODO quick recode for censoring / predicted outcomes before appending
             mc_simulated_data.append(g)
 
         try:
