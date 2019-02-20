@@ -1,5 +1,17 @@
 ### Change logs
 
+#### v0.5.0:
+Support for Python 3.7 has been added
+
+``AIPW`` has been removed. It has been replaced with ``AIPTW``
+
+``TMLE`` now supports continuous outcomes (normal or Poisson) and allows for missing outcome data to be missing at 
+random. This matches more closely to the functionality to R's `tmle`
+
+``IPMW`` allows for monotone missing data.
+
+``MonteCarloRR`` for probabilistic bias analysis allows for random error to be incorporated
+
 #### v0.4.3:
 
 ``TimeVaryGFormula`` is separated into ``MonteCarloGFormula`` and ``IterativeCondGFormula``. This change is for 
