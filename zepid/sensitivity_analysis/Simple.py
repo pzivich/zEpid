@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 class MonteCarloRR:
-    def __init__(self, observed_RR, sample=10000):
+    def __init__(self, observed_RR, sd=None, sample=10000):
         """Monte Carlo simulation to assess the impact of an unmeasured binary confounder on the results
         of a study. Observed RR comes from the data analysis, while the RR between the unmeasured confounder
         and the outcome should be obtained from prior literature or constitute an reasonable guess.
@@ -14,10 +14,13 @@ class MonteCarloRR:
         Parameters
         ------------
         observed_RR : float
-            -observed RR from the data, not accounting for some binary unmeasured confounder
+            Observed RR from the data, not accounting for some binary unmeasured confounder
+        sd : float, optional
+            Standard deviation of the observed log(risk ratio). This parameter is optional. If specified, then random
+            error is incorporated into the bias analysis estimates
         sample : integer, optional
-            -number of MC simulations to run. It is important that the specified size of later distributions
-             matches this number of samples
+            Number of MC simulations to run. It is important that the specified size of later distributions
+            matches this number of samples
 
         Examples
         -------------
@@ -38,6 +41,7 @@ class MonteCarloRR:
         >>>plt.show()
         """
         self.RRo = observed_RR
+        self._sd = sd
         self.sample = sample
 
         self.pc0 = None
@@ -125,8 +129,11 @@ class MonteCarloRR:
         sf['RR_obs'] = self.RRo
         sf['RR_cor'] = sf['RR_obs'] / ((sf['p1']*(sf['RR_cnf']-1)+1) / (sf['p0'] * (sf['RR_cnf'] - 1) + 1))
 
+        if self._sd is not None:
+            sf['RR_cor'] = np.exp(np.log(sf['RR_cor']) - np.random.normal(size=self.sample)*self._sd)
+
         # Setting new attribute
-        self.corrected_RR = list(sf['RR_cor'])
+        self.corrected_RR = np.array(sf['RR_cor'])
 
     def summary(self, decimal=3):
         """Generate the summary information after the corrected risk ratio distribution is

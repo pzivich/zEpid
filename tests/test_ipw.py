@@ -8,7 +8,7 @@ import statsmodels.formula.api as smf
 from statsmodels.genmod.families import family, links
 from sklearn.linear_model import LogisticRegression
 
-from zepid import load_sample_data, spline
+from zepid import load_sample_data, load_monotone_missing_data, spline
 from zepid.causal.ipw import IPTW, IPMW, IPCW
 
 
@@ -17,7 +17,7 @@ def sdata():
     df = load_sample_data(False)
     df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
     df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
-    return df
+    return df.drop(columns=['cd4_wk45'])
 
 
 class TestIPTW:
@@ -239,12 +239,14 @@ class TestIPMW:
 
     def test_missing_count(self, mdata):
         ipm = IPMW(mdata, missing_variable='M', stabilized=True)
+        ipm.regression_models(model_denominator='A')
         assert 6 == np.sum(ipm.df['_observed_indicator_'])
         assert 4 == np.sum(1 - ipm.df['_observed_indicator_'])
 
     def test_missing_count2(self):
         df = load_sample_data(False)
         ipm = IPMW(df, missing_variable='dead', stabilized=True)
+        ipm.regression_models(model_denominator='art')
         assert 517 == np.sum(ipm.df['_observed_indicator_'])
         assert 30 == np.sum(1 - ipm.df['_observed_indicator_'])
 
@@ -259,16 +261,83 @@ class TestIPMW:
         ipm = IPMW(df, missing_variable='dead', stabilized=False)
         ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40')
         ipm.fit()
-        npt.assert_allclose(np.mean(ipm.Weight), 1.0584533)
-        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.0212298, rtol=1e-5)
+        npt.assert_allclose(np.mean(ipm.Weight), 1.0579602715)
+        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.021019729152)
 
     def test_stabilized_weights(self):
         df = load_sample_data(False)
         ipm = IPMW(df, missing_variable='dead', stabilized=True)
         ipm.regression_models(model_denominator='male + age0 + dvl0 + cd40')
         ipm.fit()
-        npt.assert_allclose(np.mean(ipm.Weight), 1.0004029)
-        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.0200655, rtol=1e-5)
+        npt.assert_allclose(np.mean(ipm.Weight), 0.99993685627)
+        npt.assert_allclose(np.std(ipm.Weight, ddof=1), 0.019866910369)
+
+    def test_error_too_many_model(self):
+        df = load_sample_data(False)
+        ipm = IPMW(df, missing_variable='dead')
+        with pytest.raises(ValueError):
+            ipm.regression_models(model_denominator=['male + age0', 'male + age0 + dvl0'])
+
+    # testing monotone missing data features
+    def test_error_for_non_nan2(self):
+        df = pd.DataFrame()
+        df['a'] = [0, 0, 1]
+        df['b'] = [0, 0, np.nan]
+        with pytest.raises(ValueError):
+            IPMW(df, missing_variable=['a', 'b'], stabilized=True)
+
+    def test_nonmonotone_detection(self):
+        df = pd.DataFrame()
+        df['a'] = [0, 0, np.nan]
+        df['b'] = [np.nan, 0, 1]
+        ipm = IPMW(df, missing_variable=['a', 'b'])
+        with pytest.raises(ValueError):
+            ipm.regression_models(model_denominator=['b', 'a'])
+
+    def test_check_overall_uniform(self):
+        df = pd.DataFrame()
+        df['a'] = [0, 0, 1, np.nan]
+        df['b'] = [1, 0, 0, np.nan]
+        df['c'] = [1, 0, 0, np.nan]
+        df['d'] = [1, np.nan, np.nan, np.nan]
+        ipm = IPMW(df, missing_variable=['a', 'b', 'c'])
+
+        # Should be uniform
+        assert ipm._check_overall_uniform(df, miss_vars=['a', 'b', 'c'])[1]
+
+        # Not uniform
+        assert not ipm._check_overall_uniform(df, miss_vars=['a', 'b', 'c', 'd'])[1]
+
+    def test_check_uniform(self):
+        df = pd.DataFrame()
+        df['a'] = [0, 0, 1, np.nan]
+        df['b'] = [1, 0, 0, np.nan]
+        df['c'] = [1, np.nan, np.nan, np.nan]
+        ipm = IPMW(df, missing_variable=['a', 'b', 'c'])
+
+        # Should be uniform
+        assert ipm._check_uniform(df, miss1='a', miss2='b')
+
+        # Not uniform
+        assert not ipm._check_uniform(df, miss1='a', miss2='c')
+
+    def test_single_model_does_not_break(self):
+        df = load_monotone_missing_data()
+        ipm = IPMW(df, missing_variable=['B', 'C'], stabilized=False, monotone=True)
+        ipm.regression_models(model_denominator='L')
+        ipm.fit()
+        x = ipm.Weight
+
+    def test_monotone_example(self):
+        # TODO find R or SAS to test against
+        df = load_monotone_missing_data()
+        ipm = IPMW(df, missing_variable=['B', 'C'], stabilized=False, monotone=True)
+        ipm.regression_models(model_denominator=['L + A', 'L + B'])
+        ipm.fit()
+        df['w'] = ipm.Weight
+        dfs = df.dropna(subset=['w'])
+        npt.assert_allclose(np.average(dfs['B'], weights=dfs['w']), 0.41877344861340654)
+        npt.assert_allclose(np.average(dfs['C'], weights=dfs['w']), 0.5637116735464095)
 
 
 class TestIPCW:

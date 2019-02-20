@@ -1,2 +1,2 @@
-from .AIPW import AIPTW, AIPW
+from .AIPW import AIPTW
 from .TMLE import TMLE

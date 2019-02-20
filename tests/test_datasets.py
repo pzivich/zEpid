@@ -15,7 +15,7 @@ class TestSampleData:
 
     def test_correct_ncols_timefixed(self):
         df = ze.load_sample_data(False)
-        assert df.shape[1] == 8
+        assert df.shape[1] == 9
 
     def test_missing_in_timefixed(self):
         df = ze.load_sample_data(False)

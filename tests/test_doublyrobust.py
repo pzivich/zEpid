@@ -1,6 +1,7 @@
 import pytest
+import numpy as np
 import numpy.testing as npt
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 
 import zepid as ze
 from zepid.causal.doublyrobust import TMLE, AIPTW
@@ -13,12 +14,33 @@ class TestTMLE:
         df = ze.load_sample_data(False)
         df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
         df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
-        return df.dropna()
+        return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
+
+    @pytest.fixture
+    def mf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45'])
+
+    @pytest.fixture
+    def mcf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead'])
 
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
         tmle = TMLE(df, exposure='art', outcome='dead')
-        assert df.dropna().shape[0] == tmle.df.shape[0]
+        assert df.dropna(subset=['cd4_wk45']).shape[0] == tmle.df.shape[0]
 
     def test_error_when_no_models_specified1(self, df):
         tmle = TMLE(df, exposure='art', outcome='dead')
@@ -125,6 +147,77 @@ class TestTMLE:
         npt.assert_allclose(tmle.risk_difference, r_rd)
         npt.assert_allclose(tmle.risk_difference_ci, r_ci, rtol=1e-5)
 
+    def test_no_risk_with_continuous(self, cf):
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            bound=[0.025, 0.9], print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        assert tmle.risk_difference is None
+        assert tmle.risk_ratio is None
+        assert tmle.odds_ratio is None
+        assert tmle.risk_difference_ci is None
+        assert tmle.risk_ratio_ci is None
+        assert tmle.odds_ratio_ci is None
+
+    def test_no_ate_with_binary(self, df):
+        tmle = TMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            bound=[0.025, 0.9], print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        assert tmle.average_treatment_effect is None
+        assert tmle.average_treatment_effect_ic is None
+
+    def test_match_r_epsilons_continuous(self, cf):
+        r_epsilons = [-0.0046411652, 0.0002270186]
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        npt.assert_allclose(tmle._epsilon, r_epsilons, rtol=1e-4, atol=1e-4)
+
+    def test_match_r_continuous_outcome(self, cf):
+        r_ate = 223.4022
+        r_ci = 118.6037, 328.2008
+
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+
+    def test_match_r_continuous_outcome_gbounds(self, cf):
+        r_ate = 223.3958
+        r_ci = 118.4178, 328.3737
+
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            bound=[0.025, 0.9], print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+
+    def test_match_r_continuous_poisson(self, cf):
+        r_ate = 223.4648
+        r_ci = 118.6276, 328.3019
+
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False, continuous_distribution='poisson')
+        tmle.fit()
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+
     def test_sklearn_in_tmle(self, df):
         log = LogisticRegression(C=1.0)
         tmle = TMLE(df, exposure='art', outcome='dead')
@@ -142,6 +235,67 @@ class TestTMLE:
         npt.assert_allclose(tmle.odds_ratio, 0.4496171689)
         npt.assert_allclose(tmle.odds_ratio_ci, [0.2139277755, 0.944971255], rtol=1e-5)
 
+    def test_sklearn_in_tmle2(self, cf):
+        log = LogisticRegression(C=1.0)
+        lin = LinearRegression()
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
+        tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=lin)
+        tmle.fit()
+
+        npt.assert_allclose(tmle.average_treatment_effect, 236.049719, rtol=1e-5)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, [135.999264, 336.100175], rtol=1e-5)
+
+    def test_missing_binary_outcome(self, mf):
+        r_rd = -0.08168098
+        r_rd_ci = -0.15163818, -0.01172378
+        r_rr = 0.5495056
+        r_rr_ci = 0.2893677, 1.0435042
+        r_or = 0.4996546
+        r_or_ci = 0.2435979, 1.0248642
+
+        tmle = TMLE(mf, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+
+        npt.assert_allclose(tmle.risk_difference, r_rd)
+        npt.assert_allclose(tmle.risk_difference_ci, r_rd_ci, rtol=1e-5)
+        npt.assert_allclose(tmle.risk_ratio, r_rr)
+        npt.assert_allclose(tmle.risk_ratio_ci, r_rr_ci, rtol=1e-5)
+        npt.assert_allclose(tmle.odds_ratio, r_or)
+        npt.assert_allclose(tmle.odds_ratio_ci, r_or_ci, rtol=1e-5)
+
+    def test_no_missing_data(self, df):
+        tmle = TMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        with pytest.raises(ValueError):
+            tmle.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                               print_results=False)
+
+    def test_missing_continuous_outcome(self, mcf):
+        r_ate = 211.8295
+        r_ci = 107.7552, 315.9038
+
+        tmle = TMLE(mcf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+
+
 
 class TestAIPTW:
 
@@ -150,7 +304,7 @@ class TestAIPTW:
         df = ze.load_sample_data(False)
         df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
         df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
-        return df.dropna()
+        return df.drop(columns=['cd4_wk45']).dropna()
 
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
