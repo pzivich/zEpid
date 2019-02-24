@@ -370,8 +370,8 @@ class TMLE:
             dfx[self._exposure] = 0
             ndata = patsy.dmatrix(model + ' - 1', dfx)
 
-            self.m1W, self.m0W = _missing_machine_learner(xdata=np.asarray(data),
-                                                          mdata=np.asarray(self.df[self._missing_indicator]),
+            self.m1W, self.m0W = _missing_machine_learner(xdata=np.array(data),
+                                                          mdata=self.df[self._missing_indicator],
                                                           all_a=adata, none_a=ndata,
                                                           ml_model=custom_model, print_results=print_results)
 
@@ -432,7 +432,7 @@ class TMLE:
 
         # User-specified model
         else:
-            data = patsy.dmatrix(model + ' - 1', self.df)
+            data = patsy.dmatrix(model + ' - 1', cc)
 
             dfx = self.df.copy()
             dfx[self._exposure] = 1
@@ -442,11 +442,11 @@ class TMLE:
             ndata = patsy.dmatrix(model + ' - 1', dfx)
 
             self.QA1W, self.QA0W = _outcome_machine_learner(xdata=np.asarray(data),
-                                                            ydata=np.asarray(self.df[self._outcome]),
+                                                            ydata=np.asarray(cc[self._outcome]),
                                                             all_a=adata, none_a=ndata,
                                                             ml_model=custom_model,
                                                             continuous=self._continuous_outcome,
-                                                            print_results=True)
+                                                            print_results=print_results)
 
         self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
         self._fit_outcome_model = True
@@ -621,8 +621,8 @@ class TMLE:
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
         v = (y - mini) / (maxi - mini)
-        v = np.where(v < bound, bound, v)
-        v = np.where(v > 1-bound, 1-bound, v)
+        v = np.where(v.isnan(), np.nan, np.where(v < bound, bound, v))
+        v = np.where(v.isnan(), np.nan, np.where(v > 1-bound, 1-bound, v))
         return v
 
     @staticmethod
