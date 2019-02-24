@@ -621,8 +621,8 @@ class TMLE:
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
         v = (y - mini) / (maxi - mini)
-        v = np.where(v.isnan(), np.nan, np.where(v < bound, bound, v))
-        v = np.where(v.isnan(), np.nan, np.where(v > 1-bound, 1-bound, v))
+        v = np.where(np.isnan(v), np.nan, np.where(v < bound, bound, v))
+        v = np.where(np.isnan(v), np.nan, np.where(v > 1-bound, 1-bound, v))
         return v
 
     @staticmethod

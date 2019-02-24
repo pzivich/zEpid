@@ -295,6 +295,24 @@ class TestTMLE:
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
         npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
 
+    def test_sklearn_in_tmle_missing(self, mf):
+        log = LogisticRegression(C=1.0)
+        tmle = TMLE(mf, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log, print_results=False)
+        tmle.missing_model('male + age0 + cd40 + dvl0', custom_model=log, print_results=False)
+        tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=log, print_results=False)
+        tmle.fit()
+
+        # Testing RD match
+        npt.assert_allclose(tmle.risk_difference, -0.090086, rtol=1e-5)
+        npt.assert_allclose(tmle.risk_difference_ci, [-0.160371, -0.019801], rtol=1e-4)
+        # Testing RR match
+        npt.assert_allclose(tmle.risk_ratio, 0.507997, rtol=1e-5)
+        npt.assert_allclose(tmle.risk_ratio_ci, [0.256495, 1.006108], rtol=1e-4)
+        # Testing OR match
+        npt.assert_allclose(tmle.odds_ratio, 0.457541, rtol=1e-5)
+        npt.assert_allclose(tmle.odds_ratio_ci, [0.213980, 0.978331], rtol=1e-4)
+
 
 
 class TestAIPTW:
