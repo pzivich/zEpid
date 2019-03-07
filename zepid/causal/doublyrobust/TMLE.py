@@ -449,6 +449,7 @@ class TMLE:
                                                             print_results=print_results)
 
         self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
+        # TODO add some bounding procedure here for continuous that are less (or any arbitrary bounds)
         self._fit_outcome_model = True
 
     def fit(self):
@@ -621,8 +622,8 @@ class TMLE:
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
         v = (y - mini) / (maxi - mini)
-        v = np.where(np.isnan(v), np.nan, np.where(v < bound, bound, v))
-        v = np.where(np.isnan(v), np.nan, np.where(v > 1-bound, 1-bound, v))
+        v = np.where(np.less(v, bound), bound, v)
+        v = np.where(np.greater(v, 1-bound), 1-bound, v)
         return v
 
     @staticmethod
