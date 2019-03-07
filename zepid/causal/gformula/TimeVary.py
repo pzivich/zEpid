@@ -753,10 +753,10 @@ class MonteCarloGFormula:
 
         References
         ----------
-        Keil, A.P., Edwards, J.K., Richardson, D.B., Naimi, A.I., Cole, S.R. (2014). The Parametric g-Formula for Time-
+        Keil, AP, Edwards, JK, Richardson, DB, Naimi, AI, Cole, SR (2014). The Parametric g-Formula for Time-
         to-Event Data: Intuition and a Worked Example. Epidemiology 25(6), 889-897
         """
-        self.gf = df.copy()
+        self.gf = df.sort_values(by=[idvar, time_out]).copy()
         self.idvar = idvar
 
         # Checking that treatment is binary
@@ -771,12 +771,20 @@ class MonteCarloGFormula:
         else:
             raise ValueError('Only binary outcomes are currently implemented')
 
+        # Generating an indicator for censoring
+        self.gf['__uncensored__'] = np.where((self.gf[idvar] != self.gf[idvar].shift(-1)) & (self.gf[outcome] == 0),
+                                             0, 1)
+        self.gf['__uncensored__'] = np.where(self.gf[time_out] == np.max(df[time_out]),
+                                             1, self.gf['__uncensored__'])
+
         self.exp_model = None
         self.out_model = None
+        self.cens_model = None
         self.time_in = time_in
         self.time_out = time_out
         self._exposure_model_fit = False
         self._outcome_model_fit = False
+        self._censor_model_fit = False
         self._covariate_models = []
         self._covariate_model_index = []
         self._covariate = []
@@ -845,6 +853,37 @@ class MonteCarloGFormula:
             print(self.out_model.summary())
 
         self._outcome_model_fit = True
+
+    def censoring_model(self, model, restriction=None, print_results=True):
+        """Add a specified regression model for censoring. Specifying this model is optional, but is recommended when
+        censoring occurs in your data set. Otherwise, you will be assuming non-informative censoring
+
+        Parameters
+        ----------
+        model:
+            Variables to include in the model for predicting the outcome. Must be contained within the input
+            pandas dataframe when initialized. Format follows patsy standards
+            For example) 'var1 + var2 + var3 + var4'
+        restriction : str, optional
+            Used to restrict the population that the regression model is fit to. Useful for Intent-to-Treat model
+            fitting. The pandas dataframe must be referred to as 'g'. For example) "g['art']==1"
+        print_results : bool, optional
+            Whether to print the logistic regression model results to the terminal. Default is True
+        """
+        g = self.gf.copy()
+        if restriction is not None:
+            g = g.loc[eval(restriction)].copy()
+        linkdist = sm.families.family.Binomial()
+
+        if self._weights is None:  # Unweighted g-formula
+            self.cens_model = smf.glm('__uncensored__ ~ ' + model, g, family=linkdist).fit()
+        else:  # Weighted g-formula
+            self.cens_model = smf.gee('__uncensored__ ~ ' + model, self.idvar, g, weights=g[self._weights],
+                                      family=linkdist).fit()
+        if print_results:
+            print(self.cens_model.summary())
+
+        self._censor_model_fit = True
 
     def add_covariate_model(self, label, covariate, model, restriction=None, recode=None, var_type='binary',
                             print_results=True):
@@ -933,7 +972,7 @@ class MonteCarloGFormula:
             * natural : individuals retain their observed treatment. Only available for MonteCarlo
             * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
                 The following is an example that selects those whose age is 25 or older and are females
-                Ex) treatment="((g['age0']>=25) & (g['male']==0))
+                Ex) treatment="((g['age0']>=25) & (g['male']==0))"
         lags : dict, optional
             Dictionary of variable names and the corresponding lagged variable name. This should be specified for all
             variables that are lagged. This parameter is only used for the Monte Carlo g-formula.
@@ -976,6 +1015,7 @@ class MonteCarloGFormula:
         gs[self.outcome] = 0
         mc_simulated_data = []
         g = gs.copy()
+        g['uncensored'] = 1  # this tricks the Monte-Carlo procedure into not censoring anyone if cens_model None
         if t_max is None:  # getting maximum time steps to run g-formula
             t_max = np.max(self.gf[self.time_out])
 
@@ -988,8 +1028,7 @@ class MonteCarloGFormula:
 
         # Monte Carlo for loop
         for i in range(int(t_max)):
-            # TODO only select observations as below AS WELL AS not censored/no competing events
-            g = g.loc[g[self.outcome] == 0].reset_index(drop=True).copy()
+            g = g.loc[(g[self.outcome] == 0) & (g['uncensored'] == 1)].reset_index(drop=True).copy()
             g[self.time_in] = i
             if in_recode is not None:
                 exec(in_recode)
@@ -1012,13 +1051,15 @@ class MonteCarloGFormula:
                 g[self.exposure] = self._predict(df=g, model=self.exp_model, variable='binary')
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
-            # TODO evaluate censoring model
-
             # predict outcome
             g[self.outcome] = self._predict(df=g, model=self.out_model, variable='binary')
             g[self.time_out] = i + 1
-
             # TODO evaluate competing risks
+
+            # predict censoring
+            if self._censor_model_fit:
+                g['uncensored'] = self._predict(df=g, model=self.cens_model, variable='binary')
+                g[self.outcome] = np.where(g['uncensored'] == 1, g[self.outcome], 0)
 
             # executing any code before appending
             if out_recode is not None:
@@ -1030,7 +1071,6 @@ class MonteCarloGFormula:
                     g[v] = g[k]
 
             # stacking simulated data in a list
-            # TODO quick recode for censoring / predicted outcomes before appending
             mc_simulated_data.append(g)
 
         try:
@@ -1106,7 +1146,6 @@ class IterativeCondGFormula:
         Examples
         --------
         Setting up the environment
-        >>>import numpy as np
         >>>from zepid.causal.gformula import IterativeCondGFormula
         >>>from zepid import load_longitudinal_data
         >>>df = load_longitudinal_data()
@@ -1184,7 +1223,6 @@ class IterativeCondGFormula:
             Treatment strategy. Options include
             * all : all individuals are given treatment
             * none : no individuals are given treatment
-            * natural : individuals retain their observed treatment. Only available for MonteCarlo
             * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
                 The following is an example that selects those whose age is 25 or older and are females
                 Ex) treatment="((g['age0']>=25) & (g['male']==0))
@@ -1285,6 +1323,7 @@ class IterativeCondGFormula:
                     print(m.summary())
 
             # 2.3) Getting Counterfactual Treatment Values
+            # TODO need to think about how to allow for more complex treatments (lag_A + lag2_A...)
             if treatment == 'all':
                 g[self.exposure] = 1
             elif treatment == 'none':
