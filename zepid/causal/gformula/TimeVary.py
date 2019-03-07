@@ -327,7 +327,7 @@ class MonteCarloGFormula:
         else:
             self._covariate_recode.append(recode)
 
-    def fit(self, treatment, lags=None, sample=10000, t_max=None, in_recode=None, out_recode=None):
+    def fit(self, treatment, lags=None, sample=10000, t_max=None, in_recode=None, out_recode=None, low_memory=True):
         """Estimate the counterfactual outcomes under the specified treatment plan using the previously specified
         regression models. Both the exposure and outcome models need to be specified before fit can be called
 
@@ -360,6 +360,15 @@ class MonteCarloGFormula:
             On the fly recoding of variables done at the end of the Monte Carlo loop. Needed for operations like
             counting the number of days with a treatment. This is executed at each end of the Monte Carlo g-formula
             time steps
+        low_memory : bool, optional
+            This optional parameter controls whether the g-formula outputs a condensed data set or a data set containing
+            each step of the Monte Carlo procedure. When outputting each step of the Monte Carlo procedure, this can
+            be intensive on memory requirements. `low_memory` is set to `True` (the default) only the last observation
+            per ID is added to the full data set.
+            From the condensed data (`low_memory`), you are able to directly fit a Kaplan-Meier and estimate the effect
+            of treatment.
+            The full Monte Carlo data set is useful during the model building phase and checking whether models are
+            correctly specified. It is less useful during estimation and bootstrapping confidence intervals
         """
         if self._outcome_model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
@@ -429,6 +438,10 @@ class MonteCarloGFormula:
                 g['uncensored'] = self._predict(df=g, model=self.cens_model, variable='binary')
                 g[self.outcome] = np.where(g['uncensored'] == 1, g[self.outcome], 0)
 
+            # last iteration, marking everyone as censored
+            if i == t_max-1:
+                g['uncensored'] = 0
+
             # executing any code before appending
             if out_recode is not None:
                 exec(out_recode)
@@ -439,7 +452,10 @@ class MonteCarloGFormula:
                     g[v] = g[k]
 
             # stacking simulated data in a list
-            mc_simulated_data.append(g)
+            if low_memory:  # Only stacking when censored or failed
+                mc_simulated_data.append(g.loc[(g[self.outcome] > 0) | (g['uncensored'] == 0)])
+            else:  # Stacks all simulated observations
+                mc_simulated_data.append(g)
 
         try:
             gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
