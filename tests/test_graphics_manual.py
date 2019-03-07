@@ -195,9 +195,8 @@ def mc_gformula_check():
           in_recode=("g['enter_sq'] = g['enter']**2;"
                      "g['enter_cu'] = g['enter']**3"))
     gf = g.predicted_outcomes
-    gfs = gf.loc[gf.uid_g_zepid != gf.uid_g_zepid.shift(-1)].copy()
     kmn = KaplanMeierFitter()
-    kmn.fit(durations=gfs['out'], event_observed=gfs['dead'])
+    kmn.fit(durations=gf['out'], event_observed=gf['dead'])
     kmo = KaplanMeierFitter()
     kmo.fit(durations=df['out'], event_observed=df['dead'], entry=df['enter'])
     cens_m = """male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 +
@@ -211,9 +210,8 @@ def mc_gformula_check():
           in_recode=("g['enter_sq'] = g['enter']**2;"
                      "g['enter_cu'] = g['enter']**3"))
     gf = g.predicted_outcomes
-    gfs = gf.loc[gf.uid_g_zepid != gf.uid_g_zepid.shift(-1)].copy()
     kmc = KaplanMeierFitter()
-    kmc.fit(durations=gfs['out'], event_observed=gfs['dead'])
+    kmc.fit(durations=gf['out'], event_observed=gf['dead'])
     plt.step(kmn.event_table.index, 1 - kmn.survival_function_, c='g', where='post', label='Natural')
     plt.step(kmn.event_table.index, 1 - kmc.survival_function_, c='orange', where='post', label='Censor')
     plt.step(kmo.event_table.index, 1 - kmo.survival_function_, c='k', where='post', label='True')
