@@ -393,6 +393,8 @@ class RiskDifference:
         print('======================================================================')
         print(self.results[['RiskDifference', 'SD(RD)', 'RD_LCL', 'RD_UCL']].round(decimals=decimal))
         print('======================================================================')
+        print(self.results[['RiskDifference', 'CLD', 'LowerBound', 'UpperBound']].round(decimals=decimal))
+        print('======================================================================')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
