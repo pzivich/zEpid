@@ -18,7 +18,7 @@ from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_diffe
 #########################################################################################################
 class RiskRatio:
     """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
-    ignored.
+    ignored. Exposure categories should be mutually exclusive
 
     Risk ratio is calculated from
 
@@ -222,7 +222,7 @@ class RiskRatio:
 
 class RiskDifference:
     """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
-    ignored.
+    ignored. Exposure categories should be mutually exclusive
 
     Risk difference is calculated as
 
@@ -236,11 +236,22 @@ class RiskDifference:
 
         SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
 
+    In addition to confidence intervals, the Frechet bounds are calculated as well. These probability bounds are useful
+    for a comparison. Within these bounds, the true causal risk difference in the sample must live. The only
+    assumptions these bounds require are no measurement error, causal consistency, no selection bias, and any missing
+    data is MCAR. These bounds are always unit width (width of one), but they do not require any assumptions regarding
+    confounding / conditional exchangeability. They are calculated via the following formula
+
+    .. math::
+
+        Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ ne a) - \Pr(A=a)
+        Upper = \Pr(Y|A=a)\Pr(A=a) + \Pr(A \ne a) - \Pr(Y|A \ne a)\Pr(A \ ne a)
+
     Notes
     -------------
     Outcome must be coded as (1: yes, 0:no). Only supports binary outcomes
 
-        Examples
+    Examples
     --------
     Calculate the risk difference in a data set
     >>>from zepid import RiskDifference, load_sample_data
@@ -438,7 +449,7 @@ class RiskDifference:
 
 class NNT:
     """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
-    Altman, DG (BMJ 1998). Missing data is ignored.
+    Altman, DG (BMJ 1998). Missing data is ignored. Exposure categories should be mutually exclusive
 
     Number needed to treat is calculated as
 
@@ -594,7 +605,8 @@ class NNT:
 
 
 class OddsRatio:
-    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored. Exposure categories
+    should be mutually exclusive
 
     Odds ratio is calculated from
 
@@ -763,7 +775,8 @@ class OddsRatio:
 
 
 class IncidenceRateRatio:
-    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored. Exposure
+    categories should be mutually exclusive
 
     Incidence rate ratio is calculated from
 
@@ -972,6 +985,7 @@ class IncidenceRateRatio:
 
 class IncidenceRateDifference:
     """Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+    Exposure categories should be mutually exclusive
 
     Incidence rate difference is calculated from
 
