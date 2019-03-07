@@ -284,6 +284,7 @@ class RiskDifference:
         self._missing_e = None
         self._missing_d = None
         self._missing_ed = None
+        self.n = None
 
     def fit(self, df, exposure, outcome):
         """Calculates the Risk Difference
@@ -297,6 +298,7 @@ class RiskDifference:
         outcome : string
             Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
+        n = df.dropna(subset=[exposure, outcome]).shape[0]
         # Setting up holders for results
         risk_lcl = []
         risk_ucl = []
@@ -304,6 +306,8 @@ class RiskDifference:
         rd_lcl = []
         rd_ucl = []
         rd_sd = []
+        fr_lower = []
+        fr_upper = []
 
         # Getting unique values and dropping reference
         vals = set(df[exposure].dropna().unique())
@@ -316,10 +320,13 @@ class RiskDifference:
         risk_lcl.append(lr)
         risk_ucl.append(ur)
         risk_sd.append(sd)
+
         self.risk_difference.append(0)
         rd_lcl.append(None)
         rd_ucl.append(None)
         rd_sd.append(None)
+        fr_lower.append(None)
+        fr_upper.append(None)
 
         # Going through all the values
         for i in vals:
@@ -328,21 +335,27 @@ class RiskDifference:
             self._a_list.append(a)
             b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
             self._b_list.append(b)
+
             ri, lr, ur, sd, *_ = risk_ci(events=a, total=(a + b), alpha=self.alpha)
             self.risks.append(ri)
             risk_lcl.append(lr)
             risk_ucl.append(ur)
             risk_sd.append(sd)
+
             em, lcl, ucl, sd, *_ = risk_difference(a=a, b=b, c=self._c, d=self._d, alpha=self.alpha)
             self.risk_difference.append(em)
             rd_lcl.append(lcl)
             rd_ucl.append(ucl)
             rd_sd.append(sd)
 
+            fr_lower.append(ri*((a+b)/n) - (1-ri)*(1 - (a+b)/n) - ((a+b)/n))
+            fr_upper.append(ri*((a+b)/n) + (1 - (a+b)/n) - (1-ri)*(1 - (a+b)/n))
+
         # Getting the extent of missing data
         self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
         self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
         self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+        self.n = n
 
         # Setting up results
         rf = pd.DataFrame(index=self._labels)
@@ -355,6 +368,8 @@ class RiskDifference:
         rf['RD_LCL'] = rd_lcl
         rf['RD_UCL'] = rd_ucl
         rf['CLD'] = rf['RD_UCL'] - rf['RD_LCL']
+        rf['LowerBound'] = fr_lower
+        rf['UpperBound'] = fr_upper
         self.results = rf
         self._fit = True
 
