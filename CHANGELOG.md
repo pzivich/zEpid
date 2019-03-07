@@ -1,5 +1,8 @@
 ### Change logs
 
+#### v0.5.1:
+Added a fix to ``TMLE`` for machine learning libraries and missing outcome data
+
 #### v0.5.0:
 Support for Python 3.7 has been added
 
