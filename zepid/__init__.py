@@ -45,6 +45,7 @@ import zepid.graphics
 import zepid.causal.gformula
 import zepid.causal.ipw
 import zepid.causal.doublyrobust
+import zepid.causal.generalize
 import zepid.sensitivity_analysis
 
 from .version import __version__
