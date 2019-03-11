@@ -384,7 +384,7 @@ def load_case_control_data():
 
 
 def load_monotone_missing_data():
-    """Loads simulated data the is monotone missing. This data is for demonstration with inverse probability of missing
+    """Loads simulated data for monotone missing. This data is for demonstration with inverse probability of missing
     weights with data that is has a monotone missing pattern.
 
     Notes
@@ -409,3 +409,35 @@ def load_monotone_missing_data():
     """
     df = pd.read_csv(resource_filename('zepid', 'datasets/monotone.dat'), index_col=False)
     return df[['id', 'A', 'B', 'C', 'L']]
+
+
+def load_generalize_data(confounding):
+    """Loads simulated data for demonstration of generalizability/transportability methods.
+
+    Notes
+    -----
+    For the data, the true effect measures are
+        Generalizability
+            RD: 0.04651
+            RR: 1.147
+        Transportability
+            RD: 0.02887
+            RR: 1.085
+
+    Parameters
+    ----------
+    confounding : bool
+        Whether to load data with a confounder (True) or data from a hypothetical RCT (False). If the confounder is
+        loaded, then the method used will need to account for confounding
+
+    Returns
+    -------
+    DataFrame
+        Returns pandas DataFrame
+    """
+    if confounding:
+        df = pd.read_csv(resource_filename('zepid', 'datasets/generalize_conf.dat'), index_col=False)
+    else:
+        df = pd.read_csv(resource_filename('zepid', 'datasets/generalize_rct.dat'), index_col=False)
+    df['id'] = df.index
+    return df[['id', 'Y', 'A', 'S', 'L', 'W']]

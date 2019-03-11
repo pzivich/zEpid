@@ -38,7 +38,7 @@ from .base import (RiskRatio, RiskDifference, NNT, OddsRatio, IncidenceRateRatio
                    Specificity, Diagnostics, interaction_contrast, interaction_contrast_ratio, spline, table1_generator)
 from .datasets import (load_sample_data, load_ewing_sarcoma_data, load_gvhd_data, load_sciatica_data,
                        load_leukemia_data, load_longitudinal_data, load_binge_drinking_data, load_case_control_data,
-                       load_monotone_missing_data)
+                       load_monotone_missing_data, load_generalize_data)
 
 import zepid.calc
 import zepid.graphics
