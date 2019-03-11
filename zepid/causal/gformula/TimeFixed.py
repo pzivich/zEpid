@@ -85,20 +85,20 @@ class TimeFixedGFormula:
         >>>g.fit(treatment=["False", "True"])
 
         G-formula with binary exposure and continuous (normal-distributed) outcome
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='normal')
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4_wk45', outcome_type='normal')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
 
         G-formula with binary exposure and continuous (Poisson-distributed) outcome
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4_wk45', outcome_type='poisson')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
 
         G-formula with binary outcome and exposure. With a stochastic treatment/intervention
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4_wk45', outcome_type='poisson')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
         >>>g.fit_stochastic(p=0.75)
 
         G-formula with binary outcome and exposure. With a conditional stochastic treatment/intervention
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4')
+        >>>g = TimeFixedGFormula(df,exposure='art', outcome='dead')
         >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
         >>>g.fit_stochastic(p=[0.65, 0.85], conditional=["g['male']==1", "g['male']==0"])
 
