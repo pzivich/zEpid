@@ -1,9 +1,18 @@
-### Change logs
+## Change logs
+
+### v0.6.0
+`MonteCarloGFormula` now includes a separate `censor_model()` function for censoring and support for competing risks.
+Additionally, I added a low memory option to reduce the memory burden during the Monte-Carlo procedure
+
+`RiskDifference` now calculates the Frechet probability bounds by default
+
+``TMLE`` now allows for specified bounds on the Q-model predictions. Additionally, avoids error when predicted
+continuous values are outside the bounded values
 
 #### v0.5.1:
 Added a fix to ``TMLE`` for machine learning libraries and missing outcome data
 
-#### v0.5.0:
+### v0.5.0:
 Support for Python 3.7 has been added
 
 ``AIPW`` has been removed. It has been replaced with ``AIPTW``
@@ -79,7 +88,7 @@ supported. This will be fixed in v0.4.2 update
 
 Website updated to reflect above changes and correcting errors I had missed on last check
 
-#### v0.4.0:
+### v0.4.0:
 **MAJOR CHANGES**:
 
 ``TMLE`` has been modified to estimate the custom user models now, rather than take the input. This better corresponds 
@@ -164,7 +173,7 @@ Semi-Bayesian function now calculates a check on the compatibility between the p
 if a small p-value is detected (p < 0.05). The full information on this check can be read in *Modern Epidemiology* 3rd 
 edition pg340.
 
-#### v0.3.0
+### v0.3.0
 **BIG CHANGES**:
 
 To conform with PEP and for clarity, all association/effect measures on a pandas dataframe are now class statements. This makes them distinct from the summary data calculators. Additionally, it allows users to access any part of the results now, unlike the previous implementation. The SD can be pulled from the corresponds results dataframe. Please see the updated webiste for how to use the class statements.
