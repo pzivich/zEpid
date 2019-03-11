@@ -245,6 +245,7 @@ class TMLE:
 
         if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
             self._continuous_outcome = False
+            self._cb = 0.0
         else:
             self._continuous_outcome = True
             self._continuous_min = np.min(df[outcome])
