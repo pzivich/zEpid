@@ -615,6 +615,8 @@ class TMLE:
             v = np.where(v > 1-bounds, 1-bounds, v)
         elif type(bounds) is str:  # Catching string inputs
             raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+        elif type(bounds) is int:  # Catching string inputs
+            raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
         else:  # Asymmetric bounds
             if bounds[0] > bounds[1]:
                 raise ValueError('Bound thresholds must be listed in ascending order')
