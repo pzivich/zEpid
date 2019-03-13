@@ -71,6 +71,9 @@ class IPSW:
 
         Westreich D, Edwards JK, Lesko CR, Stuart E, & Cole SR. (2017). Transportability of trial
         results using inverse odds of sampling weights. AJE, 186(8), 1010-1014.
+
+        Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
+        randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
         """
         self.df = df.copy()
         self.sample = df.loc[df[selection] == 1].copy()
@@ -236,8 +239,8 @@ class GTransportFormula:
         Lesko CR, Buchanan AL, Westreich D, Edwards JK, Hudgens MG, & Cole SR. (2017).
         Generalizing study results: a potential outcomes perspective. Epidemiology (Cambridge, Mass.), 28(4), 553.
 
-        Westreich D, Edwards JK, Lesko CR, Stuart E, & Cole SR. (2017). Transportability of trial
-        results using inverse odds of sampling weights. AJE, 186(8), 1010-1014.
+        Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
+        randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
         """
         self.df = df.copy()
         self.sample = df.loc[df[selection] == 1].copy()
@@ -272,8 +275,10 @@ class GTransportFormula:
             linkdist = sm.families.family.Binomial()
         elif self.outcome_type == 'normal':
             linkdist = sm.families.family.Gaussian()
-        else:
+        elif self.outcome_type == 'poisson':
             linkdist = sm.families.family.Poisson()
+        else:
+            raise ValueError("Only 'binary', 'normal', and 'poisson' distributed outcomes are available")
 
         # Modeling the outcome
         if self.weight is None:
@@ -289,15 +294,12 @@ class GTransportFormula:
             print(self._outcome_model.summary())
 
     def fit(self):
-        """Uses the calculated IPSW to obtain the risk difference and risk ratio from the sample. If weights are
-        provided in the initial step, those weights are multiplied with IPSW to obtain the overall weights.
-
-        The risk for the exposed and unexposed are calculated by taking the weighted averages.
+        """Uses the g-transport formula to obtain the risk difference and risk ratio from the sample.
 
         Returns
         -------
-        `IPSW` gains `risk_difference` and `risk_ratio` which are the generalized risk difference and risk ratios for
-        the exposure-outcome relationship based on the data and IPSW model
+        `GTransportFormula` gains `risk_difference` and `risk_ratio` which are the generalized risk difference and
+        risk ratios for the exposure-outcome relationship
         """
         if not self._outcome_model:
             raise ValueError('The outcome_model() function must be specified before effect measure estimation')
@@ -341,6 +343,242 @@ class GTransportFormula:
 
     def summary(self, decimal=4):
         """Prints a summary of the results for the g-transport estimator
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display in the result
+        """
+        print('----------------------------------------------------------------------')
+        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('----------------------------------------------------------------------')
+
+
+class AIPSW:
+    def __init__(self, df, exposure, outcome, selection, generalize=True, weights=None):
+        """Doubly robust estimator for generalizability. I haven't found a good name for it in the literature yet, so I
+        am naming it augmented-IPSW (in honor of other doubly robust estimators like AIPTW and AIPMW).
+
+        The process of estimating AIPSW follows other doubly robust estimators. We need to specify both the IPSW model
+        and the g-transport model. From this information, the AIPSW is calculated via the following
+
+        .. math::
+
+            \psi = \frac{1}{n} \sum \left(E[Y|A=a,L,S=1] + \frac{I(S=1, A=a)}{\Pr(S=1|L)} (Y - E[Y|A=a,L,S=1])\right)
+
+        For transportability problems, AIPSW takes the following form
+
+        .. math::
+
+            \psi = \frac{\sum IPSW\times I(S=1, A=a)(Y - E[Y|A=a,L,S=1]) + (1-S)E[Y|A=a,L,S=1]}{\Pr(S=0)}
+
+        Parameters
+        ----------
+        df : DataFrame
+            Pandas dataframe containing all variables required for generalization/transportation. Should include
+            all features related to sample selection, indicator for selection into the sample, and treatment/outcome
+            information for the sample (selection == 1)
+        exposure : str
+            Column label for exposure/treatment of interest. Can be nan for all those not in sample. Only binary
+            exposures are currently supported
+        outcome : str
+            Column label for outcome of interest. Can be nan for all those not in sample
+        selection : str
+            Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
+            sample and 0 if individual is from random sample of source population
+        generalize : bool, optional
+            Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
+            for further details on the difference between the two estimation methods
+        weights : None, str, optional
+            For conditionally randomized trials, or observational research, inverse probability of treatment weights
+            can be used to adjust for confounding in IPSW. Before estimating the effect measures, this weight vector
+            and the IPSW are multiplied to calculate new weights
+            When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
+
+        Notes
+        -----
+        There are two related concepts; generalizability and transportability. Generalizability is when your study
+        sample is part of your target population. For example, you want to generalize results from California to the
+        entire United States. Transportability is when your study sample is not part of your target population. For
+        example, we want to apply our results from California to Canada. Depending on the scenario, how the marginal
+        risk difference is calculated is slightly different. `GTransportFormula` allows for both of these problems
+
+        For generalizability, we first fit a Q-model predicting the outcome as a function of the treatment and any
+        modifiers (along with confounders if in observation data). Next we calculate IPSW (with IPTW if there is any
+        confounders). Afterwards, we predict the potential outcomes for the entire population (S=1 and S=0). We then
+        use the above formula to calculate the marginal effect
+
+        For transportability, I am still thinking this through...
+
+        Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
+
+        Examples
+        --------
+
+        References
+        ----------
+        Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
+        randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
+
+        Dahabreh IJ, Hernan MA, Robertson SE, Buchanan A, Steingrimsson JA. (2019). Generalizing
+        trial findings in nested trial designs with sub-sampling of non-randomized individuals. arXiv preprint
+        arXiv:1902.06080.
+        """
+        self.df = df.copy()
+        self.sample = df[selection] == 1
+        self.target = df[selection] == 0
+
+        self.generalize = generalize  # determines whether IPSW or IOSW are calculated
+
+        self.exposure = exposure
+        self.outcome = outcome
+        self.selection = selection
+        self.weight = weights
+
+        self.Weight = None
+        self._denominator_model = False
+        self._outcome_model = False
+        self._YA1 = None
+        self._YA0 = None
+
+        self.risk_difference = None
+        self.risk_ratio = None
+
+    def weight_model(self, model_denominator, model_numerator='1', stabilized=True, print_results=True):
+        """Logistic regression model(s) for estimating IPSW. The model denominator must be specified for both
+        stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
+        stabilization factor for the weight numerator. By default model results are returned
+
+        Parameters
+        ----------
+        model_denominator : str
+            String listing variables to predict the exposure, separated by +. For example, 'var1 + var2 + var3'. This
+            is for the predicted probabilities of the denominator
+        model_numerator : str, optional
+            Optional string listing variables to predict the selection separated by +. Only used to calculate the
+            numerator. Default ('1') calculates the overall probability of selection. In general, this is recommended.
+            Adding in other variables means they are no longer accounted for in estimation of IPSW. Argument is also
+            only used when calculating stabilized weights
+        stabilized : bool, optional
+            Whether to generated stabilized IPSW. Default is True, which returns the stabilized IPSW
+        print_results : bool, optional
+            Whether to print the model results from the regression models. Default is True
+        """
+        dmodel = propensity_score(self.df, self.selection + ' ~ ' + model_denominator, print_results=print_results)
+
+        self.df['__denom__'] = dmodel.predict(self.df)
+        self._denominator_model = True
+
+        # Stabilization factor if valid
+        if stabilized:
+            nmodel = propensity_score(self.df, self.selection + ' ~ ' + model_numerator, print_results=print_results)
+            self.df['__numer__'] = np.where(self.sample, nmodel.predict(self.df), 0)
+        else:
+            self.df['__numer__'] = np.where(self.sample, 1, 0)
+
+        # Calculate IPSW (generalizability)
+        if self.generalize:
+            self.df['__ipsw__'] = self.df['__numer__'] / self.df['__denom__']
+
+        # Calculate IOSW (transportability)
+        else:
+            if stabilized:
+                self.df['__ipsw__'] = (((1 - self.df['__denom__']) / self.df['__denom__']) *
+                                           (self.df['__numer__'] / (1 - self.df['__numer__'])))
+            else:
+                self.df['__ipsw__'] = (1 - self.df['__denom__']) / self.df['__denom__']
+
+        if self.weight is not None:
+            self.Weight = self.df['__ipsw__'] * self.df[self.weight]
+        else:
+            self.Weight = self.df['__ipsw__']
+
+    def outcome_model(self, model, outcome_type='binary', print_results=True):
+        """Build the g-transport model for the outcome. This is also referred to at the Q-model.
+
+        Parameters
+        ----------
+        model : str
+            Variables to include in the model for predicting the outcome. Must be contained within the input
+            pandas dataframe when initialized. Model form should contain the exposure, i.e. 'art + age + male'
+        outcome_type : str, optional
+            Variable type for the outcome. Default is binary. Also supports 'normal' and 'poisson' distributed outcomes
+        print_results : bool, optional
+            Whether to print the logistic regression results to the terminal. Default is True
+        """
+        if outcome_type == 'binary':
+            linkdist = sm.families.family.Binomial()
+        elif outcome_type == 'normal':
+            linkdist = sm.families.family.Gaussian()
+        elif outcome_type == 'poisson':
+            linkdist = sm.families.family.Poisson()
+        else:
+            raise ValueError("Only 'binary', 'normal', and 'poisson' distributed outcomes are available")
+
+        # Modeling the outcome
+        df = self.df[self.sample].copy()
+        if self.weight is None:
+            m = smf.glm(self.outcome+' ~ '+model, df, family=linkdist)
+            self._outcome_model = m.fit()
+        else:
+            m = smf.gee(self.outcome+' ~ '+model, df.index, df, family=linkdist, weights=df[self.weight])
+            self._outcome_model = m.fit()
+
+        # Printing results of the model and if any observations were dropped
+        if print_results:
+            print(self._outcome_model.summary())
+
+        dfa = self.df.copy()
+        dfn = self.df.copy()
+        dfa[self.exposure] = 1
+        dfn[self.exposure] = 0
+
+        self._YA1 = self._outcome_model.predict(dfa)
+        self._YA0 = self._outcome_model.predict(dfn)
+
+    def fit(self):
+        """Uses AIPSW formula to obtain the risk difference and risk ratio from the sample.
+
+        Returns
+        -------
+        `AIPSW` gains `risk_difference` and `risk_ratio` which are the generalized risk difference and risk ratios for
+        the exposure-outcome relationship based on the data and IPSW model
+        """
+        if not self._denominator_model:
+            raise ValueError('The weight_model() function must be specified before effect measure estimation')
+        if not self._outcome_model:
+            raise ValueError('The outcome_model() function must be specified before effect measure estimation')
+
+        # Generalizability problem
+        if self.generalize:
+            part1 = self._YA1
+            part2 = np.where(self.sample & (self.df[self.exposure] == 1),
+                             self.Weight * (self.df[self.outcome] - self._YA1), 0)
+            r1 = np.mean(part1 + part2)
+
+            part1 = self._YA0
+            part2 = np.where(self.sample & (self.df[self.exposure] == 0),
+                             self.Weight * (self.df[self.outcome] - self._YA0), 0)
+            r0 = np.mean(part1 + part2)
+
+        # Transportability problem
+        else:
+            part1 = np.where(self.sample & (self.df[self.exposure] == 1),
+                             self.Weight*(self.df[self.outcome] - self._YA1), 0)
+            part2 = (1 - self.df[self.selection]) * self._YA1
+            r1 = np.mean(part1 + part2) / np.mean(1 - self.df[self.selection])
+
+            part1 = np.where(self.sample & (self.df[self.exposure] == 0),
+                             self.Weight*(self.df[self.outcome] - self._YA0), 0)
+            part2 = (1 - self.df[self.selection]) * self._YA0
+            r0 = np.mean(part1 + part2) / np.mean(1 - self.df[self.selection])
+
+        self.risk_difference = r1 - r0
+        self.risk_ratio = r1 / r0
+
+    def summary(self, decimal=4):
+        """Prints a summary of the results for the AIPSW estimator
 
         Parameters
         ----------
