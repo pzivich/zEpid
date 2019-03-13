@@ -1,1 +1,1 @@
-from .estimators import IPSW
+from .estimators import IPSW, GTransportFormula
