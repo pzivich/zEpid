@@ -564,15 +564,13 @@ class AIPSW:
 
         # Transportability problem
         else:
-            part1 = np.where(self.sample & (self.df[self.exposure] == 1),
-                             self.Weight*(self.df[self.outcome] - self._YA1), 0)
+            part1 = self.sample * self.df[self.exposure] * self.Weight * (self.df[self.outcome] - self._YA1)
             part2 = (1 - self.df[self.selection]) * self._YA1
-            r1 = np.mean(part1 + part2) / np.mean(1 - self.df[self.selection])
+            r1 = np.sum(part1 + part2) / np.sum(1 - self.df[self.selection])
 
-            part1 = np.where(self.sample & (self.df[self.exposure] == 0),
-                             self.Weight*(self.df[self.outcome] - self._YA0), 0)
+            part1 = self.sample * (1 - self.df[self.exposure]) * self.Weight * (self.df[self.outcome] - self._YA0)
             part2 = (1 - self.df[self.selection]) * self._YA0
-            r0 = np.mean(part1 + part2) / np.mean(1 - self.df[self.selection])
+            r0 = np.sum(part1 + part2) / np.sum(1 - self.df[self.selection])
 
         self.risk_difference = r1 - r0
         self.risk_ratio = r1 / r0
