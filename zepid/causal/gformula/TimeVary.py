@@ -474,16 +474,39 @@ class MonteCarloGFormula:
     def _predict(df, model, variable):
         """Hidden predict method to shorten the Monte Carlo estimation code
         """
-        # pp = data.mul(model.params).sum(axis=1) # Alternative to statsmodels.predict(), but too much too implement
         pp = model.predict(df)
         if variable == 'binary':
-            # pp = odds_to_probability(np.exp(pp))  # assumes a logit model. For non-statsmodel.predict() option
             pred = np.random.binomial(1, pp, size=len(pp))
         elif variable == 'continuous':
             pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
         else:
             raise ValueError('That option is not supported')
         return pred
+
+    @staticmethod
+    def __predict__(df, model, variable, formula):
+        """UNUSED FUNCTION
+
+        New hidden predict method to shorten Monte Carlo estimation code. This is slower than statsmodels predict,
+        but likely can be optimized. I would need to find a faster alternative to np.dot()...
+
+        For this to work, I need to do the following:
+            -need to have each ..._model() store a self.formula
+            -switch all functions to sm.GLM or sm.GEE
+        """
+        import patsy
+        from zepid.calc import odds_to_probability
+
+        xdata = patsy.dmatrix(formula, df) #, return_type='dataframe')
+        # pred = xdata.mul(np.array(model.params), axis='columns').sum(axis=1)
+        pred = xdata.dot(model.params) # TODO optimize this...
+
+        if variable == 'binary':
+            pred = np.random.binomial(1, odds_to_probability(np.exp(pred)), size=xdata.shape[0])
+        elif variable == 'continuous':
+            pred = np.random.normal(loc=pred, scale=np.std(model.resid), size=len(pp))
+        else:
+            raise ValueError('That option is not supported')
 
 
 class IterativeCondGFormula:
