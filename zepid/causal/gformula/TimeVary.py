@@ -6,8 +6,6 @@ import statsmodels.formula.api as smf
 from statsmodels.genmod.families import links
 
 
-# TODO add_competing_risk function
-# TODO censoring_model function
 class MonteCarloGFormula:
     def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
         """Time-varying implementation of the Monte Carlo g-formula, also referred to as the g-computation algorithm
@@ -67,7 +65,7 @@ class MonteCarloGFormula:
         Setting up the environment
         >>>import numpy as np
         >>>from zepid import load_sample_data, spline
-        >>>from zepid.causal.gformula import TimeVaryGFormula
+        >>>from zepid.causal.gformula import MonteCarloGFormula
         >>>df = load_sample_data(timevary=True)
         >>>df['lag_art'] = df['art'].shift(1)
         >>>df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
@@ -134,10 +132,12 @@ class MonteCarloGFormula:
             raise ValueError('Only binary treatments/exposures are currently implemented')
 
         # Checking that outcome is binary
+        self.outcome = outcome
         if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self.outcome = outcome
+            self._competing_event = False
         else:
-            raise ValueError('Only binary outcomes are currently implemented')
+            raise ValueError("Only binary outcomes are currently supported")
+            # self._competing_event = True
 
         # Generating an indicator for censoring
         self.gf['__uncensored__'] = np.where((self.gf[idvar] != self.gf[idvar].shift(-1)) & (self.gf[outcome] == 0),
@@ -213,8 +213,14 @@ class MonteCarloGFormula:
         linkdist = sm.families.family.Binomial()
 
         if self._weights is None:  # Unweighted g-formula
-            self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
+            if self._competing_event:
+                self.out_model = sm.MNLogit.from_formula(self.outcome + ' ~ ' + model, g).fit()
+            else:
+                self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, family=linkdist).fit()
+
         else:  # Weighted g-formula
+            if self._competing_event:
+                raise ValueError("The weighted MonteCarloGFormula is not supported for competing events")
             self.out_model = smf.gee(self.outcome + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
                                      family=linkdist).fit()
         if print_results:
@@ -429,9 +435,12 @@ class MonteCarloGFormula:
                 g[self.exposure] = np.where(eval(treatment), 1, 0)
 
             # predict outcome
-            g[self.outcome] = self._predict(df=g, model=self.out_model, variable='binary')
+            if self._competing_event:
+                # TODO placeholder for future addition of competing risks
+                g[self.outcome] = self._predict(df=g, model=self.out_model, variable='multinomial')
+            else:
+                g[self.outcome] = self._predict(df=g, model=self.out_model, variable='binary')
             g[self.time_out] = i + 1
-            # TODO evaluate competing risks
 
             # predict censoring
             if self._censor_model_fit:
@@ -479,6 +488,15 @@ class MonteCarloGFormula:
             pred = np.random.binomial(1, pp, size=len(pp))
         elif variable == 'continuous':
             pred = np.random.normal(loc=pp, scale=np.std(model.resid), size=len(pp))
+        elif variable == 'multinomial':
+            # Approach: 1
+            # pred_cols = np.random.multinomial(n=1, pvals=pp, size=pp.shape[0])
+            # pred = np.zeros(pp.shape[0])
+            # for i, j in zip(range(pred_cols.shape[1]), pp.columns):
+            #     pred = np.where(pred_cols[:, i], j, pred)
+            # Approach: 2
+            # pred = np.random.choice(a=list(pp.columns), p=pp, size=pp.shape[0])
+            raise ValueError('That option is not supported')
         else:
             raise ValueError('That option is not supported')
         return pred
@@ -499,14 +517,16 @@ class MonteCarloGFormula:
 
         xdata = patsy.dmatrix(formula, df) #, return_type='dataframe')
         # pred = xdata.mul(np.array(model.params), axis='columns').sum(axis=1)
-        pred = xdata.dot(model.params) # TODO optimize this...
+        pred = xdata.dot(model.params)  # TODO optimize this...
 
         if variable == 'binary':
             pred = np.random.binomial(1, odds_to_probability(np.exp(pred)), size=xdata.shape[0])
         elif variable == 'continuous':
             pred = np.random.normal(loc=pred, scale=np.std(model.resid), size=len(pp))
+        # TODO add optimization for multinomial (if applicable)
         else:
             raise ValueError('That option is not supported')
+        return pred
 
 
 class IterativeCondGFormula:
