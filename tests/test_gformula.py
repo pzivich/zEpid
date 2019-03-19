@@ -5,7 +5,7 @@ import numpy.testing as npt
 import pandas.testing as pdt
 from scipy.stats import logistic
 
-from zepid import load_sample_data, spline
+from zepid import load_sample_data, spline, load_gvhd_data
 from zepid.causal.gformula import TimeFixedGFormula, MonteCarloGFormula, IterativeCondGFormula
 
 
@@ -367,6 +367,22 @@ class TestTimeVaryGFormula:
         # Expected behavior; same results between the estimation methods
         npt.assert_allclose(gf.marginal_outcome, np.mean(gt.predicted_outcomes['Y']), rtol=1e-3)
 
+    def test_mc_detect_censoring(self):
+        df = load_sample_data(timevary=True)
+
+        not_censored = np.where((df['id'] != df['id'].shift(-1)) & (df['dead'] == 0), 0, 1)
+        not_censored = np.where(df['out'] == np.max(df['out']), 1, not_censored)
+
+        g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+
+        npt.assert_equal(np.array(g.gf['__uncensored__']), not_censored)
+
+    def test_mc_detect_censoring2(self):
+        df = load_gvhd_data()
+        g = MonteCarloGFormula(df, idvar='id', exposure='gvhd', outcome='d', time_in='day', time_out='tomorrow')
+
+        npt.assert_equal(np.array(g.gf['__uncensored__']), 1 - df['censlost'])
+
     def test_complete_mc_procedure_completes(self):
         df = load_sample_data(timevary=True)
         df['lag_art'] = df['art'].shift(1)
@@ -398,11 +414,14 @@ class TestTimeVaryGFormula:
                              "g['cd4_sq'] = g['cd4']**2;"
                              "g['cd4_cu'] = g['cd4']**3")
         g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
+        cens_m = """male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 +
+                 lag_dvl + lag_art + enter + enter_sq + enter_cu"""
+        g.censoring_model(cens_m)
         g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",
               lags={'art': 'lag_art',
                     'cd4': 'lag_cd4',
                     'dvl': 'lag_dvl'},
-              sample=10000, t_max=None,
+              sample=5000, t_max=None,
               in_recode=("g['enter_sq'] = g['enter']**2;"
                          "g['enter_cu'] = g['enter']**3"))
         assert isinstance(g.predicted_outcomes, type(pd.DataFrame()))
