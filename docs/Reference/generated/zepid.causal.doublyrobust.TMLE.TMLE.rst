@@ -11,9 +11,9 @@ zepid.causal.doublyrobust.TMLE.TMLE
    .. autosummary::
 
       ~TMLE.exposure_model
-      ~TMLE.fit
-      ~TMLE.missing_model
       ~TMLE.outcome_model
+      ~TMLE.missing_model
+      ~TMLE.fit
       ~TMLE.summary
 
 

@@ -752,8 +752,8 @@ class MonteCarloGFormula:
     >>>      t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
     >>>      in_recode=("g['enter_sq'] = g['enter']**2;"
     >>>                 "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
-    >>> # See website documentation for further instructions
-    >>> # (https://zepid.readthedocs.io/en/latest/Causal.html#g-computation-algorithm-monte-carlo)
+    >>> # See more examples:
+    >>> # (https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/2-time-varying-treatments/1_MonteCarlo_G-formula.ipynb)
 
     References
     ----------

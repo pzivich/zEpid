@@ -18,7 +18,7 @@ class TimeFixedGFormula:
     to disjoint indicator terms for the exposure should be provided. Multivariate exposures require the user to
     custom specify treatments when fitting the g-formula. A list of the custom treatment must be provided and be
     the same length as the number of disjoint indicator columns. See
-    http://zepid.readthedocs.io/en/latest/ for examples (highly recommended)
+    https://github.com/pzivich/Python-for-Epidemiologists/tree/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments for examples (highly recommended)
 
     Key options for treatments:
 
@@ -192,7 +192,7 @@ class TimeFixedGFormula:
               * none    -no individuals are given treatment
               * custom  -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
                 following is an example that selects those whose age is 25 or older and are females;
-                treatment="((g['age0']>=25) & (g['male']==0))
+                ``treatment="((g['age0']>=25) & (g['male']==0))``
 
         Returns
         -------

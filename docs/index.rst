@@ -32,6 +32,8 @@ Contents:
   Causal
   Sensitivity Analyses
   Reference/index
+  Chat on Gitter <https://gitter.im/zEpid/community>
+  Create a GitHub Issue <https://github.com/pzivich/zEpid/issues>
 
 Installation:
 -------------

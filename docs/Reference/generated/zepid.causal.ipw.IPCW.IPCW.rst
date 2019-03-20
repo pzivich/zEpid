@@ -11,8 +11,8 @@ zepid.causal.ipw.IPCW.IPCW
 
    .. autosummary::
 
-      ~IPCW.fit
       ~IPCW.regression_models
+      ~IPCW.fit
 
 
 

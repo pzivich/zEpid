@@ -12,8 +12,8 @@ zepid.causal.doublyrobust.AIPW.AIPTW
    .. autosummary::
 
       ~AIPTW.exposure_model
-      ~AIPTW.fit
       ~AIPTW.outcome_model
+      ~AIPTW.fit
       ~AIPTW.summary
 
 

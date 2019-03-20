@@ -10,8 +10,8 @@ zepid.causal.ipw.IPMW.IPMW
 
    .. autosummary::
 
-      ~IPMW.fit
       ~IPMW.regression_models
+      ~IPMW.fit
 
 
 
