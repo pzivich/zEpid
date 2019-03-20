@@ -23,3 +23,7 @@ Displaying Results
   EffectMeasurePlot
   pvalue_plot
   dynamic_risk_plot
+
+
+.. automodule:: zepid.graphics.graphics
+  :members:

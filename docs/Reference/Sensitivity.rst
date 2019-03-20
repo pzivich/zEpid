@@ -19,3 +19,10 @@ Sensitivity analyzers
 .. autosummary::
 
   MonteCarloRR
+
+
+.. automodule:: zepid.sensitivity_analysis.distributions
+  :members:
+
+.. automodule:: zepid.sensitivity_analysis.Simple
+  :members:

@@ -16,28 +16,29 @@ def load_sample_data(timevary):
 
     Notes
     -------------
+
     For the time-varying data set, the following variables are returned;
-        id - participant unique ID
-        enter - start of follow-up period
-        out - end of time period
-        male - indicator variable for male (1 = yes)
-        age0 - age at enter = 0
-        cd40 - CD4 T cell count at enter = 0
-        dvl0 - detectable viral load data at enter = 0
-        cd4 - CD4 T cell count at enter = t
-        dvl - viral load at enter = t
-        art - indicator of whether ART was prescribed at enter = t
-        drop - indicator of whether individual dropped out of the study at enter = t (1 = yes)
-        dead - indicator for death at out = t (1 = yes)
+        * id - participant unique ID
+        * enter - start of follow-up period
+        * out - end of time period
+        * male - indicator variable for male (1 = yes)
+        * age0 - age at enter = 0
+        * cd40 - CD4 T cell count at enter = 0
+        * dvl0 - detectable viral load data at enter = 0
+        * cd4 - CD4 T cell count at enter = t
+        * dvl - viral load at enter = t
+        * art - indicator of whether ART was prescribed at enter = t
+        * drop - indicator of whether individual dropped out of the study at enter = t (1 = yes)
+        * dead - indicator for death at out = t (1 = yes)
 
     For the time-fixed data set, the following variables are returned
-        id - participant unique ID
-        male - indicator variable for male (1 = yes)
-        age0 - age at enter = 0
-        cd40 - CD4 T cell count at enter = 0
-        dvl0 - detectable viral load data at enter = 0
-        art - indicator of whether ART was prescribed at enter = 0
-        t - total time contributed
+        * id - participant unique ID
+        * male - indicator variable for male (1 = yes)
+        * age0 - age at enter = 0
+        * cd40 - CD4 T cell count at enter = 0
+        * dvl0 - detectable viral load data at enter = 0
+        * art - indicator of whether ART was prescribed at enter = 0
+        * t - total time contributed
 
     Returns
     ----------
@@ -47,11 +48,13 @@ def load_sample_data(timevary):
     Examples
     --------
     Load the time-fixed exposure data set
-    >>>from zepid import load_sample_data
-    >>>load_sample_data(timevary=False)
+
+    >>> from zepid import load_sample_data
+    >>> load_sample_data(timevary=False)
 
     Load the time-varying exposure data set
-    >>>load_sample_data(timevary=True)
+
+    >>> load_sample_data(timevary=True)
     """
     cols = ['id', 'enter', 'out', 'male', 'age0', 'cd40', 'dvl0', 'cd4', 'dvl', 'art', 'drop', 'dead']
     df = pd.read_csv(resource_filename('zepid', 'datasets/data.dat'),
@@ -89,10 +92,10 @@ def load_ewing_sarcoma_data():
     Notes
     -----------
     Variables within the dataset are
-        treat - treatment (1 is novel treatment; 0 is one of three standard treatments)
-        ldh - pre-treatment serum lactic acid dehydrogenase (LDH) (1 is >= 200 international units; 0 is <200)
-        time - days till recurrence or censoring (continuous)
-        outcome - sarcoma recurrence (1 is recurrence; 0 is censored)
+        * treat - treatment (1 is novel treatment; 0 is one of three standard treatments)
+        * ldh - pre-treatment serum lactic acid dehydrogenase (LDH) (1 is >= 200 international units; 0 is <200)
+        * time - days till recurrence or censoring (continuous)
+        * outcome - sarcoma recurrence (1 is recurrence; 0 is censored)
 
     Returns
     ----------
@@ -110,36 +113,36 @@ def load_gvhd_data():
     Notes
     ---------------
     Variables are formatted exactly as described in Keil et al. 2014
-        id: unique ID for each participant
-        age: participant baseline age
-        agesq: squared baseline age
-        agecurs1: restricted cubic spline knot 1 for baseline age
-        agecurs2: restricted cubic spline knot 2 for basline age
-        male: participant gender (1 is male, 0 is female)
-        cmv: cytomegalovirus baseline immune status (1 is yes, 0 is no)
-        all: at this time, I am unsure what this variable indicates (1, 0)
-        wait: wait time from diagnosis to transplantation (months)
-        day: day since transplantation
-        daysq: squared day since transplantation
-        daycu: cubic day since transplantation
-        daycurs1: restricted cubic spline knot 1 for days since transplantation
-        daycurs2: restricted cubic spline knot 2 for days since transplantation
-        yesterday: previous day
-        tomorrow: day after
-        gvhd: indicator for Graph-versus-Host Disease (1 is yes, 0 is no)
-        d: indicator of death (1 is yes, 0 is no)
-        relapse: indicator for relapse (1 is yes, 0 is no)
-        platnorm: indicator for normal platelet count (1 is yes, 0 is no)
-        censlost: indicator for censoring due to loss-to-follow-up (1 is yes, 0 is no)
-        gvhdm1: indicator for previous day diagnosis of GvHD (1 is yes, 0 is no)
-        relapsem1: indicator for previous day relapse (1 is yes, 0 is no)
-        platnormm1: indicator for previous day normal platelet count (1 is yes, 0 is no)
-        daysnogvhd: number of consecutive days without a GvHD diagnosis
-        daysnorelapse: number of consecutive days without relapse
-        daysnoplatnorm: number of consecutive days without normal platelet count
-        daysgvhd: number of consecutive days with GvHD
-        daysrelapse: number of consecutive days after relapse
-        daysplatnorm: number of consecutive days with normal platelet count
+        * id: unique ID for each participant
+        * age: participant baseline age
+        * agesq: squared baseline age
+        * agecurs1: restricted cubic spline knot 1 for baseline age
+        * agecurs2: restricted cubic spline knot 2 for basline age
+        * male: participant gender (1 is male, 0 is female)
+        * cmv: cytomegalovirus baseline immune status (1 is yes, 0 is no)
+        * all: at this time, I am unsure what this variable indicates (1, 0)
+        * wait: wait time from diagnosis to transplantation (months)
+        * day: day since transplantation
+        * daysq: squared day since transplantation
+        * daycu: cubic day since transplantation
+        * daycurs1: restricted cubic spline knot 1 for days since transplantation
+        * daycurs2: restricted cubic spline knot 2 for days since transplantation
+        * yesterday: previous day
+        * tomorrow: day after
+        * gvhd: indicator for Graph-versus-Host Disease (1 is yes, 0 is no)
+        * d: indicator of death (1 is yes, 0 is no)
+        * relapse: indicator for relapse (1 is yes, 0 is no)
+        * platnorm: indicator for normal platelet count (1 is yes, 0 is no)
+        * censlost: indicator for censoring due to loss-to-follow-up (1 is yes, 0 is no)
+        * gvhdm1: indicator for previous day diagnosis of GvHD (1 is yes, 0 is no)
+        * relapsem1: indicator for previous day relapse (1 is yes, 0 is no)
+        * platnormm1: indicator for previous day normal platelet count (1 is yes, 0 is no)
+        * daysnogvhd: number of consecutive days without a GvHD diagnosis
+        * daysnorelapse: number of consecutive days without relapse
+        * daysnoplatnorm: number of consecutive days without normal platelet count
+        * daysgvhd: number of consecutive days with GvHD
+        * daysrelapse: number of consecutive days after relapse
+        * daysplatnorm: number of consecutive days with normal platelet count
 
     Returns
     ----------
@@ -214,23 +217,23 @@ def load_sciatica_data():
     Notes
     -------------
     Variables included are
-        id: unique identifier for patient
-        tpoints: follow-up time period
-        time: follow-up time
-        age_b: age at follow-up time
-        age_t: age at randomization
-        vas1_t: VAS score
-        vas2_t: VAS score
-        roland_t: Roland score
-        likert_t: Likert score
-        vas1_b: VAS1 at baseline
-        vas2_b: VAS2 at baseline
-        roland_b: Roland score at baseline
-        likert_b: Likert score at baseline
-        male: participant gender (1 is male, 0 is female)
-        weight: participant weight in kilograms
-        height: participant height in meters
-        surgery: whether participant received the surgery (1 is surgery, 0 is not yet surgery)
+        * id: unique identifier for patient
+        * tpoints: follow-up time period
+        * time: follow-up time
+        * age_b: age at follow-up time
+        * age_t: age at randomization
+        * vas1_t: VAS score
+        * vas2_t: VAS score
+        * roland_t: Roland score
+        * likert_t: Likert score
+        * vas1_b: VAS1 at baseline
+        * vas2_b: VAS2 at baseline
+        * roland_b: Roland score at baseline
+        * likert_b: Likert score at baseline
+        * male: participant gender (1 is male, 0 is female)
+        * weight: participant weight in kilograms
+        * height: participant height in meters
+        * surgery: whether participant received the surgery (1 is surgery, 0 is not yet surgery)
 
     Returns
     ----------
@@ -283,14 +286,14 @@ def load_binge_drinking_data():
     Notes
     -----
     Variables included are
-        male: gender (0: female, 1: male)
-        age_categorical: age groups (not clearly defined as to what they refer to)
-        married: marital status
-        education_categorical: categories of education levels
-        race_categorical: categories of race
-        alc_outlet_density: density of alcohol outlets in the neighborhood (continuous)
-        binge_drink: whether individual binge drinks (1: yes, 0: no)
-        neighborhood_id: identifier for groups that individuals are nested in
+        * male: gender (0: female, 1: male)
+        * age_categorical: age groups (not clearly defined as to what they refer to)
+        * married: marital status
+        * education_categorical: categories of education levels
+        * race_categorical: categories of race
+        * alc_outlet_density: density of alcohol outlets in the neighborhood (continuous)
+        * binge_drink: whether individual binge drinks (1: yes, 0: no)
+        * neighborhood_id: identifier for groups that individuals are nested in
 
     Returns
     -------
@@ -309,12 +312,12 @@ def load_longitudinal_data():
     Notes
     -----
     Variables included are
-        A: treatment of interest
-        Y: outcome of interest
-        t: time-point
-        W: baseline variable
-        L: time-varying variable
-        id: unique identifier for each subject
+       * A: treatment of interest
+       * Y: outcome of interest
+       * t: time-point
+       * W: baseline variable
+       * L: time-varying variable
+       * id: unique identifier for each subject
 
     Returns
     -------
@@ -364,15 +367,15 @@ def load_case_control_data():
     Notes
     -----
     Variables included are:
-        id: id number
-        case: whether individual is a case or control (0: control, 1:case)
-        breakfast: whether individual ate breakfast (0: no, 1: yes)
-        lunch: lunch eaten by individual (0: no lunch, 1: salad, 2: chicken)
-        snack: whether individual ate snack (0: no, 1:yes)
-        dinner: whether individual ate dinner (0: no, 1:yes)
-        sleep: hours of sleep last night (0: 6-8 hours, 1: 8+ hours)
-        sunscreen: sunscreen usage (0: no, 1: yes)
-        hand_wash: hand hygiene habits (1: none, 2: poor, 3: average, 4: high, 5: optimal)
+        * id: id number
+        * case: whether individual is a case or control (0: control, 1:case)
+        * breakfast: whether individual ate breakfast (0: no, 1: yes)
+        * lunch: lunch eaten by individual (0: no lunch, 1: salad, 2: chicken)
+        * snack: whether individual ate snack (0: no, 1:yes)
+        * dinner: whether individual ate dinner (0: no, 1:yes)
+        * sleep: hours of sleep last night (0: 6-8 hours, 1: 8+ hours)
+        * sunscreen: sunscreen usage (0: no, 1: yes)
+        * hand_wash: hand hygiene habits (1: none, 2: poor, 3: average, 4: high, 5: optimal)
 
     Returns
     -------
@@ -390,17 +393,17 @@ def load_monotone_missing_data():
     Notes
     -----
     Variables included are:
-        id: id number
-        A: variable with no missing data
-        B: variable with missing data, conditional on A and L
-        C: variable with missing data, conditional on B and L
-        L: variable related to the missingness mechanism
+        * id: id number
+        * A: variable with no missing data
+        * B: variable with missing data, conditional on A and L
+        * C: variable with missing data, conditional on B and L
+        * L: variable related to the missingness mechanism
 
     The above data is monotone missing with all individuals missing C are also missing B.
 
     True means in the observed data:
-        B: 0.4258
-        C: 0.5343
+        * B: 0.4258
+        * C: 0.5343
 
     Returns
     -------

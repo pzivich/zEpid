@@ -6,63 +6,70 @@ from zepid.causal.ipw import propensity_score
 
 
 class AIPTW:
+    r"""Implementation of augmented inverse probablity weight estimator. This is a simple implementation of AIPW
+    and does not account for missing data. It only handles time-fixed confounders and treatments at this point.
+
+    The augment-inverse probability weights are calculated from the following formula
+
+    .. math::
+
+        RD = \left(\frac{Y_{A=1} A}{P(A=1)} - \frac{\hat{Y}_1 (A-P(A=1)}{P(A=1)}\right) - \left(\frac{Y_{A=0} A}{P(A=0)
+        } - \frac{\hat{Y}_0 (A-P(A=1)}{P(A=0)}\right)\\
+        RR = \left(\frac{Y_{A=1} A}{P(A=1)} - \frac{\hat{Y}_1 (A-P(A=1)}{P(A=1)}\right) / \left(\frac{Y_{A=0} A}{P(A=0)
+        } - \frac{\hat{Y}_0 (A-P(A=1)}{P(A=0)}\right)
+
+    Confidence intervals should be calculated using non-parametric bootstrapping
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas DataFrame object containing all variables of interest
+    exposure : str
+        Column name of the exposure variable. Currently only binary is supported
+    outcome : str
+        Column name of the outcome variable. Currently only binary is supported
+
+    Examples
+    --------
+    Set up the environment and the data set
+
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.doublyrobust import AIPTW
+    >>> df = load_sample_data(timevary=False)
+    >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
+    >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
+
+    Initialize the AIPTW model
+
+    >>> aipw = AIPTW(df, exposure='art', outcome='dead')
+
+    Specify the exposure/treatment model
+
+    >>> aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+    Specify the outcome model
+
+    >>> aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+    Estimate the risk difference and risk ratio
+
+    >>> aipw.fit()
+
+    Displaying the results
+
+    >>> aipw.summary()
+
+    Extracting risk difference and risk ratio respectively
+
+    >>> aipw.risk_difference
+    >>> aipw.risk_ratio
+
+    References
+    ----------
+    Funk, M. J., Westreich, D., Wiesen, C., Stürmer, T., Brookhart, M. A., & Davidian, M. (2011). Doubly robust
+    estimation of causal effects. American Journal of Epidemiology, 173(7), 761-767.
+    """
     def __init__(self, df, exposure, outcome):
-        """Implementation of augmented inverse probablity weight estimator. This is a simple implementation of AIPW
-        and does not account for missing data. It only handles time-fixed confounders and treatments at this point.
-
-        The augment-inverse probability weights are calculated from the following formula
-
-        .. math::
-
-            RD = (\frac{Y_{A=1}*A}{\Pr(A=1)} - \frac{\hat{Y}_1*(A-\Pr(A=1)}{\Pr(A=1)}) - (\frac{Y_{A=0}*A}{\Pr(A=0)
-            } - \frac{\hat{Y}_0*(A-\Pr(A=1)}{\Pr(A=0)})
-            RR = (\frac{Y_{A=1}*A}{\Pr(A=1)} - \frac{\hat{Y}_1*(A-\Pr(A=1)}{\Pr(A=1)}) / (\frac{Y_{A=0}*A}{\Pr(A=0)
-            } - \frac{\hat{Y}_0*(A-\Pr(A=1)}{\Pr(A=0)})
-
-        Confidence intervals should be calculated using non-parametric bootstrapping
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas DataFrame object containing all variables of interest
-        exposure : str
-            Column name of the exposure variable. Currently only binary is supported
-        outcome : str
-            Column name of the outcome variable. Currently only binary is supported
-
-        Examples
-        --------
-        Set up the environment and the data set
-        >>>from zepid import load_sample_data, spline
-        >>>from zepid.causal.doublyrobust import AIPTW
-        >>>df = load_sample_data(timevary=False)
-        >>>df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
-        >>>df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
-
-        Initialize the AIPTW model
-        >>>aipw = AIPTW(df, exposure='art', outcome='dead')
-
-        Specify the exposure/treatment model
-        >>>aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-        Specify the outcome model
-        >>>aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-        Estimate the risk difference and risk ratio
-        >>>aipw.fit()
-
-        Displaying the results
-        >>>aipw.summary()
-
-        Extracting risk difference and risk ratio respectively
-        >>>aipw.risk_difference
-        >>>aipw.risk_ratio
-
-        References
-        ----------
-        Funk, M. J., Westreich, D., Wiesen, C., Stürmer, T., Brookhart, M. A., & Davidian, M. (2011). Doubly robust
-        estimation of causal effects. American Journal of Epidemiology, 173(7), 761-767.
-        """
         self.df = df.copy()
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, AIPW will drop all missing data. AIPW will"

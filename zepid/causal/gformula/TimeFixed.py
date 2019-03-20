@@ -7,115 +7,122 @@ from statsmodels.genmod.families import links
 
 
 class TimeFixedGFormula:
+    """Time-fixed implementation of the g-formula, also referred to as the g-computation algorithm formula. This
+    implementation has three options for the treatment courses:
+
+    Currently, only supports binary or continuous outcomes. For binary outcomes a logistic regression
+    model to predict probabilities of outcomes via statsmodels. For continuous outcomes a linear regression
+    model is used to predict outcomes.
+    Binary and multivariate exposures are supported. For binary exposures, a string object of the column name for
+    the exposure of interest should be provided. For multivariate exposures, a list of string objects corresponding
+    to disjoint indicator terms for the exposure should be provided. Multivariate exposures require the user to
+    custom specify treatments when fitting the g-formula. A list of the custom treatment must be provided and be
+    the same length as the number of disjoint indicator columns. See
+    http://zepid.readthedocs.io/en/latest/ for examples (highly recommended)
+
+    Key options for treatments:
+
+        *  all     -all individuals are given treatment
+        * none    -no individuals are given treatment
+        * custom treatments -create a custom treatment. When specifying this, the dataframe must be referred to as 'g'.
+          The following is an example that selects those whose age is 30 or younger and are females:
+          ``treatment="((g['age0']<=30) & (g['male']==0))``
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str, list
+        Column name for exposure variable label or a list of disjoint indicator exposures
+    outcome : str
+        Column name for outcome variable
+    outcome_type : str, optional
+        Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
+    weights : str, optional
+        Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+
+    Examples
+    --------
+    Setting up the environment
+
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.gformula import TimeFixedGFormula
+    >>> df = load_sample_data(timevary=False)
+    >>> df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+    >>> df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+    G-formula with a binary treatment and outcome
+
+    >>> g = TimeFixedGFormula(df, exposure='art', outcome='dead')
+    >>> g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+
+    >>> # Return the estimated marginal outcome under treat-all
+    >>> g.fit(treatment='all')
+    >>> g.marginal_outcome
+
+    >>> # Return the estimated marginal outcome under treat-none
+    >>> g.fit(treatment='all')
+    >>> g.marginal_outcome
+
+    >>> # Return the estimated marginal outcome under custom treatment (treat all females under 40)
+    >>> g.fit(treatment="((g['male']==0) & (g['age0']<=40))")
+    >>> g.marginal_outcome
+
+    G-formula with a categorical treatment and binary outcome
+
+    >>> # Creating categorical variable for CD4 count
+    >>> df['cd4_1'] = np.where(((df['cd40'] >= 200) & (df['cd40'] < 400)), 1, 0)
+    >>> df['cd4_2'] = np.where(df['cd40'] >= 400, 1, 0)
+
+    >>> g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead', exposure_type='categorical')
+    >>> g.outcome_model(model='cd4_1 + cd4_2 + art + male + age0 + age_rs1 + age_rs2 + dvl0')
+
+    >>> # Return marginal outcome under all in reference category (CD4 < 200)
+    >>> g.fit(treatment=["False", "False"])
+
+    >>> # Return marginal outcome under all in category 1 (CD4 >= 200 & CD4 < 400)
+    >>> g.fit(treatment=["True", "False"])
+
+    >>> # Return marginal outcome under all in category 2 (CD4 > 400)
+    >>> g.fit(treatment=["False", "True"])
+
+    G-formula with binary exposure and continuous (normal-distributed) outcome
+
+    >>> g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='normal')
+    >>> g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+
+    G-formula with binary exposure and continuous (Poisson-distributed) outcome
+
+    >>> g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+    >>> g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+
+    G-formula with binary outcome and exposure. With a stochastic treatment/intervention
+
+    >>> g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
+    >>> g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+    >>> g.fit_stochastic(p=0.75)
+
+    G-formula with binary outcome and exposure. With a conditional stochastic treatment/intervention
+
+    >>> g = TimeFixedGFormula(df,exposure='art', outcome='cd4')
+    >>> g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+    >>> g.fit_stochastic(p=[0.65, 0.85], conditional=["g['male']==1", "g['male']==0"])
+
+    References
+    ----------
+    JM Snowden, S Rose, and KM Mortimer. "Implementation of G-computation on a simulated
+    data set: demonstration of a causal inference technique." American Journal of Epidemiology 173.7 (2011):
+    731-738.
+
+    J Ahern, KE Colson, C Margerson-Zilko, A Hubbard, & S Galea. (2016). Predicting the population
+    health impacts of community interventions: the case of alcohol outlets and binge drinking. American
+    Journal of Public Health, 106(11), 1938-1943.
+
+    J Ahern, A Hubbard, & S Galea. (2009). Estimating the effects of potential public health interventions on
+    population disease burden: a step-by-step illustration of causal inference methods. American Journal of
+    Epidemiology, 169(9), 1140-1147.
+    """
     def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', weights=None):
-        """Time-fixed implementation of the g-formula, also referred to as the g-computation algorithm formula. This
-        implementation has three options for the treatment courses:
-
-        Currently, only supports binary or continuous outcomes. For binary outcomes a logistic regression
-        model to predict probabilities of outcomes via statsmodels. For continuous outcomes a linear regression
-        model is used to predict outcomes.
-        Binary and multivariate exposures are supported. For binary exposures, a string object of the column name for
-        the exposure of interest should be provided. For multivariate exposures, a list of string objects corresponding
-        to disjoint indicator terms for the exposure should be provided. Multivariate exposures require the user to
-        custom specify treatments when fitting the g-formula. A list of the custom treatment must be provided and be
-        the same length as the number of disjoint indicator columns. See
-        http://zepid.readthedocs.io/en/latest/ for examples (highly recommended)
-
-        Key options for treatments
-            all     -all individuals are given treatment
-            none    -no individuals are given treatment
-            custom treatments
-                    -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
-                    following is an example that selects those whose age is 30 or younger and are females;
-                    treatment="((g['age0']<=30) & (g['male']==0))
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing the variables of interest
-        exposure : str, list
-            Column name for exposure variable label or a list of disjoint indicator exposures
-        outcome : str
-            Column name for outcome variable
-        outcome_type : str, optional
-            Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
-        weights : str, optional
-            Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
-
-        Examples
-        --------
-        Setting up the environment
-        >>>from zepid import load_sample_data, spline
-        >>>from zepid.causal.gformula import TimeFixedGFormula
-        >>>df = load_sample_data(timevary=False)
-        >>>df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
-        >>>df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
-
-        G-formula with a binary treatment and outcome
-        >>>g = TimeFixedGFormula(df, exposure='art', outcome='dead')
-        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-        >>># Return the estimated marginal outcome under treat-all
-        >>>g.fit(treatment='all')
-        >>>g.marginal_outcome
-
-        >>># Return the estimated marginal outcome under treat-none
-        >>>g.fit(treatment='all')
-        >>>g.marginal_outcome
-
-        >>># Return the estimated marginal outcome under custom treatment (treat all females under 40)
-        >>>g.fit(treatment="((g['male']==0) & (g['age0']<=40))")
-        >>>g.marginal_outcome
-
-        G-formula with a categorical treatment and binary outcome
-        >>># Creating categorical variable for CD4 count
-        >>>df['cd4_1'] = np.where(((df['cd40'] >= 200) & (df['cd40'] < 400)), 1, 0)
-        >>>df['cd4_2'] = np.where(df['cd40'] >= 400, 1, 0)
-
-        >>>g = TimeFixedGFormula(df,exposure=['art_male', 'art_female'], outcome='dead', exposure_type='categorical')
-        >>>g.outcome_model(model='cd4_1 + cd4_2 + art + male + age0 + age_rs1 + age_rs2 + dvl0')
-
-        >>># Return marginal outcome under all in reference category (CD4 < 200)
-        >>>g.fit(treatment=["False", "False"])
-
-        >>># Return marginal outcome under all in category 1 (CD4 >= 200 & CD4 < 400)
-        >>>g.fit(treatment=["True", "False"])
-
-        >>># Return marginal outcome under all in category 2 (CD4 > 400)
-        >>>g.fit(treatment=["False", "True"])
-
-        G-formula with binary exposure and continuous (normal-distributed) outcome
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='normal')
-        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
-
-        G-formula with binary exposure and continuous (Poisson-distributed) outcome
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
-        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
-
-        G-formula with binary outcome and exposure. With a stochastic treatment/intervention
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4', outcome_type='poisson')
-        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
-        >>>g.fit_stochastic(p=0.75)
-
-        G-formula with binary outcome and exposure. With a conditional stochastic treatment/intervention
-        >>>g = TimeFixedGFormula(df,exposure='art', outcome='cd4')
-        >>>g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
-        >>>g.fit_stochastic(p=[0.65, 0.85], conditional=["g['male']==1", "g['male']==0"])
-
-        References
-        ----------
-        JM Snowden, S Rose, and KM Mortimer. "Implementation of G-computation on a simulated
-        data set: demonstration of a causal inference technique." American Journal of Epidemiology 173.7 (2011):
-        731-738.
-
-        J Ahern, KE Colson, C Margerson-Zilko, A Hubbard, & S Galea. (2016). Predicting the population
-        health impacts of community interventions: the case of alcohol outlets and binge drinking. American
-        Journal of Public Health, 106(11), 1938-1943.
-
-        J Ahern, A Hubbard, & S Galea. (2009). Estimating the effects of potential public health interventions on
-        population disease burden: a step-by-step illustration of causal inference methods. American Journal of
-        Epidemiology, 169(9), 1140-1147.
-        """
         self.gf = df.copy()
         self.exposure = exposure
         self.outcome = outcome
@@ -181,11 +188,11 @@ class TimeFixedGFormula:
         ----------
         treatment : str, list
             There are three options available for treatment plans. All, none, or a custom pattern
-            * all     -all individuals are given treatment
-            * none    -no individuals are given treatment
-            * custom  -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
-              following is an example that selects those whose age is 25 or older and are females;
-              treatment="((g['age0']>=25) & (g['male']==0))
+              * all     -all individuals are given treatment
+              * none    -no individuals are given treatment
+              * custom  -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
+                following is an example that selects those whose age is 25 or older and are females;
+                treatment="((g['age0']>=25) & (g['male']==0))
 
         Returns
         -------
