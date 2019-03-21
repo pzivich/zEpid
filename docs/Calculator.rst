@@ -1,4 +1,4 @@
-.. image:: images/zepid_logo.png
+.. image:: images/zepid_logo_small.png
 
 -------------------------------------
 
