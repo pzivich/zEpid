@@ -2,14 +2,6 @@
 Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
 are implemented. Uses matplotlib to generate graphics. Future inclusions include forest plots
 
-Contents
-----------------
-Functional form assessment- func_form_plot()
-Forest plot/ effect measure plot- EffectMeasurePlot()
-P-value distribution plot- pvalue_plot()
-Spaghetti plot- spaghetti_plot()
-Receiver-Operator Curve- roc()
-Dynamic risk plot- dynamic_risk_plot()
 """
 
 import warnings
@@ -47,19 +39,22 @@ class EffectMeasurePlot:
     Examples
     -------------
     Setting up the data to plot
+
     >>> from zepid.graphics import EffectMeasurePlot
-    >>>lab = ['One','Two']
-    >>>emm = [1.01,1.31]
-    >>>lcl = ['0.90',1.01]
-    >>>ucl = [1.11,1.53]
+    >>> lab = ['One','Two']
+    >>> emm = [1.01,1.31]
+    >>> lcl = ['0.90',1.01]
+    >>> ucl = [1.11,1.53]
 
     Setting up the plot, measure labels, and point colors
-    >>>x = EffectMeasurePlot(lab, emm, lcl, ucl)
-    >>>x.labels(effectmeasure='RR')  # Changing label of measure
-    >>>x.colors(pointcolor='r')  # Changing color of the points
+
+    >>> x = EffectMeasurePlot(lab, emm, lcl, ucl)
+    >>> x.labels(effectmeasure='RR')  # Changing label of measure
+    >>> x.colors(pointcolor='r')  # Changing color of the points
 
     Generating matplotlib axes object of forest plot
-    >>>x.plot(t_adjuster=0.13)
+
+    >>> x.plot(t_adjuster=0.13)
     """
     def __init__(self, label, effect_measure, lcl, ucl):
         """Initializes effectmeasure_plot with desired data to plot. All lists should be the same
@@ -294,27 +289,32 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
     Examples
     ------------
     Setting up the environment
-    >>>from zepid import load_sample_data
-    >>>from zepid.graphics import functional_form_plot
-    >>>import matplotlib.pyplot as plt
-    >>>df = load_sample_data(timevary=False)
-    >>>df['cd4_sq'] = df['cd4']**2
+
+    >>> from zepid import load_sample_data
+    >>> from zepid.graphics import functional_form_plot
+    >>> import matplotlib.pyplot as plt
+    >>> df = load_sample_data(timevary=False)
+    >>> df['cd4_sq'] = df['cd4']**2
 
     Creating a functional form plot for a linear functional form
-    >>>functional_form_plot(df, outcome='dead', var='cd4')
-    >>>plt.show()
+
+    >>> functional_form_plot(df, outcome='dead', var='cd4')
+    >>> plt.show()
 
     Functional form assessment for a quadractic functional form
-    >>>functional_form_plot(df, outcome='dead', var='cd4', f_form='cd4 + cd4_sq')
-    >>>plt.show()
+
+    >>> functional_form_plot(df, outcome='dead', var='cd4', f_form='cd4 + cd4_sq')
+    >>> plt.show()
 
     Varying the LOESS value (increased LOESS value to smooth LOESS curve further)
-    >>>functional_form_plot(df, outcome='dead', var='cd4', loess_value=0.5)
-    >>>plt.show()
+
+    >>> functional_form_plot(df, outcome='dead', var='cd4', loess_value=0.5)
+    >>> plt.show()
 
     Removing the LOESS curve and the legend from the plot
-    >>>functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False)
-    >>>plt.show()
+
+    >>> functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False)
+    >>> plt.show()
 
     Adding summary points to the plot. Points are grouped together and their size reflects their relative n
     >>>functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False, points=True)
@@ -359,8 +359,8 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
                 # Binning continuous variable into categories to get "General" functional form
                 categories = int((np.max(rf[var]) - np.min(rf[var])) / 5)
                 if model_results:
-                    print('''A total of ''' + str(categories) + ''' categories were created. If you would like to 
-                            influence  the number of categories the spline is fit to, do the following\n\tIncrease: 
+                    print('''A total of ''' + str(categories) + ''' categories were created. If you would like to
+                            influence  the number of categories the spline is fit to, do the following\n\tIncrease:
                             multiply by constant >1\n\tDecrease: multiply by contast <1 and >0''')
                 rf['vbin'] = pd.qcut(rf[var], q=categories, duplicates='drop').cat.codes
                 djm = smf.glm(outcome + '~ C(vbin)', rf, family=link_dist).fit()
@@ -603,7 +603,7 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     --------------
     risk_exposed : Series
         Pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' where 'timeline'
-        is the time. If you directly output the 1 - survival_function_ from lifelines.KaplanMeierFitter(), this should
+        is the time. If you directly output the ``1 - survival_function_`` from lifelines.KaplanMeierFitter(), this should
         create a valid input
     risk_unexposed : Series
         Pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' where 'timeline'
@@ -731,8 +731,8 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
         ax[0].set_ylim([0, 1])
         ax[0].set_yticks([0, 1])
         ax[0].set_xticks([0, 1])
-        ax[0].set_xlabel("$\Pr(Y|A=0)$")
-        ax[0].set_ylabel("$\Pr(Y|A=1)$")
+        ax[0].set_xlabel("$P(Y|A=0)$")
+        ax[0].set_ylabel("$P(Y|A=1)$")
         ax[0].set_title("Additive")
 
         ax[1].plot([0, 1], [0, 1], '--', color='gray', linewidth=1)
@@ -747,7 +747,7 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
         ax[1].set_ylim([0, 1])
         ax[1].set_yticks([])
         ax[1].set_xticks([0, 1])
-        ax[1].set_xlabel("$\Pr(Y|A=0)$")
+        ax[1].set_xlabel("$P(Y|A=0)$")
         ax[1].set_title("Multiplicative")
 
     elif scale == 'additive':
@@ -764,8 +764,8 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
         ax.set_ylim([0, 1])
         ax.set_yticks([0, 1])
         ax.set_xticks([0, 1])
-        ax.set_xlabel("$\Pr(Y|A=0)$")
-        ax.set_ylabel("$\Pr(Y|A=1)$")
+        ax.set_xlabel("$P(Y|A=0)$")
+        ax.set_ylabel("$P(Y|A=1)$")
         ax.set_title("Additive")
 
     elif scale == 'multiplicative':
@@ -782,8 +782,8 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
         ax.set_ylim([0, 1])
         ax.set_yticks([0, 1])
         ax.set_xticks([0, 1])
-        ax.set_xlabel("$\Pr(Y|A=0)$")
-        ax.set_ylabel("$\Pr(Y|A=1)$")
+        ax.set_xlabel("$P(Y|A=0)$")
+        ax.set_ylabel("$P(Y|A=1)$")
         ax.set_title("Multiplicative")
 
     else:

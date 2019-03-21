@@ -102,120 +102,125 @@ def _missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_result
 
 
 class TMLE:
+    r"""Implementation of a single time-point target maximum likelihood estimator. It uses standard
+    regression models to calculate the estimate of interest. The TMLE estimator allows users are able to directly
+    input predicted outcomes from other methods (like machine learning algorithms from sklearn).
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str
+        Column label for the exposure of interest
+    outcome : str
+        Column label for the outcome of interest
+    measure : str, optional
+        Depreciated. By default risk difference, risk ratio, and odds ratio are all calculated
+    alpha : int, optional
+        Alpha for confidence interval level. Default is 0.05
+    continuous_bound : float, optional
+        Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
+        in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
+        0,1 respectively. Default value is 0.0005
+
+    Notes
+    -----
+    TMLE is a double robust substitution estimator. TMLE obtains the target estimate in a single step. The
+    single-step TMLE is described further by van der Laan. For further details, see the listed references.
+
+    Continuous outcomes must be bounded between 0 and 1. TMLE does this automatically for the user. Additionally,
+    the average treatment effect is estimate is back converted to the original scale of Y. When scaling Y as Y*,
+    some values may take the value of 0 or 1, which breaks a logit(Y*) transformation. To avoid this issue, Y* is
+    bounded by the `continuous_bound` argument. The default is 0.0005, the same as R's tmle
+
+    The following is a general outline of the estimation process for TMLE
+
+    1. Initial estimates for Y are predicted from a regression model. Expected values for each individual are
+    generated under the scenarios of all treated vs all untreated
+
+    .. math::
+
+        E(Y|A, L)
+
+    2. Predicted probabilities are generated from a regression model
+
+    .. math::
+
+        P(A=1|L)
+
+    3. The predicted Y is merged together with the IPW using
+
+    .. math::
+
+        H_a(A=a,L) = \frac{I(A=1)}{\pi_1} - \frac{I(A=0)}{\pi_0}
+
+    for each individual. Afterwards, the predicted Y is set as an offset in the following logit model and used to
+    predict values under each treatment strategy after fitted
+
+    .. math::
+
+        \text{logit}(E(Y|A,L)) = \text{logit}(Y_a) + \sigma  H_a
+
+    4. The targeted Psi is estimated, representing the causal effect of all treated vs. all untreated
+
+    Confidence intervals are constructed using influence curve theory.
+
+    Examples
+    --------
+    Setting up environment
+
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.doublyrobust import TMLE
+    >>> df = load_sample_data(False).dropna()
+    >>> df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+
+    Estimating TMLE using logistic regression
+
+    >>> tmle = TMLE(df, exposure='art', outcome='dead')
+    >>> # Specifying exposure/treatment model
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> # Specifying outcome model
+    >>> tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> # TMLE estimation procedure
+    >>> tmle.fit()
+    >>> # Printing main results
+    >>> tmle.summary()
+    >>> # Extracting risk difference and confidence intervals, respectively
+    >>> tmle.risk_difference
+    >>> tmle.risk_difference_ci
+
+    Estimating TMLE with machine learning algorithm from sklearn
+
+    >>> from sklearn.linear_model import LogisticRegression
+    >>> log1 = LogisticRegression(penalty='l1', random_state=201)
+    >>> tmle = TMLE(df, 'art', 'dead')
+    >>> # custom_model allows specification of machine learning algorithms
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
+    >>> tmle.outcome_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
+    >>> tmle.fit()
+
+    Demonstration of estimating g-model with symmetric bounds
+
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', bound=0.05)
+
+    Demonstration of estimating g-model with asymmetric bounds
+
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', bound=[0.05, 0.9])
+
+    References
+    ----------
+    Schuler, Megan S., and Sherri Rose. "Targeted maximum likelihood estimation for causal inference in
+    observational studies." American journal of epidemiology 185.1 (2017): 65-73.
+
+    Van der Laan, Mark J., and Sherri Rose. Targeted learning: causal inference for observational and experimental
+    data. Springer Science & Business Media, 2011.
+
+    Van Der Laan, Mark J., and Daniel Rubin. "Targeted maximum likelihood learning." The International Journal of
+    Biostatistics 2.1 (2006).
+
+    Gruber, S., & van der Laan, M. J. (2011). tmle: An R package for targeted maximum likelihood estimation.
+    """
     def __init__(self, df, exposure, outcome, measure=None, alpha=0.05, continuous_bound=0.0005):
-        """Implementation of a single time-point target maximum likelihood estimator. It uses standard
-        regression models to calculate the estimate of interest. The TMLE estimator allows users are able to directly
-        input predicted outcomes from other methods (like machine learning algorithms from sklearn).
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing the variables of interest
-        exposure : str
-            Column label for the exposure of interest
-        outcome : str
-            Column label for the outcome of interest
-        measure : str, optional
-            Depreciated. By default risk difference, risk ratio, and odds ratio are all calculated
-        alpha : int, optional
-            Alpha for confidence interval level. Default is 0.05
-        continuous_bound : float, optional
-            Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
-            in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
-            0,1 respectively. Default value is 0.0005
-
-        Notes
-        -----
-        TMLE is a double robust substitution estimator. TMLE obtains the target estimate in a single step. The
-        single-step TMLE is described further by van der Laan. For further details, see the listed references.
-
-        Continuous outcomes must be bounded between 0 and 1. TMLE does this automatically for the user. Additionally,
-        the average treatment effect is estimate is back converted to the original scale of Y. When scaling Y as Y*,
-        some values may take the value of 0 or 1, which breaks a logit(Y*) transformation. To avoid this issue, Y* is
-        bounded by the `continuous_bound` argument. The default is 0.0005, the same as R's tmle
-
-        The following is a general outline of the estimation process for TMLE
-
-        1. Initial estimates for Y are predicted from a regression model. Expected values for each individual are
-        generated under the scenarios of all treated vs all untreated
-
-        .. math::
-
-            E(Y|A, L)
-
-        2. Predicted probabilities are generated from a regression model
-
-        .. math::
-
-            \Pr(A=1|L)
-
-        3. The predicted Y is merged together with the IPW using
-
-        .. math::
-
-            H_a(A=a,L) = \frac{I(A=1)}{\pi_1} - \frac{I(A=0)}{\pi_0}
-
-        for each individual. Afterwards, the predicted Y is set as an offset in the following logit model and used to
-        predict values under each treatment strategy after fitted
-
-        .. math::
-
-            logit(E(Y|A,L)) = logit(Y_a) + \sigma * H_a
-
-        4. The targeted Psi is estimated, representing the causal effect of all treated vs. all untreated
-
-        Confidence intervals are constructed using influence curve theory.
-
-        Examples
-        --------
-        Setting up environment
-        >>>from zepid import load_sample_data, spline
-        >>>from zepid.causal.doublyrobust import TMLE
-        >>>df = load_sample_data(False).dropna()
-        >>>df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
-
-        Estimating TMLE using logistic regression
-        >>>tmle = TMLE(df, exposure='art', outcome='dead')
-        >>># Specifying exposure/treatment model
-        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-        >>># Specifying outcome model
-        >>>tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-        >>># TMLE estimation procedure
-        >>>tmle.fit()
-        >>># Printing main results
-        >>>tmle.summary()
-        >>># Extracting risk difference and confidence intervals, respectively
-        >>>tmle.risk_difference
-        >>>tmle.risk_difference_ci
-
-        Estimating TMLE with machine learning algorithm from sklearn
-        >>>from sklearn.linear_model import LogisticRegression
-        >>>log1 = LogisticRegression(penalty='l1', random_state=201)
-        >>>tmle = TMLE(df, 'art', 'dead')
-        >>># custom_model allows specification of machine learning algorithms
-        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
-        >>>tmle.outcome_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
-        >>>tmle.fit()
-
-        Demonstration of estimating g-model with symmetric bounds
-        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', bound=0.05)
-
-        Demonstration of estimating g-model with asymmetric bounds
-        >>>tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', bound=[0.05, 0.9])
-
-        References
-        ----------
-        Schuler, Megan S., and Sherri Rose. "Targeted maximum likelihood estimation for causal inference in
-        observational studies." American journal of epidemiology 185.1 (2017): 65-73.
-
-        Van der Laan, Mark J., and Sherri Rose. Targeted learning: causal inference for observational and experimental
-        data. Springer Science & Business Media, 2011.
-
-        Van Der Laan, Mark J., and Daniel Rubin. "Targeted maximum likelihood learning." The International Journal of
-        Biostatistics 2.1 (2006).
-
-        Gruber, S., & van der Laan, M. J. (2011). tmle: An R package for targeted maximum likelihood estimation.
-        """
         if measure is not None:
             warnings.warn('As of v0.4.2, TMLE defaults to calculate all implemented measures (RD, RR, OR)', UserWarning)
 
@@ -449,6 +454,7 @@ class TMLE:
                                                             print_results=print_results)
 
         self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
+        # TODO add some bounding procedure here for continuous that are less (or any arbitrary bounds)
         self._fit_outcome_model = True
 
     def fit(self):
@@ -621,8 +627,8 @@ class TMLE:
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
         v = (y - mini) / (maxi - mini)
-        v = np.where(np.isnan(v), np.nan, np.where(v < bound, bound, v))
-        v = np.where(np.isnan(v), np.nan, np.where(v > 1-bound, 1-bound, v))
+        v = np.where(np.less(v, bound), bound, v)
+        v = np.where(np.greater(v, 1-bound), 1-bound, v)
         return v
 
     @staticmethod

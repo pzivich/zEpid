@@ -5,41 +5,44 @@ import matplotlib.pyplot as plt
 
 
 class MonteCarloRR:
+    """Monte Carlo simulation to assess the impact of an unmeasured binary confounder on the results
+    of a study. Observed RR comes from the data analysis, while the RR between the unmeasured confounder
+    and the outcome should be obtained from prior literature or constitute an reasonable guess.
+    Probability of exposure between the groups should also be reasonable numbers.
+
+    Parameters
+    ------------
+    observed_RR : float
+        Observed RR from the data, not accounting for some binary unmeasured confounder
+    sd : float, optional
+        Standard deviation of the observed log(risk ratio). This parameter is optional. If specified, then random
+        error is incorporated into the bias analysis estimates
+    sample : integer, optional
+        Number of MC simulations to run. It is important that the specified size of later distributions
+        matches this number of samples
+
+    Examples
+    -------------
+    Monte Carlo bias analysis with trapezoidal distributions
+
+    >>> from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
+    >>> mcrr = MonteCarloRR(observed_RR=0.73322, sample=10000)
+    >>> mcrr.confounder_RR_distribution(trapezoidal(mini=0.9, mode1=1.1, mode2=1.7, maxi=1.8, size=10000))
+    >>> mcrr.prop_confounder_exposed(trapezoidal(mini=0.25, mode1=0.28, mode2=0.32, maxi=0.35, size=10000))
+    >>> mcrr.prop_confounder_unexposed(trapezoidal(mini=0.55, mode1=0.58, mode2=0.62, maxi=0.65, size=10000))
+    >>> mcrr.fit()
+
+    Printing a summarization of the bias analysis to the console
+
+    >>> mcrr.summary()
+
+    Creating a density plot of the bias analysis results
+
+    >>> import matplotlib.pyplot as plt
+    >>> mcrr.plot()
+    >>> plt.show()
+    """
     def __init__(self, observed_RR, sd=None, sample=10000):
-        """Monte Carlo simulation to assess the impact of an unmeasured binary confounder on the results
-        of a study. Observed RR comes from the data analysis, while the RR between the unmeasured confounder
-        and the outcome should be obtained from prior literature or constitute an reasonable guess.
-        Probability of exposure between the groups should also be reasonable numbers.
-
-        Parameters
-        ------------
-        observed_RR : float
-            Observed RR from the data, not accounting for some binary unmeasured confounder
-        sd : float, optional
-            Standard deviation of the observed log(risk ratio). This parameter is optional. If specified, then random
-            error is incorporated into the bias analysis estimates
-        sample : integer, optional
-            Number of MC simulations to run. It is important that the specified size of later distributions
-            matches this number of samples
-
-        Examples
-        -------------
-        Monte Carlo bias analysis with trapezoidal distributions
-        >>>from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
-        >>>mcrr = MonteCarloRR(observed_RR=0.73322, sample=10000)
-        >>>mcrr.confounder_RR_distribution(trapezoidal(mini=0.9, mode1=1.1, mode2=1.7, maxi=1.8, size=10000))
-        >>>mcrr.prop_confounder_exposed(trapezoidal(mini=0.25, mode1=0.28, mode2=0.32, maxi=0.35, size=10000))
-        >>>mcrr.prop_confounder_unexposed(trapezoidal(mini=0.55, mode1=0.58, mode2=0.62, maxi=0.65, size=10000))
-        >>>mcrr.fit()
-
-        Printing a summarization of the bias analysis to the console
-        >>>mcrr.summary()
-
-        Creating a density plot of the bias analysis results
-        >>>import matplotlib.pyplot as plt
-        >>>mcrr.plot()
-        >>>plt.show()
-        """
         self.RRo = observed_RR
         self._sd = sd
         self.sample = sample
@@ -120,7 +123,7 @@ class MonteCarloRR:
             raise ValueError('"prop_confounder_exposed()" has not been specified')
         if self.pc0 is None:
             raise ValueError('"prop_confounder_unexposed()" has not been specified')
-        
+
         # Monte Carlo
         sf = pd.DataFrame(index=[i for i in range(self.sample)])
         sf['RR_cnf'] = self.RRc_dist
