@@ -7,160 +7,164 @@ from statsmodels.genmod.families import links
 
 
 class TimeVaryGFormula:
+    """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
+    time-varying parametric g-formula uses either the Monte Carlo or the sequential regression (iterative
+    expectations) estimators. The Monte Carlo estimator is useful for survival data and the sequential regression
+    estimator is useful for longitudinal data. This implementation has four options for the treatment courses:
+
+    Options for treatments
+     * all : all individuals are given treatment
+     * none : no individuals are given treatment
+     * natural : individuals retain their observed treatment
+     * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The following is an example that selects those whose age is 25 or older and are females Ex) ``treatment="((g['age0']>=25) & (g['male']==0))``
+
+    Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
+    predict exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the
+    time-varying g-formula. See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str
+        Treatment column label
+    outcome : str
+        Outcome column label
+    time_out : str
+        End of follow-up period time column label
+    time_in : str, optional
+        Start of follow-up period time label. This column is only required for the Monte Carlo estimator
+    method : str, optional
+        Estimator to use estimate the g-formula. Default is the Monte Carlo estimator. The Monte Carlo estimator is
+        requested via 'MonteCarlo' and the sequential regression (iterative conditional) is requested with
+        'SequentialRegression'
+    weights : str, optional
+        Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+
+    Notes
+    -----
+    1) Monte Carlo increases by time units of one. Input dataset should reflect this
+    2) Only binary exposures and binary outcomes are supported
+    3) Binary and continuous covariates are supported
+    4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
+    5) For the Monte Carlo estimator, fit the natural course model first and compare to the observed data. They should
+       be similar
+
+    Process for the Monte Carlo g-formula
+
+        1) run lines in "in_recode"
+        2) time-varying covariates, order ascending in from "labels"
+
+            a) predict time-varying covariate
+            b) run lines in "recode" from "add_covariate_model()"
+
+        3) predict exposure / apply exposure pattern
+        4) predict outcome
+        5) run lines in "out_recode"
+        6) lag variables in "lags"
+        7) append current-time rows to full dataframe
+        8) Repeat till t_max is met
+
+    Process for the sequential regression g-formula
+
+        1) Convert long data set to wide data set
+        2) Identify individuals who followed the counterfactual treatment plan and had the outcome
+        3) Fit a regression model for the outcome at time t for Y
+        4) Predict outcomes under the observed treatment and the counterfactual treatment
+        5) Repeat regression model fitting for t-1 to min(t)
+        6) Take the mean predicted Y at the end to obtain the cumulative probability
+
+    Examples
+    --------
+    Setting up the environment
+
+    >>> import numpy as np
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.gformula import TimeVaryGFormula
+    >>> df = load_sample_data(timevary=True)
+    >>> df['lag_art'] = df['art'].shift(1)
+    >>> df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
+    >>> df['lag_cd4'] = df['cd4'].shift(1)
+    >>> df['lag_cd4'] = np.where(df.groupby('id').cumcount() == 0, df['cd40'], df['lag_cd4'])
+    >>> df['lag_dvl'] = df['dvl'].shift(1)
+    >>> df['lag_dvl'] = np.where(df.groupby('id').cumcount() == 0, df['dvl0'], df['lag_dvl'])
+    >>> df[['age_rs0', 'age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=4, term=2, restricted=True)
+    >>> df['cd40_sq'] = df['cd40'] ** 2
+    >>> df['cd40_cu'] = df['cd40'] ** 3
+    >>> df['cd4_sq'] = df['cd4'] ** 2
+    >>> df['cd4_cu'] = df['cd4'] ** 3
+    >>> df['enter_sq'] = df['enter'] ** 2
+    >>> df['enter_cu'] = df['enter'] ** 3
+
+    Estimating the g-formula with the Monte Carlo estimator
+
+    >>> g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+
+    >>> # Specifying the exposure/treatment model
+    >>> exp_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq +' +
+    >>>        'cd4_cu + dvl + enter + enter_sq + enter_cu'
+    >>> g.exposure_model(exp_m, restriction="g['lag_art']==0")  # restriction enforces intent-to-treat
+
+    >>> # Specifying the outcome model
+    >>> out_m = 'art + male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 +' +
+    >>>        'cd4_sq + cd4_cu + dvl + enter + enter_sq + enter_cu'
+    >>> g.outcome_model(out_m, restriction="g['drop']==0")  # restriction enforces loss-to-follow-up
+
+    >>> # Specifying the time-varying confounder models
+    >>> dvl_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
+    >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
+    >>> g.add_covariate_model(label=1, covariate='dvl', model=dvl_m, var_type='binary')
+    >>> cd4_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
+    >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
+    >>> cd4_recode_scheme = ("g['cd4'] = np.maximum(g['cd4'],1);"  # Recode scheme makes sure variables are recoded
+    >>>                     "g['cd4_sq'] = g['cd4']**2;"
+    >>>                     "g['cd4_cu'] = g['cd4']**3")
+    >>> g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
+
+    >>> # Estimating outcomes under a simulated Markov Chain Monte Carlo for natural course
+    >>> g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",  # Treatment plan (natural course in this case)
+    >>>      lags={'art': 'lag_art',  # Creating variables to lag in the process
+    >>>            'cd4': 'lag_cd4',
+    >>>            'dvl': 'lag_dvl'},
+    >>>      sample=50000,  # Number of resamples to use (should be large number to reduce simulation error)
+    >>>      t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
+    >>>      in_recode=("g['enter_sq'] = g['enter']**2;"
+    >>>                 "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
+    >>> # See website documentation for further instructions
+    >>> # (https://zepid.readthedocs.io/en/latest/Causal.html#g-computation-algorithm-monte-carlo)
+
+    Estimating the g-formula with the Sequential Regression (Interative Conditional) estimator
+    >>> # Setting up data
+    >>> from zepid import load_longitudinal_data
+    >>> df = load_longitudinal_data()
+    >>> g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t',
+    >>>                     method='SequentialRegression')  # Specify for sequential regression estimator
+
+    >>> # Specify the outcome model
+    >>> g.outcome_model('A + L', print_results=False)
+
+    >>> # Estimate the marginal risk under treat-all for max(t)
+    >>> g.fit(treatment="all")
+    >>> print(g.predicted_outcomes)
+
+    >>> # Estimate the marginal risk under treat-all for t=2
+    >>> g.fit(treatment="all", t_max=2)
+    >>> print(g.predicted_outcomes)
+
+    >>> # Estimate the marginal risk under a custom treatment (treat all except at time 2)
+    >>> g.fit(treatment="g['t'] != 2")
+    >>> print(g.predicted_outcomes)
+
+    References
+    ----------
+    Keil, A.P., Edwards, J.K., Richardson, D.B., Naimi, A.I., Cole, S.R. (2014). The Parametric g-Formula for Time-
+    to-Event Data: Intuition and a Worked Example. Epidemiology 25(6), 889-897
+
+    Kreif, N., Tran, L., Grieve, R., De Stavola, B., Tasker, R. C., & Petersen, M. (2017). Estimating the
+    comparative effectiveness of feeding interventions in the pediatric intensive care unit: a demonstration of
+    longitudinal targeted maximum likelihood estimation. American Journal of Epidemiology, 186(12), 1370-1379.
+    """
     def __init__(self, df, idvar, exposure, outcome, time_out, time_in=None, method='MonteCarlo', weights=None):
-        """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
-        time-varying parametric g-formula uses either the Monte Carlo or the sequential regression (iterative
-        expectations) estimators. The Monte Carlo estimator is useful for survival data and the sequential regression
-        estimator is useful for longitudinal data. This implementation has four options for the treatment courses:
-
-        Options for treatments
-        * all : all individuals are given treatment
-        * none : no individuals are given treatment
-        * natural : individuals retain their observed treatment
-        * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The following
-            is an example that selects those whose age is 25 or older and are females
-            Ex) treatment="((g['age0']>=25) & (g['male']==0))
-
-        Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
-        predict exposures and outcomes via statsmodels. See Keil et al. (2014) for a good description of the
-        time-varying g-formula. See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing the variables of interest
-        exposure : str
-            Treatment column label
-        outcome : str
-            Outcome column label
-        time_out : str
-            End of follow-up period time column label
-        time_in : str, optional
-            Start of follow-up period time label. This column is only required for the Monte Carlo estimator
-        method : str, optional
-            Estimator to use estimate the g-formula. Default is the Monte Carlo estimator. The Monte Carlo estimator is
-            requested via 'MonteCarlo' and the sequential regression (iterative conditional) is requested with
-            'SequentialRegression'
-        weights : str, optional
-            Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
-
-        Notes
-        -----
-        1) Monte Carlo increases by time units of one. Input dataset should reflect this
-        2) Only binary exposures and binary outcomes are supported
-        3) Binary and continuous covariates are supported
-        4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
-        5) For the Monte Carlo estimator, fit the natural course model first and compare to the observed data. They should
-           be similar
-
-        Process for the Monte Carlo g-formula
-            1) run lines in "in_recode"
-            2) time-varying covariates, order ascending in from "labels"
-                a) predict time-varying covariate
-                b) run lines in "recode" from "add_covariate_model()"
-            3) predict exposure / apply exposure pattern
-            4) predict outcome
-            5) run lines in "out_recode"
-            6) lag variables in "lags"
-            7) append current-time rows to full dataframe
-            8) Repeat till t_max is met
-
-        Process for the sequential regression g-formula
-            1) Convert long data set to wide data set
-            2) Identify individuals who followed the counterfactual treatment plan and had the outcome
-            3) Fit a regression model for the outcome at time t for Y
-            4) Predict outcomes under the observed treatment and the counterfactual treatment
-            5) Repeat regression model fitting for t-1 to min(t)
-            6) Take the mean predicted Y at the end to obtain the cumulative probability
-
-        Examples
-        --------
-        Setting up the environment
-        >>>import numpy as np
-        >>>from zepid import load_sample_data, spline
-        >>>from zepid.causal.gformula import TimeVaryGFormula
-        >>>df = load_sample_data(timevary=True)
-        >>>df['lag_art'] = df['art'].shift(1)
-        >>>df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
-        >>>df['lag_cd4'] = df['cd4'].shift(1)
-        >>>df['lag_cd4'] = np.where(df.groupby('id').cumcount() == 0, df['cd40'], df['lag_cd4'])
-        >>>df['lag_dvl'] = df['dvl'].shift(1)
-        >>>df['lag_dvl'] = np.where(df.groupby('id').cumcount() == 0, df['dvl0'], df['lag_dvl'])
-        >>>df[['age_rs0', 'age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=4, term=2, restricted=True)
-        >>>df['cd40_sq'] = df['cd40'] ** 2
-        >>>df['cd40_cu'] = df['cd40'] ** 3
-        >>>df['cd4_sq'] = df['cd4'] ** 2
-        >>>df['cd4_cu'] = df['cd4'] ** 3
-        >>>df['enter_sq'] = df['enter'] ** 2
-        >>>df['enter_cu'] = df['enter'] ** 3
-
-        Estimating the g-formula with the Monte Carlo estimator
-        >>>g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
-
-        >>># Specifying the exposure/treatment model
-        >>>exp_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq +' +
-        >>>        'cd4_cu + dvl + enter + enter_sq + enter_cu'
-        >>>g.exposure_model(exp_m, restriction="g['lag_art']==0")  # restriction enforces intent-to-treat
-
-        >>># Specifying the outcome model
-        >>>out_m = 'art + male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 +' +
-        >>>        'cd4_sq + cd4_cu + dvl + enter + enter_sq + enter_cu'
-        >>>g.outcome_model(out_m, restriction="g['drop']==0")  # restriction enforces loss-to-follow-up
-
-        >>># Specifying the time-varying confounder models
-        >>>dvl_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
-        >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
-        >>>g.add_covariate_model(label=1, covariate='dvl', model=dvl_m, var_type='binary')
-        >>>cd4_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
-        >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
-        >>>cd4_recode_scheme = ("g['cd4'] = np.maximum(g['cd4'],1);"  # Recode scheme makes sure variables are recoded
-        >>>                     "g['cd4_sq'] = g['cd4']**2;"
-        >>>                     "g['cd4_cu'] = g['cd4']**3")
-        >>>g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
-
-        >>># Estimating outcomes under a simulated Markov Chain Monte Carlo for natural course
-        >>>g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",  # Treatment plan (natural course in this case)
-        >>>      lags={'art': 'lag_art',  # Creating variables to lag in the process
-        >>>            'cd4': 'lag_cd4',
-        >>>            'dvl': 'lag_dvl'},
-        >>>      sample=50000,  # Number of resamples to use (should be large number to reduce simulation error)
-        >>>      t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
-        >>>      in_recode=("g['enter_sq'] = g['enter']**2;"
-        >>>                 "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
-        >>># See website documentation for further instructions
-        >>># (https://zepid.readthedocs.io/en/latest/Causal.html#g-computation-algorithm-monte-carlo)
-
-        Estimating the g-formula with the Sequential Regression (Interative Conditional) estimator
-        >>># Setting up data
-        >>>from zepid import load_longitudinal_data
-        >>>df = load_longitudinal_data()
-        >>>g = TimeVaryGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t',
-        >>>                     method='SequentialRegression')  # Specify for sequential regression estimator
-
-        >>># Specify the outcome model
-        >>>g.outcome_model('A + L', print_results=False)
-
-        >>># Estimate the marginal risk under treat-all for max(t)
-        >>>g.fit(treatment="all")
-        >>>print(g.predicted_outcomes)
-
-        >>># Estimate the marginal risk under treat-all for t=2
-        >>>g.fit(treatment="all", t_max=2)
-        >>>print(g.predicted_outcomes)
-
-        >>># Estimate the marginal risk under a custom treatment (treat all except at time 2)
-        >>>g.fit(treatment="g['t'] != 2")
-        >>>print(g.predicted_outcomes)
-
-        References
-        ----------
-        Keil, A.P., Edwards, J.K., Richardson, D.B., Naimi, A.I., Cole, S.R. (2014). The Parametric g-Formula for Time-
-        to-Event Data: Intuition and a Worked Example. Epidemiology 25(6), 889-897
-
-        Kreif, N., Tran, L., Grieve, R., De Stavola, B., Tasker, R. C., & Petersen, M. (2017). Estimating the
-        comparative effectiveness of feeding interventions in the pediatric intensive care unit: a demonstration of
-        longitudinal targeted maximum likelihood estimation. American Journal of Epidemiology, 186(12), 1370-1379.
-        """
         warnings.warn("`TimeVaryGFormula` is being replaced by `MonteCarloGFormula` and `IterativeCondGFormula`."
                       "Please use these instead. TimeVaryGFormula is no longer updated and will be removed in "
                       "version 0.6.0", DeprecationWarning)
@@ -361,12 +365,12 @@ class TimeVaryGFormula:
         ----------
         treatment : str
             Treatment strategy. Options include
-            * all : all individuals are given treatment
-            * none : no individuals are given treatment
-            * natural : individuals retain their observed treatment. Only available for MonteCarlo
-            * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
+              * all : all individuals are given treatment
+              * none : no individuals are given treatment
+              * natural : individuals retain their observed treatment. Only available for MonteCarlo
+              * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
                 The following is an example that selects those whose age is 25 or older and are females
-                Ex) treatment="((g['age0']>=25) & (g['male']==0))
+                Ex) ``treatment="((g['age0']>=25) & (g['male']==0))``
         lags : dict, optional
             Dictionary of variable names and the corresponding lagged variable name. This should be specified for all
             variables that are lagged. This parameter is only used for the Monte Carlo g-formula.
@@ -639,121 +643,124 @@ class TimeVaryGFormula:
 
 
 class MonteCarloGFormula:
-    def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
-        """Time-varying implementation of the Monte Carlo g-formula, also referred to as the g-computation algorithm
-        formula. The Monte Carlo estimator is useful for survival data. For an extensive walkthrough of the Monte Carlo
-        g-formula, see Keil et al. 2014 and other listed references. This implementation has four options for the
-        treatment courses:
+    """Time-varying implementation of the Monte Carlo g-formula, also referred to as the g-computation algorithm
+    formula. The Monte Carlo estimator is useful for survival data. For an extensive walkthrough of the Monte Carlo
+    g-formula, see Keil et al. 2014 and other listed references. This implementation has four options for the
+    treatment courses:
 
-        Options for treatments
+    Options for treatments:
+
         * all : all individuals are given treatment
         * none : no individuals are given treatment
         * natural : individuals retain their observed treatment
         * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The
-            following is an example that selects those whose age is 25 or older and are females
-            Ex) treatment="((g['age0']>=25) & (g['male']==0))
+           following is an example that selects those whose age is 25 or older and are females
+           Ex) ``treatment="((g['age0']>=25) & (g['male']==0))``
 
-        Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
-        predict exposures and outcomes via statsmodels.
-        See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
+    Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
+    predict exposures and outcomes via statsmodels.
+    See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
 
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing the variables of interest
-        exposure : str
-            Treatment column label
-        outcome : str
-            Outcome column label
-        time_out : str
-            End of follow-up period time column label
-        time_in : str
-            Start of follow-up period time label
-        weights : str, optional
-            Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str
+        Treatment column label
+    outcome : str
+        Outcome column label
+    time_out : str
+        End of follow-up period time column label
+    time_in : str
+        Start of follow-up period time label
+    weights : str, optional
+        Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
 
-        Notes
-        -----
-        1) Monte Carlo increases by time units of one. Input dataset should reflect this
-        2) Only binary exposures and binary outcomes are supported
-        3) Binary and continuous covariates are supported
-        4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
-        5) Fit the natural course model first and compare to the observed data. They should be similar
+    Notes
+    -----
+    1) Monte Carlo increases by time units of one. Input dataset should reflect this
+    2) Only binary exposures and binary outcomes are supported
+    3) Binary and continuous covariates are supported
+    4) The labeling of the covariate models is important. They are fit in the order that they are labeled!
+    5) Fit the natural course model first and compare to the observed data. They should be similar
 
-        Process for the Monte Carlo g-formula
-            1) run lines in "in_recode"
-            2) time-varying covariates, order ascending in from "labels"
-                a) predict time-varying covariate
-                b) run lines in "recode" from "add_covariate_model()"
-            3) predict exposure / apply exposure pattern
-            4) predict outcome
-            5) run lines in "out_recode"
-            6) lag variables in "lags"
-            7) append current-time rows to full dataframe
-            8) Repeat till t_max is met
+    Process for the Monte Carlo g-formula
+        1) run lines in "in_recode"
+        2) time-varying covariates, order ascending in from "labels"
+            a) predict time-varying covariate
+            b) run lines in "recode" from "add_covariate_model()"
+        3) predict exposure / apply exposure pattern
+        4) predict outcome
+        5) run lines in "out_recode"
+        6) lag variables in "lags"
+        7) append current-time rows to full dataframe
+        8) Repeat till t_max is met
 
-        Examples
-        --------
-        Setting up the environment
-        >>>import numpy as np
-        >>>from zepid import load_sample_data, spline
-        >>>from zepid.causal.gformula import TimeVaryGFormula
-        >>>df = load_sample_data(timevary=True)
-        >>>df['lag_art'] = df['art'].shift(1)
-        >>>df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
-        >>>df['lag_cd4'] = df['cd4'].shift(1)
-        >>>df['lag_cd4'] = np.where(df.groupby('id').cumcount() == 0, df['cd40'], df['lag_cd4'])
-        >>>df['lag_dvl'] = df['dvl'].shift(1)
-        >>>df['lag_dvl'] = np.where(df.groupby('id').cumcount() == 0, df['dvl0'], df['lag_dvl'])
-        >>>df[['age_rs0', 'age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=4, term=2, restricted=True)
-        >>>df['cd40_sq'] = df['cd40'] ** 2
-        >>>df['cd40_cu'] = df['cd40'] ** 3
-        >>>df['cd4_sq'] = df['cd4'] ** 2
-        >>>df['cd4_cu'] = df['cd4'] ** 3
-        >>>df['enter_sq'] = df['enter'] ** 2
-        >>>df['enter_cu'] = df['enter'] ** 3
+    Examples
+    --------
+    Setting up the environment
 
-        Estimating the g-formula with the Monte Carlo estimator
-        >>>g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+    >>> import numpy as np
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.gformula import TimeVaryGFormula
+    >>> df = load_sample_data(timevary=True)
+    >>> df['lag_art'] = df['art'].shift(1)
+    >>> df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
+    >>> df['lag_cd4'] = df['cd4'].shift(1)
+    >>> df['lag_cd4'] = np.where(df.groupby('id').cumcount() == 0, df['cd40'], df['lag_cd4'])
+    >>> df['lag_dvl'] = df['dvl'].shift(1)
+    >>> df['lag_dvl'] = np.where(df.groupby('id').cumcount() == 0, df['dvl0'], df['lag_dvl'])
+    >>> df[['age_rs0', 'age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=4, term=2, restricted=True)
+    >>> df['cd40_sq'] = df['cd40'] ** 2
+    >>> df['cd40_cu'] = df['cd40'] ** 3
+    >>> df['cd4_sq'] = df['cd4'] ** 2
+    >>> df['cd4_cu'] = df['cd4'] ** 3
+    >>> df['enter_sq'] = df['enter'] ** 2
+    >>> df['enter_cu'] = df['enter'] ** 3
 
-        >>># Specifying the exposure/treatment model
-        >>>exp_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq +' +
-        >>>        'cd4_cu + dvl + enter + enter_sq + enter_cu'
-        >>>g.exposure_model(exp_m, restriction="g['lag_art']==0")  # restriction enforces intent-to-treat
+    Estimating the g-formula with the Monte Carlo estimator
 
-        >>># Specifying the outcome model
-        >>>out_m = 'art + male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 +' +
-        >>>        'cd4_sq + cd4_cu + dvl + enter + enter_sq + enter_cu'
-        >>>g.outcome_model(out_m, restriction="g['drop']==0")  # restriction enforces loss-to-follow-up
+    >>> g = TimeVaryGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
 
-        >>># Specifying the time-varying confounder models
-        >>>dvl_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
-        >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
-        >>>g.add_covariate_model(label=1, covariate='dvl', model=dvl_m, var_type='binary')
-        >>>cd4_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
-        >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
-        >>>cd4_recode_scheme = ("g['cd4'] = np.maximum(g['cd4'],1);"  # Recode scheme makes sure variables are recoded
-        >>>                     "g['cd4_sq'] = g['cd4']**2;"
-        >>>                     "g['cd4_cu'] = g['cd4']**3")
-        >>>g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
+    >>> # Specifying the exposure/treatment model
+    >>> exp_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq +' +
+    >>>        'cd4_cu + dvl + enter + enter_sq + enter_cu'
+    >>> g.exposure_model(exp_m, restriction="g['lag_art']==0")  # restriction enforces intent-to-treat
 
-        >>># Estimating outcomes under a simulated Markov Chain Monte Carlo for natural course
-        >>>g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",  # Treatment plan (natural course in this case)
-        >>>      lags={'art': 'lag_art',  # Creating variables to lag in the process
-        >>>            'cd4': 'lag_cd4',
-        >>>            'dvl': 'lag_dvl'},
-        >>>      sample=50000,  # Number of resamples to use (should be large number to reduce simulation error)
-        >>>      t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
-        >>>      in_recode=("g['enter_sq'] = g['enter']**2;"
-        >>>                 "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
-        >>># See website documentation for further instructions
-        >>># (https://zepid.readthedocs.io/en/latest/Causal.html#g-computation-algorithm-monte-carlo)
+    >>> # Specifying the outcome model
+    >>> out_m = 'art + male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 +' +
+    >>>        'cd4_sq + cd4_cu + dvl + enter + enter_sq + enter_cu'
+    >>> g.outcome_model(out_m, restriction="g['drop']==0")  # restriction enforces loss-to-follow-up
 
-        References
-        ----------
-        Keil, A.P., Edwards, J.K., Richardson, D.B., Naimi, A.I., Cole, S.R. (2014). The Parametric g-Formula for Time-
-        to-Event Data: Intuition and a Worked Example. Epidemiology 25(6), 889-897
-        """
+    >>> # Specifying the time-varying confounder models
+    >>> dvl_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
+    >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
+    >>> g.add_covariate_model(label=1, covariate='dvl', model=dvl_m, var_type='binary')
+    >>> cd4_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
+    >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
+    >>> cd4_recode_scheme = ("g['cd4'] = np.maximum(g['cd4'],1);"  # Recode scheme makes sure variables are recoded
+    >>>                     "g['cd4_sq'] = g['cd4']**2;"
+    >>>                     "g['cd4_cu'] = g['cd4']**3")
+    >>> g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
+
+    >>> # Estimating outcomes under a simulated Markov Chain Monte Carlo for natural course
+    >>> g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",  # Treatment plan (natural course in this case)
+    >>>      lags={'art': 'lag_art',  # Creating variables to lag in the process
+    >>>            'cd4': 'lag_cd4',
+    >>>            'dvl': 'lag_dvl'},
+    >>>      sample=50000,  # Number of resamples to use (should be large number to reduce simulation error)
+    >>>      t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
+    >>>      in_recode=("g['enter_sq'] = g['enter']**2;"
+    >>>                 "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
+    >>> # See more examples:
+    >>> # (https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/2-time-varying-treatments/1_MonteCarlo_G-formula.ipynb)
+
+    References
+    ----------
+    Keil, A.P., Edwards, J.K., Richardson, D.B., Naimi, A.I., Cole, S.R. (2014). The Parametric g-Formula for Time-
+    to-Event Data: Intuition and a Worked Example. Epidemiology 25(6), 889-897
+    """
+    def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
         self.gf = df.copy()
         self.idvar = idvar
 
@@ -931,7 +938,7 @@ class MonteCarloGFormula:
             * natural : individuals retain their observed treatment. Only available for MonteCarlo
             * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
                 The following is an example that selects those whose age is 25 or older and are females
-                Ex) treatment="((g['age0']>=25) & (g['male']==0))
+                Ex) ``treatment="((g['age0']>=25) & (g['male']==0))``
         lags : dict, optional
             Dictionary of variable names and the corresponding lagged variable name. This should be specified for all
             variables that are lagged. This parameter is only used for the Monte Carlo g-formula.
@@ -1055,77 +1062,78 @@ class MonteCarloGFormula:
 
 
 class IterativeCondGFormula:
+    """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
+    time-varying parametric g-formula uses the iterative conditional estimator (also referred to as the sequential
+    regression estimator). The iterative conditional estimator is useful for longitudinal data and requires less
+    model specification than the Monte Carlo g-formula. This implementation has three options for treatment courses:
+
+    Options for treatments
+    * all : all individuals are given treatment
+    * none : no individuals are given treatment
+    * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The following
+        is an example that selects those whose age is 25 or older and are females
+        Ex) ``treatment="((g['age0']>=25) & (g['male']==0))``
+
+    Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
+    predict exposures and outcomes via statsmodels. See Kreif et al. 2017 for a good description of the
+    iterative conditional g-formula. See http://zepid.readthedocs.io/en/latest/ for an example
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str
+        Treatment column label
+    outcome : str
+        Outcome column label
+    time_out : str
+        End of follow-up period time column label
+    weights : str, optional
+        Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+
+    Notes
+    -----
+    Process for the sequential regression g-formula
+        1) Convert long data set to wide data set
+        2) Identify individuals who followed the counterfactual treatment plan and had the outcome
+        3) Fit a regression model for the outcome at time t for Y
+        4) Predict outcomes under the observed treatment and the counterfactual treatment
+        5) Repeat regression model fitting for t-1 to min(t)
+        6) Take the mean predicted Y at the end to obtain the cumulative probability
+
+    Examples
+    --------
+    Setting up the environment
+
+    >>> import numpy as np
+    >>> from zepid.causal.gformula import IterativeCondGFormula
+    >>> from zepid import load_longitudinal_data
+    >>> df = load_longitudinal_data()
+    >>> g = IterativeCondGFormula(df, idvar='id', exposure='A', outcome='Y', time_out='t',
+    >>>                     method='SequentialRegression')  # Specify for sequential regression estimator
+
+    >>> # Specify the outcome model
+    >>> g.outcome_model('A + L', print_results=False)
+
+    >>> # Estimate the marginal risk under treat-all for max(t)
+    >>> g.fit(treatment="all")
+    >>> print(g.predicted_outcomes)
+
+    >>> # Estimate the marginal risk under treat-all for t=2
+    >>> g.fit(treatment="all", t_max=2)
+    >>> print(g.predicted_outcomes)
+
+    >>> # Estimate the marginal risk under a custom treatment (treat all except at time 2)
+    >>> g.fit(treatment="g['t'] != 2")
+    >>> print(g.predicted_outcomes)
+
+    References
+    ----------
+    Kreif, N., Tran, L., Grieve, R., De Stavola, B., Tasker, R. C., & Petersen, M. (2017). Estimating the
+    comparative effectiveness of feeding interventions in the pediatric intensive care unit: a demonstration of
+    longitudinal targeted maximum likelihood estimation. American Journal of Epidemiology, 186(12), 1370-1379.
+    """
     def __init__(self, df, idvar, exposure, outcome, time_out, weights=None):
-        """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
-        time-varying parametric g-formula uses the iterative conditional estimator (also referred to as the sequential
-        regression estimator). The iterative conditional estimator is useful for longitudinal data and requires less
-        model specification than the Monte Carlo g-formula. This implementation has three options for treatment courses:
-
-        Options for treatments
-        * all : all individuals are given treatment
-        * none : no individuals are given treatment
-        * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The following
-            is an example that selects those whose age is 25 or older and are females
-            Ex) treatment="((g['age0']>=25) & (g['male']==0))
-
-        Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
-        predict exposures and outcomes via statsmodels. See Kreif et al. 2017 for a good description of the
-        iterative conditional g-formula. See http://zepid.readthedocs.io/en/latest/ for an example
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing the variables of interest
-        exposure : str
-            Treatment column label
-        outcome : str
-            Outcome column label
-        time_out : str
-            End of follow-up period time column label
-        weights : str, optional
-            Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
-
-        Notes
-        -----
-        Process for the sequential regression g-formula
-            1) Convert long data set to wide data set
-            2) Identify individuals who followed the counterfactual treatment plan and had the outcome
-            3) Fit a regression model for the outcome at time t for Y
-            4) Predict outcomes under the observed treatment and the counterfactual treatment
-            5) Repeat regression model fitting for t-1 to min(t)
-            6) Take the mean predicted Y at the end to obtain the cumulative probability
-
-        Examples
-        --------
-        Setting up the environment
-        >>>import numpy as np
-        >>>from zepid.causal.gformula import IterativeCondGFormula
-        >>>from zepid import load_longitudinal_data
-        >>>df = load_longitudinal_data()
-        >>>g = IterativeCondGFormula(df, idvar='id', exposure='A', outcome='Y', time_out='t',
-        >>>                     method='SequentialRegression')  # Specify for sequential regression estimator
-
-        >>># Specify the outcome model
-        >>>g.outcome_model('A + L', print_results=False)
-
-        >>># Estimate the marginal risk under treat-all for max(t)
-        >>>g.fit(treatment="all")
-        >>>print(g.predicted_outcomes)
-
-        >>># Estimate the marginal risk under treat-all for t=2
-        >>>g.fit(treatment="all", t_max=2)
-        >>>print(g.predicted_outcomes)
-
-        >>># Estimate the marginal risk under a custom treatment (treat all except at time 2)
-        >>>g.fit(treatment="g['t'] != 2")
-        >>>print(g.predicted_outcomes)
-
-        References
-        ----------
-        Kreif, N., Tran, L., Grieve, R., De Stavola, B., Tasker, R. C., & Petersen, M. (2017). Estimating the
-        comparative effectiveness of feeding interventions in the pediatric intensive care unit: a demonstration of
-        longitudinal targeted maximum likelihood estimation. American Journal of Epidemiology, 186(12), 1370-1379.
-        """
         self.gf = df.copy()
         self.idvar = idvar
 
@@ -1179,7 +1187,7 @@ class IterativeCondGFormula:
             * natural : individuals retain their observed treatment. Only available for MonteCarlo
             * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
                 The following is an example that selects those whose age is 25 or older and are females
-                Ex) treatment="((g['age0']>=25) & (g['male']==0))
+                Ex) ``treatment="((g['age0']>=25) & (g['male']==0))``
         t_max : int, optional
             Maximum time to run Monte Carlo g-formula until. Default is None, which uses the maximum time of the input
             dataframe.
