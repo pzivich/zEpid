@@ -1,5 +1,9 @@
 ### Change logs
 
+#### v0.5.2:
+While conducting further testing, I found an error in `AIPTW`. I have since corrected it and added additional tests
+to `tests/test_doublyrobust.py`. Please rerun any analyses ran that used `AIPTW`
+
 #### v0.5.1:
 Added a fix to ``TMLE`` for machine learning libraries and missing outcome data
 

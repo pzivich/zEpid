@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import pandas as pd
 import numpy.testing as npt
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
@@ -314,7 +315,6 @@ class TestTMLE:
         npt.assert_allclose(tmle.odds_ratio_ci, [0.213980, 0.978331], rtol=1e-4)
 
 
-
 class TestAIPTW:
 
     @pytest.fixture
@@ -323,6 +323,14 @@ class TestAIPTW:
         df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
         df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
         return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def dat(self):
+        df = pd.DataFrame()
+        df['L'] = [1]*10000 + [0]*40000
+        df['A'] = [1]*2000 + [0]*8000 + [1]*30000 + [0]*10000
+        df['Y'] = [1]*500 + [0]*1500 + [1]*4000 + [0]*4000 + [1]*10000 + [0]*20000 + [1]*4000 + [0]*6000
+        return df
 
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
@@ -353,7 +361,7 @@ class TestAIPTW:
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
         aipw.fit()
-        npt.assert_allclose(aipw.risk_difference, -0.06857139263248598)
+        npt.assert_allclose(aipw.risk_difference, -0.0848510605)
 
     def test_match_rr(self, df):
         aipw = AIPTW(df, exposure='art', outcome='dead')
@@ -361,4 +369,34 @@ class TestAIPTW:
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
         aipw.fit()
-        npt.assert_allclose(aipw.risk_ratio, 0.5844630051393351)
+        npt.assert_allclose(aipw.risk_ratio, 0.5319812235)
+
+    def test_double_robustness(self, dat):
+        aipw = AIPTW(dat, exposure='A', outcome='Y')
+        aipw.exposure_model('L', print_results=False)
+        aipw.outcome_model('L + A + A:L', print_results=False)
+        aipw.fit()
+        both_correct_rd = aipw.risk_difference
+        both_correct_rr = aipw.risk_ratio
+
+        aipw = AIPTW(dat, exposure='A', outcome='Y')
+        aipw.exposure_model('L', print_results=False)
+        aipw.outcome_model('A + L', print_results=False)
+        aipw.fit()
+        wrong_y_rd = aipw.risk_difference
+        wrong_y_rr = aipw.risk_ratio
+
+        # Testing
+        npt.assert_allclose(both_correct_rd, wrong_y_rd)
+        npt.assert_allclose(both_correct_rr, wrong_y_rr)
+
+        aipw = AIPTW(dat, exposure='A', outcome='Y')
+        aipw.exposure_model('1', print_results=False)
+        aipw.outcome_model('A + L + A:L', print_results=False)
+        aipw.fit()
+        wrong_a_rd = aipw.risk_difference
+        wrong_a_rr = aipw.risk_ratio
+
+        # Testing
+        npt.assert_allclose(both_correct_rd, wrong_a_rd)
+        npt.assert_allclose(both_correct_rr, wrong_a_rr)
