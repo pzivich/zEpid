@@ -333,16 +333,18 @@ class IPTW:
             Prints the positivity results to the console but does not return any objects
         """
         self.df['iptw'] = self.Weight
-        if not self.stabilized:
-            warnings.warn('Positivity should only be used for stabilized IPTW', UserWarning)
         self._pos_avg = float(np.mean(self.df['iptw'].dropna()))
         self._pos_max = np.max(self.df['iptw'].dropna())
         self._pos_min = np.min(self.df['iptw'].dropna())
         self._pos_sd = float(np.std(self.df['iptw'].dropna()))
         print('----------------------------------------------------------------------')
-        print('IPW Diagnostic for positivity')
-        print('''If the mean of the weights is far from either the min or max, this may\n indicate the model is
-                incorrect or positivity is violated''')
+        print('IPW Diagnostics')
+        print('----------------------------------------------------------------------')
+        print('If the mean of the weights is far from either the min or max, this may\n indicate the model is '
+              'incorrect or positivity is violated')
+        print('Average weight should be')
+        print('\t1.0 for stabilized')
+        print('\t2.0 for unstabilized')
         print('Standard deviation can help in IPTW model selection')
         print('----------------------------------------------------------------------')
         print('Mean weight:\t\t\t', round(self._pos_avg, decimal))
