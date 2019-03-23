@@ -9,8 +9,8 @@ zEpid
 purpose of this package is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be
 generated through various functions. Current features include:
 
--  Basic epidemiology calculations on pandas dataframes (RR, RD, IRD, etc.)
--  Summary measure calculations 
+-  Basic epidemiology calculations on pandas Dataframes (risk ratio, risk difference, incidence rate difference, etc.)
+-  Summary measure calculations
 -  Graphics (functional form plots, effect measure plots, ROC curves, etc.)
 -  G-computation algorithm
 -  Inverse-probability weights
@@ -32,6 +32,8 @@ Contents:
   Causal
   Sensitivity Analyses
   Reference/index
+  Chat on Gitter <https://gitter.im/zEpid/community>
+  Create a GitHub Issue <https://github.com/pzivich/zEpid/issues>
 
 Installation:
 -------------

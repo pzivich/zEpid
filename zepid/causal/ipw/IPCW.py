@@ -6,67 +6,71 @@ from .utils import propensity_score
 
 
 class IPCW:
+    r"""Calculate the inverse probability of censoring weights. Note that this function will accept either a flat
+    file (one row per individual) or a long format (multiple rows per individual). If a flat file is provided, it
+    must be converted to a long format. This will be done automatically if flat_df is set to True. Additionally, a
+    warning and some comparison statistics are provided. Please verify that they match.
+
+    IPC weights are calculated via logistic regression and weights are cumulative products per unique ID. IPCW can
+    be used to correct for missing at random data by the generated model in weighted Kaplan-Meier curves. The
+    formula used to generate the unstabilized IPCW is
+
+    .. math::
+
+        \pi_i(t) = \prod_{R_k \le t} \frac{1}{P(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
+
+    The stabilized IPCW substitutes predicted probabilities under the specified numerator model into the numerator
+    of the previous equation. It is similar in concept to IPTW and IPMW in that regards.
+
+    Parameters
+    ---------------
+    df : DataFrame
+        Pandas DataFrame object containing all the variables of interest
+    idvar : str
+        String that indicates the column name for a unique identifier for each individual
+    time : str
+        Column name for the ending observation time
+    event : str
+        Column name for the event of interest
+    flat_df : bool, optional
+        Whether the input dataframe only contains a single row per participant. If so, the flat dataframe is
+        converted to a long dataframe. Default is False (for multiple rows per person)
+    enter : str, optional
+        Time participant began being observed. Default is None. This option is only needed when flat_df=True
+
+    Example
+    ------------
+    Setting up the environment
+
+    >>> from zepid import load_sample_data
+    >>> from zepid.causal.ipw import IPCW
+    >>> df = load_sample_data(timevary=True)
+    >>> df['enter_q'] = df['enter'] ** 2
+    >>> df['enter_c'] = df['enter'] ** 3
+    >>> df['age0_q'] = df['age0'] ** 2
+    >>> df['age0_c'] = df['age0'] ** 3
+
+    Calculating IPCW with a long data set
+
+    >>> ipc = IPCW(df, idvar='id', time='enter', event='dead')
+    >>> ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
+    >>>                       model_numerator='enter + enter_q + enter_c')
+    >>> ipc.fit()
+
+    Extracting calculated IPCW
+
+    >>> ipc.Weight
+
+    Calculating IPCW with a wide data set
+
+    >>> df = load_sample_data(False)
+    >>> ipc = IPCW(df, idvar='id', time='t', event='dead', flat_df=True)
+    >>> ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
+    >>>                       model_numerator='enter + enter_q + enter_c')
+    >>> ipc.fit()
+
+    """
     def __init__(self, df, idvar, time, event, flat_df=False, enter=None):
-        """Calculate the inverse probability of censoring weights. Note that this function will accept either a flat
-        file (one row per individual) or a long format (multiple rows per individual). If a flat file is provided, it
-        must be converted to a long format. This will be done automatically if flat_df is set to True. Additionally, a
-        warning and some comparison statistics are provided. Please verify that they match.
-
-        IPC weights are calculated via logistic regression and weights are cumulative products per unique ID. IPCW can
-        be used to correct for missing at random data by the generated model in weighted Kaplan-Meier curves. The
-        formula used to generate the unstabilized IPCW is
-
-        .. math::
-
-            \pi_i(t) = \cumprod_{R_k \le t} \frac{1}{\Pr(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
-
-        The stabilized IPCW substitutes predicted probabilities under the specified numerator model into the numerator
-        of the previous equation. It is similar in concept to IPTW and IPMW in that regards.
-
-        Parameters
-        ---------------
-        df : DataFrame
-            Pandas DataFrame object containing all the variables of interest
-        idvar : str
-            String that indicates the column name for a unique identifier for each individual
-        time : str
-            Column name for the ending observation time
-        event : str
-            Column name for the event of interest
-        flat_df : bool, optional
-            Whether the input dataframe only contains a single row per participant. If so, the flat dataframe is
-            converted to a long dataframe. Default is False (for multiple rows per person)
-        enter : str, optional
-            Time participant began being observed. Default is None. This option is only needed when flat_df=True
-
-        Example
-        ------------
-        Setting up the environment
-        >>>from zepid import load_sample_data
-        >>>from zepid.causal.ipw import IPCW
-        >>>df = load_sample_data(timevary=True)
-        >>>df['enter_q'] = df['enter'] ** 2
-        >>>df['enter_c'] = df['enter'] ** 3
-        >>>df['age0_q'] = df['age0'] ** 2
-        >>>df['age0_c'] = df['age0'] ** 3
-
-        Calculating IPCW with a long data set
-        >>>ipc = IPCW(df, idvar='id', time='enter', event='dead')
-        >>>ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
-        >>>                      model_numerator='enter + enter_q + enter_c')
-        >>>ipc.fit()
-
-        Extracting calculated IPCW
-        >>>ipc.Weight
-
-        Calculating IPCW with a wide data set
-        >>>df = load_sample_data(False)
-        >>>ipc = IPCW(df, idvar='id', time='t', event='dead', flat_df=True)
-        >>>ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
-        >>>                      model_numerator='enter + enter_q + enter_c')
-        >>>ipc.fit()
-
-        """
         if np.sum(df[time].isnull()) > 0:
             raise ValueError('Time is missing for at least one individual in the dataset. They must be removed before '
                              'IPCW can be fit.')

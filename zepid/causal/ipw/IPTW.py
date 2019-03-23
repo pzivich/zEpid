@@ -12,90 +12,93 @@ from zepid.calc import probability_to_odds
 
 
 class IPTW:
+    r"""
+    Calculates the weight for inverse probability of treatment weights through logistic regression.
+    Both stabilized or unstabilized weights are implemented. Default is just to calculate the prevalence
+    of the treatment in the population.
+
+    The formula for stabilized weights is
+
+    .. math::
+
+        \pi_i = \frac{P(A=a)}{P(A=a|L=l)}
+
+    For unstabilized weights
+
+    .. math::
+
+        \pi_i = \frac{1}{P(A=a|L=l)}
+
+    SMR unstabilized weights for weighting to exposed (A=1)
+
+    .. math::
+
+        \pi_i &= 1 \;\;\text{if}\;\; A = 1 \\
+              &= \frac{P(A=1|L=l)}{P(A=0|L=l)} \;\;\text{if}\;\; A = 0
+
+    For SMR weighted to the unexposed (A=0) the equation becomes
+
+    .. math::
+
+        \pi_i &= \frac{P(A=0|L=l)}{P(A=1|L=l)} \;\;\text{if}\;\; A=1 \\
+              &= 1 \;\;\text{if} \;\;A = 0
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe object containing all variables of interest
+    treatment : str
+        Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment,
+        while 0 indicates no treatment
+    stabilized : bool, optional
+        Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
+    standardize : str, optional
+        Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. See
+        Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the
+        exposed or unexposed is also referred to as SMR weighting. Options for standardization are:
+        * 'population'    :   weight to entire population
+        * 'exposed'       :   weight to exposed individuals
+        * 'unexposed'     :   weight to unexposed individuals
+
+    Examples
+    ---------
+    Stabilized IPTW weights
+
+    >>> import zepid as ze
+    >>> from zepid.causal.ipw import IPTW
+    >>> df = ze.load_sample_data(False)
+    >>> ipt = IPTW(df, treatment='art', stabilized=True)
+    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.fit()
+
+    Unstabilized IPTW weights
+
+    >>> ipt = IPTW(df, treatment='art', stabilized=False)
+    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.fit()
+
+    SMR weight to the exposed population
+
+    >>> ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
+    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.fit()
+
+    Diagnostics:
+
+    >>> import matplotlib.pyplot as plt
+    >>> ipt.positivity()
+    >>> print(ipt.standardized_mean_differences())
+
+    >>> ipt.plot_boxplot()
+    >>> plt.show()
+
+    >>> ipt.plot_kde()
+    >>> plt.show()
+
+    >>> ipt.plot_love()
+    >>> plt.show()
+    """
     def __init__(self, df, treatment, stabilized=True, standardize='population'):
-        """
-        Calculates the weight for inverse probability of treatment weights through logistic regression.
-        Both stabilized or unstabilized weights are implemented. Default is just to calculate the prevalence
-        of the treatment in the population.
-
-        The formula for stabilized weights is
-
-        .. math::
-
-            \pi_i = \frac{\Pr(A=a)}{\Pr(A=a|L=l)}
-
-        For unstabilized weights
-
-        .. math::
-
-            \pi_i = \frac{1}{\Pr(A=a|L=l)}
-
-        SMR unstabilized weights for weighting to exposed (A=1)
-
-        .. math::
-
-            \pi_i &= 1 if A = 1 \\
-                  &= \frac{\Pr(A=1|L=l)}{\Pr(A=0|L=l)} if A = 0
-
-        For SMR weighted to the unexposed (A=0) the equation becomes
-
-        .. math::
-
-            \pi_i &= \frac{\Pr(A=0|L=l)}{\Pr(A=1|L=l)} if A=1 \\
-                  &= 1 if A = 0
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe object containing all variables of interest
-        treatment : str
-            Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment,
-            while 0 indicates no treatment
-        stabilized : bool, optional
-            Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
-        standardize : str, optional
-            Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. See
-            Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the
-            exposed or unexposed is also referred to as SMR weighting. Options for standardization are:
-            * 'population'    :   weight to entire population
-            * 'exposed'       :   weight to exposed individuals
-            * 'unexposed'     :   weight to unexposed individuals
-
-        Examples
-        --------
-        Stabilized IPTW weights
-        >>>import zepid as ze
-        >>>from zepid.causal.ipw import IPTW
-        >>>df = ze.load_sample_data(False)
-        >>>ipt = IPTW(df, treatment='art', stabilized=True)
-        >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-        >>>ipt.fit()
-
-        Unstabilized IPTW weights
-        >>>ipt = IPTW(df, treatment='art', stabilized=False)
-        >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-        >>>ipt.fit()
-
-        SMR weight to the exposed population
-        >>>ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
-        >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-        >>>ipt.fit()
-
-        Diagnostics:
-        >>>ipt.positivity()
-
-        >>>print(ipt.standardized_mean_differences())
-
-        >>>import matplotlib.pyplot as plt
-        >>>ipt.plot_boxplot()
-        >>>plt.show()
-
-        >>>ipt.plot_kde()
-        >>>plt.show()
-
-        >>>ipt.plot_love()
-        >>>plt.show()
-        """
         self.denominator_model = None
         self.numerator_model = None
         self.__mdenom = None
