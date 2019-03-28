@@ -1744,7 +1744,6 @@ def create_spline_transform(array, n_knots=3, knots=None, term=1, restricted=Fal
             return V
 
         else:
-            rsf = sf.copy()
             for i in range(len(pts) - 1):
                 V[:, i] = np.where(x > pts[i], V[:, i] - V[:, -1], 0)
                 V[:, i] = np.where(pd.isnull(x), np.nan, V[:, i])
