@@ -530,33 +530,32 @@ class MonteCarloGFormula:
 
 
 class IterativeCondGFormula:
-    def __init__(self, df, idvar, exposure, outcome, time_out, weights=None):
+    def __init__(self, df, exposures, outcomes, weights=None):
         """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
         time-varying parametric g-formula uses the iterative conditional estimator (also referred to as the sequential
         regression estimator). The iterative conditional estimator is useful for longitudinal data and requires less
-        model specification than the Monte Carlo g-formula. This implementation has three options for treatment courses:
+        model specification than the Monte Carlo g-formula.
 
-        Options for treatments
-        * all : all individuals are given treatment
-        * none : no individuals are given treatment
-        * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g' The following
-            is an example that selects those whose age is 25 or older and are females
-            Ex) treatment="((g['age0']>=25) & (g['male']==0))
+        For estimation, this model accepts data in a wide format. This is unlike the `MonteCarloGFormula`. Rather each
+        variable counts for a specific time period. Each row corresponds to a single observed individual, with columns
+        designating their variables over time.
+
+        Unlike the other g-formula implementations, treatments are specified by providing an array of treatments. This
+        array can either we the same length as the input data set, or it can have a length of 1. If a length of 1, the
+        treatment plan is applied to everyone in the sample.
 
         Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
-        predict exposures and outcomes via statsmodels. See Kreif et al. 2017 for a good description of the
-        iterative conditional g-formula. See http://zepid.readthedocs.io/en/latest/ for an example
+        predict exposures and outcomes via statsmodels. See Kreif et al. 2017 for a description of the
+        iterative conditional g-formula estimation procedure. See http://zepid.readthedocs.io/en/latest/ for an example
 
         Parameters
         ----------
         df : DataFrame
             Pandas dataframe containing the variables of interest
-        exposure : str
+        exposures : list, array
             Treatment column label
-        outcome : str
+        outcomes : list,array
             Outcome column label
-        time_out : str
-            End of follow-up period time column label
         weights : str, optional
             Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
 
@@ -572,27 +571,6 @@ class IterativeCondGFormula:
 
         Examples
         --------
-        Setting up the environment
-        >>>from zepid.causal.gformula import IterativeCondGFormula
-        >>>from zepid import load_longitudinal_data
-        >>>df = load_longitudinal_data()
-        >>>g = IterativeCondGFormula(df, idvar='id', exposure='A', outcome='Y', time_out='t',
-        >>>                     method='SequentialRegression')  # Specify for sequential regression estimator
-
-        >>># Specify the outcome model
-        >>>g.outcome_model('A + L', print_results=False)
-
-        >>># Estimate the marginal risk under treat-all for max(t)
-        >>>g.fit(treatment="all")
-        >>>print(g.predicted_outcomes)
-
-        >>># Estimate the marginal risk under treat-all for t=2
-        >>>g.fit(treatment="all", t_max=2)
-        >>>print(g.predicted_outcomes)
-
-        >>># Estimate the marginal risk under a custom treatment (treat all except at time 2)
-        >>>g.fit(treatment="g['t'] != 2")
-        >>>print(g.predicted_outcomes)
 
         References
         ----------
@@ -600,114 +578,87 @@ class IterativeCondGFormula:
         comparative effectiveness of feeding interventions in the pediatric intensive care unit: a demonstration of
         longitudinal targeted maximum likelihood estimation. American Journal of Epidemiology, 186(12), 1370-1379.
         """
-        self.gf = df.copy()
-        self.idvar = idvar
+        self.gf = df.reset_index().copy()
 
-        # Checking that treatment is binary
-        if df[exposure].dropna().value_counts().index.isin([0, 1]).all():
-            self.exposure = exposure
-        else:
-            raise ValueError('Only binary treatments/exposures are currently implemented')
+        # Check same number of treatments and outcomes
+        if len(exposures) != len(outcomes):
+            raise ValueError("The number of exposures must equal the number of outcomes")
 
+        self.exposure = exposures
         # Checking that outcome is binary
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self.outcome = outcome
+        if df[outcomes].dropna().value_counts().index.isin([0, 1]).all():
+            self.outcome = outcomes
         else:
             raise ValueError('Only binary outcomes are currently implemented')
 
+        # Checking for recurrent outcomes. Recurrent are not currently supported
+        # TODO add version to make missing data after observed outcome?
+        if pd.Series(df[self.outcome].sum(axis=1, skipna=True) > 1).any():
+            raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not currently '
+                             'supported')
+
         self.exp_model = None
         self.out_model = None
-        self.time_out = time_out
         self._outcome_model_fit = False
         self._weights = weights
         self.marginal_outcome = None
         self._modelform = None
         self._printseqregresults = None
 
-    def outcome_model(self, model, print_results=True):
-        """Add a specified regression model for the outcome. Must be specified before the fit function.
+    def outcome_model(self, models, print_results=True):
+        """Add a specified regression model for the outcome. The number of regression models should match the number
+        of outcomes specified. Must be specified before the fit function.
 
         Parameters
         ----------
-        model:
+        models: list, array
             Variables to include in the model for predicting the outcome. Must be contained within the input
             pandas dataframe when initialized. Format follows patsy standards
             For example) 'var1 + var2 + var3 + var4'
         print_results : bool, optional
             Whether to print the logistic regression model results to the terminal. Default is True
         """
-        self._modelform = model
+        self._modelform = models
         self._printseqregresults = print_results
         self._outcome_model_fit = True
 
-    def fit(self, treatment, t_max=None):
+    def fit(self, treatments):
         """Estimate the counterfactual outcomes under the specified treatment plan using the previously specified
         regression models
 
         Parameters
         ----------
-        treatment : str
+        treatments : list, array
             Treatment strategy. Options include
             * all : all individuals are given treatment
             * none : no individuals are given treatment
             * custom : create a custom treatment. When specifying this, the dataframe must be  referred to as 'g'
                 The following is an example that selects those whose age is 25 or older and are females
                 Ex) treatment="((g['age0']>=25) & (g['male']==0))
-        t_max : int, optional
-            Maximum time to run Monte Carlo g-formula until. Default is None, which uses the maximum time of the input
-            dataframe.
         """
         if self._outcome_model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
-        if (type(treatment) != str) and (type(treatment) != list):
-            raise ValueError('Specified treatment must be a string object')
 
-        # TODO allow option to include different estimation models for each time point or the same model
-        # If custom treatment, it gets evaluated here
-        g = self.gf
-        if treatment not in ['all', 'none']:
-            g['__indicator'] = np.where(eval(treatment), 1, 0)
+        treatment = np.array(treatments)
+        if len(self.exposure) != treatment.shape[1]:
+            raise ValueError("The number of exposure variables and the number of treatments must be equal")
 
-        # Restricting based on tmax argument
-        if t_max is None:
+        # Check array of treatments is either 1 row or same number of rows as input data
+        if treatment.shape[0] == 1:
+            treatment = np.tile(treatment, (self.gf[self.exposure].shape[0], 1))
+        elif treatment.shape[0] != self.gf[self.exposure].shape[0]:
             pass
-        elif t_max in list(self.gf[self.time_out].unique()):
-            g = g.loc[g[self.time_out] <= t_max].copy()
         else:
-            warnings.warn("The t_max argument specifies a time that is not observed in the data. All times less than"
-                          "the specified t_max argument included in the estimation procedure", UserWarning)
-            g = g.loc[g[self.time_out] <= t_max].copy()
-
-        # Converting dataframe from long-to-wide for easier estimation
-        column_labels = list(g.columns)  # Getting all column labels (important to match with formula)
-        df = self._long_to_wide(df=g, id=self.idvar, t=self.time_out)
-        linkdist = sm.families.family.Binomial()
-        rt_points = sorted(list(g[self.time_out].unique()), reverse=True)  # Getting all t's to backward loop
-        t_points = sorted(list(g[self.time_out].unique()), reverse=False)  # Getting all t's to forward loop
-
-        # Checking for recurrent outcomes. Recurrent are not currently supported
-        if pd.Series(df[[self.outcome + '_' + str(t) for t in sorted(t_points, reverse=False)
-                         ]].sum(axis=1, skipna=True) > 1).any():
-            raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not currently '
-                             'supported')
+            raise ValueError("Specified treatments must be either a single row or have the same number of rows as the "
+                             "input DataFrame")
 
         # Step 1: Creating indicator for individuals who followed counterfactual outcome
+        adhere = self._identify_adherence_(observations=np.matrix(self.gf[self.exposure]), plan=treatment)
+        # TODO get this to work!! code does what I want it to do! Hooray
+        # print(marks.where(~marks.any(axis=1), marks.fillna(9), axis=1))
+
         treat_t_points = []
         for t in t_points:
-            # Following treatment strategy
-            # alternative: if treat all, can do simple multiplication. if treat none, can do (1-A) simple multiplication
-            if treatment == 'all':
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 0, np.nan)
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 1,
-                                                       df['__indicator_' + str(t)])
-            elif treatment == 'none':
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 0, 1, np.nan)
-                df['__indicator_' + str(t)] = np.where(df[self.exposure + '_' + str(t)] == 1, 0,
-                                                       df['__indicator_' + str(t)])
-            else:  # custom exposure pattern
-                pass
-
-            treat_t_points.append('__indicator_' + str(t))
             df['__check_' + str(t)] = df[treat_t_points + [self.outcome + '_' + str(t)]].prod(axis=1, skipna=True)
 
             # This following check carries forward the outcome under the counterfactual treatment
@@ -773,15 +724,15 @@ class IterativeCondGFormula:
                                                weights=df[self._weights + '_' + str(t_points[0])])
 
     @staticmethod
-    def _long_to_wide(df, id, t):
-        """Hidden function for sequential regression that converts from long to wide data set
+    def _identify_adherence_(observations, plan):
+        """Background function to identify the adherence to the treatment plan. These individuals are special cases in
+        the iterative conditional g-formula. They have their outcomes carried forward (since their counterfactual
+        outcome under that treatment plan is that outcome
         """
-        reshaped = []
-        for c in df.columns:
-            if c == id or c == t:
-                pass
-            else:
-                df['v'] = c + '_' + df[t].astype(str)
-                reshaped.append(df.pivot(index='id', columns='v', values=c))
+        df = pd.DataFrame()
+        for i in range(observations.shape[1]):
+            # This code looks terrible due to numpy's matrix formulation and I don't have a better solution...
+            df['_indicator_' + str(i)] = np.asarray(np.all(observations[:, 0:i + 1] == plan[:, 0:i + 1],
+                                                    axis=1)).reshape(-1)
 
-        return pd.concat(reshaped, axis=1)
+        return df
