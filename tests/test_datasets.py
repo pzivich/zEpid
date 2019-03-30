@@ -112,14 +112,6 @@ class TestLongitudinal:
         df = ze.load_longitudinal_data()
         assert isinstance(df, type(pd.DataFrame()))
 
-    def test_correct_ncols(self):
-        df = ze.load_longitudinal_data()
-        assert df.shape[1] == 6
-
-    def test_correct_nobs(self):
-        df = ze.load_longitudinal_data()
-        assert df.shape[0] == 2330
-
 
 class TestBingeData:
 

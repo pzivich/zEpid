@@ -5,7 +5,7 @@ import numpy.testing as npt
 import pandas.testing as pdt
 from scipy.stats import logistic
 
-from zepid import load_sample_data, spline, load_gvhd_data
+from zepid import load_sample_data, spline, load_gvhd_data, load_longitudinal_data
 from zepid.causal.gformula import TimeFixedGFormula, MonteCarloGFormula, IterativeCondGFormula
 
 
@@ -271,58 +271,6 @@ class TestTimeFixedGFormula:
 
 class TestTimeVaryGFormula:
 
-    @pytest.fixture
-    def longdata(self):
-        df = pd.DataFrame()
-        df['id'] = [1, 1, 1]
-        df['t'] = [0, 1, 2]
-        df['A'] = [0, 1, 1]
-        df['Y'] = [0, 0, 1]
-        df['W'] = [5, 5, 5]
-        df['L'] = [25, 20, 31]
-        return df
-
-    @pytest.fixture
-    def data(self):
-        df = pd.DataFrame()
-        np.random.seed(555)
-        n = 1000
-        df['W'] = np.random.normal(size=n)
-        df['L1'] = np.random.normal(size=n) + df['W']
-        df['A1'] = np.random.binomial(1, size=n, p=logistic.cdf(df['L1']))
-        df['Y1'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L1'] - 0.3 * df['A1']))
-        df['L2'] = 0.5 * df['L1'] - 0.9 * df['A1'] + np.random.normal(size=n)
-        df['A2'] = np.random.binomial(1, size=n, p=logistic.cdf(1.5 * df['A1'] + 0.8 * df['L2']))
-        df['A2'] = np.where(df['A1'] == 1, 1, df['A2'])
-        df['Y2'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L2'] - 0.3 * df['A2']))
-        df['Y2'] = np.where(df['Y1'] == 1, np.nan, df['Y2'])
-        df['L3'] = 0.5 * df['L2'] - 0.9 * df['A2'] + np.random.normal(size=n)
-        df['A3'] = np.random.binomial(1, size=n, p=logistic.cdf(1.5 * df['A2'] + 0.8 * df['L3']))
-        df['A2'] = np.where(df['A1'] == 1, 1, df['A2'])
-        df['Y3'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L3'] - 0.3 * df['A3']))
-        df['Y3'] = np.where((df['Y2'] == 1) | (df['Y1'] == 1), np.nan, df['Y3'])
-        df['id'] = df.index
-        d1 = df[['id', 'Y1', 'A1', 'L1', 'W']].copy()
-        d1.rename(mapper={'Y1': 'Y', 'A1': 'A', 'L1': 'L'}, axis='columns', inplace=True)
-        d1['t0'] = 0
-        d1['t'] = 1
-        d1['t2'] = 0
-        d1['w'] = 2
-        d2 = df[['id', 'Y2', 'A2', 'L2', 'W']].copy()
-        d2.rename(mapper={'Y2': 'Y', 'A2': 'A', 'L2': 'L'}, axis='columns', inplace=True)
-        d2['t0'] = 1
-        d2['t'] = 2
-        d2['t2'] = 5
-        d2['w'] = 2
-        d3 = df[['id', 'Y3', 'A3', 'L3', 'W']].copy()
-        d3.rename(mapper={'Y3': 'Y', 'A3': 'A', 'L3': 'L'}, axis='columns', inplace=True)
-        d3['t0'] = 2
-        d3['t'] = 3
-        d3['t2'] = 10
-        d3['w'] = 2
-        df = pd.concat([d1, d2, d3], sort=False).dropna()
-        return df
-
     def test_error_continuous_treatment(self, sim_t_fixed_data):
         with pytest.raises(ValueError):
             MonteCarloGFormula(sim_t_fixed_data, idvar='id', exposure='W1', outcome='Y', time_out='t', time_in='t0')
@@ -428,43 +376,59 @@ class TestTimeVaryGFormula:
 
     # TODO still need to come up with an approach to test MC-g-formula results...
 
-    def test_long_to_wide_conversion(self, longdata):
-        g = IterativeCondGFormula(longdata, idvar='id', exposure='A', outcome='Y', time_out='t')
-        lf = g._long_to_wide(longdata, id='id', t='t')
-        expected_lf = pd.DataFrame.from_records([{'A_0': 0, 'A_1': 1, 'A_2': 1,
-                                                  'Y_0': 0, 'Y_1': 0, 'Y_2': 1,
-                                                  'W_0': 5, 'W_1': 5, 'W_2': 5,
-                                                  'L_0': 25, 'L_1': 20, 'L_2': 31,
-                                                  'id': 1}]).set_index('id')
-        pdt.assert_frame_equal(lf, expected_lf[['A_0', 'A_1', 'A_2', 'Y_0', 'Y_1', 'Y_2', 'W_0', 'W_1', 'W_2', 'L_0',
-                                                'L_1', 'L_2']], check_names=False)
 
-    def test_error_iterative_recurrent_outcomes(self):
+class TestIterativeGFormula:
+
+    @pytest.fixture
+    def simple_data(self):
         df = pd.DataFrame()
-        df['id'] = [1, 1, 1]
-        df['Y'] = [0, 1, 1]
-        df['A'] = [0, 1, 1]
-        df['t'] = [0, 1, 2]
-        g = IterativeCondGFormula(df, idvar='id', exposure='A', outcome='Y', time_out='t')
-        g.outcome_model('A', print_results=False)
-        with pytest.raises(ValueError):
-            g.fit(treatment='all')
+        df['Y1'] = [0, 1, 1]
+        df['A1'] = [0, 1, 1]
+        df['Y2'] = [0, 1, 0]
+        df['A2'] = [0, 1, 1]
+        return df
 
-    def test_iterative_error_treatment_type(self, sim_t_fixed_data):
-        g = IterativeCondGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t')
+    def test_error_misalignment(self, simple_data):
         with pytest.raises(ValueError):
-            g.fit(treatment=1)
+            g = IterativeCondGFormula(simple_data, exposures=['A1', 'A2'], outcomes=['Y1'])
+        with pytest.raises(ValueError):
+            g = IterativeCondGFormula(simple_data, exposures=['A1'], outcomes=['Y1', 'Y2'])
 
-    def test_error_iterative_no_outcome(self, sim_t_fixed_data):
-        g = IterativeCondGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t')
+    def test_no_continuous_outcomes(self):
+        df = pd.DataFrame()
+        df['Y1'] = [0, 0.2, 1]
+        df['A1'] = [0, 1, 1]
         with pytest.raises(ValueError):
-            g.fit(treatment='all')
+            g = IterativeCondGFormula(df, exposures=['A1'], outcomes=['Y1'])
+
+    def test_treatment_dimension_error1(self):
+        df = load_longitudinal_data()
+        icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
+        icgf.outcome_model(models=['A1 + L1', 'A2 + L2', 'A3 + L3'], print_results=False)
+        with pytest.raises(ValueError):
+            icgf.fit(treatments=[1, 1])
+
+    def test_treatment_dimension_error2(self):
+        df = load_longitudinal_data()
+        icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
+        icgf.outcome_model(models=['A1 + L1', 'A2 + L2', 'A3 + L3'], print_results=False)
+        with pytest.raises(ValueError):
+            icgf.fit(treatments=[[1, 1, 1], [0, 0, 0]])
+
+    def test_error_iterative_recurrent_outcomes(self, simple_data):
+        with pytest.raises(ValueError):
+            g = IterativeCondGFormula(simple_data, exposures=['A1', 'A2'], outcomes=['Y1', 'Y2'])
+
+    def test_error_iterative_no_outcome(self, simple_data):
+        g = IterativeCondGFormula(simple_data, exposures=['A1'], outcomes=['Y1'])
+        with pytest.raises(ValueError):
+            g.fit(treatments=[1])
 
     def test_iterative_for_single_t(self, sim_t_fixed_data):
         # Estimating sequential regression for single t
-        gt = IterativeCondGFormula(sim_t_fixed_data, idvar='id', exposure='A', outcome='Y', time_out='t')
-        gt.outcome_model('A + W1_sq + W2 + W3', print_results=False)
-        gt.fit(treatment="all")
+        gt = IterativeCondGFormula(sim_t_fixed_data, exposures=['A'], outcomes=['Y'])
+        gt.outcome_model(['A + W1_sq + W2 + W3'], print_results=False)
+        gt.fit(treatments=[1])
 
         # Estimating with TimeFixedGFormula
         gf = TimeFixedGFormula(sim_t_fixed_data, exposure='A', outcome='Y')
@@ -474,48 +438,39 @@ class TestTimeVaryGFormula:
         # Expected behavior; same results between the estimation methods
         npt.assert_allclose(gf.marginal_outcome, gt.marginal_outcome)
 
-    def test_match_r_ltmle(self, data):
-        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t')
-        g.outcome_model('A + L', print_results=False)
-        g.fit(treatment="all")
-        npt.assert_allclose(g.marginal_outcome, 0.4051569, rtol=1e-5)
-        g.fit(treatment="none")
-        npt.assert_allclose(g.marginal_outcome, 0.661226, rtol=1e-5)
+    def test_match_r_ltmle1(self):
+        df = load_longitudinal_data()
+        icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
+        icgf.outcome_model(models=['A1 + L1', 'A2 + L2', 'A3 + L3'], print_results=False)
+        icgf.fit(treatments=[1, 1, 1])
+        npt.assert_allclose(icgf.marginal_outcome, 0.4140978, rtol=1e-5)
+        icgf.fit(treatments=[0, 0, 0])
+        npt.assert_allclose(icgf.marginal_outcome, 0.6464508, rtol=1e-5)
 
-    def test_iterative_gap_time(self, data):
-        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2')
-        g.outcome_model('A + L', print_results=False)
-        g.fit(treatment="all")
-        npt.assert_allclose(g.marginal_outcome, 0.4051569, rtol=1e-5)
-        g.fit(treatment="none")
-        npt.assert_allclose(g.marginal_outcome, 0.661226, rtol=1e-5)
+    def test_match_r_ltmle2(self):
+        df = load_longitudinal_data()
+        icgf = IterativeCondGFormula(df, exposures=['A1', 'A2'], outcomes=['Y1', 'Y2'])
+        icgf.outcome_model(models=['A1 + L1', 'A2 + L2'], print_results=False)
+        icgf.fit(treatments=[1, 1])
+        npt.assert_allclose(icgf.marginal_outcome, 0.3349204, rtol=1e-5)
+        icgf.fit(treatments=[0, 0])
+        npt.assert_allclose(icgf.marginal_outcome, 0.5122774, rtol=1e-5)
 
-    def test_iterative_weights1(self, data):
-        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2', weights='w')
-        g.outcome_model('A + L', print_results=False)
-        g.fit(treatment="all")
-        npt.assert_allclose(g.marginal_outcome, 0.4051569, rtol=1e-5)
-        g.fit(treatment="none")
-        npt.assert_allclose(g.marginal_outcome, 0.661226, rtol=1e-5)
+    def test_match_r_ltmle3(self):
+        df = load_longitudinal_data()
+        icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
+        icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2', 'A3 + A2 + L3'], print_results=False)
+        icgf.fit(treatments=[1, 1, 1])
+        npt.assert_allclose(icgf.marginal_outcome, 0.4334696, rtol=1e-5)
+        icgf.fit(treatments=[0, 0, 0])
+        npt.assert_allclose(icgf.marginal_outcome, 0.6282985, rtol=1e-5)
 
-    def test_iterative_custom_treatment(self, data):
-        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2')
-        g.outcome_model('A + L', print_results=False)
-        g.fit(treatment="g['t'] != 2")
-        npt.assert_allclose(g.marginal_outcome, 0.48543, rtol=1e-5)
+    def test_match_r_custom_treatment(self):
+        df = load_longitudinal_data()
+        icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
+        icgf.outcome_model(models=['A1 + L1', 'A2 + L2', 'A3 + L3'], print_results=False)
+        icgf.fit(treatments=[1, 0, 1])
+        npt.assert_allclose(icgf.marginal_outcome, 0.4916937, rtol=1e-5)
 
-    def test_iterative_custom_time_point(self, data):
-        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t')
-        g.outcome_model('A + L', print_results=False)
-        # values come from R's ltmle package
-        g.fit(treatment="all", t_max=2)
-        npt.assert_allclose(g.marginal_outcome, 0.33492, rtol=1e-5)
-        g.fit(treatment="none", t_max=2)
-        npt.assert_allclose(g.marginal_outcome, 0.51228, rtol=1e-5)
-
-    def test_iterative_warning_outside_time_point(self, data):
-        g = IterativeCondGFormula(data, idvar='id', exposure='A', outcome='Y', time_out='t2')
-        g.outcome_model('A + L', print_results=False)
-        with pytest.warns(UserWarning):
-            g.fit(treatment="all", t_max=6)
-        npt.assert_allclose(g.marginal_outcome, 0.33492, rtol=1e-5)
+        icgf.fit(treatments=[0, 1, 0])
+        npt.assert_allclose(icgf.marginal_outcome, 0.5634683, rtol=1e-5)
