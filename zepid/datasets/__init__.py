@@ -321,39 +321,7 @@ def load_longitudinal_data():
     DataFrame
         Returns pandas DataFrame
     """
-    df = pd.DataFrame()
-    np.random.seed(555)
-    n = 1000
-    df['W'] = np.random.normal(size=n)
-    df['L1'] = np.random.normal(size=n) + df['W']
-    df['A1'] = np.random.binomial(1, size=n, p=logistic.cdf(df['L1']))
-    df['Y1'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L1'] - 0.3 * df['A1']))
-
-    df['L2'] = 0.5 * df['L1'] - 0.9 * df['A1'] + np.random.normal(size=n)
-    df['A2'] = np.random.binomial(1, size=n, p=logistic.cdf(1.5 * df['A1'] + 0.8 * df['L2']))
-    df['A2'] = np.where(df['A1'] == 1, 1, df['A2'])
-    df['Y2'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L2'] - 0.3 * df['A2']))
-    df['Y2'] = np.where(df['Y1'] == 1, np.nan, df['Y2'])
-
-    df['L3'] = 0.5 * df['L2'] - 0.9 * df['A2'] + np.random.normal(size=n)
-    df['A3'] = np.random.binomial(1, size=n, p=logistic.cdf(1.5 * df['A2'] + 0.8 * df['L3']))
-    df['A2'] = np.where(df['A1'] == 1, 1, df['A2'])
-    df['Y3'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L3'] - 0.3 * df['A3']))
-    df['Y3'] = np.where((df['Y2'] == 1) | (df['Y1'] == 1), np.nan, df['Y3'])
-
-    df['id'] = df.index
-
-    d1 = df[['id', 'Y1', 'A1', 'L1', 'W']].copy()
-    d1.rename(mapper={'Y1': 'Y', 'A1': 'A', 'L1': 'L'}, axis='columns', inplace=True)
-    d1['t'] = 1
-    d2 = df[['id', 'Y2', 'A2', 'L2', 'W']].copy()
-    d2.rename(mapper={'Y2': 'Y', 'A2': 'A', 'L2': 'L'}, axis='columns', inplace=True)
-    d2['t'] = 2
-    d3 = df[['id', 'Y3', 'A3', 'L3', 'W']].copy()
-    d3.rename(mapper={'Y3': 'Y', 'A3': 'A', 'L3': 'L'}, axis='columns', inplace=True)
-    d3['t'] = 3
-
-    df = pd.concat([d1, d2, d3], sort=False).dropna()
+    df = pd.read_csv(resource_filename('zepid', 'datasets/longitudinal.dat'), index_col=False)
     return df
 
 
