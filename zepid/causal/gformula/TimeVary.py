@@ -530,7 +530,7 @@ class MonteCarloGFormula:
 
 
 class IterativeCondGFormula:
-    def __init__(self, df, exposures, outcomes, weights=None):
+    def __init__(self, df, exposures, outcomes):
         """Time-varying implementation of the g-formula, also referred to as the g-computation algorithm formula. The
         time-varying parametric g-formula uses the iterative conditional estimator (also referred to as the sequential
         regression estimator). The iterative conditional estimator is useful for longitudinal data and requires less
@@ -556,8 +556,6 @@ class IterativeCondGFormula:
             Treatment column label
         outcomes : list,array
             Outcome column label
-        weights : str, optional
-            Column label for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
 
         Notes
         -----
@@ -586,11 +584,11 @@ class IterativeCondGFormula:
 
         self.exposure = exposures
         # Checking that outcome is binary
-        if df[outcomes].dropna().value_counts().index.isin([0, 1]).all():
-            self.outcome = outcomes
-        else:
-            raise ValueError('Only binary outcomes are currently implemented')
+        for o in outcomes:
+            if not df[o].dropna().value_counts().index.isin([0, 1]).all():
+                raise ValueError('Only binary outcomes are currently implemented')
 
+        self.outcome = outcomes
         # Checking for recurrent outcomes. Recurrent are not currently supported
         # TODO add version to make missing data after observed outcome?
         if pd.Series(df[self.outcome].sum(axis=1, skipna=True) > 1).any():
@@ -600,7 +598,6 @@ class IterativeCondGFormula:
         self.exp_model = None
         self.out_model = None
         self._outcome_model_fit = False
-        self._weights = weights
         self.marginal_outcome = None
         self._modelform = None
         self._printseqregresults = None
@@ -639,89 +636,61 @@ class IterativeCondGFormula:
         if self._outcome_model_fit is False:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
 
-        treatment = np.array(treatments)
-        if len(self.exposure) != treatment.shape[1]:
-            raise ValueError("The number of exposure variables and the number of treatments must be equal")
-
         # Check array of treatments is either 1 row or same number of rows as input data
-        if treatment.shape[0] == 1:
+        treatment = np.array(treatments)
+        if treatment.ndim == 1:
             treatment = np.tile(treatment, (self.gf[self.exposure].shape[0], 1))
-        elif treatment.shape[0] != self.gf[self.exposure].shape[0]:
+        elif treatment.shape[1] == self.gf[self.exposure].shape[0]:
             pass
         else:
             raise ValueError("Specified treatments must be either a single row or have the same number of rows as the "
                              "input DataFrame")
 
+        if len(self.exposure) != treatment.shape[1]:
+            raise ValueError("The number of exposure variables and the number of treatments must be equal")
+
+        linkdist = sm.families.family.Binomial()
+
         # Step 1: Creating indicator for individuals who followed counterfactual outcome
         adhere = self._identify_adherence_(observations=np.matrix(self.gf[self.exposure]), plan=treatment)
-        # TODO get this to work!! code does what I want it to do! Hooray
-        # print(marks.where(~marks.any(axis=1), marks.fillna(9), axis=1))
-
-        treat_t_points = []
-        for t in t_points:
-            df['__check_' + str(t)] = df[treat_t_points + [self.outcome + '_' + str(t)]].prod(axis=1, skipna=True)
-
-            # This following check carries forward the outcome under the counterfactual treatment
-            if t_points.index(t) == 0:
-                pass
-            else:
-                df['__check_' + str(t)] = np.where(df['__check_' + str(t_points[t_points.index(t) - 1])] == 1,
-                                                   1, df['__check_' + str(t)])
+        y_adhere = pd.DataFrame(self.gf[self.outcome].values * adhere.values,
+                                columns=[self.outcome], index=self.gf.index)
+        y_adhere = y_adhere.where(~y_adhere.any(axis=1), y_adhere.fillna(1), axis=1)
 
         # Step 2: Sequential Regression Estimation
-        for t in rt_points:
-            # 2.1) Relabel everything to match with the specified model (selecting out that timepoint is within)
-            d_labels = {}
-            for c in column_labels:
-                d_labels[c + '_' + str(t)] = c
-            g = df.filter(regex='_' + str(t)).rename(mapper=d_labels, axis=1).reset_index().copy()
-            g[self.time_out] = t
+        treat_plan = ['_tplan_' + str(p) for p in range(treatment.shape[1])]
+        df = self.gf.copy()
+        df[treat_plan] = pd.DataFrame(treatment)
+        adhere_cols = list(y_adhere.columns)
+        df[adhere_cols] = y_adhere
 
-            # 2.2) Fit the model to the observed data
-            if rt_points.index(t) == 0:
-                if self._weights is None:
-                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, g, family=linkdist).fit()  # GLM
-                else:
-                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, g[self.idvar], g,
-                                weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
+        items_to_loop = zip(self.exposure[::-1], self.outcome[::-1], self._modelform[::-1],
+                            treat_plan[::-1], adhere_cols[::-1])
+        for e, d, m, t, f in items_to_loop:
+            # 2.1) Fit the model to the observed data
+            if self.outcome[::-1].index(d) == 0:
+                fm = smf.glm(d + ' ~ ' + m, df, family=linkdist).fit()  # GLM
                 if self._printseqregresults:
-                    print(m.summary())
+                    print(fm.summary())
             else:
-                # Uses previous predicted values to estimate
-                g[self.outcome] = np.where(df['__pred_'+self.outcome+'_'+str(t_points[t_points.index(t)+1])].isna(),
-                                           g[self.outcome],
-                                           df['__pred_' + self.outcome + '_' + str(t_points[t_points.index(t)+1])])
+                df[d] = np.where(df[prior_predict].isna(), df[d], df[prior_predict])
 
-                if self._weights is None:
-                    m = smf.glm(self.outcome + ' ~ ' + self._modelform, g, family=linkdist).fit()  # GLM
-                else:
-                    m = smf.gee(self.outcome + ' ~ ' + self._modelform, g[self.idvar], g,
-                                weights=df[self._weights + '_' + str(t)], family=linkdist).fit()  # Weighted, so GEE
+                fm = smf.glm(d + ' ~ ' + m, df, family=linkdist).fit()  # GLM
                 if self._printseqregresults:
-                    print(m.summary())
+                    print(fm.summary())
 
-            # 2.3) Getting Counterfactual Treatment Values
-            # TODO need to think about how to allow for more complex treatments (lag_A + lag2_A...)
-            if treatment == 'all':
-                g[self.exposure] = 1
-            elif treatment == 'none':
-                g[self.exposure] = 0
-            else:
-                g[self.exposure] = np.where(eval(treatment), 1, 0)
+            # 2.2) Generating predictions
+            tf = df.copy()
+            tf[self.exposure] = tf[treat_plan]
+            prior_predict = '__pred_' + d
+            df[prior_predict] = np.where(df[d].isna(), np.nan, fm.predict(tf))
 
-            # Predicted values based on counterfactual treatment strategy from predicted model
-            df['__pred_' + self.outcome + '_' + str(t)] = np.where(df[self.outcome + '_' + str(t)].isna(), np.nan,
-                                                                   m.predict(g))
-            # If followed counterfactual treatment & had outcome, then always considered to have outcome past that t
-            df['__cf_' + self.outcome + '_' + str(t)] = np.where((df['__check_' + str(t)] == 1), 1,
-                                                                 df['__pred_' + self.outcome + '_' + str(t)])
+            # 2.3) Carrying forward outcomes if followed counterfactual treatment and had outcome
+            # TODO do I need this to do anything???
+            df['__cf_' + d] = np.where(df[f] == 1, 1, df['__pred_' + d])
 
-        # Step 3) Returning estimated results
-        if self._weights is None:
-            self.marginal_outcome = np.mean(df['__pred_' + self.outcome + '_' + str(t_points[0])])
-        else:
-            self.marginal_outcome = np.average(df['__pred_' + self.outcome + '_' + str(t_points[0])],
-                                               weights=df[self._weights + '_' + str(t_points[0])])
+        # Step 3) Calculating marginal outcome for that time period
+        self.marginal_outcome = np.mean(df[prior_predict])
 
     @staticmethod
     def _identify_adherence_(observations, plan):
@@ -732,7 +701,7 @@ class IterativeCondGFormula:
         df = pd.DataFrame()
         for i in range(observations.shape[1]):
             # This code looks terrible due to numpy's matrix formulation and I don't have a better solution...
-            df['_indicator_' + str(i)] = np.asarray(np.all(observations[:, 0:i + 1] == plan[:, 0:i + 1],
-                                                    axis=1)).reshape(-1)
+            df['_check_' + str(i)] = np.asarray(np.all(observations[:, 0:i + 1] == plan[:, 0:i + 1],
+                                                       axis=1)).reshape(-1)
 
         return df
