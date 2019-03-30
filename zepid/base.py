@@ -1691,7 +1691,7 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         icr_ucl = icr + zalpha * math.sqrt(varICR)
     elif ci == 'bootstrap':
         with warnings.catch_warnings(record=True) as w:
-            w.simplefilter("always")
+            warnings.simplefilter("always")
             bse_icr = []
             ul = 1 - alpha / 2
             ll = 0 + alpha / 2

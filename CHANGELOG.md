@@ -1,13 +1,27 @@
 ## Change logs
 
 ### v0.6.0
-`MonteCarloGFormula` now includes a separate `censor_model()` function for censoring and support for competing risks.
+`MonteCarloGFormula` now includes a separate `censoring_model()` function for informative censoring.
 Additionally, I added a low memory option to reduce the memory burden during the Monte-Carlo procedure
 
-`RiskDifference` now calculates the Frechet probability bounds by default
+``IterativeCondGFormula`` has been refactored to accept only data in a wide format. This allows for me to handle more
+complex treatment assignments and specify models correctly. Additional tests have been added comparing to R's `ltmle`
+
+There is a new branch in `zepid.causal`. This is the `generalize` branch. It contains various tools for generalizing
+or transporting estimates from a biased sample to the target population of interest. Options available are 
+inverse probability of sampling weights for generalizability (`IPSW`), inverse odds of sampling weights for 
+transportability (`IPSW`), the g-transport formula (`GTransportFormula`), and doubly-robust augmented inverse 
+probability of sampling weights (`AIPSW`)
+
+`RiskDifference` now calculates the Frechet probability bounds
 
 ``TMLE`` now allows for specified bounds on the Q-model predictions. Additionally, avoids error when predicted
-continuous values are outside the bounded values
+continuous values are outside the bounded values.
+
+``AIPTW`` now has confidence intervals for the risk difference based on influence curves
+
+Lots of documentation updates for all functions. Additionally, `summary()` functions are starting to be updated. 
+Currently, only stylistic changes
 
 #### v0.5.2:
 While conducting further testing, I found an error in `AIPTW`. I have since corrected it and added additional tests
