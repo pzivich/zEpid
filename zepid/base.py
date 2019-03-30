@@ -18,7 +18,7 @@ from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_diffe
 #########################################################################################################
 class RiskRatio:
     """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
-    ignored.
+    ignored. Exposure categories should be mutually exclusive
 
     Risk ratio is calculated from
 
@@ -222,7 +222,7 @@ class RiskRatio:
 
 class RiskDifference:
     """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
-    ignored.
+    ignored. Exposure categories should be mutually exclusive
 
     Risk difference is calculated as
 
@@ -236,11 +236,22 @@ class RiskDifference:
 
         SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
 
+    In addition to confidence intervals, the Frechet bounds are calculated as well. These probability bounds are useful
+    for a comparison. Within these bounds, the true causal risk difference in the sample must live. The only
+    assumptions these bounds require are no measurement error, causal consistency, no selection bias, and any missing
+    data is MCAR. These bounds are always unit width (width of one), but they do not require any assumptions regarding
+    confounding / conditional exchangeability. They are calculated via the following formula
+
+    .. math::
+
+        Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ ne a) - \Pr(A=a)
+        Upper = \Pr(Y|A=a)\Pr(A=a) + \Pr(A \ne a) - \Pr(Y|A \ne a)\Pr(A \ ne a)
+
     Notes
     -------------
     Outcome must be coded as (1: yes, 0:no). Only supports binary outcomes
 
-        Examples
+    Examples
     --------
     Calculate the risk difference in a data set
     >>>from zepid import RiskDifference, load_sample_data
@@ -284,6 +295,7 @@ class RiskDifference:
         self._missing_e = None
         self._missing_d = None
         self._missing_ed = None
+        self.n = None
 
     def fit(self, df, exposure, outcome):
         """Calculates the Risk Difference
@@ -297,6 +309,7 @@ class RiskDifference:
         outcome : string
             Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
         """
+        n = df.dropna(subset=[exposure, outcome]).shape[0]
         # Setting up holders for results
         risk_lcl = []
         risk_ucl = []
@@ -304,6 +317,8 @@ class RiskDifference:
         rd_lcl = []
         rd_ucl = []
         rd_sd = []
+        fr_lower = []
+        fr_upper = []
 
         # Getting unique values and dropping reference
         vals = set(df[exposure].dropna().unique())
@@ -316,10 +331,13 @@ class RiskDifference:
         risk_lcl.append(lr)
         risk_ucl.append(ur)
         risk_sd.append(sd)
+
         self.risk_difference.append(0)
         rd_lcl.append(None)
         rd_ucl.append(None)
         rd_sd.append(None)
+        fr_lower.append(None)
+        fr_upper.append(None)
 
         # Going through all the values
         for i in vals:
@@ -328,21 +346,27 @@ class RiskDifference:
             self._a_list.append(a)
             b = df.loc[(df[exposure] == i) & (df[outcome] == 0)].shape[0]
             self._b_list.append(b)
+
             ri, lr, ur, sd, *_ = risk_ci(events=a, total=(a + b), alpha=self.alpha)
             self.risks.append(ri)
             risk_lcl.append(lr)
             risk_ucl.append(ur)
             risk_sd.append(sd)
+
             em, lcl, ucl, sd, *_ = risk_difference(a=a, b=b, c=self._c, d=self._d, alpha=self.alpha)
             self.risk_difference.append(em)
             rd_lcl.append(lcl)
             rd_ucl.append(ucl)
             rd_sd.append(sd)
 
+            fr_lower.append(ri*((a+b)/n) - (1-ri)*(1 - (a+b)/n) - ((a+b)/n))
+            fr_upper.append(ri*((a+b)/n) + (1 - (a+b)/n) - (1-ri)*(1 - (a+b)/n))
+
         # Getting the extent of missing data
         self._missing_ed = df.loc[(df[exposure].isnull()) & (df[outcome].isnull())].shape[0]
         self._missing_e = df.loc[df[exposure].isnull()].shape[0] - self._missing_ed
         self._missing_d = df.loc[df[outcome].isnull()].shape[0] - self._missing_ed
+        self.n = n
 
         # Setting up results
         rf = pd.DataFrame(index=self._labels)
@@ -355,6 +379,8 @@ class RiskDifference:
         rf['RD_LCL'] = rd_lcl
         rf['RD_UCL'] = rd_ucl
         rf['CLD'] = rf['RD_UCL'] - rf['RD_LCL']
+        rf['LowerBound'] = fr_lower
+        rf['UpperBound'] = fr_upper
         self.results = rf
         self._fit = True
 
@@ -377,6 +403,8 @@ class RiskDifference:
         print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
         print('======================================================================')
         print(self.results[['RiskDifference', 'SD(RD)', 'RD_LCL', 'RD_UCL']].round(decimals=decimal))
+        print('======================================================================')
+        print(self.results[['RiskDifference', 'CLD', 'LowerBound', 'UpperBound']].round(decimals=decimal))
         print('======================================================================')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
@@ -421,7 +449,7 @@ class RiskDifference:
 
 class NNT:
     """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
-    Altman, DG (BMJ 1998). Missing data is ignored.
+    Altman, DG (BMJ 1998). Missing data is ignored. Exposure categories should be mutually exclusive
 
     Number needed to treat is calculated as
 
@@ -577,7 +605,8 @@ class NNT:
 
 
 class OddsRatio:
-    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored. Exposure categories
+    should be mutually exclusive
 
     Odds ratio is calculated from
 
@@ -746,7 +775,8 @@ class OddsRatio:
 
 
 class IncidenceRateRatio:
-    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored. Exposure
+    categories should be mutually exclusive
 
     Incidence rate ratio is calculated from
 
@@ -955,6 +985,7 @@ class IncidenceRateRatio:
 
 class IncidenceRateDifference:
     """Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
+    Exposure categories should be mutually exclusive
 
     Incidence rate difference is calculated from
 

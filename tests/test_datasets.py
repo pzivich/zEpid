@@ -112,14 +112,6 @@ class TestLongitudinal:
         df = ze.load_longitudinal_data()
         assert isinstance(df, type(pd.DataFrame()))
 
-    def test_correct_ncols(self):
-        df = ze.load_longitudinal_data()
-        assert df.shape[1] == 6
-
-    def test_correct_nobs(self):
-        df = ze.load_longitudinal_data()
-        assert df.shape[0] == 2330
-
 
 class TestBingeData:
 
@@ -149,3 +141,14 @@ class TestCaseControl:
     def test_correct_nobs(self):
         df = ze.load_case_control_data()
         assert df.shape[0] == 11
+
+
+class TestGeneralize:
+
+    def test_return_pandas_rct(self):
+        df = ze.load_generalize_data(False)
+        assert isinstance(df, type(pd.DataFrame()))
+
+    def test_return_pandas_conf(self):
+        df = ze.load_generalize_data(True)
+        assert isinstance(df, type(pd.DataFrame()))

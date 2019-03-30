@@ -324,39 +324,7 @@ def load_longitudinal_data():
     DataFrame
         Returns pandas DataFrame
     """
-    df = pd.DataFrame()
-    np.random.seed(555)
-    n = 1000
-    df['W'] = np.random.normal(size=n)
-    df['L1'] = np.random.normal(size=n) + df['W']
-    df['A1'] = np.random.binomial(1, size=n, p=logistic.cdf(df['L1']))
-    df['Y1'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L1'] - 0.3 * df['A1']))
-
-    df['L2'] = 0.5 * df['L1'] - 0.9 * df['A1'] + np.random.normal(size=n)
-    df['A2'] = np.random.binomial(1, size=n, p=logistic.cdf(1.5 * df['A1'] + 0.8 * df['L2']))
-    df['A2'] = np.where(df['A1'] == 1, 1, df['A2'])
-    df['Y2'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L2'] - 0.3 * df['A2']))
-    df['Y2'] = np.where(df['Y1'] == 1, np.nan, df['Y2'])
-
-    df['L3'] = 0.5 * df['L2'] - 0.9 * df['A2'] + np.random.normal(size=n)
-    df['A3'] = np.random.binomial(1, size=n, p=logistic.cdf(1.5 * df['A2'] + 0.8 * df['L3']))
-    df['A2'] = np.where(df['A1'] == 1, 1, df['A2'])
-    df['Y3'] = np.random.binomial(1, size=n, p=logistic.cdf(-1 + 0.7 * df['L3'] - 0.3 * df['A3']))
-    df['Y3'] = np.where((df['Y2'] == 1) | (df['Y1'] == 1), np.nan, df['Y3'])
-
-    df['id'] = df.index
-
-    d1 = df[['id', 'Y1', 'A1', 'L1', 'W']].copy()
-    d1.rename(mapper={'Y1': 'Y', 'A1': 'A', 'L1': 'L'}, axis='columns', inplace=True)
-    d1['t'] = 1
-    d2 = df[['id', 'Y2', 'A2', 'L2', 'W']].copy()
-    d2.rename(mapper={'Y2': 'Y', 'A2': 'A', 'L2': 'L'}, axis='columns', inplace=True)
-    d2['t'] = 2
-    d3 = df[['id', 'Y3', 'A3', 'L3', 'W']].copy()
-    d3.rename(mapper={'Y3': 'Y', 'A3': 'A', 'L3': 'L'}, axis='columns', inplace=True)
-    d3['t'] = 3
-
-    df = pd.concat([d1, d2, d3], sort=False).dropna()
+    df = pd.read_csv(resource_filename('zepid', 'datasets/longitudinal.dat'), index_col=False)
     return df
 
 
@@ -387,7 +355,7 @@ def load_case_control_data():
 
 
 def load_monotone_missing_data():
-    """Loads simulated data the is monotone missing. This data is for demonstration with inverse probability of missing
+    """Loads simulated data for monotone missing. This data is for demonstration with inverse probability of missing
     weights with data that is has a monotone missing pattern.
 
     Notes
@@ -412,3 +380,35 @@ def load_monotone_missing_data():
     """
     df = pd.read_csv(resource_filename('zepid', 'datasets/monotone.dat'), index_col=False)
     return df[['id', 'A', 'B', 'C', 'L']]
+
+
+def load_generalize_data(confounding):
+    """Loads simulated data for demonstration of generalizability/transportability methods.
+
+    Notes
+    -----
+    For the data, the true effect measures are
+        Generalizability
+            RD: 0.04651
+            RR: 1.147
+        Transportability
+            RD: 0.02887
+            RR: 1.085
+
+    Parameters
+    ----------
+    confounding : bool
+        Whether to load data with a confounder (True) or data from a hypothetical RCT (False). If the confounder is
+        loaded, then the method used will need to account for confounding
+
+    Returns
+    -------
+    DataFrame
+        Returns pandas DataFrame
+    """
+    if confounding:
+        df = pd.read_csv(resource_filename('zepid', 'datasets/generalize_conf.dat'), index_col=False)
+    else:
+        df = pd.read_csv(resource_filename('zepid', 'datasets/generalize_rct.dat'), index_col=False)
+    df['id'] = df.index
+    return df[['id', 'Y', 'A', 'S', 'L', 'W']]

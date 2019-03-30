@@ -336,16 +336,18 @@ class IPTW:
             Prints the positivity results to the console but does not return any objects
         """
         self.df['iptw'] = self.Weight
-        if not self.stabilized:
-            warnings.warn('Positivity should only be used for stabilized IPTW', UserWarning)
         self._pos_avg = float(np.mean(self.df['iptw'].dropna()))
         self._pos_max = np.max(self.df['iptw'].dropna())
         self._pos_min = np.min(self.df['iptw'].dropna())
         self._pos_sd = float(np.std(self.df['iptw'].dropna()))
         print('----------------------------------------------------------------------')
-        print('IPW Diagnostic for positivity')
-        print('''If the mean of the weights is far from either the min or max, this may\n indicate the model is
-                incorrect or positivity is violated''')
+        print('IPW Diagnostics')
+        print('----------------------------------------------------------------------')
+        print('If the mean of the weights is far from either the min or max, this may\n indicate the model is '
+              'incorrect or positivity is violated')
+        print('Average weight should be')
+        print('\t1.0 for stabilized')
+        print('\t2.0 for unstabilized')
         print('Standard deviation can help in IPTW model selection')
         print('----------------------------------------------------------------------')
         print('Mean weight:\t\t\t', round(self._pos_avg, decimal))
@@ -414,7 +416,7 @@ class IPTW:
             # Detecting variable type
             if v.shape[1] != 1:
                 vtype = 'categorical'
-            elif v.dropna().isin([0, 1]).all(axis=None):
+            elif np.all(v.dropna().isin([0, 1])):
                 vtype = 'binary'
             else:
                 vtype = 'continuous'
@@ -477,7 +479,7 @@ class IPTW:
                 wn = np.mean(dfn[vcols].dropna(), axis=0)
             return float((wt - wn) / np.sqrt((wt*(1 - wt) + wn*(1 - wn))/2))
 
-        if var_type == 'continuous':
+        elif var_type == 'continuous':
             if weighted:
                 dwt = DescrStatsW(dft[vcols], weights=dft['iptw'], ddof=1)
                 wmt = dwt.mean
@@ -494,7 +496,7 @@ class IPTW:
                 wsn = dwn.std
             return float((wmt - wmn) / np.sqrt((wst**2 + wsn**2)/2))
 
-        if var_type == 'categorical':
+        elif var_type == 'categorical':
             if weighted:
                 wt = np.average(dft[vcols], weights=dft['iptw'], axis=0)
                 wn = np.average(dfn[vcols], weights=dfn['iptw'], axis=0)
@@ -505,6 +507,9 @@ class IPTW:
             t_c = wt - wn
             s_inv = np.linalg.inv(self._categorical_cov(treated=wt, untreated=wn))
             return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
+
+        else:
+            raise ValueError('Not supported')
 
     def _weight_calculator(self, df, denominator, numerator):
         """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the

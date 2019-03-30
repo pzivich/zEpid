@@ -250,6 +250,7 @@ class TMLE:
 
         if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
             self._continuous_outcome = False
+            self._cb = 0.0
         else:
             self._continuous_outcome = True
             self._continuous_min = np.min(df[outcome])
@@ -320,7 +321,6 @@ class TMLE:
         self.g0W = 1 - self.g1W
         if bound:  # Bounding predicted probabilities if requested
             self.g1W = self._bounding(self.g1W, bounds=bound)
-        if bound:  # Bounding predicted probabilities if requested
             self.g0W = self._bounding(self.g0W, bounds=bound)
 
         self._fit_exposure_model = True
@@ -382,7 +382,8 @@ class TMLE:
 
         self._fit_missing_model = True
 
-    def outcome_model(self, model, custom_model=None, print_results=True, continuous_distribution='gaussian'):
+    def outcome_model(self, model, custom_model=None, bound=False, print_results=True,
+                      continuous_distribution='gaussian'):
         """Estimation of E(Y|A,L,M=1), which is also written sometimes as Q(A,W,M=1) or Pr(Y=1|A,W,M=1). Estimation
         of this model is based on complete observations of Y only
 
@@ -394,6 +395,11 @@ class TMLE:
             Input for a custom model that is used in place of the logit model (default). The model must have the
             "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
             background, TMLE will fit the custom model and generate the predicted probablities
+        bound : bool, optional
+            Value between 0,1 to truncate predicted outcomes. Helps to avoid near positivity violations. Default is
+            `False`, meaning no truncation of predicted outcomes occurs (unless a predicted outcome is outside the
+            bounded continuous outcome). Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         continuous_distribution : str, optional
@@ -453,8 +459,13 @@ class TMLE:
                                                             continuous=self._continuous_outcome,
                                                             print_results=print_results)
 
+        if not bound:  # Bounding predicted probabilities if requested
+            bound = self._cb
+
+        # This bounding step prevents continuous outcomes from being outside the range
+        self.QA1W = self._bounding(self.QA1W, bounds=bound)
+        self.QA0W = self._bounding(self.QA0W, bounds=bound)
         self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
-        # TODO add some bounding procedure here for continuous that are less (or any arbitrary bounds)
         self._fit_outcome_model = True
 
     def fit(self):
@@ -608,6 +619,8 @@ class TMLE:
             v = np.where(v < bounds, bounds, v)
             v = np.where(v > 1-bounds, 1-bounds, v)
         elif type(bounds) is str:  # Catching string inputs
+            raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+        elif type(bounds) is int:  # Catching string inputs
             raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
         else:  # Asymmetric bounds
             if bounds[0] > bounds[1]:

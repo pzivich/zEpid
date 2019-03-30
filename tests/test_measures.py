@@ -119,6 +119,17 @@ class TestRiskDifference:
         npt.assert_allclose(rf.loc[rf.index == '1'][['RD_LCL', 'RD_UCL']], [sas_ci])
         npt.assert_allclose(rf.loc[rf.index == '1'][['SD(RD)']], sas_se)
 
+    def test_frechet_bounds(self):
+        df = ze.load_sample_data(False)
+        rd = RiskDifference()
+        rd.fit(df, exposure='art', outcome='dead')
+        npt.assert_allclose(rd.results['UpperBound'][1] - rd.results['LowerBound'][1], 1.0000)
+
+    def test_frechet_bounds2(self, multi_exposures):
+        rd = RiskDifference()
+        rd.fit(multi_exposures, exposure='exp', outcome='dis')
+        npt.assert_allclose(rd.results['UpperBound'][1:] - rd.results['LowerBound'][1:], [1.0000, 1.0000])
+
 
 class TestOddsRatio:
 
