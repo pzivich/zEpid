@@ -45,7 +45,8 @@ Time-Varying Treatment G-Formula
 .. autosummary::
    :toctree: generated/
 
-   TimeVaryGFormula
+   MonteCarloGFormula
+   IterativeCondGFormula
 
 Augmented Inverse Probability Weights
 -------------------------------------

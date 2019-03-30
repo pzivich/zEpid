@@ -1,22 +1,17 @@
-zepid.causal.gformula.TimeVary.MonteCarloGFormula
+zepid.causal.gformula.TimeVary.IterativeCondGFormula
 ===============================================
 
 .. currentmodule:: zepid.causal.gformula.TimeVary
 
-.. autoclass:: MonteCarloGFormula
+.. autoclass:: IterativeCondGFormula
    :members:
 
    .. rubric:: Methods
 
    .. autosummary::
 
-      ~MonteCarloGFormula.exposure_model
       ~MonteCarloGFormula.outcome_model
-      ~MonteCarloGFormula.add_covariate_model
-      ~MonteCarloGFormula.censoring_model
       ~MonteCarloGFormula.fit
-
-
 
 
 
