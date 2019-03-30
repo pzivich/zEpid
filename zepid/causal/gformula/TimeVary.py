@@ -589,8 +589,9 @@ class IterativeCondGFormula:
                 raise ValueError('Only binary outcomes are currently implemented')
 
         self.outcome = outcomes
+
         # Checking for recurrent outcomes. Recurrent are not currently supported
-        # TODO add version to make missing data after observed outcome?
+        # TODO add version to make missing data after observed outcome? Currently ignores, like R's ltmle
         if pd.Series(df[self.outcome].sum(axis=1, skipna=True) > 1).any():
             raise ValueError('Looks like your data has multiple outcomes. Recurrent outcomes are not currently '
                              'supported')
@@ -687,7 +688,7 @@ class IterativeCondGFormula:
 
             # 2.3) Carrying forward outcomes if followed counterfactual treatment and had outcome
             # TODO do I need this to do anything???
-            df['__cf_' + d] = np.where(df[f] == 1, 1, df['__pred_' + d])
+            # df['__cf_' + d] = np.where(df[f] == 1, 1, df['__pred_' + d])
 
         # Step 3) Calculating marginal outcome for that time period
         self.marginal_outcome = np.mean(df[prior_predict])
