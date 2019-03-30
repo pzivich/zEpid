@@ -60,13 +60,6 @@ class TestIPTW:
         npt.assert_allclose(ipt._pos_min, 2/3)
         npt.assert_allclose(ipt._pos_max, 2)
 
-    def test_unstabilized_positivity_warning(self, data):
-        ipt = IPTW(data, treatment='A', stabilized=False)
-        ipt.regression_models(model_denominator='L', print_results=False)
-        ipt.fit()
-        with pytest.warns(UserWarning):
-            ipt.positivity()
-
     def test_match_sas_unstabilized(self, sdata):
         sas_w_sum = 1038.051
         sas_rd = -0.081519085
