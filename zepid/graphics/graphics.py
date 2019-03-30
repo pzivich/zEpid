@@ -1,9 +1,3 @@
-"""
-Contains useful graphic generators. Currently, effect measure plots and functional form assessment plots
-are implemented. Uses matplotlib to generate graphics. Future inclusions include forest plots
-
-"""
-
 import warnings
 import numpy as np
 import pandas as pd
@@ -19,9 +13,22 @@ import matplotlib.ticker as mticker
 
 
 class EffectMeasurePlot:
-    """Used to generate effect measure plots. effectmeasure plot accepts four list type objects.
-    effectmeasure_plot is initialized with the associated names for each line, the point estimate,
-    the lower confidence limit, and the upper confidence limit.
+    """Used to generate effect measure (AKA forest) plots. See the 'Notes' section for a rough example of how the
+    plots are set up
+
+    Parameters
+    --------------
+    label : list
+        List of labels to use for y-axis
+    effect_measure : list
+        List of numbers for point estimates to plot. If point estimate has trailing zeroes,
+        input as a character object rather than a float
+    lcl : list
+        List of numbers for upper confidence limits to plot. If point estimate has trailing
+        zeroes, input as a character object rather than a float
+    ucl : list
+        List of numbers for upper confidence limits to plot. If point estimate has
+        trailing zeroes, input as a character object rather than a float
 
     Notes
     ----------
@@ -43,7 +50,7 @@ class EffectMeasurePlot:
     >>> from zepid.graphics import EffectMeasurePlot
     >>> lab = ['One','Two']
     >>> emm = [1.01,1.31]
-    >>> lcl = ['0.90',1.01]
+    >>> lcl = ['0.90',1.01]  # String allows for trailing zeroes in the table
     >>> ucl = [1.11,1.53]
 
     Setting up the plot, measure labels, and point colors
@@ -57,24 +64,6 @@ class EffectMeasurePlot:
     >>> x.plot(t_adjuster=0.13)
     """
     def __init__(self, label, effect_measure, lcl, ucl):
-        """Initializes effectmeasure_plot with desired data to plot. All lists should be the same
-        length. If a blank space is desired in the plot, add an empty character object (' ') to
-        each list at the desired point.
-
-        Parameters
-        --------------
-        label : list
-            List of labels to use for y-axis
-        effect_measure : list
-            List of numbers for point estimates to plot. If point estimate has trailing zeroes,
-            input as a character object rather than a float
-        lcl : list
-            List of numbers for upper confidence limits to plot. If point estimate has trailing
-            zeroes, input as a character object rather than a float
-        ucl : list
-            List of numbers for upper confidence limits to plot. If point estimate has
-            trailing zeroes, input as a character object rather than a float
-        """
         self.df = pd.DataFrame()
         self.df['study'] = label
         self.df['OR'] = effect_measure
@@ -241,10 +230,11 @@ class EffectMeasurePlot:
 
 
 def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', discrete=False, link_dist=None,
-                         loess=True, loess_value=0.4, legend=True, model_results=True, points=False):
+                         loess=True, loess_value=0.25, legend=True, model_results=True, points=False):
     """Creates a functional form plot to aid in functional form assessment for continuous/discrete variables. Plots can
     be created for binary and continuous outcomes. Default options are set to create a functional form plot for a
-    binary outcome. To convert to a continuous outcome, outcome_type needs to be changed, in addition to the link_dist
+    binary outcome. To convert to a continuous outcome, `outcome_type` needs to be changed, in addition to
+    the `link_dist`
 
     Parameters
     ------------
@@ -256,16 +246,16 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
         Column name of the variable of interest for the functional form assessment
     f_form : string, optional
         Regression equation of the functional form to assess. Default is None, which will produce a linear functional
-        form. Input the regression equation as the variables of interest, separated by +. For example, 'var + var_sq'
+        form. Input the regression equation following the `patsy` syntax. For example, 'var + var_sq'
     outcome_type : string, optional
-        Variable type of the outcome variable. Currently, only binary and continuous variables are
-        supported. Default is 'binary' but 'continuous' is also supported
+        Variable type of the outcome variable. Currently, only binary and continuous variables are supported. Default
+        is 'binary'
     link_dist : optional
         Link and distribution for the GLM regression equation. Change this to any valid link and distributions
-        supported by statsmodels. Default is None, which conducts logistic regression
+        supported by `statsmodels`. Default is `None`, which defaults to logistic regression
     loess_value : float, optional
-        Fraction of observations to use to fit the LOESS curve. This will need to be changed iteratively to determine
-        which percent works best for the data. Default is 0.4
+        Fraction of observations to use to fit the LOESS curve. This may need to be changed iteratively to determine
+        which percent works best for the data. Default is 0.25
     legend : bool, optional
         Turn the legend on or off. Default is True, displaying the legend in the graph
     model_results : bool, optional
@@ -275,10 +265,10 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
     points : bool, optional
         Whether to plot the data points, where size is relative to the number of observations. Default is False
     discrete : bool, optional
-        If your data is truly continuous, leave setting to bin the dat. Will automatically bin observations into
-        categories for generation of the LOESS curve. If you data is discrete, you can set this to True to use your
-        actual values. If you get a perfect SeparationError from statsmodels, it means you might have to reshift your
-        categories.
+        If your data is truly continuous, leave setting to auto bin the dat. Will automatically bin observations into
+        categories for fitting a model with a disjoint indicator. If data is discrete, you can set this to `True` to
+        use the actual values for the disjoint indicator. If you get a perfect `SeparationError` from `statsmodels`, it
+        means you might have to reshift your categories.
 
     Returns
     -----------
@@ -317,10 +307,12 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
     >>> plt.show()
 
     Adding summary points to the plot. Points are grouped together and their size reflects their relative n
+
     >>>functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False, points=True)
     >>>plt.show()
 
     Functional form assessment for a discrete variable (age)
+
     >>>functional_form_plot(df, outcome='dead', var='age0', discrete=True)
     >>>plt.show()
     """
@@ -414,7 +406,7 @@ def pvalue_plot(point, sd, color='b', fill=True, null=0, alpha=None):
     specific value. I think it is useful to explain what exactly a p-value tells you. Note that this
     plot only works for measures on a linear scale (i.e. it will plot exp(log(RR)) incorrectly). It also
     helps to understand what exactly confidence intervals are telling you. These  plots are based on
-    Rothman Epidemiology 2nd Edition pg 152-153 and explained more fully within.
+    Rothman's Epidemiology 2nd Edition pg 152-153 and explained more fully within.
 
     Parameters
     -------------
@@ -439,20 +431,28 @@ def pvalue_plot(point, sd, color='b', fill=True, null=0, alpha=None):
     Examples
     -----------
     Setting up the environment
+
     >>>from zepid.graphics import pvalue_plot
     >>>import matplotlib.pyplot as plt
 
     Basic P-value plot
+
     >>>pvalue_plot(point=-0.1, sd=0.061, color='r')
     >>>plt.show()
 
     P-value plot with significance line drawn at 'alpha'
+
     >>>pvalue_plot(point=-0.1, sd=0.061, color='r', alpha=0.025)
     >>>plt.show()
 
     P-value plot with different comparison value
+
     >>>pvalue_plot(point=-0.1, sd=0.061, color='r', null=0.1)
     >>>plt.show()
+
+    References
+    ----------
+    Rothman KJ. (2012). Epidemiology: an introduction. Oxford university press.
     """
     if point <= null:
         lower = (point - 3 * sd)
@@ -505,11 +505,13 @@ def spaghetti_plot(df, idvar, variable, time):
     Examples
     -----------
     Setting up the environment
+
     >>>from zepid import load_sample_data
     >>>from zepid.graphics import spaghetti_plot
     >>>df = load_sample_data(timevary=True)
 
     Generating spaghetti plot for changing CD4 count
+
     >>>spaghetti_plot(df, idvar='id', variable='cd4', time='enter')
     >>>plt.show()
     """
@@ -546,6 +548,22 @@ def roc(df, true, threshold, youden_index=True):
     Returns
     -----------
     matplotlib axes
+
+    Examples
+    --------
+    Creating a dataframe with true disease status (`'d'`) and predicted probability of the outcome (`'p'`)
+
+    >>>import pandas as pd
+    >>>import matplotlib.pyplot as plt
+    >>>from zepid.graphics import roc
+    >>>df = pd.DataFrame()
+    >>>df['d'] = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
+    >>>df['p'] = [0.1, 0.15, 0.1, 0.7, 0.5, 0.9, 0.95, 0.5, 0.4, 0.8, 0.99, 0.99, 0.89, 0.95]
+
+    Creating ROC curve
+
+    >>>roc(df, true='d', threshold='p', youden_index=False)
+    >>>plt.show()
     """
     sens = []
     fpr = []
@@ -595,16 +613,16 @@ def roc(df, true, threshold, youden_index=True):
 
 def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, loess_value=0.25, point_color='darkblue',
                       line_color='b', scale='linear'):
-    """Creates a plot of risk measures over time. See Cole et al. "Estimation of standardized risk difference and ratio
-    in a competing risks framework: application to injection drug use and progression to AIDS after initiation of
-    antiretroviral therapy." Am J Epidemiol. 2015 for an example of this plot
+    """Creates a plot of how the risk difference or risk ratio changes over time with survival data. See the
+    references for an example of this plot. Input data should be pandas Series indexed by 'timeline' where 'timeline'
+    is the time corresponding to the risk estimate
 
     Parameters
     --------------
     risk_exposed : Series
         Pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' where 'timeline'
-        is the time. If you directly output the ``1 - survival_function_`` from lifelines.KaplanMeierFitter(), this should
-        create a valid input
+        is the time. If you directly output the ``1 - survival_function_`` from lifelines.KaplanMeierFitter(), this
+        should create a valid input
     risk_unexposed : Series
         Pandas Series with the probability of the outcome among the exposed group. Index by 'timeline' where 'timeline'
         is the time
@@ -628,7 +646,15 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
 
     Examples
     --------
-    See graphics documentation or causal documentation
+    See graphics documentation or causal documentation for a detailed example.
+
+    >>>dynamic_risk_plot(a, b, loess=True)
+
+    References
+    ----------
+    Cole SR, et al. (2014). Estimation of the standardized risk difference and ratio in a competing risks framework:
+    application to injection drug use and progression to AIDS after initiation of antiretroviral therapy.
+    AJE, 181(4), 238-245.
     """
     re = risk_exposed.drop_duplicates(keep='first').iloc[:, 0].rename('exposed').reset_index()
     ru = risk_unexposed.drop_duplicates(keep='first').iloc[:, 0].rename('unexposed').reset_index()
@@ -679,7 +705,7 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
     """L'Abbe plots are useful for summarizing measure modification on the difference or ratio scale. Primarily
     invented for meta-analysis usage, these plots display risk differences (or ratios) by their individual risks
     by an exposure. I find them most useful for a visualization of why if there is an association and there is no
-    modfication on one scale (additive or multiplicative), there must be modification on the other scale.
+    modfication on one scale (additive or multiplicative), then there must be modification on the other scale.
 
     Parameters
     ----------
@@ -709,7 +735,30 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
 
     Examples
     --------
-    See graphics documentation
+    Setting up environment
+
+    >>>import matplotlib.pyplot as plt
+    >>> from zepid.graphics import labbe_plot
+
+    Creating a blank plot
+
+    >>>labbe_plot()
+    >>>plt.show()
+
+    Adding customized points to the plot
+
+    >>>labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', color='r', marker='D', markersize=10, linestyle='')
+    >>>plt.show()
+
+    Only returning the additive plot
+
+    >>>labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', markersize=10)
+    >>>plt.show()
+
+    Only returning the multiplicative plot
+
+    >>>labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='multiplicative', markersize=10)
+    >>>plt.show()
     """
     if r1 is not None or r0 is not None:
         if len(list(r1)) != len(list(r0)):

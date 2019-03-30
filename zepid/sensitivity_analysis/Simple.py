@@ -5,10 +5,16 @@ import matplotlib.pyplot as plt
 
 
 class MonteCarloRR:
-    """Monte Carlo simulation to assess the impact of an unmeasured binary confounder on the results
+    r"""Monte Carlo simulation to assess the impact of an unmeasured binary confounder on the results
     of a study. Observed RR comes from the data analysis, while the RR between the unmeasured confounder
     and the outcome should be obtained from prior literature or constitute an reasonable guess.
     Probability of exposure between the groups should also be reasonable numbers.
+
+    The Monte Carlo corrected Risk Ratio is calculated in each iteration by
+
+    .. math::
+
+        RR_{MC} = \frac{RR_{obs}}{\frac{p_1(RR_{c} - 1) + 1}{p_0(RR_{c} - 1) + 1}}
 
     Parameters
     ------------

@@ -6,21 +6,26 @@ from .utils import propensity_score
 
 
 class IPCW:
-    r"""Calculate the inverse probability of censoring weights. Note that this function will accept either a flat
+    r"""Calculates inverse probability of censoring weights. Note that this function will accept either a flat
     file (one row per individual) or a long format (multiple rows per individual). If a flat file is provided, it
-    must be converted to a long format. This will be done automatically if flat_df is set to True. Additionally, a
-    warning and some comparison statistics are provided. Please verify that they match.
+    must be converted to a long format. This will be done automatically if `flat_df=True`. Additionally, a
+    warning and some comparison statistics are provided. Please verify that they match. In general, it is recommended
+    to convert the data set yourself
 
-    IPC weights are calculated via logistic regression and weights are cumulative products per unique ID. IPCW can
+    IPCW are calculated via logistic regression and weights are cumulative products per unique ID. IPCW can
     be used to correct for missing at random data by the generated model in weighted Kaplan-Meier curves. The
     formula used to generate the unstabilized IPCW is
 
     .. math::
 
-        \pi_i(t) = \prod_{R_k \le t} \frac{1}{P(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
+        \pi_i(t) = \prod_{R_k \le t} \frac{1}{\Pr(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
 
     The stabilized IPCW substitutes predicted probabilities under the specified numerator model into the numerator
-    of the previous equation. It is similar in concept to IPTW and IPMW in that regards.
+    of the previous equation. In general, it is recommended to stabilize IPCW by the time.
+
+    .. math::
+
+        \pi_i(t) = \prod_{R_k \le t} \frac{\Pr(C_i > R_k)}{\Pr(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
 
     Parameters
     ---------------
@@ -50,25 +55,24 @@ class IPCW:
     >>> df['age0_q'] = df['age0'] ** 2
     >>> df['age0_c'] = df['age0'] ** 3
 
-    Calculating IPCW with a long data set
+    Calculating stabilized IPCW with a long data set
 
     >>> ipc = IPCW(df, idvar='id', time='enter', event='dead')
     >>> ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
     >>>                       model_numerator='enter + enter_q + enter_c')
     >>> ipc.fit()
 
-    Extracting calculated IPCW
+    Extracting calculated stabilized IPCW
 
     >>> ipc.Weight
 
-    Calculating IPCW with a wide data set
+    Calculating stabilized IPCW with a wide data set
 
     >>> df = load_sample_data(False)
     >>> ipc = IPCW(df, idvar='id', time='t', event='dead', flat_df=True)
     >>> ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
     >>>                       model_numerator='enter + enter_q + enter_c')
     >>> ipc.fit()
-
     """
     def __init__(self, df, idvar, time, event, flat_df=False, enter=None):
         if np.sum(df[time].isnull()) > 0:
@@ -99,10 +103,10 @@ class IPCW:
         Parameters
         --------------
         model_denominator : str
-            String of predictor variables for the denominator separated by +. Any variables included in the numerator,
-            should be included in the denominator as well. Example 'var1 + var2 + var3 + t_start + t_squared'
+            String of predictor variables for the denominator following `patsy` syntax. Any variables included in the
+            numerator, should be included in the denominator as well. Example 'var1 + var2 + var3 + t_start + t_squared'
         model_numerator : str
-            String of predictor variables for the numerator separated by +. In general, time is used as the
+            String of predictor variables for the numerator following `patsy` syntax. In general, time is used as the
             stabilization factor. Example of argument 't_start + t_squared'
         print_results : bool, optional
             Whether to print the model results. Default is True
@@ -115,18 +119,18 @@ class IPCW:
         self.df['__cdenom__'] = self.df.groupby(self.idvar)['__denom__'].cumprod()
 
     def fit(self):
-        """Generate the IPC Weights for each observation period for each observation. The calculated weights can be
-        accessed through the Weights attribute
+        """Calculates IPCW for each observation period for each observation. The calculated weights can be
+        accessed through the `IPCW.Weights` attribute
 
         Returns
         -------------
-        Fills in the Weight attribute
+        Fills in the `Weight` attribute
         """
         self.Weight = self.df['__cnumer__'] / self.df['__cdenom__']
 
     @staticmethod
     def _dataprep(cf, idvar, time, event, enter=None):
-        """Function to prepare the data to an appropriate format for the IPCW class. It breaks the dataset into
+        """Function to prepare the data to an appropriate format for the `IPCW` class. It breaks the dataset into
         single observations for event one unit increase in time. This is a background process and not meant for users
         to access
 

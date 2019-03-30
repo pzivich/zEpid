@@ -2,10 +2,9 @@ import numpy as np
 
 
 def trapezoidal(mini, mode1, mode2, maxi, size=None):
-    """Creates trapezoidal distribution based on Fox & Lash 2005. This function can be used to generate distributions
+    """Generates random data following a trapezoidal distribution. This function can be used to generate distributions
     of probabilities and effect measures for sensitivity analyses. It is particularly useful when used in conjunction
-    with rr_corr to determine a distribution of potential results due to a single unadjusted
-    confounder
+    with `rr_corr` to determine a distribution of potential results due to a single unadjusted confounder
 
     Parameters
     --------------
@@ -33,6 +32,14 @@ def trapezoidal(mini, mode1, mode2, maxi, size=None):
 
     100 draws from a trapezoidal distribution
     >>>trapezoidal(mini=0.2, mode1=0.3, mode2=0.5, maxi=0.6, size=100)
+
+    References
+    ----------
+    Fox MP, Lash TL, Hamer DH. (2005). A sensitivity analysis of a randomized controlled trial of zinc in treatment
+    of falciparum malaria in children. Contemporary clinical trials, 26(3), 281-289.
+
+    Fox MP, Lash TL Greenland S. (2005). A method to automate probabilistic sensitivity analyses of misclassified
+    binary variables. International journal of epidemiology, 34(6), 1370-1376.
     """
     if size is None:
         p = np.random.uniform()

@@ -5,18 +5,29 @@ from .utils import propensity_score
 
 
 class IPMW:
-    """Calculates the weight for inverse probability of missing weights using logistic regression. `IPMW`
-    automatically codes a missingness indicator (based on np.nan), so data can be directly input, without creation
-    of missingness indicator before inputting data
+    r"""Calculates inverse probability of missing weights. `IPMW` automatically codes a missingness indicator (based
+    on np.nan), so data can be directly input, without creation of missingness indicator before inputting data
 
-    ``IPMW`` currently supports weights for a single missing variable, or a list of variables that are monotonically
+    The formula for stabilized IPMW is
+
+    .. math::
+
+        \pi_i = \frac{\Pr(M=0)}{\Pr(M=0|L=l)}
+
+    where M=0 indicates observed data. For unstabilized IPMW
+
+    .. math::
+
+        \pi_i = \frac{1}{\Pr(M=0|L=l)}
+
+    `IPMW` currently supports weights for a single missing variable, or a list of variables that are monotonically
     missing. For data to be missing monotonically, there is some ordering of the variables with missing data
     such that the previous variable must be observed for the later to be observed. A simple example is censoring in
     longitudinal data without late entry. To be observed at time *t*, the individual must be observed at time *t-1*
 
-    Nonmonotonic missing data is arguably more common in practice. Sun and Tchetgen Tchetgen recently proposed a
-    way to estimate IPMW under nonmonotonic missing data. I plan on implementing this in a future release. Until
-    then `IPMW` only supports monotonic missing data
+    For multiple variables with missing data, `IPMW` determines if the two variables are uniform missing. This is a
+    special case of monotonic missing data. As a result, `IPMW` will only need to calculate IPMW for one of the
+    variables. See the references for further details on this
 
     Parameters
     ----------
@@ -29,13 +40,19 @@ class IPMW:
         Whether to return the stabilized or unstabilized IPMW. Default is to return unstabilized weights
     monotone : bool, optional
         Whether missing data is monotonic or nonmonotonic. This option is only used for when multiple missing
-        variables are provided
+        variables are provided. monotone=False will give an error (for now)
+
+    Note
+    ----
+    Nonmonotonic missing data is arguably more common in practice. Sun and Tchetgen Tchetgen recently proposed a
+    way to estimate IPMW under nonmonotonic missing data. I plan on implementing this in a future release. Until
+    then `IPMW` only supports monotonic missing data
 
     Examples
     --------
     Setting up the environment
 
-    >>> from zepid import load_sample_data
+    >>> from zepid import load_sample_data, load_monotone_missing_data
     >>> from zepid.causal.ipw import IPMW
     >>> df = load_sample_data(timevary=False)
 
@@ -49,42 +66,32 @@ class IPMW:
 
     >>> ipm.Weight
 
-    Calculating monotone IPMW
+    Calculating IPMW for monotone missing variables
 
-    >>> from zepid import load_monotone_missing_data
     >>> df = load_monotone_missing_data()
     >>> ipm = IPMW(df, missing_variable=['B', 'C'], monotone=True)
     >>> ipm.regression_models(model_denominator=['L + A', 'L + B'])
     >>> ipm.fit()
     >>> ipm.Weight
 
-    Notes
-    -----
-    For multiple variables with missing data, `IPMW` determines in the two variables are uniform missing. This is a
-    special case of monotonic missing data. As a result, `IPMW` can skip over uniform missing data. See the
-    following references for further details
-
     References
     ----------
-    Sun, B., Perkins, N. J., Cole, S. R., Harel, O., Mitchell, E. M., Schisterman, E. F., & Tchetgen Tchetgen, E.
-    J. (2017). Inverse-probability-weighted estimation for monotone and nonmonotone missing data. American Journal
-    of Epidemiology, 187(3), 585-591.
+    Sun B, et al. (2017). Inverse-probability-weighted estimation for monotone and nonmonotone missing data. American
+    Journal of Epidemiology, 187(3), 585-591.
 
-    Perkins, N. J., Cole, S. R., Harel, O., Tchetgen Tchetgen, E. J., Sun, B., Mitchell, E. M., & Schisterman, E.
-    F. (2017). Principled approaches to missing data in epidemiologic studies. American Journal of Epidemiology,
-    187(3), 568-575.
+    Perkins, NJ et al. (2017). Principled approaches to missing data in epidemiologic studies. American Journal of
+    Epidemiology, 187(3), 568-575.
 
-    Li, L., Shen, C., Li, X., & Robins, J. M. (2013). On weighting approaches for missing data. Statistical Methods
+    Li L, Shen C, Li X, Robins JM. (2013). On weighting approaches for missing data. Statistical Methods
     in Medical Research, 22(1), 14-30.
 
-    Greenland, S., & Finkle, W. D. (1995). A critical look at methods for handling missing covariates in
+    Greenland S, & Finkle WD. (1995). A critical look at methods for handling missing covariates in
     epidemiologic regression analyses. American journal of epidemiology, 142(12), 1255-1264.
 
-    Seaman, S. R., & White, I. R. (2013). Review of inverse probability weighting for dealing with missing data.
+    Seaman SR., White IR. (2013). Review of inverse probability weighting for dealing with missing data.
     Statistical Methods in Medical Research, 22(3), 278-295.
     """
     def __init__(self, df, missing_variable, stabilized=False, monotone=True):
-
         # Checking input data has missing labeled as np.nan
         if isinstance(missing_variable, str):
             if df.loc[df[missing_variable].isnull(), missing_variable].shape[0] == 0:
@@ -152,8 +159,8 @@ class IPMW:
             raise ValueError('Non-monotonic IPMW is to be implemented in the future...')
 
     def fit(self):
-        """Provide the regression model to generate the inverse probability of missing weights. The fitted regression
-        model will be used to generate the IPW. The weights can be accessed via the IMPW.Weight attribute
+        """Calculates the IPMW based on the predicted probabilities from the fitted logistic regression models.
+        Calculated weights can be accessed via the `IPMW.Weight` attribute
         """
         if self._denominator_model is False:
             raise ValueError('No model has been fit to generated predicted probabilities')

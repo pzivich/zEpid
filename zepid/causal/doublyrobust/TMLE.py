@@ -114,9 +114,7 @@ class TMLE:
         Column label for the exposure of interest
     outcome : str
         Column label for the outcome of interest
-    measure : str, optional
-        Depreciated. By default risk difference, risk ratio, and odds ratio are all calculated
-    alpha : int, optional
+    alpha : float, optional
         Alpha for confidence interval level. Default is 0.05
     continuous_bound : float, optional
         Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
@@ -125,7 +123,7 @@ class TMLE:
 
     Notes
     -----
-    TMLE is a double robust substitution estimator. TMLE obtains the target estimate in a single step. The
+    TMLE is a doubly-robust substitution estimator. TMLE obtains the target estimate in a single step. The
     single-step TMLE is described further by van der Laan. For further details, see the listed references.
 
     Continuous outcomes must be bounded between 0 and 1. TMLE does this automatically for the user. Additionally,
@@ -146,9 +144,9 @@ class TMLE:
 
     .. math::
 
-        P(A=1|L)
+        \pi_1 = \Pr(A=1|L)
 
-    3. The predicted Y is merged together with the IPW using
+    3. The 'clever covariate' is calculated by
 
     .. math::
 
@@ -163,7 +161,7 @@ class TMLE:
 
     4. The targeted Psi is estimated, representing the causal effect of all treated vs. all untreated
 
-    Confidence intervals are constructed using influence curve theory.
+    Confidence intervals are constructed using influence curves.
 
     Examples
     --------
@@ -209,21 +207,18 @@ class TMLE:
 
     References
     ----------
-    Schuler, Megan S., and Sherri Rose. "Targeted maximum likelihood estimation for causal inference in
+    Schuler MS, and Sherri R. "Targeted maximum likelihood estimation for causal inference in
     observational studies." American journal of epidemiology 185.1 (2017): 65-73.
 
-    Van der Laan, Mark J., and Sherri Rose. Targeted learning: causal inference for observational and experimental
+    Van der Laan, MJ, and Sherri R. Targeted learning: causal inference for observational and experimental
     data. Springer Science & Business Media, 2011.
 
-    Van Der Laan, Mark J., and Daniel Rubin. "Targeted maximum likelihood learning." The International Journal of
+    Van Der Laan, MJ, Rubin D. "Targeted maximum likelihood learning." The International Journal of
     Biostatistics 2.1 (2006).
 
-    Gruber, S., & van der Laan, M. J. (2011). tmle: An R package for targeted maximum likelihood estimation.
+    Gruber S, van der Laan, MJ. (2011). tmle: An R package for targeted maximum likelihood estimation.
     """
-    def __init__(self, df, exposure, outcome, measure=None, alpha=0.05, continuous_bound=0.0005):
-        if measure is not None:
-            warnings.warn('As of v0.4.2, TMLE defaults to calculate all implemented measures (RD, RR, OR)', UserWarning)
-
+    def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
         # Going through missing data (that is not the outcome)
         if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
             warnings.warn("There is missing data that is not the outcome in the data set. TMLE will drop "
@@ -231,7 +226,6 @@ class TMLE:
                           + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
                           ' of ' + str(df.shape[0]) + ' observations', UserWarning)
             self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
-            print(self.df.shape[0])
         else:
             self.df = df.copy().reset_index()
 
@@ -469,12 +463,13 @@ class TMLE:
         self._fit_outcome_model = True
 
     def fit(self):
-        """Estimates risk difference, risk ratio, and odds ratio based on the gAW and QAW. Confidence intervals come
-        from the influence curve
+        """Estimates risk difference, risk ratio, and odds ratio based on the gAW and QAW. If a continuous outcome,
+        then the average treatment effect is returned. Confidence intervals come from influence curves
 
         Returns
         -------
-        TMLE gains Psi and confint attributes
+        `TMLE` gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
+        `average _treatment_effect` for continuous outcomes
         """
         if (self._fit_exposure_model is False) or (self._fit_outcome_model is False):
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
@@ -579,15 +574,15 @@ class TMLE:
             raise ValueError('The exposure and outcome models must be specified before the psi estimate can '
                              'be generated')
 
+        print('======================================================================')
+        print('                Targeted Maximum Likelihood Estimator                 ')
+        print('======================================================================')
         if self._continuous_outcome:
-            print('----------------------------------------------------------------------')
             print('Average Treatment Effect: ', round(float(self.average_treatment_effect), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.average_treatment_effect_ic[0], decimal)), ',',
                   str(round(self.average_treatment_effect_ic[1], decimal)) + ')')
-            print('----------------------------------------------------------------------')
         else:
-            print('----------------------------------------------------------------------')
             print('Risk Difference: ', round(float(self.risk_difference), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.risk_difference_ci[0], decimal)), ',',
@@ -602,7 +597,7 @@ class TMLE:
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.odds_ratio_ci[0], decimal)), ',',
                   str(round(self.odds_ratio_ci[1], decimal)) + ')')
-            print('----------------------------------------------------------------------')
+        print('======================================================================')
 
     @staticmethod
     def _bounding(v, bounds):

@@ -1,5 +1,4 @@
 import warnings
-import math
 import patsy
 import numpy as np
 import pandas as pd
@@ -12,36 +11,40 @@ from zepid.calc import probability_to_odds
 
 
 class IPTW:
-    r"""
-    Calculates the weight for inverse probability of treatment weights through logistic regression.
-    Both stabilized or unstabilized weights are implemented. Default is just to calculate the prevalence
-    of the treatment in the population.
+    r"""Calculates inverse probability of treatment weights. Both stabilized or unstabilized weights are implemented.
+    By default, stabilized weights are stabilized by the prevalence of the treatment in the population. `IPTW` will
+    return an array of weights, which can be used to estimate a marginal structural model. For correct (but
+    conservative) confidence interval coverage, generalized estimation equations should be used. This can be done
+    by using `statsmodels` `GEE`
 
-    The formula for stabilized weights is
-
-    .. math::
-
-        \pi_i = \frac{P(A=a)}{P(A=a|L=l)}
-
-    For unstabilized weights
+    The formula for stabilized IPTW is
 
     .. math::
 
-        \pi_i = \frac{1}{P(A=a|L=l)}
+        \pi_i = \frac{\Pr(A=a)}{\Pr(A=a|L=l)}
+
+    For unstabilized IPTW
+
+    .. math::
+
+        \pi_i = \frac{1}{\Pr(A=a|L=l)}
 
     SMR unstabilized weights for weighting to exposed (A=1)
 
     .. math::
 
-        \pi_i &= 1 \;\;\text{if}\;\; A = 1 \\
-              &= \frac{P(A=1|L=l)}{P(A=0|L=l)} \;\;\text{if}\;\; A = 0
+        \pi_i &= 1 \;\;\text{       if}\;\; A = 1 \\
+              &= \frac{\Pr(A=1|L=l)}{\Pr(A=0|L=l)} \;\;\text{if}\;\; A = 0
 
     For SMR weighted to the unexposed (A=0) the equation becomes
 
     .. math::
 
-        \pi_i &= \frac{P(A=0|L=l)}{P(A=1|L=l)} \;\;\text{if}\;\; A=1 \\
-              &= 1 \;\;\text{if} \;\;A = 0
+        \pi_i &= \frac{\Pr(A=0|L=l)}{\Pr(A=1|L=l)} \;\;\text{if}\;\; A=1 \\
+              &= 1 \;\;\text{       if} \;\;A = 0
+
+    Diagnostics are also available for generated IPTW. For a full list of diagnostics, see specific function
+    documentation below. Additionally, review the references listed for an in-depth explanation
 
     Parameters
     ----------
@@ -62,41 +65,63 @@ class IPTW:
 
     Examples
     ---------
-    Stabilized IPTW weights
+    Setting up environment
 
-    >>> import zepid as ze
-    >>> from zepid.causal.ipw import IPTW
-    >>> df = ze.load_sample_data(False)
-    >>> ipt = IPTW(df, treatment='art', stabilized=True)
-    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> ipt.fit()
+    >>>import matplotlib.pyplot as plt
+    >>>from zepid import load_sample_data
+    >>>from zepid.causal.ipw import IPTW
+    >>>df = load_sample_data(False)
 
-    Unstabilized IPTW weights
+    Calculate stabilized IPTW
 
-    >>> ipt = IPTW(df, treatment='art', stabilized=False)
-    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> ipt.fit()
+    >>>ipt = IPTW(df, treatment='art', stabilized=True)
+    >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>>ipt.fit()
+
+    Calculate unstabilized IPTW weights
+
+    >>>ipt = IPTW(df, treatment='art', stabilized=False)
+    >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>>ipt.fit()
 
     SMR weight to the exposed population
 
-    >>> ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
-    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> ipt.fit()
+    >>>ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
+    >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>>ipt.fit()
 
     Diagnostics:
 
-    >>> import matplotlib.pyplot as plt
-    >>> ipt.positivity()
-    >>> print(ipt.standardized_mean_differences())
+    >>>ipt.positivity()
+    >>>print(ipt.standardized_mean_differences())
 
-    >>> ipt.plot_boxplot()
-    >>> plt.show()
+    >>>ipt.plot_boxplot()
+    >>>plt.show()
 
-    >>> ipt.plot_kde()
-    >>> plt.show()
+    >>>ipt.plot_kde()
+    >>>plt.show()
 
-    >>> ipt.plot_love()
-    >>> plt.show()
+    >>>ipt.plot_love()
+    >>>plt.show()
+
+    References
+    ----------
+    Robins JM, Hernan MA, Brumback B. (2000). Marginal structural models and causal inference in epidemiology.
+
+    Hernán MÁ, Brumback B, Robins JM. (2000). Marginal structural models to estimate the causal effect of zidovudine
+    on the survival of HIV-positive men. Epidemiology, 561-570.
+
+    Cole SR, Hernán MA. (2008). Constructing inverse probability weights for marginal structural models.
+    American journal of epidemiology, 168(6), 656-664.
+
+    Austin PC, Stuart EA. (2015). Moving towards best practice when using inverse probability of treatment
+    weighting (IPTW) using the propensity score to estimate causal treatment effects in observational studies.
+    Statistics in medicine, 34(28), 3661-3679.
+
+    Sato T, Matsuyama Y. (2003). Marginal structural models as a tool for standardization. Epidemiology, 14(6), 680-686.
+
+    Love T. (2004). Graphical Display of Covariate Balance. Presentation,
+    See http://chrp.org/love/JSM2004RoundTableHandout. pdf, 1364.
     """
     def __init__(self, df, treatment, stabilized=True, standardize='population'):
         self.denominator_model = None
@@ -130,26 +155,27 @@ class IPTW:
         Parameters
         ------------
         model_denominator : str
-            String listing variables to predict the exposure, separated by +. For example, 'var1 + var2 + var3'. This
-            is for the predicted probabilities of the denominator
+            String listing variables to predict the exposure via `patsy` syntax. For example, `'var1 + var2 + var3'`.
+            This is for the predicted probabilities of the denominator
         model_numerator : str, optional
             Optional string listing variables to predict the exposure, separated by +. Only used to calculate the
             numerator. Default ('1') calculates the overall probability of exposure. In general this is recommended. If
-            confounding variables are included in the numerator, they would later need to be adjusted for. Argument is
+            confounding variables are included in the numerator, they would later need to be adjusted for in the faux
+            marginal structural argument. Additionally, used for assessment of effect measure modification. Argument is
             also only used when calculating stabilized weights
         print_results : bool, optional
             Whether to print the model results from the regression models. Default is True
         custom_model_denominator : optional
-            Input for a custom model that is used in place of the logit model (default). The model must have the
-            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
-            background, TMLE will fit the custom model and generate the predicted probablities
+            Input for a custom model that is used in place of the logit model. The model must have the
+            `fit()` and  `predict()` attributes. Both `sklearn` and `supylearner` are supported as custom models. In the
+            background, `IPTW` will fit the custom model and generate the predicted probablities
         custom_model_numerator : optional
-            Input for a custom model that is used in place of the logit model (default). The model must have the
-            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
-            background, TMLE will fit the custom model and generate the predicted probablities
+            Input for a custom model that is used in place of the logit model. The model must have the
+            `fit()` and  `predict()` attributes. Both `sklearn` and `supylearner` are supported as custom models. In the
+            background, `IPTW` will fit the custom model and generate the predicted probablities
 
-        Notes
-        -----
+        Note
+        ----
         If custom models are used, it is important that GEE is used to obtain the variance. Bootstrapped confidence
         intervals are incorrect with the usage of some machine learning models
         """
@@ -213,11 +239,11 @@ class IPTW:
         self.df['__numer__'] = n
 
     def fit(self):
-        """Uses the specified regression models from 'regression_models' to generate the corresponding inverse
-        probability of treatment weights
+        """Calculates the inverse probability of treatment weights from the calculate probabilities from the specified
+        models / prediction algorithms.
 
         Returns
-        ------------
+        -------
         IPTW class gains the Weight, ProbabilityDenominator, and ProbabilityNumerator attributed. Weights is a pandas
         Series containing the calculated IPTW.
         """
@@ -319,11 +345,9 @@ class IPTW:
         return ax
 
     def positivity(self, decimal=3):
-        """Use this to assess whether positivity is a valid assumption. Note that this should only be used for
-        stabilized weights generated from IPTW. This diagnostic method is based on recommendations from
-        Cole SR & Hernan MA (2008). For more information, see the following paper:
-        Cole SR, Hernan MA. Constructing inverse probability weights for marginal structural models.
-        American Journal of Epidemiology 2008; 168(6):656–664.
+        """Use this to assess whether positivity is a valid assumption. For stabilized weights, the mean weight should
+        be approximately 1. For unstabilized weights, the mean weight should be approximately 2. If there are extreme
+        outliers, this may indicate problems with the calculated weights
 
         Parameters
         --------------
@@ -360,9 +384,9 @@ class IPTW:
         """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
         this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
 
-        The Love plot generates a dashed line at standardized mean difference of 0.10. In general, it is recommended
-        that weighted SMD are below this level. Variables above this level may be unbalanced despite the weighting
-        procedure. Different functional forms (or approaches like machine learning) can be considered
+        The Love plot generates a dashed line at standardized mean difference of 0.10. Ideally, weighted SMD are below
+        this level. Below 0.20 may also be sufficient. Variables above this level may be unbalanced despite the
+        weighting procedure. Different functional forms (or approaches like machine learning) may be worth considering
 
         Returns
         -------
@@ -388,7 +412,7 @@ class IPTW:
 
     def standardized_mean_differences(self):
         """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
-        difference for all variables include in the IPTW denominator
+        difference for all variables included in the IPTW denominator
 
         Returns
         -------
@@ -436,12 +460,9 @@ class IPTW:
         return s
 
     def _standardized_difference(self, variable, var_type, weighted=True):
-        """Calculates the standardized mean difference between the treat/exposed and untreated/unexposed for a
+        """Background function to calculate the standardized mean difference between the treat and untreated for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
-
-        For efficiency, it is recommended you use standardized_mean_differences(). That function calculates the
-        standardized mean differences for all variables included in the denominator
 
         Parameters
         ---------------
@@ -559,7 +580,7 @@ class IPTW:
         S = [S_{kl}] = (P_{1k}*(1-P_{1k}) + P_{2k}*(1-P{2k})) / 2     if k == l
                        (P_{1k}*P_{1l} + P_{2k}*P_{2l}) / 2            if k != l
 
-        Returns covariance matrix
+        Returns the calculate covariance matrix for categorical variables
         """
         cv2 = []
         for i, v in enumerate(treated):

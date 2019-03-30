@@ -7,26 +7,38 @@ from statsmodels.genmod.families import links
 
 
 class TimeFixedGFormula:
-    """Time-fixed implementation of the g-formula, also referred to as the g-computation algorithm formula. This
-    implementation has three options for the treatment courses:
+    r"""G-formula for time-fixed exposure and single endpoint, also referred to as the g-computation algorithm formula.
+    Uses the Snowden trick to calculate the marginal treatment under the specified exposure plan
 
-    Currently, only supports binary or continuous outcomes. For binary outcomes a logistic regression
-    model to predict probabilities of outcomes via statsmodels. For continuous outcomes a linear regression
-    model is used to predict outcomes.
+    The g-formula can be expressed as
+
+    .. math::
+
+        E[Y^a] = \sum_l E[Y|A=a,L=l] \times \Pr(L=l)
+
+    When L is continuous, the summation becomes an integral.
+
+    Currently, `TimeFixedGFormula` only supports binary or continuous outcomes. For binary outcomes a logistic
+    regression model to predict probabilities of outcomes via statsmodels. For continuous outcomes a linear regression
+    or a Poisson regression model can be used to predict outcomes.
+
     Binary and multivariate exposures are supported. For binary exposures, a string object of the column name for
     the exposure of interest should be provided. For multivariate exposures, a list of string objects corresponding
     to disjoint indicator terms for the exposure should be provided. Multivariate exposures require the user to
     custom specify treatments when fitting the g-formula. A list of the custom treatment must be provided and be
     the same length as the number of disjoint indicator columns. See
-    https://github.com/pzivich/Python-for-Epidemiologists/tree/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments for examples (highly recommended)
+    https://github.com/pzivich/Python-for-Epidemiologists/tree/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments
+    for examples (highly recommended)
 
     Key options for treatments:
 
-        *  all     -all individuals are given treatment
-        * none    -no individuals are given treatment
+        * `'all'`     -all individuals are given treatment
+        * `'none'`    -no individuals are given treatment
         * custom treatments -create a custom treatment. When specifying this, the dataframe must be referred to as 'g'.
           The following is an example that selects those whose age is 30 or younger and are females:
           ``treatment="((g['age0']<=30) & (g['male']==0))``
+
+    `TimeFixedGFormula`
 
     Parameters
     ----------
@@ -145,8 +157,9 @@ class TimeFixedGFormula:
         self.predicted_df = None
 
     def outcome_model(self, model, print_results=True):
-        """Build the model for the outcome. This is also referred to at the Q-model. This must be specified
-        before the fit function. If it is not, an error will be raised.
+        """Build the outcome regression model. This is also referred to at the Q-model in various parts of the
+        literature. This must be specified before the fit function. It is encouraged to make this model as flexible as
+        possible
 
         Parameters
         ----------
@@ -181,15 +194,14 @@ class TimeFixedGFormula:
         implementation has three options for the binary treatment courses. For multivariate treatments, the user must
         specify custom treatment plans.
 
-        To obtain the confidence intervals, use a bootstrap. See online documentation for an example:
-        http://zepid.readthedocs.io/en/latest/
+        To obtain the confidence intervals, use a bootstrap procedure
 
         Parameters
         ----------
         treatment : str, list
             There are three options available for treatment plans. All, none, or a custom pattern
-              * all     -all individuals are given treatment
-              * none    -no individuals are given treatment
+              * `'all'`     -all individuals are given treatment
+              * `'none'`    -no individuals are given treatment
               * custom  -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
                 following is an example that selects those whose age is 25 or older and are females;
                 ``treatment="((g['age0']>=25) & (g['male']==0))``
@@ -197,7 +209,7 @@ class TimeFixedGFormula:
         Returns
         -------
         marginal_outcome
-            Parameter of marginal outcome is filled, which is the mean predicted Y under the treatment strategy
+            Parameter of `marginal_outcome` is filled, which is the mean predicted outcome under the treatment strategy
         """
         if self._outcome_model is None:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
@@ -248,8 +260,8 @@ class TimeFixedGFormula:
         self.predicted_df = g
 
     def fit_stochastic(self, p, conditional=None, samples=100, seed=None):
-        """Fits the g-formula for a stochastic intervention. As currently implemented, 'p' percent of the population is
-        randomly treated. This process is repeated 'n' times and the mean is the marginal stochastic outcome.
+        """Fits the g-formula for a stochastic intervention. As currently implemented, `p` percent of the population
+        is randomly treated. This process is repeated `n` times and the mean is the marginal stochastic outcome.
 
         Parameters
         ----------
@@ -265,8 +277,12 @@ class TimeFixedGFormula:
 
         References
         ----------
+        J Ahern, KE Colson, C Margerson-Zilko, A Hubbard, & S Galea. (2016). Predicting the population
+        health impacts of community interventions: the case of alcohol outlets and binge drinking. American
+        Journal of Public Health, 106(11), 1938-1943.
+
         Muñoz, ID, & van der Laan, M (2012). Population intervention causal effects based on stochastic
-        interventions. Biometrics, 68(2), 541-549. discusses what a stochastic intervention is
+        interventions. Biometrics, 68(2), 541-549.
         """
         # Checking for common problems before estimation
         if self._outcome_model is None:

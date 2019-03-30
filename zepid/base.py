@@ -17,28 +17,36 @@ from zepid.calc.utils import (risk_ci, incidence_rate_ci, risk_ratio, risk_diffe
 # Measures of effect / association
 #########################################################################################################
 class RiskRatio:
-    """Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
+    r"""Estimate of Risk Ratio with a (1-alpha)*100% Confidence interval from a pandas DataFrame. Missing data is
     ignored. Exposure categories should be mutually exclusive
 
     Risk ratio is calculated from
 
     .. math::
 
-        RR = \frac{a}{a + b} / \frac{c}{c + d}
+        RR = \frac{\Pr(Y|A=1)}{\Pr(Y|A=0)}
 
     Risk ratio standard error is
 
     .. math::
 
-        SE = (\frac{1}{a} - \frac{1}{a + b} + \frac{1}{c} - \frac{1}{c + d})^{\frac{1}{2}}
+        SE = \left(\frac{1}{a} - \frac{1}{a + b} + \frac{1}{c} - \frac{1}{c + d}\right)^{\frac{1}{2}}
 
-    Notes
-    -------------
+    Note
+    ----
     Outcome must be coded as (1: yes, 0:no). Only works supports binary outcomes
+
+    Parameters
+    ------------
+    reference : integer, optional
+        Reference category for comparisons. Default reference category is 0
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the risk ratio in a data set
+
     >>>from zepid import RiskRatio, load_sample_data
     >>>df = load_sample_data(False)
     >>>rr = RiskRatio()
@@ -46,11 +54,13 @@ class RiskRatio:
     >>>rr.summary()
 
     Calculate the risk ratio with exposure of '1' as the reference category
+
     >>>rr = RiskRatio(reference=1)
     >>>rr.fit(df, exposure='art', outcome='dead')
     >>>rr.summary()
 
     Generate a plot of the calculated risk ratio(s)
+
     >>>import matplotlib.pyplot as plt
     >>>rr = RiskRatio()
     >>>rr.fit(df, exposure='art', outcome='dead')
@@ -59,14 +69,6 @@ class RiskRatio:
     """
 
     def __init__(self, reference=0, alpha=0.05):
-        """
-        Parameters
-        ------------
-        reference : integer, optional
-            Reference category for comparisons. Default reference category is 0
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.reference = reference
         self.alpha = alpha
         self.risks = []
@@ -83,7 +85,7 @@ class RiskRatio:
         self._missing_ed = None
 
     def fit(self, df, exposure, outcome):
-        """Calculates the Risk Ratio
+        """Calculates the Risk Ratio given a data set
 
         Parameters
         ------------
@@ -171,10 +173,12 @@ class RiskRatio:
             print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
                            tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                            Risk Ratio                                ')
+        print('======================================================================')
         print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print(self.results[['RiskRatio', 'SD(RR)', 'RR_LCL', 'RR_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
@@ -182,7 +186,7 @@ class RiskRatio:
 
     def plot(self, measure='risk_ratio', scale='linear', center=1, **errorbar_kwargs):
         """Plot the risk ratios or the risks along with their corresponding confidence intervals. This option is an
-        alternative to summary(), which displays results in a table format.
+        alternative to `summary()`, which displays results in a table format.
 
         Parameters
         ----------
@@ -195,8 +199,8 @@ class RiskRatio:
         center : str, optional
             Sets a reference line. For the risk ratio, the reference line defaults to 1. For risks, no reference line is
             displayed.
-        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
-            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See
+            defaults here: https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -221,20 +225,20 @@ class RiskRatio:
 
 
 class RiskDifference:
-    """Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas dataframe. Missing data is
+    r"""Estimate of Risk Difference with a (1-alpha)*100% Confidence interval from a pandas DataFrame. Missing data is
     ignored. Exposure categories should be mutually exclusive
 
     Risk difference is calculated as
 
     .. math::
 
-        RD = \frac{a}{a + b} - \frac{c}{c + d}
+        RD = \Pr(Y|A=1) - \Pr(Y|A=0)
 
     Risk difference standard error is calculated as
 
     .. math::
 
-        SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
+        SE = \left(\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)}\right)^{\frac{1}{2}}
 
     In addition to confidence intervals, the Frechet bounds are calculated as well. These probability bounds are useful
     for a comparison. Within these bounds, the true causal risk difference in the sample must live. The only
@@ -244,16 +248,24 @@ class RiskDifference:
 
     .. math::
 
-        Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ ne a) - \Pr(A=a)
+        Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ ne a) - \Pr(A=a)\\
         Upper = \Pr(Y|A=a)\Pr(A=a) + \Pr(A \ne a) - \Pr(Y|A \ne a)\Pr(A \ ne a)
 
-    Notes
-    -------------
+    Note
+    ----
     Outcome must be coded as (1: yes, 0:no). Only supports binary outcomes
+
+    Parameters
+    ------------
+    reference : integer, optional
+        -reference category for comparisons. Default reference category is 0
+    alpha : float, optional
+        -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the risk difference in a data set
+
     >>>from zepid import RiskDifference, load_sample_data
     >>>df = load_sample_data(False)
     >>>rd = RiskDifference()
@@ -261,11 +273,13 @@ class RiskDifference:
     >>>rd.summary()
 
     Calculate the risk difference with exposure of '1' as the reference category
+
     >>>rd = RiskDifference(reference=1)
     >>>rd.fit(df, exposure='art', outcome='dead')
     >>>rd.summary()
 
     Generate a plot of the calculated risk difference(s)
+
     >>>import matplotlib.pyplot as plt
     >>>rd = RiskDifference()
     >>>rd.fit(df, exposure='art', outcome='dead')
@@ -273,14 +287,6 @@ class RiskDifference:
     >>>plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
-        """
-        Parameters
-        ------------
-        reference : integer, optional
-            -reference category for comparisons. Default reference category is 0
-        alpha : float, optional
-            -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.reference = reference
         self.alpha = alpha
         self.risks = []
@@ -400,12 +406,14 @@ class RiskDifference:
             print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
                            tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                            Risk Ratio                                ')
+        print('======================================================================')
         print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print(self.results[['RiskDifference', 'SD(RD)', 'RD_LCL', 'RD_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print(self.results[['RiskDifference', 'CLD', 'LowerBound', 'UpperBound']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
@@ -413,7 +421,7 @@ class RiskDifference:
 
     def plot(self, measure='risk_difference', center=0, **errorbar_kwargs):
         """Plot the risk differences or the risks along with their corresponding confidence intervals. This option is an
-        alternative to summary(), which displays results in a table format.
+        alternative to `summary()`, which displays results in a table format.
 
         Parameters
         ----------
@@ -424,8 +432,8 @@ class RiskDifference:
         center : str, optional
             Sets a reference line. For the risk difference, the reference line defaults to 0. For risks, no reference
             line is displayed.
-        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
-            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See
+            defaults here: https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -448,8 +456,8 @@ class RiskDifference:
 
 
 class NNT:
-    """Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
-    Altman, DG (BMJ 1998). Missing data is ignored. Exposure categories should be mutually exclusive
+    r"""Estimates of Number Needed to Treat. NNT (1-alpha)*100% confidence interval presentation is based on
+    Altman, DG (BMJ 1998). Missing data is ignored
 
     Number needed to treat is calculated as
 
@@ -461,21 +469,29 @@ class NNT:
 
     .. math::
 
-        RD = \frac{a}{a + b} - \frac{c}{c + d}
+        RD = \Pr(Y|A=1) - \Pr(Y|A=0)
 
     Risk difference standard error is calculated as
 
     .. math::
 
-        SE = (\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)})^{\frac{1}{2}}
+        SE = \left(\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)}\right)^{\frac{1}{2}}
 
-    Notes
-    -------------
+    Note
+    ----
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Parameters
+    ------------
+    reference : integer, optional
+        Reference category for comparisons. Default reference category is 0
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the number needed to treat in a data set
+
     >>>from zepid import NNT, load_sample_data
     >>>df = load_sample_data(False)
     >>>nnt = NNT()
@@ -483,19 +499,12 @@ class NNT:
     >>>nnt.summary()
 
     Calculate the number needed to treat with '1' as the reference category
+
     >>>nnt = NNT(reference=1)
     >>>nnt.fit(df, exposure='art', outcome='dead')
     >>>nnt.summary()
     """
     def __init__(self, reference=0, alpha=0.05):
-        """
-        Parameters
-        ------------
-        reference : integer, optional
-            Reference category for comparisons. Default reference category is 0
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.reference = reference
         self.alpha = alpha
         self.number_needed_to_treat = []
@@ -581,6 +590,8 @@ class NNT:
                 pass
             else:
                 print('======================================================================')
+                print('                     Number Needed to Treat/Harm                      ')
+                print('======================================================================')
                 if r['NNT'] == math.inf:
                     print('Number Needed to Treat = infinite')
                 else:
@@ -588,6 +599,7 @@ class NNT:
                         print('Number Needed to Harm: ', round(abs(r['NNT']), decimal))
                     if r['NNT'] < 0:
                         print('Number Needed to Treat: ', round(abs(r['NNT']), decimal))
+                print('----------------------------------------------------------------------')
                 print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: ')
                 if r['NNT_LCL'] < 0 < r['NNT_UCL']:
                     print('NNT ', round(abs(r['NNT_LCL']), decimal), 'to infinity to NNH ',
@@ -596,8 +608,7 @@ class NNT:
                     print('NNT ', round(abs(r['NNT_LCL']), decimal), ' to ', round(abs(r['NNT_UCL']), decimal))
                 else:
                     print('NNH ', round(abs(r['NNT_LCL']), decimal), ' to ', round(abs(r['NNT_UCL']), decimal))
-                print('======================================================================')
-                print('======================================================================')
+                print('----------------------------------------------------------------------')
                 print('Missing E:   ', self._missing_e)
                 print('Missing D:   ', self._missing_d)
                 print('Missing E&D: ', self._missing_ed)
@@ -605,28 +616,35 @@ class NNT:
 
 
 class OddsRatio:
-    """Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored. Exposure categories
-    should be mutually exclusive
+    r"""Estimates of Odds Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored
 
     Odds ratio is calculated from
 
     .. math::
 
-        OR = \frac{a}{b} / \frac{c}{d}
+        OR = \frac{\Pr(Y|A=1)}{1 - \Pr(Y|A=1)} / \frac{\Pr(Y|A=0)}{1 - \Pr(Y|A=0)}
 
     Odds ratio standard error is
 
     .. math::
 
-        SE = (\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d})^{\frac{1}{2}}
+        SE = \left(\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d}\right)^{\frac{1}{2}}
 
-    Notes
-    -------------
+    Note
+    ----
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Parameters
+    ---------------
+    reference : integer, optional
+        Reference category for comparisons. Default reference category is 0
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the odds ratio in a data set
+
     >>>from zepid import OddsRatio, load_sample_data
     >>>df = load_sample_data(False)
     >>>ort = OddsRatio()
@@ -634,11 +652,13 @@ class OddsRatio:
     >>>ort.summary()
 
     Calculate the odds ratio with exposure of '1' as the reference category
+
     >>>ort = OddsRatio(reference=1)
     >>>ort.fit(df, exposure='art', outcome='dead')
     >>>ort.summary()
 
     Generate a plot of the calculated odds ratio(s)
+
     >>>import matplotlib.pyplot as plt
     >>>ort = OddsRatio()
     >>>ort.fit(df, exposure='art', outcome='dead')
@@ -647,14 +667,6 @@ class OddsRatio:
     """
 
     def __init__(self, reference=0, alpha=0.05):
-        """
-        Parameters
-        ---------------
-        reference : integer, optional
-            Reference category for comparisons. Default reference category is 0
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.reference = reference
         self.alpha = alpha
         self.odds_ratio = []
@@ -741,8 +753,10 @@ class OddsRatio:
             print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
                            tablefmt='grid'), '\n')
         print('======================================================================')
-        print(self.results[['OddsRatio', 'SD(OR)', 'OR_LCL', 'OR_UCL']].round(decimals=decimal))
+        print('                           Odds Ratio                                 ')
         print('======================================================================')
+        print(self.results[['OddsRatio', 'SD(OR)', 'OR_LCL', 'OR_UCL']].round(decimals=decimal))
+        print('----------------------------------------------------------------------')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
@@ -750,7 +764,7 @@ class OddsRatio:
 
     def plot(self, scale='linear', center=1, **errorbar_kwargs):
         """Plot the odds ratios along with their corresponding confidence intervals. This option is an
-        alternative to summary(), which displays results in a table format.
+        alternative to `summary()`, which displays results in a table format.
 
         Parameters
         ----------
@@ -775,28 +789,35 @@ class OddsRatio:
 
 
 class IncidenceRateRatio:
-    """Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored. Exposure
-    categories should be mutually exclusive
+    r"""Estimates of Incidence Rate Ratio with a (1-alpha)*100% Confidence interval. Missing data is ignored
 
     Incidence rate ratio is calculated from
 
     .. math::
 
-        IR = \frac{a}{t1} / \frac{c}{t2}
+        IR = \frac{a}{t_1} / \frac{c}{t_0}
 
     Incidence rate ratio standard error is
 
     .. math::
 
-        SE = (\frac{1}{a} + \frac{1}{c})^{\frac{1}{2}}
+        SE = \left(\frac{1}{a} + \frac{1}{c}\right)^{\frac{1}{2}}
 
-    Notes
-    -------------
+    Note
+    ----
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Parameters
+    ------------------
+    reference : integer, optional
+        Reference category for comparisons. Default reference category is 0
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the incidence rate ratio in a data set
+
     >>>from zepid import IncidenceRateRatio, load_sample_data
     >>>df = load_sample_data(False)
     >>>irr = IncidenceRateRatio()
@@ -804,11 +825,13 @@ class IncidenceRateRatio:
     >>>irr.summary()
 
     Calculate the incidence rate ratio with exposure of '1' as the reference category
+
     >>>irr = IncidenceRateRatio(reference=1)
     >>>irr.fit(df, exposure='art', outcome='dead', time='t')
     >>>irr.summary()
 
     Generate a plot of the calculated incidence rate ratio(s)
+
     >>>import matplotlib.pyplot as plt
     >>>irr = IncidenceRateRatio()
     >>>irr.fit(df, exposure='art', outcome='dead', time='t')
@@ -816,14 +839,6 @@ class IncidenceRateRatio:
     >>>plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
-        """
-        Parameters
-        ------------------
-        reference : integer, optional
-            Reference category for comparisons. Default reference category is 0
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.reference = reference
         self.alpha = alpha
         self.incidence_rate = []
@@ -932,10 +947,12 @@ class IncidenceRateRatio:
             print(tabulate([['E=1', a, a_t], ['E=0', self._c, self._c_time]], headers=['', 'D=1', 'Person-time'],
                            tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                      Incidence Rate Ratio                            ')
+        print('======================================================================')
         print(self.results[['IncRate', 'SD(IncRate)', 'IncRate_LCL', 'IncRate_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print(self.results[['IncRateRatio', 'SD(IRR)', 'IRR_LCL', 'IRR_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
@@ -944,7 +961,7 @@ class IncidenceRateRatio:
 
     def plot(self, measure='incidence_rate_ratio', scale='linear', center=1, **errorbar_kwargs):
         """Plot the risk ratios or the risks along with their corresponding confidence intervals. This option is an
-        alternative to summary(), which displays results in a table format.
+        alternative to `summary()`, which displays results in a table format.
 
         Parameters
         ----------
@@ -984,28 +1001,35 @@ class IncidenceRateRatio:
 
 
 class IncidenceRateDifference:
-    """Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
-    Exposure categories should be mutually exclusive
+    r"""Estimates of Incidence Rate Difference with a (1-alpha)*100% Confidence interval. Missing data is ignored.
 
     Incidence rate difference is calculated from
 
     .. math::
 
-        ID = \frac{a}{t1} - \frac{c}{t2}
+        ID = \frac{a}{t_1} - \frac{c}{t_0}
 
     Incidence rate difference standard error is
 
     .. math::
 
-        SE = (\frac{a}{t1^2} + \frac{c}{t2^2})^{\frac{1}{2}}
+        SE = \left(\frac{a}{t1^2} + \frac{c}{t2^2}\right)^{\frac{1}{2}}
 
-    Notes
-    --------------
+    Note
+    ----
     Outcome must be coded as (1: yes, 0:no). Only works for binary outcomes
+
+    Parameters
+    ----------------
+    reference : integer, optional
+        Reference category for comparisons. Default reference category is 0
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the incidence rate difference in a data set
+
     >>>from zepid import IncidenceRateDifference, load_sample_data
     >>>df = load_sample_data(False)
     >>>ird = IncidenceRateDifference()
@@ -1013,11 +1037,13 @@ class IncidenceRateDifference:
     >>>ird.summary()
 
     Calculate the incidence rate difference with exposure of '1' as the reference category
+
     >>>ird = IncidenceRateDifference(reference=1)
     >>>ird.fit(df, exposure='art', outcome='dead', time='t')
     >>>ird.summary()
 
     Generate a plot of the calculated incidence rate difference(s)
+
     >>>import matplotlib.pyplot as plt
     >>>ird = IncidenceRateDifference()
     >>>ird.fit(df, exposure='art', outcome='dead', time='t')
@@ -1025,14 +1051,6 @@ class IncidenceRateDifference:
     >>>plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
-        """
-        Parameters
-        ----------------
-        reference : integer, optional
-            Reference category for comparisons. Default reference category is 0
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.reference = reference
         self.alpha = alpha
         self.incidence_rate = []
@@ -1056,10 +1074,12 @@ class IncidenceRateDifference:
         ----------------
         df : DataFrame
             Pandas dataframe containing variables of interest
-        exposure : string
+        exposure : str
             Column name of exposure variable
-        outcome : string
+        outcome : str
             Column name of outcome variable. Must be coded as binary (0,1) where 1 is the outcome of interest
+        time : str
+            Column name of time variable
         """
         # Setting up holders for results
         ir_lcl = []
@@ -1139,10 +1159,12 @@ class IncidenceRateDifference:
             print(tabulate([['E=1', a, a_t], ['E=0', self._c, self._c_time]], headers=['', 'D=1', 'Person-time'],
                            tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                    Incidence Rate Difference                         ')
+        print('======================================================================')
         print(self.results[['IncRate', 'SD(IncRate)', 'IncRate_LCL', 'IncRate_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print(self.results[['IncRateDiff', 'SD(IRD)', 'IRD_LCL', 'IRD_UCL']].round(decimals=decimal))
-        print('======================================================================')
+        print('----------------------------------------------------------------------')
         print('Missing E:   ', self._missing_e)
         print('Missing D:   ', self._missing_d)
         print('Missing E&D: ', self._missing_ed)
@@ -1163,8 +1185,8 @@ class IncidenceRateDifference:
         center : str, optional
             Sets a reference line. For the incidence rate difference, the reference line defaults to 0. For incidence
             rates, no reference line is displayed.
-        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See defaults here:
-            https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
+        errorbar_kwargs: add additional kwargs to be passed to the plotting function ``matplotlib.errorbar``. See
+            defaults here: https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html
 
         Returns
         -------
@@ -1217,7 +1239,7 @@ def _plotter(estimate, lcl, ucl, labels, center=0, **errorbar_kwargs):
 # Testing measures
 #########################################################################################################
 class Sensitivity:
-    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
+    r"""Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
     from pandas dataframe
 
     Sensitivity is calculated from
@@ -1230,15 +1252,21 @@ class Sensitivity:
 
     .. math::
 
-        SE_{Wald} = (\frac{1}{TP} - \frac{1}{P})^{\frac{1}{2}}
+        SE_{Wald} = \left(\frac{1}{TP} - \frac{1}{P}\right)^{\frac{1}{2}}
 
-    Notes
-    ----------------
+    Note
+    ----
     Disease & Test must be coded as (1: yes, 0:no)
+
+    Parameters
+    --------------------
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the sensitivity in a data set
+
     >>>from zepid import Sensitivity, load_sample_data
     >>>df = load_sample_data(False)
     >>>sens = Sensitivity()
@@ -1246,12 +1274,6 @@ class Sensitivity:
     >>>sens.summary()
     """
     def __init__(self, alpha=0.05):
-        """
-        Parameters
-        --------------------
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.alpha = alpha
         self.sensitivity = None
         self.results = None
@@ -1300,12 +1322,14 @@ class Sensitivity:
 
         print(tabulate([['T+', self._a, self._b]], headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                            Sensitivity                               ')
+        print('======================================================================')
         print(self.results[['Sensitivity', 'SD(Se)', 'Se_LCL', 'Se_UCL']].round(decimals=decimal))
         print('======================================================================')
 
 
 class Specificity:
-    """Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
+    r"""Generates the sensitivity and (1-alpha)% confidence interval, comparing test results to disease status
     from pandas dataframe
 
     Specificity is calculated from
@@ -1320,9 +1344,14 @@ class Specificity:
 
         SE_{Wald} = (\frac{1}{FN} - \frac{1}{N})^{\frac{1}{2}}
 
-    Notes
-    -------------
+    Note
+    ----
     Disease & Test must be coded as (1: yes, 0:no)
+
+    Parameters
+    -----------
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
@@ -1334,12 +1363,6 @@ class Specificity:
     >>>spec.summary()
     """
     def __init__(self, alpha=0.05):
-        """
-        Parameters
-        -----------
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.alpha = alpha
         self.specificity = None
         self.results = None
@@ -1388,12 +1411,14 @@ class Specificity:
 
         print(tabulate([['T-', self._c, self._d]], headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                            Specificity                               ')
+        print('======================================================================')
         print(self.results[['Specificity', 'SD(Sp)', 'Sp_LCL', 'Sp_UCL']].round(decimals=decimal))
         print('======================================================================')
 
 
 class Diagnostics:
-    """Generates the Sensitivity, Specificity, and the corresponding (1-alpha)% confidence intervals, comparing test
+    r"""Generates the Sensitivity, Specificity, and the corresponding (1-alpha)% confidence intervals, comparing test
     results to disease status from pandas DataFrame
 
     Sensitivity is calculated from
@@ -1406,7 +1431,7 @@ class Diagnostics:
 
     .. math::
 
-        SE_{Wald} = (\frac{1}{TP} - \frac{1}{P})^{\frac{1}{2}}
+        SE_{Wald} = \left(\frac{1}{TP} - \frac{1}{P}\right)^{\frac{1}{2}}
 
     Specificity is calculated from
 
@@ -1418,15 +1443,21 @@ class Diagnostics:
 
     .. math::
 
-        SE_{Wald} = (\frac{1}{FN} - \frac{1}{N})^{\frac{1}{2}}
+        SE_{Wald} = \left(\frac{1}{FN} - \frac{1}{N}\right)^{\frac{1}{2}}
 
-    Notes
-    ---------------
+    Note
+    ----
     Disease & Test must be coded as (1: yes, 0:no)
+
+    Parameters
+    -------------
+    alpha : float, optional
+        Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
 
     Examples
     --------
     Calculate the sensitivity and specificity in a data set
+
     >>>from zepid import Diagnostics, load_sample_data
     >>>df = load_sample_data(False)
     >>>diag = Diagnostics()
@@ -1434,12 +1465,6 @@ class Diagnostics:
     >>>diag.summary()
     """
     def __init__(self, alpha=0.05):
-        """
-        Parameters
-        -------------
-        alpha : float, optional
-            Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
-        """
         self.alpha = alpha
         self.sensitivity = None
         self.specificity = None
@@ -1481,6 +1506,8 @@ class Diagnostics:
                         ['T-', self.specificity._c, self.specificity._d]],
                        headers=['', 'D+', 'D-'], tablefmt='grid'), '\n')
         print('======================================================================')
+        print('                           Diagnostics                                ')
+        print('======================================================================')
         print(self.sensitivity.results[['Sensitivity', 'SD(Se)', 'Se_LCL', 'Se_UCL']].round(decimals=decimal))
         print(self.specificity.results[['Specificity', 'SD(Sp)', 'Sp_LCL', 'Sp_UCL']].round(decimals=decimal))
         print('======================================================================')
@@ -1490,7 +1517,7 @@ class Diagnostics:
 # Interaction contrasts
 #########################################################################################################
 def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3, print_results=True):
-    """Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear
+    r"""Calculate the Interaction Contrast (IC) using a pandas dataframe and statsmodels to fit a linear
     binomial regression. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1}, modifier = {0,1},
     outcome = {0,1}). Can handle adjustment for other confounders in the regression model. Prints the fit
     of the linear binomial regression, the IC, and the corresponding IC 95% confidence interval.
@@ -1501,6 +1528,9 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
 
         IC = RD_{11} - RD_{10} - RD_{01}
 
+    Note
+    ----
+    statsmodels may produce a domain error in some versions.
 
     Parameters
     ----------------
@@ -1518,42 +1548,19 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
         Example of accepted input is 'C1 + C2 + C3 + Z'
     decimal : integer, optional
         Decimal places to display in result. Default is 3
+    print_results : bool, optional
+        Whether to print results from interaction contrast assessment
 
-    Notes
-    -----------------
-    statsmodels may produce a domain error in some versions.
+    Examples
+    --------
+    Setting up environment
 
-    Example of output
-    .. code::
+    >>>from zepid import interaction_contrast, load_sample_data
+    >>>df = load_sample_data(False)
 
-                         Generalized Linear Model Regression Results
-        ==============================================================================
-        Dep. Variable:                      D   No. Observations:                  210
-        Model:                            GLM   Df Residuals:                      204
-        Model Family:                Binomial   Df Model:                            5
-        Link Function:               identity   Scale:                             1.0
-        Method:                          IRLS   Log-Likelihood:                -97.450
-        Date:                Thu, 03 May 2018   Deviance:                       194.90
-        Time:                        18:46:13   Pearson chi2:                     198.
-        No. Iterations:                    79
-        ==============================================================================
-                         coef    std err          z      P>|z|      [0.025      0.975]
-        ------------------------------------------------------------------------------
-        Intercept      0.6101      0.542      1.125      0.260      -0.453       1.673
-        X              0.2049      0.056      3.665      0.000       0.095       0.314
-        Z              0.1580      0.049      3.207      0.001       0.061       0.255
-        E1M1          -0.2105      0.086     -2.447      0.014      -0.379      -0.042
-        var1        7.544e-05    6.7e-05      1.125      0.260    -5.6e-05       0.000
-        var2          -0.0248      0.022     -1.125      0.260      -0.068       0.018
-        ==============================================================================
+    Calculating interaction contrast for ART and gender
 
-        ----------------------------------------------------------------------
-        Interaction Contrast
-        ----------------------------------------------------------------------
-        IC:		-0.21047
-        95% CI:		(-0.37908, -0.04186)
-        ----------------------------------------------------------------------
-
+    >>>interaction_contrast(df, exposure='art', outcome='dead', modifier='male')
     """
     df.loc[((df[exposure] == 1) & (df[modifier] == 1)), 'E1M1'] = 1
     df.loc[((df[exposure] != 1) | (df[modifier] != 1)), 'E1M1'] = 0
@@ -1569,23 +1576,23 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
     ucl = model.conf_int().loc['E1M1'][1]
     if print_results:
         print(model.summary())
-        print('\n----------------------------------------------------------------------')
-        print('Interaction Contrast')
-        print('----------------------------------------------------------------------')
-        print('\nIC:\t\t' + str(round(ic, decimal)))
+        print('\n======================================================================')
+        print('                      Interaction Contrast                            ')
+        print('======================================================================')
+        print('IC:\t\t' + str(round(ic, decimal)))
         print('95% CI:\t\t(' + str(round(lcl, decimal)) + ', ' + str(round(ucl, decimal)) + ')')
-        print('----------------------------------------------------------------------')
+        print('======================================================================')
     return ic, lcl, ucl
 
 
 def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, regression='logit', ci='delta',
                                b_sample=200, alpha=0.05, decimal=5, print_results=True):
-    """Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial
-    or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure = {0,1},
-    modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the regression
-    model. Prints the fit of the binomial regression, the ICR, and the corresponding ICR confidence interval
+    r"""Calculate the Interaction Contrast Ratio (ICR) using a pandas dataframe, and conducts either log binomial
+    or logistic regression through statsmodels. Can ONLY be used for a 0,1 coded exposure and modifier (exposure =
+    {0,1}, modifier = {0,1}, outcome = {0,1}). Can handle missing data and adjustment for other confounders in the
+    regression model. Prints the fit of the binomial regression, the ICR, and the corresponding ICR confidence interval
 
-    Interation contrast ratio is defined as
+    Interaction contrast ratio is defined as
 
     .. math::
 
@@ -1622,11 +1629,27 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         Alpha level for confidence interval. Default is 0.05, which returns 95% confidence intervals
     decimal : integer, optional
         Decimal places to display in result. Default is 3
+    print_results : bool, optional
+        Whether to print results from interaction contrast assessment
 
-    Notes
-    ------------
+    Note
+    ----
     statsmodels may produce a domain error for log binomial models in some versions
 
+    Examples
+    --------
+    Setting up environment
+
+    >>>from zepid import interaction_contrast_ratio, load_sample_data
+    >>>df = load_sample_data(False)
+
+    Calculating interaction contrast ratio for ART and gender
+
+    >>>interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male')
+
+    Calculating interaction contrast ratio for ART and gender, confidence intervals from bootstrap
+
+    >>>interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male', ci='bootstrap')
     """
     df.loc[((df[exposure] == 1) & (df[modifier] == 0)), 'E1M0'] = 1
     df.loc[((df[exposure] != 1) | (df[modifier] != 0)), 'E1M0'] = 0
@@ -1667,9 +1690,8 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         icr_lcl = icr - zalpha * math.sqrt(varICR)
         icr_ucl = icr + zalpha * math.sqrt(varICR)
     elif ci == 'bootstrap':
-        print('Running bootstrap... please wait...')
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+            w.simplefilter("always")
             bse_icr = []
             ul = 1 - alpha / 2
             ll = 0 + alpha / 2
@@ -1692,15 +1714,18 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         raise ValueError('Please specify a supported confidence interval type')
     if print_results:
         print(model.summary())
-        print('\n----------------------------------------------------------------------')
+        print('\n======================================================================')
+        print('                   Interaction Contrast Ratio                         ')
+        print('======================================================================')
         if regression == 'logit':
             print('ICR based on Odds Ratio\t\tAlpha = ' + str(alpha))
             print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
         elif regression == 'log':
             print('ICR based on Risk Ratio\t\tAlpha = ' + str(alpha))
-        print('\nICR:\t\t' + str(round(icr, decimal)))
-        print('CI:\t\t(' + str(round(icr_lcl, decimal)) + ', ' + str(round(icr_ucl, decimal)) + ')')
         print('----------------------------------------------------------------------')
+        print('ICR:\t\t' + str(round(icr, decimal)))
+        print('CI:\t\t(' + str(round(icr_lcl, decimal)) + ', ' + str(round(icr_ucl, decimal)) + ')')
+        print('======================================================================')
     return icr, icr_lcl, icr_ucl
 
 
@@ -1821,7 +1846,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
 
 
 def table1_generator(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
-    """Code to automatically generate a descriptive table of your study population (often referred to as a
+    r"""Code to automatically generate a descriptive table of your study population (often referred to as a
     Table 1). Personally, I hate copying SAS/R/Python output from the interpreter to an Excel or other
     spreadsheet software. This code will generate a pandas dataframe object. This object will be a formatted
     table which can be exported as a CSV, opened in Excel, then final formatting changes/renaming can be done.

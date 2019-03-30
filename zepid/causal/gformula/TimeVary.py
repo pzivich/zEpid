@@ -602,7 +602,7 @@ class IterativeCondGFormula:
     >>>icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2'], print_results=False)
     >>>icgf.fit(treatments=[1, 1])
     >>>print(icgf.marginal_outcome)
-    
+
     References
     ----------
     Kreif, N., Tran, L., Grieve, R., De Stavola, B., Tasker, R. C., & Petersen, M. (2017). Estimating the

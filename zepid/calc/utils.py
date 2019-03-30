@@ -4,7 +4,6 @@ from collections import namedtuple
 import numpy as np
 from scipy.stats import norm
 
-
 Results = namedtuple('Results',
                      ['point_estimate', 'lower_bound', 'upper_bound', 'standard_error', 'alpha', 'measure']
                      )
@@ -48,13 +47,13 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
 
     .. math::
 
-        SE_{Wald} = (\frac{1}{a} - \frac{1}{b})^{\frac{1}{2}}
+        SE_{Wald} = \left(\frac{1}{a} - \frac{1}{b}\right)^{\frac{1}{2}}
 
     Hypergeometric standard error is
 
     .. math::
 
-        SE_{HypGeo} = (\frac{a b}{(a+b)^2  (a+b-1)})^{\frac{1}{2}}
+        SE_{HypGeo} = \left(\frac{a b}{(a+b)^2  (a+b-1)}\right)^{\frac{1}{2}}
 
     Parameters
     ----------
@@ -74,7 +73,7 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
 
     Note
     ----
-    Relies on the Central Limit Theorem, so there must be at least 5 events and 5 nonevents
+    Confidence intervals rely on the central limit theorem, so there must be at least 5 events and 5 nonevents
 
     Examples
     --------
@@ -100,7 +99,7 @@ def risk_ci(events, total, alpha=0.05, confint='wald'):
     c = 1 - alpha / 2
     zalpha = normal_ppf(c)
     if confint == 'wald':
-        sd = np.sqrt((risk * (1-risk)) / total)
+        sd = np.sqrt((risk * (1 - risk)) / total)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
         lower = risk - zalpha * sd
@@ -128,7 +127,7 @@ def incidence_rate_ci(events, time, alpha=0.05):
 
     .. math::
 
-        SE = (\frac{a}{T^2})^\frac{1}{2})
+        SE = \left(\frac{a}{T^2}\right)^\frac{1}{2})
 
     Parameters
     -------------
@@ -191,7 +190,7 @@ def risk_ratio(a, b, c, d, alpha=0.05):
 
     .. math::
 
-        SE = (\frac{1}{a} - \frac{1}{a + b} + \frac{1}{c} - \frac{1}{c + d})^{\frac{1}{2}}
+        SE = \left(\frac{1}{a} - \frac{1}{a + b} + \frac{1}{c} - \frac{1}{c + d}\right)^{\frac{1}{2}}
 
     Parameters
     ------------
@@ -258,7 +257,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
 
     .. math::
 
-        SE = (\frac{a b}{(a+b)^2   (a+b-1)} + \frac{c d}{(c d)^2   (c+d-1)})^{\frac{1}{2}}
+        SE = \left(\frac{a b}{(a+b)^2   (a+b-1)} + \frac{c d}{(c d)^2  (c+d-1)}\right)^{\frac{1}{2}}
 
     Parameters
     ------------
@@ -304,7 +303,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
-    sd = np.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
+    sd = np.sqrt((r1 * (1 - r1)) / (a + b) + (r0 * (1 - r0)) / (c + d))
     # TODO hypergeometric CL for later implementation
     # sd = np.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl = riskdiff - (zalpha * sd)
@@ -319,7 +318,19 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
 
     .. math::
 
-        NNT = \frac{1}{RD}
+        NNT = \frac{1}{RD} = \frac{1}{\frac{a}{a + b} - \frac{c}{c + d}}
+
+    Confidence intervals are calculated by taking the inverse of the lower and upper confidence limits of the risk
+    difference. The formula for the risk difference standard error is
+
+    .. math::
+
+        SE = \left(\frac{a b}{(a+b)^2   (a+b-1)} + \frac{c d}{(c d)^2  (c+d-1)}\right)^{\frac{1}{2}}
+
+    Note
+    ----
+    If the risk difference confidence limits cover the null (RD=0), that means the interpretation will switch from
+    NNT to NNH (number needed to harm). See Altman 1998 for further details on interpretation is this scenario
 
     Parameters
     ------------
@@ -366,7 +377,7 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
     r1 = a / (a + b)
     r0 = c / (c + d)
     riskdiff = r1 - r0
-    sd = np.sqrt((r1*(1-r1))/(a+b) + (r0*(1-r0))/(c+d))
+    sd = np.sqrt((r1 * (1 - r1)) / (a + b) + (r0 * (1 - r0)) / (c + d))
     # TODO hypergeometric CL for later implementation
     # sd = np.sqrt(((a * b) / ((a + b) ** 2 * (a + b - 1))) + ((c * d) / (((c + d) ** 2) * (c + d - 1))))
     lcl_rd = riskdiff - (zalpha * sd)
@@ -399,7 +410,7 @@ def odds_ratio(a, b, c, d, alpha=0.05):
 
     .. math::
 
-        SE = (\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d})^{\frac{1}{2}}
+        SE = \left(\frac{1}{a} + \frac{1}{b} + \frac{1}{c} + \frac{1}{d}\right)^{\frac{1}{2}}
 
     Parameters
     ------------
@@ -460,13 +471,13 @@ def incidence_rate_ratio(a, c, t1, t2, alpha=0.05):
 
     .. math::
 
-        IR = \frac{a}{t1} / \frac{c}{t2}
+        IR = \frac{a}{t_1} / \frac{c}{t_2}
 
     Incidence rate ratio standard error is
 
     .. math::
 
-        SE = (\frac{1}{a} + \frac{1}{c})^{\frac{1}{2}}
+        SE = \left(\frac{1}{a} + \frac{1}{c}\right)^{\frac{1}{2}}
 
     Parameters
     ------------
@@ -528,13 +539,13 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
 
     .. math::
 
-        ID = \frac{a}{t1} - \frac{c}{t2}
+        ID = \frac{a}{t_1} - \frac{c}{t_2}
 
     Incidence rate difference standard error is
 
     .. math::
 
-        SE = (\frac{a}{t1^2} + \frac{c}{t2^2})^{\frac{1}{2}}
+        SE = \left(\frac{a}{t_1^2} + \frac{c}{t_2^2}\right)^{\frac{1}{2}}
 
     Parameters
     ------------
@@ -582,7 +593,7 @@ def incidence_rate_difference(a, c, t1, t2, alpha=0.05):
     rated1 = a / t1
     rated2 = c / t2
     irated = rated1 - rated2
-    sd = np.sqrt((a / (t1**2)) + (c / (t2**2)))
+    sd = np.sqrt((a / (t1 ** 2)) + (c / (t2 ** 2)))
     lcl = irated - (zalpha * sd)
     ucl = irated + (zalpha * sd)
     return Results(irated, lcl, ucl, sd, alpha, 'incidence rate difference')
@@ -636,7 +647,7 @@ def population_attributable_fraction(a, b, c, d):
 
     .. math::
 
-        PAF = (\frac{a + c}{a + b + c + d} - \frac{c}{c + d}) / \frac{a + c}{a + b + c + d} = (R - R_0) / R
+        PAF = \left(\frac{a + c}{a + b + c + d} - \frac{c}{c + d}\right) / \frac{a + c}{a + b + c + d} = (R - R_0) / R
 
     Parameters
     ------------
@@ -669,7 +680,7 @@ def population_attributable_fraction(a, b, c, d):
 
 
 def probability_to_odds(prob):
-    r"""Convert proportion to odds
+    r"""Converts given probability (proportion) to odds
 
     Probability is converted to odds using
 
@@ -704,7 +715,7 @@ def probability_to_odds(prob):
 
 
 def odds_to_probability(odds):
-    r"""Convert odds to proportion
+    r"""Converts given odds to probability (proportion)
 
     Probability is converted to odds using
 
@@ -740,7 +751,7 @@ def odds_to_probability(odds):
 
 def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     r"""Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation
-    of results. For a full discussion and how to interpret the estimate and p-value, see Rosenthal & Rubin.
+    of results
 
     Parameters
     -------------
@@ -777,6 +788,11 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
 
     >>> from zepid.calc import counternull_pvalue
     >>> counternull_pvalue(-0.1, -0.3, 0.1)
+
+    References
+    ----------
+    Rosenthal R, Rubin DB. (1994). The counternull value of an effect size: A new statistic. Psychological Science,
+    5(6), 329-334.
     """
     zalpha = normal_ppf(1 - alpha / 2)
     se = (ucl - lcl) / (zalpha * 2)
@@ -801,7 +817,7 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
 
 def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=False, alpha=0.05,
               decimal=3, print_results=True):
-    r"""A simple Bayesian Analysis. Note that this analysis assumes normal distribution for the
+    r"""A simple Bayesian Analysis. Note that this analysis assumes a normal distribution for the
     continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340 for this
     procedure)
 
@@ -809,7 +825,8 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
 
     .. math::
 
-        E_{posterior} = \frac{(E_{prior} \frac{1}{Var_{prior}}) + (E \frac{1}{Var})}{E_{prior} \frac{1}{Var_{prior}}}
+        E_{posterior} = \frac{\left(E_{prior} \frac{1}{Var_{prior}}\right) +
+        (E \frac{1}{Var})}{E_{prior} \frac{1}{Var_{prior}}}
 
         Var_{posterior} = \frac{1}{\frac{1}{Var_{prior}} + \frac{1}{Var}}
 
@@ -842,11 +859,10 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     tuple
         Tuple of posterior mean, posterior lower CL, posterior upper CL
 
-    Notes
-    -------------
-    Warning; Make sure that the alpha used to generate the confidence intervals matches the alpha
-    used in this calculation. Additionally, this calculation can only handle normally distributed
-    priors and observed
+    Note
+    ----
+    Make sure that the alpha used to generate the confidence intervals matches the alpha used in this calculation.
+    Additionally, this calculation can only handle normally distributed priors and observed
 
     Examples
     --------
@@ -858,6 +874,11 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     Posterior Risk Ratio
 
     >>> semibayes(prior_mean=0.9, prior_lcl=0.75, prior_ucl=1.2, mean=0.85, lcl=0.77, ucl=0.91, ln_transform=True)
+
+    References
+    ----------
+    Rothman KJ, Greenland S, Lash TL. (2008). Modern epidemiology (Vol. 3). Philadelphia: Wolters Kluwer
+    Health/Lippincott Williams & Wilkins.
     """
     # Transforming to log scale if ratio measure
     if ln_transform:
@@ -975,7 +996,7 @@ def sensitivity(detected, cases, alpha=0.05, confint='wald'):
     sens = detected / cases
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
-        sd = np.sqrt((sens * (1-sens)) / cases)
+        sd = np.sqrt((sens * (1 - sens)) / cases)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
         lower = sens - zalpha * sd
@@ -1035,13 +1056,13 @@ def specificity(detected, noncases, alpha=0.05, confint='wald'):
     spec = 1 - (detected / noncases)
     zalpha = norm.ppf(1 - alpha / 2, loc=0, scale=1)
     if confint == 'wald':
-        sd = np.sqrt((spec * (1-spec)) / noncases)
+        sd = np.sqrt((spec * (1 - spec)) / noncases)
         # follows SAS9.4: http://support.sas.com/documentation/cdl/en/procstat/67528/HTML/default/viewer.htm#procstat_
         # freq_details37.htm#procstat.freq.freqbincl
         lower = spec - zalpha * sd
         upper = spec + zalpha * sd
     elif confint == 'hypergeometric':
-        sd = np.sqrt(detected * (noncases - detected) / (noncases ** 2 * (cases - 1)))
+        sd = np.sqrt(detected * (noncases - detected) / (noncases ** 2 * (noncases - 1)))
         lower = spec - zalpha * sd
         upper = spec + zalpha * sd
     else:
@@ -1157,8 +1178,8 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
     None
         Prints results to console
 
-    Notes
-    --------
+    Note
+    ----
     When calculating costs, be sure to consult experts in health policy or related fields.  Costs should encompass more
     than just monetary costs, like relative costs (regret, disappointment, stigma, disutility, etc.). Careful
     consideration of relative costs between false positive and false negatives needs to be considered.
@@ -1170,10 +1191,10 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
     >>> from zepid.calc import screening_cost_analyzer
     >>> screening_cost_analyzer(cost_miss_case=1, cost_false_pos=3, prevalence=0.15, sensitivity=0.9, specificity=0.88)
     """
-    print('----------------------------------------------------------------------')
-    print('''NOTE: When calculating costs, be sure to consult experts in health\npolicy or related fields.
-        Costs should encompass more than only monetary\ncosts, like relative costs (regret, disappointment, stigma,
-        disutility, etc.)''')
+    warnings.warn("NOTE: When calculating costs, be sure to consult experts in health policy or related fields."
+                  " Costs should encompass more than only monetary costs, like relative costs (regret, "
+                  "disappointment, stigma, disutility, etc.)", UserWarning)
+
     if (sensitivity > 1) | (specificity > 1):
         raise ValueError('sensitivity/specificity/prevalence cannot be greater than 1')
     disease = population * prevalence
