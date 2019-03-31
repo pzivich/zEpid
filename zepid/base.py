@@ -1,5 +1,4 @@
 import warnings
-import math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -542,7 +541,7 @@ class NNT:
         self._c = df.loc[(df[exposure] == self.reference) & (df[outcome] == 1)].shape[0]
         self._d = df.loc[(df[exposure] == self.reference) & (df[outcome] == 0)].shape[0]
         self._labels.append('Ref:' + str(self.reference))
-        self.number_needed_to_treat.append(math.inf)
+        self.number_needed_to_treat.append(np.inf)
         nnt_lcl.append(None)
         nnt_ucl.append(None)
         nnt_sd.append(None)
@@ -592,7 +591,7 @@ class NNT:
                 print('======================================================================')
                 print('                     Number Needed to Treat/Harm                      ')
                 print('======================================================================')
-                if r['NNT'] == math.inf:
+                if r['NNT'] == np.inf:
                     print('Number Needed to Treat = infinite')
                 else:
                     if r['NNT'] > 0:
@@ -1671,9 +1670,9 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     else:
         eq = outcome + ' ~ E1M0 + E0M1 + E1M1 + ' + adjust
     model = smf.glm(eq, df, family=f).fit()
-    em10 = math.exp(model.params['E1M0'])
-    em01 = math.exp(model.params['E0M1'])
-    em11 = math.exp(model.params['E1M1'])
+    em10 = np.exp(model.params['E1M0'])
+    em01 = np.exp(model.params['E0M1'])
+    em11 = np.exp(model.params['E1M1'])
     em_expect = em10 + em01 - 1
     icr = em11 - em_expect
     zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
@@ -1687,8 +1686,8 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         cvb01_11 = cov_matrix.loc['E0M1']['E1M1']
         varICR = (((em10 ** 2) * vb10) + ((em01 ** 2) * vb01) + ((em11 ** 2) * vb11) + (
         (em10 * em01 * 2 * cvb10_01)) + (-1 * em10 * em11 * 2 * cvb10_11) + (-1 * em01 * em11 * 2 * cvb01_11))
-        icr_lcl = icr - zalpha * math.sqrt(varICR)
-        icr_ucl = icr + zalpha * math.sqrt(varICR)
+        icr_lcl = icr - zalpha * np.sqrt(varICR)
+        icr_ucl = icr + zalpha * np.sqrt(varICR)
     elif ci == 'bootstrap':
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -1699,8 +1698,8 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
                 dfs = df.sample(n=df.shape[0], replace=True)
                 try:
                     bmodel = smf.glm(eq, dfs, family=f).fit()
-                    em_bexpect = math.exp(bmodel.params['E1M0']) + math.exp(bmodel.params['E0M1']) - 1
-                    bicr = math.exp(bmodel.params['E1M1']) - em_bexpect
+                    em_bexpect = np.exp(bmodel.params['E1M0']) + np.exp(bmodel.params['E0M1']) - 1
+                    bicr = np.exp(bmodel.params['E1M1']) - em_bexpect
                     sigma = bicr - icr
                     bse_icr.append(sigma)
                 except:
