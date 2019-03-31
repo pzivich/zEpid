@@ -10,9 +10,9 @@ zepid.causal.gformula.TimeFixed.TimeFixedGFormula
 
    .. autosummary::
 
+      ~TimeFixedGFormula.outcome_model
       ~TimeFixedGFormula.fit
       ~TimeFixedGFormula.fit_stochastic
-      ~TimeFixedGFormula.outcome_model
 
 
 

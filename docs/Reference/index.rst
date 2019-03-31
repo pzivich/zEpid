@@ -9,6 +9,7 @@ description of the tools, please see the side-bar for each corresponding section
 .. toctree::
     :maxdepth: 2
 
+    Measures
     Calculations
     Graphics
     Causal
