@@ -67,3 +67,15 @@ Targeted Maximum Likelihood Estimator
    :toctree: generated/
 
    TMLE
+
+Generalizability / Transportability
+-----------------------------------
+
+.. currentmodule:: zepid.causal.generalize.estimators
+
+.. autosummary::
+   :toctree: generated/
+
+   IPSW
+   GTransportFormula
+   AIPSW

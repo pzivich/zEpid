@@ -7,74 +7,107 @@ from zepid.causal.ipw.utils import propensity_score
 
 
 class IPSW:
+    r"""Calculate inverse probability of sampling weights through logistic regression. Inverse probability of
+    sampling weights are an extension of inverse probability weights to allow for the generalizability or the
+    transportability of results.
+
+    For generalizability, inverse probability of sampling weights take the following form
+
+    .. math::
+
+        IPSW = \frac{1}{\Pr(S=1|W)}
+
+    where `W` is all the factors related to the sample selection process
+
+    For transportability, the inverse probability of sampling weights are actually inverse odds of sampling weights.
+    They take the following form
+
+    .. math::
+
+        IPSW = \frac{\Pr(S=0|W}{\Pr(S=1|W)}
+
+    Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing all variables required for generalization/transportation. Should include
+        all features related to sample selection, indicator for selection into the sample, and treatment/outcome
+        information for the sample (selection == 1)
+    exposure : str
+        Column label for exposure/treatment of interest. Can be nan for all those not in sample
+    outcome : str
+        Column label for outcome of interest. Can be nan for all those not in sample
+    selection : str
+        Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
+        sample and 0 if individual is from random sample of source population
+    generalize : bool, optional
+        Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
+        for further details on the difference between the two estimation methods
+    stabilized : bool, optional
+        Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
+    weights : None, str, optional
+        For conditionally randomized trials, or observational research, inverse probability of treatment weights
+        can be used to adjust for confounding. Before estimating the effect measures, this weight vector and the
+        IPSW are multiplied to calculate new weights
+        When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
+
+    Notes
+    -----
+    There are two related concepts; generalizability and transportability. Generalizability is when your study
+    sample is part of your target population. For example, you want to generalize results from California to the
+    entire United States. Transportability is when your study sample is not part of your target population. For
+    example, we want to apply our results from California to Canada. Depending on the scenario, the IPSW have
+    slightly different forms. `IPSW` allows for both of these problems
+
+    Examples
+    --------
+    Setting up the environment
+
+    >>>from zepid import load_generalize_data
+    >>>from zepid.causal.generalize import IPSW
+    >>>df = load_generalize_data(False)
+
+    Generalizability for RCT results
+
+    >>>ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
+    >>>ipsw.regression_models('L + W + L:W', print_results=False)
+    >>>ipsw.fit()
+    >>>ipsw.summary()
+
+    Transportability for RCT results
+
+    >>>ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>>ipsw.regression_models('L + W + L:W', print_results=False)
+    >>>ipsw.fit()
+    >>>ipsw.summary()
+
+    For observational studies, IPTW can be used to account for confounders
+
+    >>>from zepid.causal.ipw import IPTW
+    >>>iptw = IPTW(df, treatment='A')
+    >>>iptw.regression_models('L')
+    >>>iptw.fit()
+    >>>df['iptw'] = iptw.Weight
+
+    >>>ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', weights='iptw', generalize=False)
+    >>>ipsw.regression_models('L + W + L:W', print_results=False)
+    >>>ipsw.fit()
+    >>>ipsw.summary()
+
+    References
+    ----------
+    Lesko CR, Buchanan AL, Westreich D, Edwards JK, Hudgens MG, & Cole SR. (2017).
+    Generalizing study results: a potential outcomes perspective. Epidemiology (Cambridge, Mass.), 28(4), 553.
+
+    Westreich D, Edwards JK, Lesko CR, Stuart E, & Cole SR. (2017). Transportability of trial
+    results using inverse odds of sampling weights. AJE, 186(8), 1010-1014.
+
+    Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
+    randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
+    """
+
     def __init__(self, df, exposure, outcome, selection, generalize=True, stabilized=True, weights=None):
-        """Calculate inverse probability of sampling weights through logistic regression. Inverse probability of
-        sampling weights are an extension of inverse probability weights to allow for the generalizability or the
-        transportability of results.
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing all variables required for generalization/transportation. Should include
-            all features related to sample selection, indicator for selection into the sample, and treatment/outcome
-            information for the sample (selection == 1)
-        exposure : str
-            Column label for exposure/treatment of interest. Can be nan for all those not in sample
-        outcome : str
-            Column label for outcome of interest. Can be nan for all those not in sample
-        selection : str
-            Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
-            sample and 0 if individual is from random sample of source population
-        generalize : bool, optional
-            Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
-            for further details on the difference between the two estimation methods
-        stabilized : bool, optional
-            Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
-        weights : None, str, optional
-            For conditionally randomized trials, or observational research, inverse probability of treatment weights
-            can be used to adjust for confounding. Before estimating the effect measures, this weight vector and the
-            IPSW are multiplied to calculate new weights
-            When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
-
-        Notes
-        -----
-        There are two related concepts; generalizability and transportability. Generalizability is when your study
-        sample is part of your target population. For example, you want to generalize results from California to the
-        entire United States. Transportability is when your study sample is not part of your target population. For
-        example, we want to apply our results from California to Canada. Depending on the scenario, the IPSW have
-        slightly different forms. `IPSW` allows for both of these problems
-
-        For generalizability, inverse probability of sampling weights take the following form
-
-        .. math::
-
-            IPSW = \frac{1}{\Pr(S=1|W)}
-
-        where `W` is all the factors related to the sample selection process
-
-        For transportability, the inverse probability of sampling weights are actually inverse odds of sampling weights.
-        They take the following form
-
-        .. math::
-
-            IPSW = \frac{\Pr(S=0|W}{\Pr(S=1|W)}
-
-        Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
-
-        Examples
-        --------
-
-        References
-        ----------
-        Lesko CR, Buchanan AL, Westreich D, Edwards JK, Hudgens MG, & Cole SR. (2017).
-        Generalizing study results: a potential outcomes perspective. Epidemiology (Cambridge, Mass.), 28(4), 553.
-
-        Westreich D, Edwards JK, Lesko CR, Stuart E, & Cole SR. (2017). Transportability of trial
-        results using inverse odds of sampling weights. AJE, 186(8), 1010-1014.
-
-        Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
-        randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
-        """
         self.df = df.copy()
         self.sample = df.loc[df[selection] == 1].copy()
         self.target = df.loc[df[selection] == 0].copy()
@@ -175,73 +208,101 @@ class IPSW:
         decimal : int, optional
             Number of decimal places to display in the result
         """
-        print('----------------------------------------------------------------------')
+        print('======================================================================')
+        if self.generalize:
+            print('           Inverse Probability of Sampling Weights')
+        else:
+            print('               Inverse Odds of Sampling Weights')
+        print('======================================================================')
         print('Risk Difference: ', round(float(self.risk_difference), decimal))
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
         print('----------------------------------------------------------------------')
+        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('======================================================================')
 
 
 class GTransportFormula:
+    r"""Calculate the g-transport-formula using a observed study sample and a sample from the target population.
+    Broadly, the process for fitting the g-transport-formula is similar to the g-formula (as implemented in
+    `TimeFixedGFormula`). Instead of predicting the potential outcomes of only the sample, the g-transport-formula
+    predicts potential outcomes for the full target population
+
+    For generalizability, we first fit a Q-model predicting the outcome as a function of the treatment and any
+    modifiers (along with confounders if in observation data). Afterwards, we predict the potential outcomes for
+    the entire population (S=1 and S=0). To obtain the marginal effect measure, we take the mean of the entire
+    population (S=1 and S=0)
+
+    For transportability, we similarly fit a Q-model in the observed sample and generate predictions for the entire
+    sample. However, for transportability our sample is not part of the target population. Therefore, we only take
+    the marginal of the S=0 group.
+
+    Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing all variables required for generalization/transportation. Should include
+        all features related to sample selection, indicator for selection into the sample, and treatment/outcome
+        information for the sample (selection == 1)
+    exposure : str
+        Column label for exposure/treatment of interest. Can be nan for all those not in sample. Only binary
+        exposures are currently supported
+    outcome : str
+        Column label for outcome of interest. Can be nan for all those not in sample
+    selection : str
+        Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
+        sample and 0 if individual is from random sample of source population
+    outcome_type : str, optional
+        Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
+    generalize : bool, optional
+        Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
+        for further details on the difference between the two estimation methods
+    weights : None, str, optional
+        If there are associated sampling (or other types of) weights, these can be included in this statement.
+        Sampling weights may be used for a transportability problem? Either way, I would like to keep this as an
+        option (to mirror TimeFixedGFormula)
+
+    Notes
+    -----
+    There are two related concepts; generalizability and transportability. Generalizability is when your study
+    sample is part of your target population. For example, you want to generalize results from California to the
+    entire United States. Transportability is when your study sample is not part of your target population. For
+    example, we want to apply our results from California to Canada. Depending on the scenario, how the marginal
+    risk difference is calculated is slightly different. `GTransportFormula` allows for both of these problems
+
+    Examples
+    --------
+    Setting up the environment
+
+    >>>from zepid import load_generalize_data
+    >>>from zepid.causal.generalize import GTransportFormula
+    >>>df = load_generalize_data(False)
+
+    Generalizability
+
+    >>>gtf = GTransportFormula(df, exposure='A', outcome='Y', selection='S', generalize=True)
+    >>>gtf.outcome_model('A + L + L:A + W + W:A + W:A:L')
+    >>>gtf.fit()
+    >>>gtf.summary()
+
+    Transportability
+
+    >>>gtf = GTransportFormula(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>>gtf.outcome_model('A + L + L:A + W + W:A + W:A:L')
+    >>>gtf.fit()
+    >>>gtf.summary()
+
+    For observational studies, confounders should be included in the Q-model
+
+    References
+    ----------
+    Lesko CR, Buchanan AL, Westreich D, Edwards JK, Hudgens MG, & Cole SR. (2017).
+    Generalizing study results: a potential outcomes perspective. Epidemiology (Cambridge, Mass.), 28(4), 553.
+
+    Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
+    randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
+    """
+
     def __init__(self, df, exposure, outcome, selection, outcome_type='binary', generalize=True, weights=None):
-        """Calculate the g-transport-formula using a observed study sample and a sample from the target population.
-        Broadly, the process for fitting the g-transport-formula is similar to the g-formula (as implemented in
-        `TimeFixedGFormula`). Instead of predicting the potential outcomes of only the sample, the g-transport-formula
-        predicts potential outcomes for the full target population
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing all variables required for generalization/transportation. Should include
-            all features related to sample selection, indicator for selection into the sample, and treatment/outcome
-            information for the sample (selection == 1)
-        exposure : str
-            Column label for exposure/treatment of interest. Can be nan for all those not in sample. Only binary
-            exposures are currently supported
-        outcome : str
-            Column label for outcome of interest. Can be nan for all those not in sample
-        selection : str
-            Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
-            sample and 0 if individual is from random sample of source population
-        outcome_type : str, optional
-            Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
-        generalize : bool, optional
-            Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
-            for further details on the difference between the two estimation methods
-        weights : None, str, optional
-            If there are associated sampling (or other types of) weights, these can be included in this statement.
-            Sampling weights may be used for a transportability problem? Either way, I would like to keep this as an
-            option (to mirror TimeFixedGFormula)
-
-        Notes
-        -----
-        There are two related concepts; generalizability and transportability. Generalizability is when your study
-        sample is part of your target population. For example, you want to generalize results from California to the
-        entire United States. Transportability is when your study sample is not part of your target population. For
-        example, we want to apply our results from California to Canada. Depending on the scenario, how the marginal
-        risk difference is calculated is slightly different. `GTransportFormula` allows for both of these problems
-
-        For generalizability, we first fit a Q-model predicting the outcome as a function of the treatment and any
-        modifiers (along with confounders if in observation data). Afterwards, we predict the potential outcomes for
-        the entire population (S=1 and S=0). To obtain the marginal effect measure, we take the mean of the entire
-        population (S=1 and S=0)
-
-        For transportability, we similarly fit a Q-model in the observed sample and generate predictions for the entire
-        sample. However, for transportability our sample is not part of the target population. Therefore, we only take
-        the marginal of the S=0 group.
-
-        Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
-
-        Examples
-        --------
-
-        References
-        ----------
-        Lesko CR, Buchanan AL, Westreich D, Edwards JK, Hudgens MG, & Cole SR. (2017).
-        Generalizing study results: a potential outcomes perspective. Epidemiology (Cambridge, Mass.), 28(4), 553.
-
-        Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
-        randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
-        """
         self.df = df.copy()
         self.sample = df.loc[df[selection] == 1].copy()
         self.target = df.loc[df[selection] == 0].copy()
@@ -349,82 +410,107 @@ class GTransportFormula:
         decimal : int, optional
             Number of decimal places to display in the result
         """
-        print('----------------------------------------------------------------------')
+        print('======================================================================')
+        print('                       g-Transport formula')
+        print('======================================================================')
         print('Risk Difference: ', round(float(self.risk_difference), decimal))
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
         print('----------------------------------------------------------------------')
+        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('======================================================================')
 
 
 class AIPSW:
+    r"""Doubly robust estimator for generalizability. I haven't found a good name for it in the literature yet, so I
+    am naming it augmented-IPSW (in honor of other doubly robust estimators like AIPTW and AIPMW).
+
+    The process of estimating AIPSW follows other doubly robust estimators. We need to specify both the IPSW model
+    and the g-transport model. From this information, the AIPSW is calculated via the following
+
+    .. math::
+
+        \psi = \frac{1}{n} \sum \left(E[Y|A=a,L,S=1] + \frac{I(S=1, A=a)}{\Pr(S=1|L)} (Y - E[Y|A=a,L,S=1])\right)
+
+    For transportability problems, AIPSW takes the following form
+
+    .. math::
+
+        \psi = \frac{\sum IPSW\times I(S=1, A=a)(Y - E[Y|A=a,L,S=1]) + (1-S)E[Y|A=a,L,S=1]}{\Pr(S=0)}
+
+    For generalizability, we first fit a Q-model predicting the outcome as a function of the treatment and any
+    modifiers (along with confounders if in observation data). Next we calculate IPSW (with IPTW if there is any
+    confounders). Afterwards, we predict the potential outcomes for the entire population (S=1 and S=0). We then
+    use the above formula to calculate the marginal effect
+
+    A similar process is done for transportability. Instead we merge g-transport and inverse odds of sampling weights
+
+    Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing all variables required for generalization/transportation. Should include
+        all features related to sample selection, indicator for selection into the sample, and treatment/outcome
+        information for the sample (selection == 1)
+    exposure : str
+        Column label for exposure/treatment of interest. Can be nan for all those not in sample. Only binary
+        exposures are currently supported
+    outcome : str
+        Column label for outcome of interest. Can be nan for all those not in sample
+    selection : str
+        Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
+        sample and 0 if individual is from random sample of source population
+    generalize : bool, optional
+        Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
+        for further details on the difference between the two estimation methods
+    weights : None, str, optional
+        For conditionally randomized trials, or observational research, inverse probability of treatment weights
+        can be used to adjust for confounding in IPSW. Before estimating the effect measures, this weight vector
+        and the IPSW are multiplied to calculate new weights
+        When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
+
+    Notes
+    -----
+    There are two related concepts; generalizability and transportability. Generalizability is when your study
+    sample is part of your target population. For example, you want to generalize results from California to the
+    entire United States. Transportability is when your study sample is not part of your target population. For
+    example, we want to apply our results from California to Canada. Depending on the scenario, how the marginal
+    risk difference is calculated is slightly different. `GTransportFormula` allows for both of these problems
+
+    Examples
+    --------
+    Setting up the environment
+
+    >>>from zepid import load_generalize_data
+    >>>from zepid.causal.generalize import AIPSW
+    >>>df = load_generalize_data(False)
+
+    Generalizability
+
+    >>>aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
+    >>>aipw.weight_model('L + W_sq', print_results=False)
+    >>>aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
+    >>>aipw.fit()
+    >>>aipw.summary()
+
+    Transportability
+
+    >>>aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>>aipw.weight_model('L + W_sq', print_results=False)
+    >>>aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
+    >>>aipw.fit()
+    >>>aipw.summary()
+
+    References
+    ----------
+    Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
+    randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
+
+    Dahabreh IJ, Hernan MA, Robertson SE, Buchanan A, Steingrimsson JA. (2019). Generalizing
+    trial findings in nested trial designs with sub-sampling of non-randomized individuals. arXiv preprint
+    arXiv:1902.06080.
+    """
+
     def __init__(self, df, exposure, outcome, selection, generalize=True, weights=None):
-        """Doubly robust estimator for generalizability. I haven't found a good name for it in the literature yet, so I
-        am naming it augmented-IPSW (in honor of other doubly robust estimators like AIPTW and AIPMW).
-
-        The process of estimating AIPSW follows other doubly robust estimators. We need to specify both the IPSW model
-        and the g-transport model. From this information, the AIPSW is calculated via the following
-
-        .. math::
-
-            \psi = \frac{1}{n} \sum \left(E[Y|A=a,L,S=1] + \frac{I(S=1, A=a)}{\Pr(S=1|L)} (Y - E[Y|A=a,L,S=1])\right)
-
-        For transportability problems, AIPSW takes the following form
-
-        .. math::
-
-            \psi = \frac{\sum IPSW\times I(S=1, A=a)(Y - E[Y|A=a,L,S=1]) + (1-S)E[Y|A=a,L,S=1]}{\Pr(S=0)}
-
-        Parameters
-        ----------
-        df : DataFrame
-            Pandas dataframe containing all variables required for generalization/transportation. Should include
-            all features related to sample selection, indicator for selection into the sample, and treatment/outcome
-            information for the sample (selection == 1)
-        exposure : str
-            Column label for exposure/treatment of interest. Can be nan for all those not in sample. Only binary
-            exposures are currently supported
-        outcome : str
-            Column label for outcome of interest. Can be nan for all those not in sample
-        selection : str
-            Column label for indicator of selection into the sample. Should be 1 if individual comes from the study
-            sample and 0 if individual is from random sample of source population
-        generalize : bool, optional
-            Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
-            for further details on the difference between the two estimation methods
-        weights : None, str, optional
-            For conditionally randomized trials, or observational research, inverse probability of treatment weights
-            can be used to adjust for confounding in IPSW. Before estimating the effect measures, this weight vector
-            and the IPSW are multiplied to calculate new weights
-            When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
-
-        Notes
-        -----
-        There are two related concepts; generalizability and transportability. Generalizability is when your study
-        sample is part of your target population. For example, you want to generalize results from California to the
-        entire United States. Transportability is when your study sample is not part of your target population. For
-        example, we want to apply our results from California to Canada. Depending on the scenario, how the marginal
-        risk difference is calculated is slightly different. `GTransportFormula` allows for both of these problems
-
-        For generalizability, we first fit a Q-model predicting the outcome as a function of the treatment and any
-        modifiers (along with confounders if in observation data). Next we calculate IPSW (with IPTW if there is any
-        confounders). Afterwards, we predict the potential outcomes for the entire population (S=1 and S=0). We then
-        use the above formula to calculate the marginal effect
-
-        For transportability, I am still thinking this through...
-
-        Confidence intervals should be obtained by using a non-parametric bootstrapping procedure
-
-        Examples
-        --------
-
-        References
-        ----------
-        Dahabreh IJ, Robertson SE, Stuart EA, Hernan MA (2018). Transporting inferences from a
-        randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
-
-        Dahabreh IJ, Hernan MA, Robertson SE, Buchanan A, Steingrimsson JA. (2019). Generalizing
-        trial findings in nested trial designs with sub-sampling of non-randomized individuals. arXiv preprint
-        arXiv:1902.06080.
-        """
         self.df = df.copy()
         self.sample = df[selection] == 1
         self.target = df[selection] == 0
@@ -518,12 +604,8 @@ class AIPSW:
 
         # Modeling the outcome
         df = self.df[self.sample].copy()
-        if self.weight is None:
-            m = smf.glm(self.outcome+' ~ '+model, df, family=linkdist)
-            self._outcome_model = m.fit()
-        else:
-            m = smf.gee(self.outcome+' ~ '+model, df.index, df, family=linkdist, weights=df[self.weight])
-            self._outcome_model = m.fit()
+        m = smf.glm(self.outcome+' ~ '+model, df, family=linkdist)
+        self._outcome_model = m.fit()
 
         # Printing results of the model and if any observations were dropped
         if print_results:
@@ -585,7 +667,10 @@ class AIPSW:
         decimal : int, optional
             Number of decimal places to display in the result
         """
-        print('----------------------------------------------------------------------')
+        print('======================================================================')
+        print('           Augmented Inverse Probability of Sampling Weights')
+        print('======================================================================')
         print('Risk Difference: ', round(float(self.risk_difference), decimal))
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
         print('----------------------------------------------------------------------')
+        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('======================================================================')

@@ -6,12 +6,6 @@ ________________________________________________________________________________
 | This package is to provide easy to use tools to aid in epidemiological analyses. A full   |
 | applied guide to the entire package is available at:                                      |
 |       https://github.com/pzivich/Python-for-Epidemiologists                               |
-|                                                                                           |
-| Current contents include:                                                                 |
-|       -Basics tools for pandas dataframes and summary data                                |
-|       -Useful graphics                                                                    |
-|       -Causal estimation methods                                                          |
-|       -Sensitivity analysis tools                                                         |
 |___________________________________________________________________________________________|
 
 CONTENTS
@@ -22,8 +16,9 @@ Basic calculations (both for summary data and pandas.DataFrame):
 
 Causal methods:
     -Inverse Probability of Treatment Weights, Inverse Probability of Censoring Weights, Inverse Probability of
-     Missing Weights, Time-Fixed G-Formula, Time-Fixed Double Robust
-     Estimator
+     Missing Weights, Time-Fixed G-Formula, Monte-Carlo g-formula, Iterative Conditional g-formula,
+     Augmented Inverse Probability Weights, Targeted Maximum Likelihood Estimation, Inverse Probability/Odds of
+     Sampling Weights, g-transport formula, Augmented Inverse Probability/Odds of Sampling Weights
 
 Graphics:
     -Forest Plot, Receiver Operator Curve, Functional Form Plot, P-value Distribution Plot, Spaghetti Plot, Dynamic

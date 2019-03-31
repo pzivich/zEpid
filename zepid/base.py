@@ -247,8 +247,8 @@ class RiskDifference:
 
     .. math::
 
-        Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ ne a) - \Pr(A=a)\\
-        Upper = \Pr(Y|A=a)\Pr(A=a) + \Pr(A \ne a) - \Pr(Y|A \ne a)\Pr(A \ ne a)
+        Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ne a) - \Pr(A=a)\\
+        Upper = \Pr(Y|A=a)\Pr(A=a) + \Pr(A \ne a) - \Pr(Y|A \ne a)\Pr(A \ne a)
 
     Note
     ----
@@ -1920,29 +1920,6 @@ def table1_generator(df, cols, variable_type, continuous_measure='median', strat
         Returns a pandas dataframe object containing a formatted Table 1. It is not recommended that this table is used
         in any part of later analysis, since is id difficult to parse through the table. This function is only meant to
         reduce the amount of copying from output needed.
-
-    Notes
-    -----------
-    Example of Output
-
-    .. code::
-        _                                D=0                             D=1
-        __                           % / IQR           n             % / IQR          n
-
-        Variable
-        TOTAL                                 310.000000                      74.000000
-        X        1.0                0.608187  104.000000            0.692308  27.000000
-                 0.0                0.391813   67.000000            0.307692  12.000000
-                 Missing                      139.000000                      35.000000
-        Z        1.0                0.722581  224.000000            0.635135  47.000000
-                 0.0                0.277419   86.000000            0.364865  27.000000
-             Missing                        0.000000                       0.000000
-        var1              [468.231, 525.312]  497.262978  [481.959, 538.964] 507.286133
-                 Missing                        0.000000                       0.000000
-        var2                [24.454, 25.731]   25.058982      [24.1, 25.607]  24.816898
-                 Missing                        0.000000                       0.000000
-        var3                [24.446, 25.685]   25.037731    [24.388, 25.563]  24.920583
-                 Missing                        0.000000
     """
     if len(cols) != len(variable_type):
         raise ValueError('List of columns must be the same length as the list of variable types')
