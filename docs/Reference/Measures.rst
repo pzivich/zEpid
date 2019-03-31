@@ -17,6 +17,7 @@ Below is documentation for each of the implemented calculation functionalities a
   Specificity
   Diagnostics
   spline
+  create_spline_transform
   table1_generator
   interaction_contrast
   interaction_contrast_ratio
