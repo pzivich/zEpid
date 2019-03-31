@@ -20,6 +20,9 @@ continuous values are outside the bounded values.
 
 ``AIPTW`` now has confidence intervals for the risk difference based on influence curves
 
+``spline`` now uses `numpy.percentile` to allow for older versions of NumPy. Additionally, new function 
+`create_spline_transform` returns a general function for splines, which can be used within other functions
+
 Lots of documentation updates for all functions. Additionally, `summary()` functions are starting to be updated. 
 Currently, only stylistic changes
 
