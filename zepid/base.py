@@ -1706,24 +1706,24 @@ def create_spline_transform(array, n_knots=3, knots=None, term=1, restricted=Fal
     """
     if knots is None:
         if n_knots == 1:
-            knots = [0.5]
+            knots = [50]
         elif n_knots == 2:
-            knots = [1 / 3, 2 / 3]
+            knots = [100 / 3, 200 / 3]
         elif n_knots == 3:
-            knots = [0.05, 0.5, 0.95]
+            knots = [5, 50, 95]
         elif n_knots == 4:
-            knots = [0.05, 0.35, 0.65, 0.95]
+            knots = [5, 35, 65, 95]
         elif n_knots == 5:
-            knots = [0.05, 0.275, 0.50, 0.725, 0.95]
+            knots = [5, 27.5, 50, 72.5, 95]
         elif n_knots == 6:
-            knots = [0.05, 0.23, 0.41, 0.59, 0.77, 0.95]
+            knots = [5, 23, 41, 59, 77, 95]
         elif n_knots == 7:
-            knots = [0.025, 11 / 60, 26 / 75, 0.50, 79 / 120, 49 / 60, 0.975]
+            knots = [2.5, 1100 / 60, 2600 / 75, 50, 7900 / 120, 4900 / 60, 97.5]
         else:
             raise ValueError(
                 'When the knot locations are not pre-specified, the number of specified knots must be'
                 ' an integer between 1 and 7')
-        pts = np.quantile(array, q=knots).tolist()
+        pts = np.percentile(array, q=knots).tolist()
     else:
         if n_knots != len(knots):
             raise ValueError('The number of knots and the number of specified knots must match')
@@ -1823,7 +1823,7 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     """
     spline_, _ = create_spline_transform(df[var], n_knots, knots, term, restricted)
     results = spline_(df[var])
-    return pd.DataFrame(results, columns=['rspline%d' % i for i in range(results.shape[1])])
+    return pd.DataFrame(results, columns=['spline%d' % i for i in range(results.shape[1])])
 
 
 def table1_generator(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
