@@ -160,13 +160,13 @@ class TestAIPSW:
         aipw.weight_model('L + W_sq', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
-        npt.assert_allclose(aipw.risk_difference, 0.043744, atol=1e-5)
-        npt.assert_allclose(aipw.risk_ratio, 1.131651, atol=1e-4)
+        npt.assert_allclose(aipw.risk_difference, 0.048129, atol=1e-5)
+        npt.assert_allclose(aipw.risk_ratio, 1.146787, atol=1e-4)
 
     def test_transport_conf(self, df_iptw):
-        aipw = AIPSW(df_iptw, exposure='A', outcome='Y', selection='S', generalize=True, weights='iptw')
+        aipw = AIPSW(df_iptw, exposure='A', outcome='Y', selection='S', generalize=False, weights='iptw')
         aipw.weight_model('L + W_sq', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
-        npt.assert_allclose(aipw.risk_difference, 0.043744, atol=1e-5)
-        npt.assert_allclose(aipw.risk_ratio, 1.131651, atol=1e-4)
+        npt.assert_allclose(aipw.risk_difference, 0.041407, atol=1e-5)
+        npt.assert_allclose(aipw.risk_ratio, 1.120556, atol=1e-4)
