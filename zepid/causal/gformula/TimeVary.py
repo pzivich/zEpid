@@ -7,7 +7,7 @@ from statsmodels.genmod.families import links
 
 
 class MonteCarloGFormula:
-    """Time-varying implementation of the Monte Carlo g-formula. The Monte Carlo estimator is useful for survival data.
+    r"""Time-varying implementation of the Monte Carlo g-formula. The Monte Carlo estimator is useful for survival data.
     For an extensive walkthrough of the Monte Carlo g-formula, see Keil et al. 2014 and other listed references. This
     implementation has four options for the treatment courses:
 
@@ -64,6 +64,7 @@ class MonteCarloGFormula:
     Examples
     --------
     Setting up the environment
+
     >>>import numpy as np
     >>>from zepid import load_sample_data, spline
     >>>from zepid.causal.gformula import MonteCarloGFormula
@@ -83,6 +84,7 @@ class MonteCarloGFormula:
     >>>df['enter_cu'] = df['enter'] ** 3
 
     Estimating the g-formula with the Monte Carlo estimator
+
     >>>g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
 
     >>># Specifying the exposure/treatment model
@@ -537,7 +539,7 @@ class MonteCarloGFormula:
 
 
 class IterativeCondGFormula:
-    """Iterative conditional g-formula estimator. This time-varying parametric g-formula uses the iterative conditional
+    r"""Iterative conditional g-formula estimator. This time-varying parametric g-formula uses the iterative conditional
     approach (also referred to as the sequential regression). The iterative conditional estimator is useful for
     longitudinal data and requires less model specification than the Monte Carlo g-formula. The iterative conditional
     uses a mathematical trick to estimate the marginal outcome distribution at the end of follow-up
