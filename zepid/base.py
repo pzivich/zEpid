@@ -1225,7 +1225,7 @@ def _plotter(estimate, lcl, ucl, labels, center=0, **errorbar_kwargs):
     absolute_errors_from_estimate = np.abs(estimate.values - np.vstack((lcl, ucl)))
 
     ax.errorbar(estimate, ypoints, xerr=absolute_errors_from_estimate, **errorbar_kwargs)
-    
+
     if not np.isnan(center):
         ax.axvline(center, zorder=1, color='gray')
 
@@ -1731,6 +1731,81 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
 #########################################################################################################
 # Other
 #########################################################################################################
+def create_spline_transform(array, n_knots=3, knots=None, term=1, restricted=False):
+    """Creates spline dummy variables based on either user specified knot locations or automatically
+    determines knot locations based on percentiles. Options are available to set the number of knots,
+    location of knots (value), term (linear, quadratic, etc.), and restricted/unrestricted.
+
+    Parameters
+    --------------
+    array:
+    n_knots : integer, optional
+        Number of knots requested. Options for knots include any positive integer if the location of knots are
+        specified. If knot locations are not specified, n_knots must be an integer between 1 to 7. Default is 3 knots
+    knots : list, optional
+        Location of specified knots in a list. To specify the location of knots, put desired numbers for knots into a
+        list. Be sure that the length of the list is the same as the specified number of knots. Default is None, so
+        that the function will automatically determine knot locations without user specification
+    term : integer, float, optional
+        High order term for the spline terms. To calculate a quadratic spline change to 2, cubic spline
+        change to 3, etc. Default is 1, i.e. a linear spline
+    restricted : bool, optional
+        Whether to return a restricted spline. Note that the restricted spline returns one less column than the number
+        of knots. An unrestricted spline returns the same number of columns as the number of knots. Default is False,
+        providing an unrestricted spline
+
+    Returns
+    ---------
+    function : a lambda function that accepts a numpy array or
+    list : a list of the knots
+    """
+    if knots is None:
+        if n_knots == 1:
+            knots = [50]
+        elif n_knots == 2:
+            knots = [100 / 3, 200 / 3]
+        elif n_knots == 3:
+            knots = [5, 50, 95]
+        elif n_knots == 4:
+            knots = [5, 35, 65, 95]
+        elif n_knots == 5:
+            knots = [5, 27.5, 50, 72.5, 95]
+        elif n_knots == 6:
+            knots = [5, 23, 41, 59, 77, 95]
+        elif n_knots == 7:
+            knots = [2.5, 1100 / 60, 2600 / 75, 50, 7900 / 120, 4900 / 60, 97.5]
+        else:
+            raise ValueError(
+                'When the knot locations are not pre-specified, the number of specified knots must be'
+                ' an integer between 1 and 7')
+        pts = np.percentile(array, q=knots).tolist()
+    else:
+        if n_knots != len(knots):
+            raise ValueError('The number of knots and the number of specified knots must match')
+        else:
+            pass
+        pts = knots
+    if sorted(pts) != pts:
+        raise ValueError('Knots must be in ascending order')
+
+    def _spline(x):
+        x = np.asarray(x)
+        V = np.empty((x.shape[0], len(pts)))
+
+        for i in range(len(pts)):
+            V[:, i] = np.where(x > pts[i], (x - pts[i]) ** term, 0)
+            V[:, i] = np.where(pd.isnull(x), np.nan, V[:, i])
+        if restricted is False:
+            return V
+
+        else:
+            for i in range(len(pts) - 1):
+                V[:, i] = np.where(x > pts[i], V[:, i] - V[:, -1], 0)
+                V[:, i] = np.where(pd.isnull(x), np.nan, V[:, i])
+            return V[:, :-1]
+    return _spline, pts
+
+
 def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     """Creates spline dummy variables based on either user specified knot locations or automatically
     determines knot locations based on percentiles. Options are available to set the number of knots,
@@ -1779,69 +1854,30 @@ def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     Examples
     ---------
     Calculate unrestricted linear spline with 3 automatic knots
-    >>>from zepid import spline, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>spline(df, var='cd40', n_knots=3)
+
+    >>> from zepid import spline, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> spline(df, var='cd40', n_knots=3)
 
     Calculate unrestricted quadratic spline with 3 automatic knots
-    >>>spline(df, var='cd40', n_knots=3, term=2)
+
+    >>> spline(df, var='cd40', n_knots=3, term=2)
 
     Calculate restricted linear spline with 3 automatic knots
-    >>>spline(df, var='cd40', n_knot=3, restricted=True)
+
+    >>> spline(df, var='cd40', n_knot=3, restricted=True)
 
     Calculate unrestricted linear spline with 3 specified knots
-    >>>spline(df, var='cd40', n_knots=3, knots=[200, 250, 750])
+
+    >>> spline(df, var='cd40', n_knots=3, knots=[200, 250, 750])
 
     Calculate restricted cubic spline with 5 automatic knots
-    >>>spline(df, var='cd40', n_knots=5, term=3, restricted=True)
+
+    >>> spline(df, var='cd40', n_knots=5, term=3, restricted=True)
     """
-    if knots is None:
-        if n_knots == 1:
-            knots = [0.5]
-        elif n_knots == 2:
-            knots = [1 / 3, 2 / 3]
-        elif n_knots == 3:
-            knots = [0.05, 0.5, 0.95]
-        elif n_knots == 4:
-            knots = [0.05, 0.35, 0.65, 0.95]
-        elif n_knots == 5:
-            knots = [0.05, 0.275, 0.50, 0.725, 0.95]
-        elif n_knots == 6:
-            knots = [0.05, 0.23, 0.41, 0.59, 0.77, 0.95]
-        elif n_knots == 7:
-            knots = [0.025, 11 / 60, 26 / 75, 0.50, 79 / 120, 49 / 60, 0.975]
-        else:
-            raise ValueError(
-                'When the knot locations are not pre-specified, the number of specified knots must be'
-                ' an integer between 1 and 7')
-        pts = list(df[var].quantile(q=knots))
-    else:
-        if n_knots != len(knots):
-            raise ValueError('The number of knots and the number of specified knots must match')
-        else:
-            pass
-        pts = knots
-    if sorted(pts) != pts:
-        raise ValueError('Knots must be in ascending order')
-    colnames = []
-    sf = df.copy()
-    for i in range(len(pts)):
-        colnames.append('spline' + str(i))
-        sf['spline' + str(i)] = np.where(sf[var] > pts[i], (sf[var] - pts[i]) ** term, 0)
-        sf['spline' + str(i)] = np.where(sf[var].isnull(), np.nan, sf['spline' + str(i)])
-    if restricted is False:
-        return sf[colnames]
-    elif restricted is True:
-        rsf = sf.copy()
-        colnames = []
-        for i in range(len(pts) - 1):
-            colnames.append('rspline' + str(i))
-            rsf['rspline' + str(i)] = np.where(rsf[var] > pts[i],
-                                               rsf['spline' + str(i)] - rsf['spline' + str(len(pts) - 1)], 0)
-            rsf['rspline' + str(i)] = np.where(rsf[var].isnull(), np.nan, rsf['rspline' + str(i)])
-        return rsf[colnames]
-    else:
-        raise ValueError('restricted must be set to either True or False')
+    spline_, _ = create_spline_transform(df[var], n_knots, knots, term, restricted)
+    results = spline_(df[var])
+    return pd.DataFrame(results, columns=['spline%d' % i for i in range(results.shape[1])])
 
 
 def table1_generator(df, cols, variable_type, continuous_measure='median', strat_by=None, decimal=3):
