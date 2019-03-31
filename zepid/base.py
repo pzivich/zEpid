@@ -1751,7 +1751,6 @@ def create_spline_transform(array, n_knots=3, knots=None, term=1, restricted=Fal
     return _spline, pts
 
 
-
 def spline(df, var, n_knots=3, knots=None, term=1, restricted=False):
     """Creates spline dummy variables based on either user specified knot locations or automatically
     determines knot locations based on percentiles. Options are available to set the number of knots,
