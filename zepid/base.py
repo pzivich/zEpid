@@ -250,6 +250,8 @@ class RiskDifference:
         Lower = \Pr(Y|A=a)\Pr(A=a) - \Pr(Y|A \ne a)\Pr(A \ne a) - \Pr(A=a)\\
         Upper = \Pr(Y|A=a)\Pr(A=a) + \Pr(A \ne a) - \Pr(Y|A \ne a)\Pr(A \ne a)
 
+    For further details on these bounds, see the references
+
     Note
     ----
     Outcome must be coded as (1: yes, 0:no). Only supports binary outcomes
@@ -260,6 +262,10 @@ class RiskDifference:
         -reference category for comparisons. Default reference category is 0
     alpha : float, optional
         -Alpha value to calculate two-sided Wald confidence intervals. Default is 95% confidence interval
+
+    References
+    ----------
+    Cole SR et al. (2019) Nonparametric Bounds for the Risk Function. American Journal of Epidemiology. 188(4), 632-636
 
     Examples
     --------
