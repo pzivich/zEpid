@@ -1,5 +1,16 @@
 ## Change logs
 
+### v0.6.1
+``AIPTW`` now supports continuous outcomes (normal or Poisson). Format is the same as `TMLE`.
+
+`AIPTW` and `IPTW` now include the optional argument `weights`
+
+Fixed `TMLE` attribute for average treatment effect confidence intervals, from `average_treatment_effect_ic` to
+`average_treatment_effect_ci`
+
+Fixed issue in `IPTW` assumption calculations. Depending on when `positivity()` was called, it changed the results of
+`plot_love()`. 
+
 ### v0.6.0
 `MonteCarloGFormula` now includes a separate `censoring_model()` function for informative censoring.
 Additionally, I added a low memory option to reduce the memory burden during the Monte-Carlo procedure

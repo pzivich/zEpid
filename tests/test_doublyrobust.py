@@ -435,3 +435,21 @@ class TestAIPTW:
         npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
         npt.assert_allclose(aipw.average_treatment_effect_ci, [118.64677, 331.62858], rtol=1e-3)
 
+    def test_poisson_outcomes(self, cf):
+        aipw = AIPTW(cf, exposure='art', outcome='cd4_wk45')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           continuous_distribution='poisson', print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
+        npt.assert_allclose(aipw.average_treatment_effect_ci, [118.64677, 331.62858], rtol=1e-3)
+
+    def test_weighted_continuous_outcomes(self, cf):
+        cf['weights'] = 2
+        aipw = AIPTW(cf, exposure='art', outcome='cd4_wk45', weights='weights')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
+        assert aipw.average_treatment_effect_ci is None
