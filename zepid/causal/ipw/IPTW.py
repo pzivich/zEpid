@@ -123,7 +123,7 @@ class IPTW:
     Love T. (2004). Graphical Display of Covariate Balance. Presentation,
     See http://chrp.org/love/JSM2004RoundTableHandout. pdf, 1364.
     """
-    def __init__(self, df, treatment, stabilized=True, standardize='population'):
+    def __init__(self, df, treatment, weights=None, stabilized=True, standardize='population'):
         self.denominator_model = None
         self.numerator_model = None
         self.__mdenom = None
@@ -134,6 +134,7 @@ class IPTW:
 
         self.df = df.copy()
         self.ex = treatment
+        self._weight_ = weights
         self.stabilized = stabilized
         if standardize in ['population', 'exposed', 'unexposed']:
             self.standardize = standardize
@@ -183,6 +184,7 @@ class IPTW:
         self.__mdenom = model_denominator
         if custom_model_denominator is None:
             self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
+                                                      weights=self._weight_,
                                                       print_results=print_results)
             d = self.denominator_model.predict(self.df)
         else:
@@ -210,6 +212,7 @@ class IPTW:
         if self.stabilized is True:
             if custom_model_numerator is None:
                 self.numerator_model = propensity_score(self.df, self.ex + ' ~ ' + model_numerator,
+                                                        weights=self._weight_,
                                                         print_results=print_results)
                 n = self.numerator_model.predict(self.df)
 
@@ -250,10 +253,17 @@ class IPTW:
         if self.denominator_model is None:
             raise ValueError('No model has been fit to generated predicted probabilities')
 
-        self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
         self.ProbabilityDenominator = self.df['__denom__']
         self.ProbabilityNumerator = self.df['__numer__']
-        self.df['iptw'] = self.df['__numer__'] / self.df['__denom__']
+        self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
+
+        self.df['_iptw_'] = self.Weight
+
+        if self._weight_ is not None:  # Multiplying calculate IPTW and specified weights
+            warnings.warn("You specified the optional `weights` argument. A regression model weighted by the `weights` "
+                          "column was used to generate IPTW. Additionally, the calculate IPTW were multiplied by the "
+                          "specified weight column. All diagnostics apply only to generated IPTW", UserWarning)
+            self.Weight = self.Weight * self.df[self._weight_]
 
     def plot_kde(self, measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
         """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
@@ -293,7 +303,7 @@ class IPTW:
             x = np.linspace(np.min((np.min(t), np.min(u))) - 1, np.max((np.max(t), np.max(u))) + 1, 10000)
         else:
             raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
-                             "'probability' or 'logit")
+                             "'probability' or 'logit'")
 
         ax = plt.gca()
         if fill:
@@ -359,14 +369,13 @@ class IPTW:
         None
             Prints the positivity results to the console but does not return any objects
         """
-        self.df['iptw'] = self.Weight
-        self._pos_avg = float(np.mean(self.df['iptw'].dropna()))
-        self._pos_max = np.max(self.df['iptw'].dropna())
-        self._pos_min = np.min(self.df['iptw'].dropna())
-        self._pos_sd = float(np.std(self.df['iptw'].dropna()))
-        print('----------------------------------------------------------------------')
-        print('IPW Diagnostics')
-        print('----------------------------------------------------------------------')
+        self._pos_avg = float(np.mean(self.df['_iptw_'].dropna()))
+        self._pos_max = np.max(self.df['_iptw_'].dropna())
+        self._pos_min = np.min(self.df['_iptw_'].dropna())
+        self._pos_sd = float(np.std(self.df['_iptw_'].dropna()))
+        print('======================================================================')
+        print('          Inverse Probability of Treatment Weight Diagnostics')
+        print('======================================================================')
         print('If the mean of the weights is far from either the min or max, this may\n indicate the model is '
               'incorrect or positivity is violated')
         print('Average weight should be')
@@ -374,11 +383,11 @@ class IPTW:
         print('\t2.0 for unstabilized')
         print('Standard deviation can help in IPTW model selection')
         print('----------------------------------------------------------------------')
-        print('Mean weight:\t\t\t', round(self._pos_avg, decimal))
-        print('Standard Deviation:\t\t', round(self._pos_sd, decimal))
-        print('Minimum weight:\t\t\t', round(self._pos_min, decimal))
-        print('Maximum weight:\t\t\t', round(self._pos_max, decimal))
-        print('----------------------------------------------------------------------')
+        print('Mean weight:           ', round(self._pos_avg, decimal))
+        print('Standard Deviation:    ', round(self._pos_sd, decimal))
+        print('Minimum weight:        ', round(self._pos_min, decimal))
+        print('Maximum weight:        ', round(self._pos_max, decimal))
+        print('======================================================================')
 
     def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
         """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
@@ -446,7 +455,7 @@ class IPTW:
                 vtype = 'continuous'
 
             # calculate the absolute standardized difference
-            dat = pd.concat([v, self.df[[self.ex, 'iptw']]], axis=1)
+            dat = pd.concat([v, self.df[[self.ex, '_iptw_']]], axis=1)
             wsmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=True)
             w_diff.append(wsmd)
             usmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=False)
@@ -482,18 +491,18 @@ class IPTW:
             Prints the positivity results to the console but does not return any objects
         """
         # Pulling out relevant data
-        dft = variable.loc[(variable[self.ex] == 1) & (variable['iptw'].notnull())].copy()
-        dfn = variable.loc[(variable[self.ex] == 0) & (variable['iptw'].notnull())].copy()
+        dft = variable.loc[(variable[self.ex] == 1) & (variable['_iptw_'].notnull())].copy()
+        dfn = variable.loc[(variable[self.ex] == 0) & (variable['_iptw_'].notnull())].copy()
         # removing self.ex and 'iptw' from vars to calculate for
         vcols = list(variable.columns)
         vcols.remove(self.ex)
-        vcols.remove('iptw')
+        vcols.remove('_iptw_')
 
         if var_type == 'binary':
             if weighted:
-                dwt = DescrStatsW(dft[vcols], weights=dft['iptw'])
+                dwt = DescrStatsW(dft[vcols], weights=dft['_iptw_'])
                 wt = dwt.mean
-                dwn = DescrStatsW(dfn[vcols], weights=dfn['iptw'])
+                dwn = DescrStatsW(dfn[vcols], weights=dfn['_iptw_'])
                 wn = dwn.mean
             else:
                 wt = np.mean(dft[vcols].dropna(), axis=0)
@@ -502,10 +511,10 @@ class IPTW:
 
         elif var_type == 'continuous':
             if weighted:
-                dwt = DescrStatsW(dft[vcols], weights=dft['iptw'], ddof=1)
+                dwt = DescrStatsW(dft[vcols], weights=dft['_iptw_'], ddof=1)
                 wmt = dwt.mean
                 wst = dwt.std
-                dwn = DescrStatsW(dfn[vcols], weights=dfn['iptw'], ddof=1)
+                dwn = DescrStatsW(dfn[vcols], weights=dfn['_iptw_'], ddof=1)
                 wmn = dwn.mean
                 wsn = dwn.std
             else:
@@ -519,8 +528,8 @@ class IPTW:
 
         elif var_type == 'categorical':
             if weighted:
-                wt = np.average(dft[vcols], weights=dft['iptw'], axis=0)
-                wn = np.average(dfn[vcols], weights=dfn['iptw'], axis=0)
+                wt = np.average(dft[vcols], weights=dft['_iptw_'], axis=0)
+                wn = np.average(dfn[vcols], weights=dfn['_iptw_'], axis=0)
             else:
                 wt = np.average(dft[vcols], axis=0)
                 wn = np.mean(dfn[vcols], axis=0)
