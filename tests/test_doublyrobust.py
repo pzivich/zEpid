@@ -170,7 +170,7 @@ class TestTMLE:
                            print_results=False)
         tmle.fit()
         assert tmle.average_treatment_effect is None
-        assert tmle.average_treatment_effect_ic is None
+        assert tmle.average_treatment_effect_ci is None
 
     def test_match_r_epsilons_continuous(self, cf):
         r_epsilons = [-0.0046411652, 0.0002270186]
@@ -192,7 +192,7 @@ class TestTMLE:
                            print_results=False)
         tmle.fit()
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
-        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
     def test_match_r_continuous_outcome_gbounds(self, cf):
         r_ate = 223.3958
@@ -205,7 +205,7 @@ class TestTMLE:
                            print_results=False)
         tmle.fit()
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
-        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
     def test_match_r_continuous_poisson(self, cf):
         r_ate = 223.4648
@@ -217,7 +217,7 @@ class TestTMLE:
                            print_results=False, continuous_distribution='poisson')
         tmle.fit()
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
-        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
     def test_sklearn_in_tmle(self, df):
         log = LogisticRegression(C=1.0)
@@ -245,7 +245,7 @@ class TestTMLE:
         tmle.fit()
 
         npt.assert_allclose(tmle.average_treatment_effect, 236.049719, rtol=1e-5)
-        npt.assert_allclose(tmle.average_treatment_effect_ic, [135.999264, 336.100175], rtol=1e-5)
+        npt.assert_allclose(tmle.average_treatment_effect_ci, [135.999264, 336.100175], rtol=1e-5)
 
     def test_missing_binary_outcome(self, mf):
         r_rd = -0.08168098
@@ -294,7 +294,7 @@ class TestTMLE:
                            print_results=False)
         tmle.fit()
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
-        npt.assert_allclose(tmle.average_treatment_effect_ic, r_ci, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
     def test_sklearn_in_tmle_missing(self, mf):
         log = LogisticRegression(C=1.0)
@@ -323,6 +323,13 @@ class TestAIPTW:
         df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
         df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
         return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
 
     @pytest.fixture
     def dat(self):
@@ -400,3 +407,31 @@ class TestAIPTW:
         # Testing
         npt.assert_allclose(both_correct_rd, wrong_a_rd)
         npt.assert_allclose(both_correct_rr, wrong_a_rr)
+
+    def test_weighted_rd(self, df):
+        df['weights'] = 2
+        aipw = AIPTW(df, exposure='art', outcome='dead', weights='weights')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.risk_difference, -0.0848510605)
+
+    def test_weighted_rr(self, df):
+        df['weights'] = 2
+        aipw = AIPTW(df, exposure='art', outcome='dead', weights='weights')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.risk_ratio, 0.5319812235)
+
+    def test_continuous_outcomes(self, cf):
+        aipw = AIPTW(cf, exposure='art', outcome='cd4_wk45')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
+        npt.assert_allclose(aipw.average_treatment_effect_ci, [118.64677, 331.62858], rtol=1e-3)
+

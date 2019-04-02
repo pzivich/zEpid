@@ -50,6 +50,20 @@ class TestIPTW:
         ipt.fit()
         npt.assert_allclose(ipt.Weight, [1.5, 1.5, 2/3, 2/3, 2/3, 3/4, 3/4, 3/4, 3/4, 2])
 
+    def test_unstabilized_weights_w_weights(self, data):
+        data['weights'] = 2
+        ipt = IPTW(data, treatment='A', weights='weights', stabilized=False)
+        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt.fit()
+        npt.assert_allclose(ipt.Weight, [6, 6, 8/3, 8/3, 8/3, 3, 3, 3, 3, 8])
+
+    def test_stabilized_weights_w_weights(self, data):
+        data['weights'] = 2
+        ipt = IPTW(data, treatment='A', weights='weights', stabilized=True)
+        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt.fit()
+        npt.assert_allclose(ipt.Weight, [3, 3, 4/3, 4/3, 4/3, 6/4, 6/4, 6/4, 6/4, 4])
+
     def test_positivity_calculator(self, data):
         ipt = IPTW(data, treatment='A', stabilized=True)
         ipt.regression_models(model_denominator='L', print_results=False)
@@ -189,7 +203,7 @@ class TestIPTW:
                             rtol=1e-4)  # for unweighted
         # TODO find R package to test these weighted SMD's
         npt.assert_allclose(np.array(smd['smd_w']),
-                            np.array([-0.132613628, 0.00483533759, -0.450481258, 0.0327253358]),
+                            np.array([-0.097789, -0.012395, -0.018591, 0.050719]),
                             rtol=1e-4)  # for weighted
 
     def test_match_r_stddiff(self):
@@ -212,7 +226,7 @@ class TestIPTW:
         # TODO need to find an R package or something that calculates weighted SMD
         # currently compares to my own calculations
         npt.assert_allclose(np.array(smd['smd_w']),
-                            np.array([0.675418, -0.406542,  0.298688, -0.308256]),
+                            np.array([0.206072, -0.148404,  0.035752, 0.085844]),
                             rtol=1e-4)  # for weighted
 
 
