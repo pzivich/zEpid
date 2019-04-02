@@ -43,10 +43,6 @@ class IPCW:
     enter : str, optional
         Time participant began being observed. Default is None. This option is only needed when flat_df=True
 
-    References
-    ----------
-    Howe CJ et al. (2016) Selection bias due to loss to follow up in cohort studies. Epidemiology, 27(1), 91-97.
-
     Example
     ------------
     Setting up the environment
@@ -77,6 +73,10 @@ class IPCW:
     >>> ipc.regression_models(model_denominator='enter + enter_q + enter_c + male + age0 + age0_q + age0_c',
     >>>                       model_numerator='enter + enter_q + enter_c')
     >>> ipc.fit()
+
+    References
+    ----------
+    Howe CJ et al. (2016) Selection bias due to loss to follow up in cohort studies. Epidemiology, 27(1), 91-97.
     """
     def __init__(self, df, idvar, time, event, flat_df=False, enter=None):
         if np.sum(df[time].isnull()) > 0:
