@@ -277,7 +277,7 @@ class TMLE:
         self.odds_ratio = None
         self.odds_ratio_ci = None
         self.average_treatment_effect = None
-        self.average_treatment_effect_ic = None
+        self.average_treatment_effect_ci = None
 
     def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
         """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
@@ -410,7 +410,7 @@ class TMLE:
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
             if self._continuous_outcome:
-                if continuous_distribution == 'gaussian':
+                if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
                     f = sm.families.family.Gaussian()
                 elif continuous_distribution == 'poisson':
                     f = sm.families.family.Poisson()
@@ -521,7 +521,7 @@ class TMLE:
                           HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect,
                           Qstar1 - Qstar0 - self.average_treatment_effect)
             varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
-            self.average_treatment_effect_ic = [self.average_treatment_effect - zalpha * math.sqrt(varIC),
+            self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * math.sqrt(varIC),
                                                 self.average_treatment_effect + zalpha * math.sqrt(varIC)]
         else:
             # Calculating Risk Difference
@@ -580,8 +580,8 @@ class TMLE:
         if self._continuous_outcome:
             print('Average Treatment Effect: ', round(float(self.average_treatment_effect), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-                  str(round(self.average_treatment_effect_ic[0], decimal)), ',',
-                  str(round(self.average_treatment_effect_ic[1], decimal)) + ')')
+                  str(round(self.average_treatment_effect_ci[0], decimal)), ',',
+                  str(round(self.average_treatment_effect_ci[1], decimal)) + ')')
         else:
             print('Risk Difference: ', round(float(self.risk_difference), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
