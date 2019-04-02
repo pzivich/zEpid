@@ -2,6 +2,7 @@ import warnings
 import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
 from zepid.causal.ipw import propensity_score
@@ -89,20 +90,31 @@ class AIPTW:
     Lunceford JK, Davidian M. (2004). Stratification and weighting via the propensity score in estimation of causal
     treatment effects: a comparative study. Statistics in medicine, 23(19), 2937-2960.
     """
-    def __init__(self, df, exposure, outcome, alpha=0.05):
+    def __init__(self, df, exposure, outcome, weights=None, alpha=0.05):
         self.df = df.copy()
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, AIPTW will drop all missing data. AIPTW "
-                          "will fit "+str(df.dropna().shape[0])+' of '+str(df.shape[0])+' observations', UserWarning)
+                          "will fit " + str(df.dropna().shape[0]) + ' of '+str(df.shape[0])+' observations',
+                          UserWarning)
         self.df = df.copy().dropna().reset_index()
+
+        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+            self._continuous_outcome = False
+        else:
+            self._continuous_outcome = True
+
         self._exposure = exposure
         self._outcome = outcome
+        self._weight_ = weights
         self.alpha = alpha
 
         self.risk_difference = None
         self.risk_ratio = None
         self.risk_difference_ci = None
         self.risk_ratio_ci = None
+
+        self.average_treatment_effect = None
+        self.average_treatment_effect_ci = None
 
         self._fit_exposure_ = False
         self._fit_outcome_ = False
@@ -125,11 +137,11 @@ class AIPTW:
             Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self._exposure + ' ~ ' + model
-        fitmodel = propensity_score(self.df, self._exp_model, print_results=print_results)
+        fitmodel = propensity_score(self.df, self._exp_model, weights=self._weight_, print_results=print_results)
         self.df['_ps_'] = fitmodel.predict(self.df)
         self._fit_exposure_ = True
 
-    def outcome_model(self, model, print_results=True):
+    def outcome_model(self, model, continuous_distribution='gaussian', print_results=True):
         r"""Specify the outcome model. Model used to predict the outcome via a logistic regression model
 
         .. math::
@@ -140,12 +152,29 @@ class AIPTW:
         ----------
         model : str
             Independent variables to predict the outcome. For example, 'var1 + var2 + var3 + var4'
+        continuous_distribution : str, optional
+            Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
+            for Poisson distributions
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
         self._out_model = self._outcome + ' ~ ' + model
-        f = sm.families.family.Binomial()
-        log = smf.glm(self._out_model, self.df, family=f).fit()
+
+        if self._continuous_outcome:
+            if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
+                f = sm.families.family.Gaussian()
+            elif continuous_distribution == 'poisson':
+                f = sm.families.family.Poisson()
+            else:
+                raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
+        else:
+            f = sm.families.family.Binomial()
+
+        if self._weight_ is None:
+            log = smf.glm(self._out_model, self.df, family=f).fit()
+        else:
+            log = smf.gee(self._out_model, self.df.index, self.df, weights=self.df[self._weight_], family=f).fit()
+
         if print_results:
             print('\n----------------------------------------------------------------')
             print('MODEL: ' + self._out_model)
@@ -187,13 +216,31 @@ class AIPTW:
                          (y_obs / (1 - ps) - ((py_a0 * ps) / (1 - ps))))
 
         # Generating estimates for the risk difference and risk ratio
-        self.risk_difference = np.mean(dr_a1) - np.mean(dr_a0)
-        self.risk_ratio = np.mean(dr_a1) / np.mean(dr_a0)
-
-        var_ic = np.var((dr_a1 - dr_a0) - self.risk_difference, ddof=1) / self.df.shape[0]
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
-        self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(var_ic),
-                                   self.risk_difference + zalpha * np.sqrt(var_ic)]
+
+        if self._weight_ is None:
+            if self._continuous_outcome:
+                self.average_treatment_effect = np.mean(dr_a1) - np.mean(dr_a0)
+                var_ic = np.var((dr_a1 - dr_a0) - self.average_treatment_effect, ddof=1) / self.df.shape[0]
+                self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * np.sqrt(var_ic),
+                                                    self.average_treatment_effect + zalpha * np.sqrt(var_ic)]
+
+            else:
+                self.risk_difference = np.mean(dr_a1) - np.mean(dr_a0)
+                self.risk_ratio = np.mean(dr_a1) / np.mean(dr_a0)
+
+                var_ic = np.var((dr_a1 - dr_a0) - self.risk_difference, ddof=1) / self.df.shape[0]
+                self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(var_ic),
+                                           self.risk_difference + zalpha * np.sqrt(var_ic)]
+        else:
+            dr_m1 = DescrStatsW(dr_a1, weights=self.df[self._weight_]).mean
+            dr_m0 = DescrStatsW(dr_a0, weights=self.df[self._weight_]).mean
+
+            if self._continuous_outcome:
+                self.average_treatment_effect = dr_m1 - dr_m0
+            else:
+                self.risk_difference = dr_m1 - dr_m0
+                self.risk_ratio = dr_m1 / dr_m0
 
     def summary(self, decimal=3):
         """Prints a summary of the results for the doubly robust estimator. Confidence intervals are only available for
@@ -211,11 +258,25 @@ class AIPTW:
         print('======================================================================')
         print('           Augment Inverse Probability of Treatment Weights           ')
         print('======================================================================')
-        print('Risk Difference:   ', round(float(self.risk_difference), decimal))
-        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-              str(round(self.risk_difference_ci[0], decimal)), ',',
-              str(round(self.risk_difference_ci[1], decimal)) + ')')
-        print('----------------------------------------------------------------------')
-        print('Risk Ratio:        ', round(float(self.risk_ratio), decimal))
-        print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
+
+        if self._continuous_outcome:
+            print('Average Treatment Effect:   ', round(float(self.average_treatment_effect), decimal))
+            if self._weight_ is None:
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                      str(round(self.average_treatment_effect_ci[0], decimal)), ',',
+                      str(round(self.average_treatment_effect_ci[1], decimal)) + ')')
+            else:
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
+        else:
+            print('Risk Difference:   ', round(float(self.risk_difference), decimal))
+            if self._weight_ is None:
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                      str(round(self.risk_difference_ci[0], decimal)), ',',
+                      str(round(self.risk_difference_ci[1], decimal)) + ')')
+            else:
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
+            print('----------------------------------------------------------------------')
+            print('Risk Ratio:        ', round(float(self.risk_ratio), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
+
         print('======================================================================')
