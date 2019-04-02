@@ -43,6 +43,10 @@ class IPCW:
     enter : str, optional
         Time participant began being observed. Default is None. This option is only needed when flat_df=True
 
+    References
+    ----------
+    Howe CJ et al. (2016) Selection bias due to loss to follow up in cohort studies. Epidemiology, 27(1), 91-97.
+
     Example
     ------------
     Setting up the environment
