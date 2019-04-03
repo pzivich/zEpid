@@ -62,6 +62,11 @@ class IPTW:
         * 'population'    :   weight to entire population
         * 'exposed'       :   weight to exposed individuals
         * 'unexposed'     :   weight to unexposed individuals
+    weights: str, optional
+        Optional column for weights. If specified, a weighted regression model is instead used to estimate the inverse
+        probability of treatment weights. This optional is useful in the following scenario; some confounder
+        information is missing and IPMW was used to correct for missing data. IPTW should be estimated with the IPMW
+        to standardize to the correct pseudo-population.
 
     Examples
     ---------
@@ -257,13 +262,14 @@ class IPTW:
         self.ProbabilityNumerator = self.df['__numer__']
         self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
 
-        self.df['_iptw_'] = self.Weight
-
         if self._weight_ is not None:  # Multiplying calculate IPTW and specified weights
             warnings.warn("You specified the optional `weights` argument. A regression model weighted by the `weights` "
-                          "column was used to generate IPTW. Additionally, the calculate IPTW were multiplied by the "
-                          "specified weight column. All diagnostics apply only to generated IPTW", UserWarning)
+                          "column was used to generate IPTW. Additionally, the calculated IPTW were multiplied by the "
+                          "specified `weights` column. Diagnostics for the weights include IPTW multiplied by the "
+                          "`weights` column. Diagnostics for probabilities include only IPTW", UserWarning)
             self.Weight = self.Weight * self.df[self._weight_]
+
+        self.df['_iptw_'] = self.Weight
 
     def plot_kde(self, measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
         """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The

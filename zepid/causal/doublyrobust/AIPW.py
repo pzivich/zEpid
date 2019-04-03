@@ -44,6 +44,8 @@ class AIPTW:
         Column name of the exposure variable. Currently only binary is supported
     outcome : str
         Column name of the outcome variable. Currently only binary is supported
+    weights : str, optional
+        Column name of weights. Weights allow for items like sampling weights to be used to estimate effects
     alpha : float, optional
         Alpha for confidence interval level. Default is 0.05, returning the 95% CL
 
@@ -53,7 +55,7 @@ class AIPTW:
 
     >>> from zepid import load_sample_data, spline
     >>> from zepid.causal.doublyrobust import AIPTW
-    >>> df = load_sample_data(timevary=False)
+    >>> df = load_sample_data(timevary=False).drop(columns=['cd4_wk45'])
     >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
     >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
 
