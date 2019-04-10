@@ -116,6 +116,10 @@ class IPTW:
     Hernán MÁ, Brumback B, Robins JM. (2000). Marginal structural models to estimate the causal effect of zidovudine
     on the survival of HIV-positive men. Epidemiology, 561-570.
 
+    Bodnar LM, Davidian M, Siega-Riz AM, Tsiatis AA. (2004). Marginal structural models for analyzing causal effects
+    of time-dependent treatments: an application in perinatal epidemiology. American Journal of
+    Epidemiology, 159(10), 926-934.
+
     Cole SR, Hernán MA. (2008). Constructing inverse probability weights for marginal structural models.
     American journal of epidemiology, 168(6), 656-664.
 
