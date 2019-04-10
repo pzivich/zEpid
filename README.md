@@ -5,16 +5,18 @@
 [![Build Status](https://travis-ci.com/pzivich/zEpid.svg?branch=master)](https://travis-ci.com/pzivich/zEpid)
 [![Join the chat at https://gitter.im/zEpid/community](https://badges.gitter.im/zEpid/community.svg)](https://gitter.im/zEpid/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-zEpid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in python3. The 
+zEpid is an epidemiology analysis package, providing easy to use tools for epidemiologists coding in Python 3.5+. The 
 purpose of this library is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be 
-generated through various functions. For a sample walkthrough of what this library is capable of, please look to the 
-introduction to Python 3 for epidemiologists at https://github.com/pzivich/Python-for-Epidemiologists
+generated through various functions. For a sample walkthrough of what this library is capable of, please look at the 
+tutorials available at https://github.com/pzivich/Python-for-Epidemiologists
 
 A few highlights: basic epidemiology calculations, easily create functional form assessment plots, 
-easily create effect measure plots, generate and conduct diagnostic tests. Implemented estimators include; inverse 
+easily create effect measure plots, and causal inference tools. Implemented estimators include; inverse 
 probability of treatment weights, inverse probability of censoring weights, inverse probabilitiy of missing weights, 
-augmented inverse probability weights, time-fixed g-formula, Monte Carlo g-formula, Iterative conditional g-formula, 
-and targeted maximum likelihood (TMLE)
+augmented inverse probability of treatment weights, time-fixed g-formula, Monte Carlo g-formula, Iterative conditional 
+g-formula, and targeted maximum likelihood (TMLE). Additionally, generalizability/transportability tools are available 
+including; inverse probability of sampling weights, g-transport formula, and doubly robust 
+generalizability/transportability formulas.
 
 If you have any requests for items to be included, please contact me and I will work on adding any requested features. 
 You can contact me either through GitHub (https://github.com/pzivich), email (gmail: zepidpy), or twitter (@zepidpy).
@@ -32,57 +34,53 @@ pandas >= 0.18.0, numpy, statsmodels >= 0.7.0, matplotlib >= 2.0, scipy, tabulat
 ## Measures
 Calculate measures directly from a pandas dataframe object. Implemented measures include; risk ratio, risk difference, 
 odds ratio, incidence rate ratio, incidence rate difference, number needed to treat, sensitivity, specificity, 
-population attributable fraction, attributable community risk, standardized mean difference
+population attributable fraction, attributable community risk
 
-Other handy features include; splines, Table 1 generator, interaction contrast, interaction contrast ratio
+Measures can be directly calculated from a pandas DataFrame object or using summary data.
 
-For a narrative description:
-http://zepid.readthedocs.io/en/latest/Measures.html
+Other handy features include; splines, Table 1 generator, interaction contrast, interaction contrast ratio, positive 
+predictive value, negative predictive value, screening cost analyzer, counternull p-values, convert odds to 
+proportions, convert proportions to odds
 
 For guided tutorials with Jupyter Notebooks:
 https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/a_basics/1_basic_measures.ipynb
 
-## Calculator
-Calculate measures from summary data. Functions that calculate summary measures from the pandas dataframe use these 
-functions in the background. Implemented measures include; risk ratio, risk difference, odds ratio, incidence rate 
-ratio, incidence rate difference, number needed to treat, sensitivity, specificity, positive predictive value, negative 
-predictive value, screening cost analyzer, counternull p-values, convert odds to proportions, convert proportions to 
-odds, population attributable fraction, attributable community risk, standardized mean difference
-
-For a narrative description:
-http://zepid.readthedocs.io/en/latest/Calculator.html
-
 ## Graphics
 Uses matplotlib in the background to generate some useful plots. Implemented plots include; functional form assessment 
-(with statsmodels output), p-value plots/functions, spaghetti plot, effect measure plot (forest plot), receiver-operator 
-curve, dynamic risk plot
+(with statsmodels output), p-value function plots, spaghetti plot, effect measure plot (forest plot), receiver-operator 
+curve, dynamic risk plots, and L'Abbe plots
 
-For a narrative description:
+For examples see:
 http://zepid.readthedocs.io/en/latest/Graphics.html
 
 ## Causal
-Causal is a new branch that houses all the causal inference methods implemented. 
+The causal branch includes various estimators for causal inference with observational data. Details on currently 
+implemented estimators are below:
 
-For a narrative description:
-http://zepid.readthedocs.io/en/latest/Causal.html
-
-#### G-Computation Algorithm
+### G-Computation Algorithm
 Current implementation includes; time-fixed exposure g-formula, Monte Carlo g-formula, and iterative conditional 
 g-formula
 
-#### Inverse Probability Weights 
+### Inverse Probability Weights 
 Current implementation includes; IP Treatment W, IP Censoring W, IP Missing W. Diagnostics are also available for IPTW. 
 IPMW supports monotone missing data
 
-#### Augmented Inverse Probability Weights
-Current implementation includes the estimator described by Funk et al 2011 AJE
+### Augmented Inverse Probability Weights
+Current implementation includes the augmented-IPTW estimator described by Funk et al 2011 AJE
 
-#### Targeted Maximum Likelihood Estimator
+### Targeted Maximum Likelihood Estimator
 TMLE can be estimated through standard logistic regression model, or through user-input functions. Alternatively, users 
-can input machine learning algorithms to estimate probabilities. 
+can input machine learning algorithms to estimate probabilities. Supported machine learning algorithms include `sklearn`
+
+### Generalizability / Transportability
+For generalizing results or transporting to a different target population, several estimators are available. These 
+include inverse probability of sampling weights, g-transport formula, and doubly robust formulas
+
+Tutorials for the usage of these estimators are available at:
+https://github.com/pzivich/Python-for-Epidemiologists/tree/master/3_Epidemiology_Analysis/c_causal_inference
 
 ## Sensitivity Analyses
 Includes trapezoidal distribution generator, corrected Risk Ratio
 
-For a narrative description:
-http://zepid.readthedocs.io/en/latest/Sensitivity%20Analyses.html
+Tutorials are available at:
+https://github.com/pzivich/Python-for-Epidemiologists/tree/master/3_Epidemiology_Analysis/d_sensitivity_analyses
