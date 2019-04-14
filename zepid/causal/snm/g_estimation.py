@@ -166,11 +166,15 @@ class GEstimationSNM:
                                                  weights=self._weights, print_results=self._print_results)
 
         elif solver == 'search':
+            # Adding other potential SNM variables to the input data
+            sf = pd.concat([self.df, snm.drop(columns=[self.treatment])], axis=1)
+
+            # Resolving if not initial parameters
             if starting_value is None:
-                starting_value = [0] * len(self.psi_labels)
+                starting_value = [0.] * len(self.psi_labels)
 
             # Passing to optimization procedure
-            self._scipy_solver_obj = self._grid_search_(data_set=self.df,
+            self._scipy_solver_obj = self._grid_search_(data_set=sf,
                                                         treatment=self.treatment, outcome=self.outcome,
                                                         weights=self._weights,
                                                         model=self._treatment_model, snm_terms=self.psi_labels,
@@ -208,9 +212,9 @@ class GEstimationSNM:
             # loop through all psi values to calculate the corresponding H(psi)
             psi_labels = []
             h_terms = ''
-            for s, n in zip(snm_terms, range(len(snm_terms))):
+            for s, n, p in zip(snm_terms, range(len(snm_terms)), psi):
                 psi_l = 'H_psi_'+str(n)
-                data[psi_l] = data[y] - psi * data[s]
+                data[psi_l] = data[y] - p * data[s]
                 psi_labels.append(psi_l)
                 h_terms += ' + ' + psi_l
 
@@ -221,13 +225,11 @@ class GEstimationSNM:
             alpha = fm.params[psi_labels] - alpha_shift  # Estimated alphas
             return np.abs(np.array(alpha)), psi
 
-        # Extracting structural nested model terms
-
         def return_abs_alpha(psi):
             result = function_to_optimize(psi=psi, data=data_set, snm_terms=snm_terms,
                                           y=outcome, a=treatment,
                                           pi_model=model, alpha_shift=alpha_shift, weights=weights)
-            return result[0]
+            return np.sum(result[0])
 
         return scipy.optimize.minimize(fun=return_abs_alpha, x0=start_vals,
                                        method='Nelder-Mead', tol=tolerance)
