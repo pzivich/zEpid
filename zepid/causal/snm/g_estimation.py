@@ -175,8 +175,6 @@ class GEstimationSNM:
         print('======================================================================')
         print('           G-estimation of Structural Nested Mean Model               ')
         print('======================================================================')
-        print('Nested Model: ')
-        print('E[Y^a - Y^{a=0} |A=a, L] =', self._snm_)
         # TODO add SciPy optimization results if possible. Not needed for closed form
         # TODO need unique labels for each psi
         print('======================================================================')
@@ -207,9 +205,13 @@ class GEstimationSNM:
         # D-dimensional psi-matrix
         snm_matrix.iloc[:, 0] = diff * snm_matrix.iloc[:, 0]  # Multiplies matrix by the A-pred_A difference
         lhm = np.dot(snm_matrix.transpose(), snm_matrix)  # Dot product to produce D-by-D matrix
+        print(lhm)
 
         # Array of outcomes
+        y_matrix = y_matrix.mul(diff, axis=0)
         rha = y_matrix.sum()
+        print('Y-matrix stuff')
+        print(rha)
 
         # Solving matrix and array for psi values
         psi_array = np.linalg.solve(lhm, rha)
