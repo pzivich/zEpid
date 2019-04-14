@@ -2,6 +2,7 @@ import warnings
 import patsy
 import numpy as np
 import pandas as pd
+import scipy.optimize
 
 from zepid.causal.ipw.utils import propensity_score
 
@@ -86,6 +87,7 @@ class GEstimationSNM:
         self._predicted_A = None
         self._snm_ = None
         self._print_results = True
+        self._scipy_solver_obj = None
 
     def treatment_model(self, model, print_results=True):
         """Specify the treatment model to satisfy conditional exchangeability. Behind the scenes, `GestimationSNM` will
@@ -125,7 +127,7 @@ class GEstimationSNM:
         """
         self._snm_ = model
 
-    def fit(self, solver='closed', starting_value=None, alpha_value=0):
+    def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-6):
         """Using the treatment model and the format of the structural nested mean model, the solutions for psi are
         calculated.
 
@@ -146,11 +148,11 @@ class GEstimationSNM:
             us to see how unmeasured confounders may influence our results. This option is only available for the
             solver='search' option. See the online guide for more information on this parameter.
         """
-        if solver == 'closed':
-            # Pulling out data set up for SNM via patsy
-            snm = patsy.dmatrix(self._snm_ + ' - 1', self.df, return_type='dataframe')
-            self.psi_labels = snm.columns.values.tolist() # Grabs labels for the solved psi values
+        # Pulling out data set up for SNM via patsy
+        snm = patsy.dmatrix(self._snm_ + ' - 1', self.df, return_type='dataframe')
+        self.psi_labels = snm.columns.values.tolist()  # Grabs labels for the solved psi values
 
+        if solver == 'closed':
             # Pulling array of outcomes with the interaction terms (copy and rename column to get right interactions)
             yf = self.df.copy().drop(columns=[self.treatment])
             yf = yf.rename(columns={self.outcome: self.treatment})
@@ -164,7 +166,18 @@ class GEstimationSNM:
                                                  weights=self._weights, print_results=self._print_results)
 
         elif solver == 'search':
-            self._grid_search_()
+            if starting_value is None:
+                starting_value = [0] * len(self.psi_labels)
+
+            # Passing to optimization procedure
+            self._scipy_solver_obj = self._grid_search_(data_set=self.df,
+                                                        treatment=self.treatment, outcome=self.outcome,
+                                                        weights=self._weights,
+                                                        model=self._treatment_model, snm_terms=self.psi_labels,
+                                                        start_vals=starting_value, alpha_shift=alpha_value,
+                                                        tolerance=tolerance)
+            print('SciPy Solver:', self._scipy_solver_obj.message)
+            self.psi = self._scipy_solver_obj.x
 
         else:
             raise ValueError("`solver` must be specified as either 'closed' or as 'search'")
@@ -175,20 +188,49 @@ class GEstimationSNM:
         print('======================================================================')
         print('           G-estimation of Structural Nested Mean Model               ')
         print('======================================================================')
-        # TODO add SciPy optimization results if possible. Not needed for closed form
-        # TODO need unique labels for each psi
-        print('======================================================================')
+        # Printing scipy optimization if possible
+        if self._scipy_solver_obj is not None:
+            print('....')
+            print('======================================================================')
+
         for p, pl in zip(self.psi, self.psi_labels):  # Printing all psi's and their labels
             print(pl, np.round(p, decimals=decimal))
 
         print('======================================================================')
 
-    def _grid_search_(self):
+    @staticmethod
+    def _grid_search_(data_set, treatment, outcome, model, snm_terms, start_vals,
+                      alpha_shift, tolerance, weights):
         """Background function to perform the optimization procedure for psi
         """
-        # TODO put something here to designate all the psi / H(psi) needed to calculate / minimize
-        # TODO will need to find all then pass to SciPy to minimize
-        raise ValueError("Not implemented yet")
+        # Creating function for scipy to optimize
+        def function_to_optimize(data, psi, snm_terms, y, a, pi_model, alpha_shift, weights):
+            # loop through all psi values to calculate the corresponding H(psi)
+            psi_labels = []
+            h_terms = ''
+            for s, n in zip(snm_terms, range(len(snm_terms))):
+                psi_l = 'H_psi_'+str(n)
+                data[psi_l] = data[y] - psi * data[s]
+                psi_labels.append(psi_l)
+                h_terms += ' + ' + psi_l
+
+            # Estimating the necessary model
+            fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + h_terms, weights=weights, print_results=False)
+
+            # Pulling elements from fitted model
+            alpha = fm.params[psi_labels] - alpha_shift  # Estimated alphas
+            return np.abs(np.array(alpha)), psi
+
+        # Extracting structural nested model terms
+
+        def return_abs_alpha(psi):
+            result = function_to_optimize(psi=psi, data=data_set, snm_terms=snm_terms,
+                                          y=outcome, a=treatment,
+                                          pi_model=model, alpha_shift=alpha_shift, weights=weights)
+            return result[0]
+
+        return scipy.optimize.minimize(fun=return_abs_alpha, x0=start_vals,
+                                       method='Nelder-Mead', tol=tolerance)
 
     @staticmethod
     def _closed_form_solver_(treat, model, df, snm_matrix, y_matrix, weights, print_results):
