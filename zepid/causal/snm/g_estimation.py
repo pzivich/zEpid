@@ -1,4 +1,5 @@
 import warnings
+import patsy
 import numpy as np
 import pandas as pd
 
@@ -71,20 +72,20 @@ class GEstimationSNM:
                           " observations", UserWarning)
         self.df = df.copy().dropna().reset_index()
 
-        if self.df[outcome].value_counts().index.isin([0, 1]).all():
-            raise ValueError("GEstimationSNM only supports continuous outcomes currently")
-
         if not self.df[exposure].value_counts().index.isin([0, 1]).all():
             raise ValueError("GEstimationSNM only supports binary exposures currently")
 
         self.treatment = exposure
         self.outcome = outcome
 
-        self._weights = weights
+        self.psi = None
+        self.psi_labels = None
 
+        self._weights = weights
         self._treatment_model = None
         self._predicted_A = None
         self._snm_ = None
+        self._print_results = True
 
     def treatment_model(self, model, print_results=True):
         """Specify the treatment model to satisfy conditional exchangeability. Behind the scenes, `GestimationSNM` will
@@ -102,10 +103,7 @@ class GEstimationSNM:
         the estimation approach.
         """
         self._treatment_model = model
-        # TODO move below to closed form solver
-        # self._treatment_model = propensity_score(df=self.df, model=self.treatment + ' ~ ' + model,
-        #                                         weights=self._weights, print_results=print_results)
-        # self._predicted_A = self._treatment_model.predict(self.df)
+        self._print_results =  print_results
 
     def structural_nested_model(self, model):
         """Specify the structural nested mean model to fit. The structural nested model should include the treatment of
@@ -149,7 +147,21 @@ class GEstimationSNM:
             solver='search' option. See the online guide for more information on this parameter.
         """
         if solver == 'closed':
-            self._closed_form_solver_()
+            # Pulling out data set up for SNM via patsy
+            snm = patsy.dmatrix(self._snm_ + ' - 1', self.df, return_type='dataframe')
+            self.psi_labels = snm.columns.values.tolist() # Grabs labels for the solved psi values
+
+            # Pulling array of outcomes with the interaction terms (copy and rename column to get right interactions)
+            yf = self.df.copy().drop(columns=[self.treatment])
+            yf = yf.rename(columns={self.outcome: self.treatment})
+            y_vals = patsy.dmatrix(self._snm_ + ' - 1', yf, return_type='dataframe')
+
+            # Solving for the array of Psi values
+            self.psi = self._closed_form_solver_(treat=self.treatment,
+                                                 model=self.treatment + ' ~ ' + self._treatment_model,
+                                                 df=self.df,
+                                                 snm_matrix=snm, y_matrix=y_vals,
+                                                 weights=self._weights, print_results=self._print_results)
 
         elif solver == 'search':
             self._grid_search_()
@@ -157,19 +169,48 @@ class GEstimationSNM:
         else:
             raise ValueError("`solver` must be specified as either 'closed' or as 'search'")
 
-    def summary(self):
+    def summary(self, decimal=3):
         """Summary of results
         """
+        print('======================================================================')
+        print('           G-estimation of Structural Nested Mean Model               ')
+        print('======================================================================')
+        print('Nested Model: ')
+        print('E[Y^a - Y^{a=0} |A=a, L] =', self._snm_)
         # TODO add SciPy optimization results if possible. Not needed for closed form
         # TODO need unique labels for each psi
+        print('======================================================================')
+        for p, pl in zip(self.psi, self.psi_labels):  # Printing all psi's and their labels
+            print(pl, np.round(p, decimals=decimal))
+
+        print('======================================================================')
 
     def _grid_search_(self):
         """Background function to perform the optimization procedure for psi
         """
         # TODO put something here to designate all the psi / H(psi) needed to calculate / minimize
         # TODO will need to find all then pass to SciPy to minimize
+        raise ValueError("Not implemented yet")
 
-    def _closed_form_solver_(self):
+    @staticmethod
+    def _closed_form_solver_(treat, model, df, snm_matrix, y_matrix, weights, print_results):
         """Background function to calculate the closed form solution for psi
         """
-        # TODO needs to do some matrix manipulations to calculate
+        # Calculate predictions
+        fm = propensity_score(df=df, model=model, weights=weights, print_results=print_results)
+        pred_treat = fm.predict(df)
+
+        diff = df[treat] - pred_treat
+        if weights is not None:
+            diff = diff * weights
+
+        # D-dimensional psi-matrix
+        snm_matrix.iloc[:, 0] = diff * snm_matrix.iloc[:, 0]  # Multiplies matrix by the A-pred_A difference
+        lhm = np.dot(snm_matrix.transpose(), snm_matrix)  # Dot product to produce D-by-D matrix
+
+        # Array of outcomes
+        rha = y_matrix.sum()
+
+        # Solving matrix and array for psi values
+        psi_array = np.linalg.solve(lhm, rha)
+        return psi_array
