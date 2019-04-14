@@ -203,15 +203,11 @@ class GEstimationSNM:
             diff = diff * weights
 
         # D-dimensional psi-matrix
-        snm_matrix.iloc[:, 0] = diff * snm_matrix.iloc[:, 0]  # Multiplies matrix by the A-pred_A difference
-        lhm = np.dot(snm_matrix.transpose(), snm_matrix)  # Dot product to produce D-by-D matrix
-        print(lhm)
+        lhm = np.dot(snm_matrix.mul(diff, axis=0).transpose(), snm_matrix)  # Dot product to produce D-by-D matrix
 
         # Array of outcomes
         y_matrix = y_matrix.mul(diff, axis=0)
         rha = y_matrix.sum()
-        print('Y-matrix stuff')
-        print(rha)
 
         # Solving matrix and array for psi values
         psi_array = np.linalg.solve(lhm, rha)
