@@ -209,6 +209,7 @@ class GEstimationSNM:
         """
         # Creating function for scipy to optimize
         def function_to_optimize(data, psi, snm_terms, y, a, pi_model, alpha_shift, weights):
+            print('P', psi)
             # loop through all psi values to calculate the corresponding H(psi)
             psi_labels = []
             h_terms = ''
@@ -220,6 +221,7 @@ class GEstimationSNM:
 
             # Estimating the necessary model
             fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + h_terms, weights=weights, print_results=False)
+            print(fm.summary())
 
             # Pulling elements from fitted model
             alpha = fm.params[psi_labels] - alpha_shift  # Estimated alphas
