@@ -1,5 +1,11 @@
 ## Change logs
 
+### v0.7.0
+G-estimation of structural nested models (for a single time point) are now available through `GEstimationSNM`. Psi 
+parameters can be calculated using a closed form solution or via a `scipy` optimization procedure
+
+
+
 ### v0.6.1
 ``AIPTW`` now supports continuous outcomes (normal or Poisson). Format is the same as `TMLE`.
 
