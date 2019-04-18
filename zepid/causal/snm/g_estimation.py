@@ -194,11 +194,24 @@ class GEstimationSNM:
         print('======================================================================')
         # Printing scipy optimization if possible
         if self._scipy_solver_obj is not None:
-            print(self._scipy_solver_obj)
-            print('======================================================================')
+            self._print_scipy_results(self._scipy_solver_obj)
+        else:
+            self._print_closed_results()
+
+        snm_form = ''
+        is_first = False
+        for l in self.psi_labels:
+            if not is_first:
+                is_first = True
+                snm_form += 'psi*' + l
+            else:
+                snm_form += ' + psi*' + l
+
+        print('E[Y^a - Y^a=0 |A=a, L] = ' + snm_form)
+        print('----------------------------------------------------------------------')
 
         for p, pl in zip(self.psi, self.psi_labels):  # Printing all psi's and their labels
-            print(pl, np.round(p, decimals=decimal))
+            print(pl+':  ', np.round(p, decimals=decimal))
 
         print('======================================================================')
 
@@ -223,7 +236,7 @@ class GEstimationSNM:
             return np.abs(np.array(alpha)), psi
 
         def return_abs_alpha(psi):
-            result = function_to_optimize(psi=psi, data=data_set.copy(),
+            result = function_to_optimize(psi=psi, data=data_set,
                                           snm_terms=snm_terms,
                                           y=outcome, a=treatment,
                                           pi_model=model, alpha_shift=alpha_shift,
@@ -243,7 +256,7 @@ class GEstimationSNM:
 
         diff = df[treat] - pred_treat
         if weights is not None:
-            diff = diff * weights
+            diff = diff * df[weights]
 
         # D-dimensional psi-matrix
         lhm = np.dot(snm_matrix.mul(diff, axis=0).transpose(), snm_matrix)  # Dot product to produce D-by-D matrix
@@ -255,3 +268,19 @@ class GEstimationSNM:
         # Solving matrix and array for psi values
         psi_array = np.linalg.solve(lhm, rha)
         return psi_array
+
+    @staticmethod
+    def _print_scipy_results(optimized_function):
+        """Background print function to the scipy optimized results results
+        """
+        print('Method:                                              ', 'Nelder-Mead')
+        print('Number of iterations:                                ', optimized_function.nit)
+        print('Optimization successful:                             ', optimized_function.success)
+        print('----------------------------------------------------------------------')
+
+    @staticmethod
+    def _print_closed_results():
+        """Background print function to print the closed-form info
+        """
+        print('Method:                                              ', 'Closed-form')
+        print('----------------------------------------------------------------------')
