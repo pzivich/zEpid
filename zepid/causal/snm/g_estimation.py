@@ -105,7 +105,7 @@ class GEstimationSNM:
         the estimation approach.
         """
         self._treatment_model = model
-        self._print_results =  print_results
+        self._print_results = print_results
 
     def structural_nested_model(self, model):
         """Specify the structural nested mean model to fit. The structural nested model should include the treatment of
@@ -230,6 +230,7 @@ class GEstimationSNM:
             # Estimating the necessary model
             fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + ' + H_psi',
                                   weights=weights, print_results=False)
+            print(psi)
 
             # Pulling elements from fitted model
             alpha = fm.params['H_psi'] - alpha_shift  # Estimated alphas with the shift
@@ -244,7 +245,8 @@ class GEstimationSNM:
             return np.sum(result[0])
 
         return scipy.optimize.minimize(fun=return_abs_alpha, x0=start_vals,
-                                       method='Nelder-Mead', tol=tolerance)
+                                       method='Nelder-Mead',
+                                       tol=tolerance)
 
     @staticmethod
     def _closed_form_solver_(treat, model, df, snm_matrix, y_matrix, weights, print_results):
