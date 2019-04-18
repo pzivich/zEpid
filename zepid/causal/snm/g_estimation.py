@@ -127,7 +127,7 @@ class GEstimationSNM:
         """
         self._snm_ = model
 
-    def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-6):
+    def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-7):
         """Using the treatment model and the format of the structural nested mean model, the solutions for psi are
         calculated.
 
@@ -194,7 +194,7 @@ class GEstimationSNM:
         print('======================================================================')
         # Printing scipy optimization if possible
         if self._scipy_solver_obj is not None:
-            print('....')
+            print(self._scipy_solver_obj)
             print('======================================================================')
 
         for p, pl in zip(self.psi, self.psi_labels):  # Printing all psi's and their labels
@@ -209,28 +209,25 @@ class GEstimationSNM:
         """
         # Creating function for scipy to optimize
         def function_to_optimize(data, psi, snm_terms, y, a, pi_model, alpha_shift, weights):
-            print('P', psi)
-            # loop through all psi values to calculate the corresponding H(psi)
-            psi_labels = []
-            h_terms = ''
+            # loop through all psi values to calculate the corresponding H(psi) value based on covariate pattern
+            data['H_psi'] = data[y]
             for s, n, p in zip(snm_terms, range(len(snm_terms)), psi):
-                psi_l = 'H_psi_'+str(n)
-                data[psi_l] = data[y] - p * data[s]
-                psi_labels.append(psi_l)
-                h_terms += ' + ' + psi_l
+                data['H_psi'] = data['H_psi'] - p * data[s]
 
             # Estimating the necessary model
-            fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + h_terms, weights=weights, print_results=False)
-            print(fm.summary())
+            fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + ' + H_psi',
+                                  weights=weights, print_results=False)
 
             # Pulling elements from fitted model
-            alpha = fm.params[psi_labels] - alpha_shift  # Estimated alphas
+            alpha = fm.params['H_psi'] - alpha_shift  # Estimated alphas with the shift
             return np.abs(np.array(alpha)), psi
 
         def return_abs_alpha(psi):
-            result = function_to_optimize(psi=psi, data=data_set, snm_terms=snm_terms,
+            result = function_to_optimize(psi=psi, data=data_set.copy(),
+                                          snm_terms=snm_terms,
                                           y=outcome, a=treatment,
-                                          pi_model=model, alpha_shift=alpha_shift, weights=weights)
+                                          pi_model=model, alpha_shift=alpha_shift,
+                                          weights=weights)
             return np.sum(result[0])
 
         return scipy.optimize.minimize(fun=return_abs_alpha, x0=start_vals,
