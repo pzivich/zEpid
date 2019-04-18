@@ -166,6 +166,8 @@ class GEstimationSNM:
                                                  weights=self._weights, print_results=self._print_results)
 
         elif solver == 'search':
+            warnings.warn("My implementation of the Nelder-Mead algorithm is unstable for 2+ parameter structural "
+                          "nested models. It is recommended to use the closed form solution instead", UserWarning)
             # Adding other potential SNM variables to the input data
             sf = pd.concat([self.df, snm.drop(columns=[self.treatment])], axis=1)
 
@@ -223,14 +225,11 @@ class GEstimationSNM:
         # Creating function for scipy to optimize
         def function_to_optimize(data, psi, snm_terms, y, a, pi_model, alpha_shift, weights):
             # loop through all psi values to calculate the corresponding H(psi) value based on covariate pattern
-            data['H_psi'] = data[y]
-            for s, n, p in zip(snm_terms, range(len(snm_terms)), psi):
-                data['H_psi'] = data['H_psi'] - p * data[s]
+            data['H_psi'] = data[y] - data[snm_terms].mul(psi, axis='columns').sum(axis='columns')
 
             # Estimating the necessary model
             fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + ' + H_psi',
                                   weights=weights, print_results=False)
-            print(psi)
 
             # Pulling elements from fitted model
             alpha = fm.params['H_psi'] - alpha_shift  # Estimated alphas with the shift
