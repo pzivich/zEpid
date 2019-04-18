@@ -2,13 +2,17 @@
 
 -------------------------------------
 
-Causal
-'''''''''''''''''''''''''''''''''
-*zEpid* includes several different causal method implementations. This section is sub-divided into two sections;
-time-fixed exposures and time-varying exposures.
+Causal Estimators
+'''''''''''''''''''''''''''''''''''''
+To help motivate this section, we will ask a few different causal questions. This page is divided into two major
+sections; time-fixed and time-varying estimators. The time-fixed estimators estimate the causal effect of ...
+
+Throughout this section we will make the following assumptions...
 
 Time-Fixed Exposures
 ==============================================
+For time-fixed, we are ...
+
 For time-fixed exposure methods, the baseline exposure is assumed to remain constant over the entire study period.
 Another way to frame time-fixed exposures, is the intent-to-treat assumption. These methods deal with time-varying
 confounders by ignoring (not adjusting for) exposures downstream of the causal path between the baseline exposure and

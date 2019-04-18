@@ -5,20 +5,40 @@
 zEpid
 =====================================
 
-*zEpid* is an epidemiology analysis toolkit, providing easy to use tools for epidemiologists coding in python3. The
-purpose of this package is to provide a toolset to make epidemiology e-z. A variety of calculations and plots can be
-generated through various functions. Current features include:
+*zEpid* is a Python 3.5+ epidemiology analysis toolkit. The purpose of this library is to make epidemiology e-z to do
+in Python. A variety of calculations, estimators, and plots can be implemented. Current features include:
 
--  Basic epidemiology calculations on pandas Dataframes (risk ratio, risk difference, incidence rate difference, etc.)
--  Summary measure calculations
--  Graphics (functional form plots, effect measure plots, ROC curves, etc.)
--  G-computation algorithm
--  Inverse-probability weights
--  Doubly Robust estimators
+-  Basic epidemiology calculations on pandas Dataframes
+  -  Risk ratio, risk difference, number needed to treat, incidence rate ratio, etc.
+  -  Interaction contrasts and interaction contrast ratios
+  -  Semi-bayes
+-  Summary measure calculations from summary data
+  -  Risk ratio, risk difference, number needed to treat, incidence rate ratio, etc.
+  -  Interaction contrasts and interaction contrast ratios
+  -  Semi-bayes
+-  Graphics
+  -  Functional form plots
+  -  Forest plots (effect measure plots)
+  -  P-value plots
+-  Causal inference
+  -  Parametric g-formula
+  -  Inverse probability of treatment weights
+  -  Augmented inverse probability of treatment weights
+  -  Targeted maximum likelihood estimator
+  -  Monte-Carlo g-formula
+  -  Iterative conditional g-formula
+-  Generalizability / Transportability
+  -  Inverse probability of sampling weights
+  -  G-transport formula
+  -  Doubly-robust transport formula
 -  Sensitivity analysis tools
+  -  Monte Carlo bias analysis
 
-A narrative description of current implemented functionality are described in the corresponding sections. For specific
-discussions of listed within
+The website contains pages with example analyses to help demonstrate the usage of this library. Additionally, examples
+of graphics are displayed. The Reference page contains the full reference documentation for each function currently
+implemented. For further guided tutorials of the full range of features available in *zEpid*, check out the following
+`Python for Epidemiologists <https://github.com/pzivich/Python-for-Epidemiologists/>`_ tutorials. Additionally, if you
+are starting to learn Python, I recommend looking at those tutorials for the basics and some other useful resources.
 
 Contents:
 -------------------------------------
@@ -26,10 +46,9 @@ Contents:
 .. toctree::
   :maxdepth: 3
 
-  Measures
-  Calculator
+  Time-Fixed Exposures
+  Time-Varying Exposures
   Graphics
-  Causal
   Sensitivity Analyses
   Reference/index
   Chat on Gitter <https://gitter.im/zEpid/community>
@@ -49,8 +68,5 @@ Source code and Issue Tracker
 Available on Github `pzivich/zepid <https://github.com/pzivich/zepid/>`_
 Please report bugs, issues, and feature extensions there.
 
-For a simplified guide to Python 3.x tailored to epidemiologists, check out my
-online guide on GitHub as well:
-`pzivich/Python-for-Epidemiologists <https://github.com/pzivich/Python-for-Epidemiologists/>`_
-
-Also feel free to contact us via email (gmail: zepidpy) or Twitter (@zepidpy)
+Also feel free to contact us via `Gitter <https://gitter.im/zEpid/community>`_ email (gmail: zepidpy)
+or on Twitter (@zepidpy)

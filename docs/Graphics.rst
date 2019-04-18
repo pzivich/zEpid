@@ -6,23 +6,20 @@
 Graphics
 ''''''''
 
-Several different graphics are implemented through *zEpid* and include the following; functional form assessment,
-p-value plots, spaghetti plots, effect measure plots (forest plots), and L'Abbe plots
+This page demonstrates some of the different graphics possible to generate with *zEpid*. These plots are all generated
+using `matplotlib`. The functions themselves return `matplotlib.axes` objects, so users can further edit and customize
+their plots. Let's look at some of the plots
 
 Functional Form Assessment
 ==========================
-One important part of analyses that includes a continuous exposure/confounder is a functional form assessment. There
-are two approaches to functional form assessment; graphical (qualitative) and statistical (quantitative). *zEpid* makes
-both of these approaches to implement.
+*zEpid* makes graphical (qualitative) and statistical (quantitative) functional form assessment easy to implement.
+Functional form assessments are available for either discrete or continuous variables. The distinction only matters for
+the calculation of the LOESS curve generated in the plots.
 
-From input continuous data, the variable is divided into categories (discrete categories if ``discrete=True`` or into
-automatically binned categories ``discrete=False``), a generalized linear model is fit to these discrete categories
-through ``statsmodels``, a generalized linear model is fit to the functional form requested via ``statsmodels``, the
-``statsmodels`` results are printed to the console, and a functional form plot is created (with various options).
+Plots and regression model results come from generalized linear models fit with `statsmodels`.
 
-We will now go through some examples. We will look at baseline age (discrete variable) within the data that comes
-with *zEpid* First, we will do some data preparation for later functional form options. We will create a squared term
-and a restricted quadratic spline term. First, we set up the data
+Let's look at some examples. We will look at baseline age (discrete variable). We will compare linear, quadratic, and
+splines for the functional form. First, we set up the data
 
 .. code:: python
 
@@ -71,16 +68,10 @@ In the console, the following results will be printed
 .. image:: images/zepid_fform1.png
 
 In the image, the blue line corresponds to the regression line and the shaded blue region is the 95% confidence
-intervals. The red-dashed line is the ``statsmodels`` generated LOESS curve. The LOESS curve has the following
-options; remove from the plot (``loess=False``), determine the extent of surrounding that contributes to the LOWESS
-curve at each point (``loess_value``). Note that ``loess_value`` must be a value between ``0`` and ``1``. Aside from
-the LOESS curve, the discrete category model results can be displayed on the plot as well. Point sizes reflect the
-amount of data at each point. Repeating the above code, but with ``points=True``, we obtain the following plot
+intervals. The red-dashed line is the ``statsmodels`` generated LOESS curve. We can also have the data points that the
+LOESS curve is fit to plot as well
 
 .. image:: images/zepid_fform2.png
-
-In this plot, we can see that there are less individuals in the younger age categories and some individuals between
-``55-60`` who have a probability of `1` for the outcome (death).
 
 Quadratic
 ^^^^^^^^^^^
@@ -99,9 +90,8 @@ The ``f_form`` argument is used to specify any functional form variables that ar
 
 Spline
 ^^^^^^^^^^^
-One important note is that ``functional_form_plot`` returns a ``matplotlib`` axes object, meaning that further items
-can be added to the plot. We will show the functionality of this through the spline example. We will add dashed lines
-on our plot to designate where the spline knots are located
+We will now compare using restricted quadratic splines for the functional form of age. To show how users can further
+edit the plot, we will add dashed lines to designate where the spline knots are located
 
 .. code::
 
@@ -113,14 +103,14 @@ on our plot to designate where the spline knots are located
 
 .. image:: images/zepid_fform4.png
 
-Non-Discrete Variables
-^^^^^^^^^^^^^^^^^^^^^^
+Continuous Variables
+^^^^^^^^^^^^^^^^^^^^
 For non-discrete variables (indicated by ``discrete=False``, the default), then data is binned into categories
 automatically. The number of categories is determined via the maximum value minus the minimum divided by 5.
 
 .. math::
 
-    (max(X) - min(X)) / 5
+    \frac{(max(X) - min(X))}{5}
 
 To adjust the number of categories, the continuous variable can be multiplied by some constant. If more categories are
 desired, then the continuous variable can be multiplied by some constant greater than 1. Conversely, if less categories
@@ -152,17 +142,13 @@ within ``cd40`` to see if that fixes this. We will decrease the number of catego
 
 Now only ``24`` categories are created and it removes the overflow issue.
 
-This concludes the section on functional form assessment. My hope is that this makes functional form assessment much
-easier for users and makes coding much easier/faster.
-
 P-value Plot
 ============
 As described and shown in *Epidemiology* 2nd Edition by K. Rothman, this function is meant to plot the p-value
 distribution for a variable. From this distribution, p-values and confidence intervals can be visualized to compare or
 contrast results. Note that this functionality only works for linear variables (i.e. Risk Difference and log(Risk
-Ratio)). Returning to our results from the Measures section, we will look at plots of the Risk Difference. From
-``RiskDifference(df, exposure='art', outcome='dead')``,  we obtain a point estimate of ``-0.049`` and a standard
-deviation of ``0.042``. We generate the P-value plot from the following code
+Ratio)). Returning to our results from the Measures section, we will look at plots of the Risk Difference.
+For a risk difference of -0.049 (SE: 0.042), the plot is
 
 .. code:: python
 
@@ -171,14 +157,11 @@ deviation of ``0.042``. We generate the P-value plot from the following code
    pvalue_plot(point=-0.049, sd=0.042)
    plt.show()
 
-Which produces the following plot
-
 .. image:: images/zepid_pvalue1.png
 
-Similar to the functional form plots, a ``matplotlib`` object is returned, so we can stack multiple p-value plots
-together. For this example, we will imagine a systematic review was conducted and resulted in a summary point risk
-difference of ``-0.062`` and a standard deviation of ``0.0231``. We can use the p-value plots to compare results
-between our data and the systematic review
+We can stack multiple p-value plots together. Imagine a systematic review was conducted prior to our study and resulted
+in a summary risk difference of -0.062 (SE: 0.0231). We can use the p-value plots to visually display the results of
+our data and the systematic review
 
 .. code:: python
 
@@ -191,11 +174,7 @@ between our data and the systematic review
               ['Our Study', 'Review'])
    plt.show()
 
-Producing the following plot
-
 .. image:: images/zepid_pvalue3.png
-
-From this we can see that our results are consistent with our hypothetical systematic review.
 
 Spaghetti Plot
 ==============
@@ -209,9 +188,6 @@ an example spaghetti plot using the longitudinal data from zepid and looking at 
    plt.show()
 
 .. image:: images/zepid_spaghetti.png
-
-From the spaghetti plot, we can see that in general the CD4 T cell count increase over time but there is quite a bit
-of fluctuation
 
 *NOTE* If your data set is particularly large, a spaghetti plot may take a long time to generate and may not be useful
 as a visualization. They are generally easiest to observe with a smaller number of participants. However, they can be
@@ -257,8 +233,7 @@ floating ``0`` will be truncated from the table. Now that our data is all prepar
 .. image:: images/zepid_effm.png
 
 There are other optional arguments to adjust the plot (colors of points/point shape/etc.). Take a look through the
-function documentation for available options. One unfortunate consequence of how the plot is currently generated, there
-is not option to directly edit the plot outside of the function. This is for future revisions to the source code.
+Reference page for available options
 
 *NOTE* There is one part of the effect measure plot that is not particularly pretty. In the ``plot()`` function there
 is an optional argument ``t_adjuster``. This argument changes the alignment of the table so that the table aligns
@@ -329,9 +304,9 @@ Dynamic risk plots allow the visualization of how the risk difference/ratio chan
 see `HERE <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/>`_ and discussed further
 `HERE <https://academic.oup.com/aje/article/181/4/246/122265>`_
 
-For this example, we will borrow our results from our IPTW marginal structural model, discussed in the Causal page. We
-will used the fitted survival functions to obtain the risk estimates for our exposed and unexposed groups. These were
-generated from the ``lifelines`` Kaplan Meier curves (estimated via ``KaplanMeierFitter``).
+For this example, we will borrow our results from our IPTW marginal structural model. We will used the fitted survival
+functions to obtain the risk estimates for our exposed and unexposed groups. These were generated from the
+``lifelines`` Kaplan Meier curves (estimated via ``KaplanMeierFitter``).
 
 .. code:: python
 
@@ -342,8 +317,8 @@ generated from the ``lifelines`` Kaplan Meier curves (estimated via ``KaplanMeie
 
 .. image:: images/zepid_msm_rd.png
 
-By default, the function returns the risk difference plot. You can also request a risk ratio plot. Here is the risk
-ratio plot, with the point and line colors changed
+By default, the function returns the risk difference plot. You can also request a risk ratio plot (and with different
+colors).
 
 .. code:: python
 
@@ -353,7 +328,7 @@ ratio plot, with the point and line colors changed
 
 .. image:: images/zepid_msm_rr.png
 
-You can also request a log-transformed RR
+The log-transformed risk ratio is also available
 
 .. code:: python
   
@@ -378,8 +353,6 @@ plot.
 
  labbe_plot()
  plt.show()
-
-The basic plot generated is the following
 
 .. image:: images/zepid_labbe1.png
 
@@ -412,6 +385,3 @@ one more example,
 In this example, there is additive modification, but *no multiplicative modification*. These plots also can have the
 number of reference lines displayed changed, and support the keyword arguments of `plt.plot()` function. See the
 function documentation for further details.
-
-This concludes the section on implemented graphics in *zEpid*. If you have additional items you believe would make a
-good addition to the graphic functions, or *zEpid* in general, please reach out to us on GitHub or Twitter (@zepidpy)
