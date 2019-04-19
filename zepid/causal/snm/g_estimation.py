@@ -158,7 +158,7 @@ class GEstimationSNM:
         self._scipy_solver_obj = None
 
     def exposure_model(self, model, print_results=True):
-        """Specify the treatment model to satisfy conditional exchangeability. Behind the scenes, `GestimationSNM` will
+        r"""Specify the treatment model to satisfy conditional exchangeability. Behind the scenes, `GestimationSNM` will
         add the necessary H(psi) terms. The only variables that need to be specified are the set of L's to satisfy
         conditional exchangeability.
 
@@ -185,7 +185,7 @@ class GEstimationSNM:
         self._print_results = print_results
 
     def structural_nested_model(self, model):
-        """Specify the structural nested mean model to fit. The structural nested model should include the treatment of
+        r"""Specify the structural nested mean model to fit. The structural nested model should include the treatment of
         interest, as well as any interactions with L's that are necessary. G-estimation assumes that this model is
         correctly specified and ALL interactions with confounders are included in this model. One way to ensure
         this assumption is to saturate the structural nested mean model (or allow for as much flexibility as possible).
