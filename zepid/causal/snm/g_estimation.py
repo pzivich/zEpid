@@ -162,11 +162,20 @@ class GEstimationSNM:
 
             logit(\Pr(A=1| L)) = alpha + alpha L
 
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. For example, 'var1 + var2 + var3'
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results). This only applies to the
+            closed-form solution. The grid-search procedure fits lots of regression models and these results are
+            not printed
+
         Notes
         -----
         H(psi) terms are only necessary for the grid-search solution to g-estimation. For the closed form, we directly
         generate predicted values of A from this model. As a result, the `treatment_model()` function is agnostic to
-        the estimation approach.
+        the estimation approach. It only requires specifying the sufficient adjustment set via patsy format
         """
         self._treatment_model = model
         self._print_results = print_results
@@ -174,20 +183,21 @@ class GEstimationSNM:
     def structural_nested_model(self, model):
         """Specify the structural nested mean model to fit. The structural nested model should include the treatment of
         interest, as well as any interactions with L's that are necessary. G-estimation assumes that this model is
-        correctly specified and ALL interactions are included in this model. One way to ensure this assumption is to
-        saturate the structural nested model (or allow for as much flexibility as possible).
+        correctly specified and ALL interactions with confounders are included in this model. One way to ensure
+        this assumption is to saturate the structural nested mean model (or allow for as much flexibility as possible).
 
         The structural nested mean model takes the following form
 
         .. math::
 
-            E[Y^a |A=a, L] - E[Y^a|A=a, L] = \psi a + \psi a*L
+            E[Y^a |A=a, V] - E[Y^a|A=a, V] = \psi a + \psi a*V
 
         Parameters
         ----------
-        model :
-            -
-
+        model : str
+            Structural nested mean model to estimate. Model should include treatment and relevant treatment-confounder
+            interaction terms as needed. Interactions should be indicated via patsy magic.
+            For example, 'A + A:V + A:C'
         """
         self._snm_ = model
 
