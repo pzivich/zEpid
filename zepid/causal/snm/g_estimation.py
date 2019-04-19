@@ -83,6 +83,7 @@ class GEstimationSNM:
         self.psi_labels = None
 
         self._weights = weights
+        self._alphas = None
         self._treatment_model = None
         self._predicted_A = None
         self._snm_ = None
@@ -127,7 +128,8 @@ class GEstimationSNM:
         """
         self._snm_ = model
 
-    def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-7):
+    def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-7, verbose_solver=False,
+            maxiter=200):
         """Using the treatment model and the format of the structural nested mean model, the solutions for psi are
         calculated.
 
@@ -147,6 +149,13 @@ class GEstimationSNM:
             zero anymore. We can change the alpha_value parameter to minimize alpha to different numbers. This allows
             us to see how unmeasured confounders may influence our results. This option is only available for the
             solver='search' option. See the online guide for more information on this parameter.
+        verbose_solver : optional, bool
+            For this grid-search procedure, setting this option to true print results for each iteration of the SciPy
+            optimization procedure. Each iteration prints the psi values and the correspond alpha values from the
+            fitted model
+        max_iter : optional, int
+            Maximum number of iterations to perform. If the maximum number of iterations is hit, the optimization
+            procedure will stop and SciPy will say the convergence failed
         """
         # Pulling out data set up for SNM via patsy
         snm = patsy.dmatrix(self._snm_ + ' - 1', self.df, return_type='dataframe')
@@ -166,23 +175,22 @@ class GEstimationSNM:
                                                  weights=self._weights, print_results=self._print_results)
 
         elif solver == 'search':
-            warnings.warn("My implementation of the Nelder-Mead algorithm is unstable for 2+ parameter structural "
-                          "nested models. It is recommended to use the closed form solution instead", UserWarning)
             # Adding other potential SNM variables to the input data
             sf = pd.concat([self.df, snm.drop(columns=[self.treatment])], axis=1)
 
             # Resolving if not initial parameters
             if starting_value is None:
-                starting_value = [0.] * len(self.psi_labels)
+                starting_value = [0.01] * len(self.psi_labels)
 
             # Passing to optimization procedure
             self._scipy_solver_obj = self._grid_search_(data_set=sf,
                                                         treatment=self.treatment, outcome=self.outcome,
                                                         weights=self._weights,
                                                         model=self._treatment_model, snm_terms=self.psi_labels,
-                                                        start_vals=starting_value, alpha_shift=alpha_value,
-                                                        tolerance=tolerance)
-            print('SciPy Solver:', self._scipy_solver_obj.message)
+                                                        start_vals=starting_value, alpha_shift=np.array(alpha_value),
+                                                        tolerance=tolerance, verbose_solver=verbose_solver,
+                                                        max_iter=maxiter)
+            self._alphas = np.array(alpha_value)
             self.psi = self._scipy_solver_obj.x
 
         else:
@@ -196,7 +204,7 @@ class GEstimationSNM:
         print('======================================================================')
         # Printing scipy optimization if possible
         if self._scipy_solver_obj is not None:
-            self._print_scipy_results(self._scipy_solver_obj)
+            self._print_scipy_results(self._scipy_solver_obj, self._alphas)
         else:
             self._print_closed_results()
 
@@ -219,20 +227,31 @@ class GEstimationSNM:
 
     @staticmethod
     def _grid_search_(data_set, treatment, outcome, model, snm_terms, start_vals,
-                      alpha_shift, tolerance, weights):
+                      alpha_shift, tolerance, verbose_solver, max_iter, weights):
         """Background function to perform the optimization procedure for psi
         """
         # Creating function for scipy to optimize
         def function_to_optimize(data, psi, snm_terms, y, a, pi_model, alpha_shift, weights):
             # loop through all psi values to calculate the corresponding H(psi) value based on covariate pattern
-            data['H_psi'] = data[y] - data[snm_terms].mul(psi, axis='columns').sum(axis='columns')
+            snm = data[y] - data[snm_terms].mul(psi, axis='columns').sum(axis=1)
+            data['H_psi'] = snm
+
+            # Creating new terms to add to model
+            h_terms_list = [w.replace(treatment, 'H_psi') for w in snm_terms]
+            h_terms = ''
+            for h in h_terms_list:
+                h_terms += ' + ' + h
 
             # Estimating the necessary model
-            fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + ' + H_psi',
+            fm = propensity_score(df=data, model=a + ' ~ ' + pi_model + h_terms,
                                   weights=weights, print_results=False)
 
             # Pulling elements from fitted model
-            alpha = fm.params['H_psi'] - alpha_shift  # Estimated alphas with the shift
+            alpha = fm.params[h_terms_list] - alpha_shift  # Estimated alphas with the shift
+            if verbose_solver:
+                print('Psi:  ', np.array(psi))
+                print('Alpha:', np.array(alpha))
+
             return np.abs(np.array(alpha)), psi
 
         def return_abs_alpha(psi):
@@ -245,7 +264,9 @@ class GEstimationSNM:
 
         return scipy.optimize.minimize(fun=return_abs_alpha, x0=start_vals,
                                        method='Nelder-Mead',
-                                       tol=tolerance)
+                                       tol=tolerance,
+                                       options={'maxiter': max_iter,
+                                                'disp': verbose_solver})
 
     @staticmethod
     def _closed_form_solver_(treat, model, df, snm_matrix, y_matrix, weights, print_results):
@@ -271,12 +292,13 @@ class GEstimationSNM:
         return psi_array
 
     @staticmethod
-    def _print_scipy_results(optimized_function):
+    def _print_scipy_results(optimized_function, alpha_values):
         """Background print function to the scipy optimized results results
         """
-        print('Method:                                              ', 'Nelder-Mead')
-        print('Number of iterations:                                ', optimized_function.nit)
-        print('Optimization successful:                             ', optimized_function.success)
+        print('Method:                                           ', 'Nelder-Mead')
+        print('Number of iterations:                             ', optimized_function.nit)
+        print('Optimization successful:                          ', optimized_function.success)
+        print('Alpha values:                                     ', alpha_values)
         print('----------------------------------------------------------------------')
 
     @staticmethod
