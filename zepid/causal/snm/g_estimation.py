@@ -72,43 +72,47 @@ class GEstimationSNM:
     how sensitive our results are to some assumptions regarding unobserved confounding. For further details on
     translating unobserved confounding to alpha values, see Scharfstein et al. 1999 in the references
 
+    If you continuous variable takes on large values, you may see the closed-form and grid-search start to diverge in
+    results. This is because of the tolerance value. If you have large outcome values, I recommend rescaling them to
+    prevent any issues with the grid-search
+
     Examples
     --------
     Set up the environment and the data set
     >>> from zepid import load_sample_data, spline
     >>> from zepid.causal.snm import GEstimationSNM
-    >>> df = load_sample_data(timevary=False).drop(columns=['death'])
+    >>> df = load_sample_data(timevary=False).drop(columns=['dead'])
     >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
     >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
 
     One-parameter structural nested mean model via closed-form solution
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
-    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art')
     >>> snm.fit()
     >>> snm.summary()
 
     One-parameter structural nested mean model via grid-search
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
-    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art')
     >>> snm.fit(solver='search')
 
     One-parameter structural nested mean model via grid-search with different alphas
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
-    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art')
     >>> snm.fit(solver='search', alpha_value=0.03)
 
     Two-parameter structural nested mean model via closed-form
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
-    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art + art:male')
     >>> snm.fit()
 
     Two-parameter structural nested mean model via grid-search and starting values
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
-    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art + art:male')
     >>> snm.fit(solver='search', starting_value=[-0.05, 0.0])
 
@@ -153,7 +157,7 @@ class GEstimationSNM:
         self._print_results = True
         self._scipy_solver_obj = None
 
-    def treatment_model(self, model, print_results=True):
+    def exposure_model(self, model, print_results=True):
         """Specify the treatment model to satisfy conditional exchangeability. Behind the scenes, `GestimationSNM` will
         add the necessary H(psi) terms. The only variables that need to be specified are the set of L's to satisfy
         conditional exchangeability.
@@ -174,7 +178,7 @@ class GEstimationSNM:
         Notes
         -----
         H(psi) terms are only necessary for the grid-search solution to g-estimation. For the closed form, we directly
-        generate predicted values of A from this model. As a result, the `treatment_model()` function is agnostic to
+        generate predicted values of A from this model. As a result, the `exposure_model()` function is agnostic to
         the estimation approach. It only requires specifying the sufficient adjustment set via patsy format
         """
         self._treatment_model = model
@@ -230,6 +234,10 @@ class GEstimationSNM:
             Maximum number of iterations to perform. If the maximum number of iterations is hit, the optimization
             procedure will stop and SciPy will say the convergence failed
         """
+        if self._snm_ is None or self._treatment_model is None:
+            raise ValueError("The exposure_model() and structural_nested_model() must be specified before the fit "
+                             "procedure")
+
         # Pulling out data set up for SNM via patsy
         snm = patsy.dmatrix(self._snm_ + ' - 1', self.df, return_type='dataframe')
         self.psi_labels = snm.columns.values.tolist()  # Grabs labels for the solved psi values
