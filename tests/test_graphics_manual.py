@@ -157,6 +157,7 @@ def causal_check():
 
 def mc_gformula_check():
     df = load_sample_data(timevary=True)
+    # df['weights'] = 2.1
     df['lag_art'] = df['art'].shift(1)
     df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
     df['lag_cd4'] = df['cd4'].shift(1)
@@ -170,7 +171,9 @@ def mc_gformula_check():
     df['cd4_cu'] = df['cd4'] ** 3
     df['enter_sq'] = df['enter'] ** 2  # entry time cubic
     df['enter_cu'] = df['enter'] ** 3
-    g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+    g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out',
+                           # weights='weights'
+                           )
     exp_m = '''male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq + 
             cd4_cu + dvl + enter + enter_sq + enter_cu'''
     g.exposure_model(exp_m, restriction="g['lag_art']==0")
@@ -190,7 +193,7 @@ def mc_gformula_check():
           lags={'art': 'lag_art',
                 'cd4': 'lag_cd4',
                 'dvl': 'lag_dvl'},
-          sample=10000, t_max=None,
+          sample=50000, t_max=None,
           in_recode=("g['enter_sq'] = g['enter']**2;"
                      "g['enter_cu'] = g['enter']**3"))
     gf = g.predicted_outcomes
@@ -199,7 +202,7 @@ def mc_gformula_check():
     kmo = KaplanMeierFitter()
     kmo.fit(durations=df['out'], event_observed=df['dead'], entry=df['enter'])
     cens_m = """male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 +
-             lag_dvl + lag_art + enter + enter_sq + enter_cu"""
+             lag_dvl + art + lag_art + enter + enter_sq + enter_cu"""
     g.censoring_model(cens_m)
     g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",
           lags={'art': 'lag_art',
