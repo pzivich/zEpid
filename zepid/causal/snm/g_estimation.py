@@ -8,10 +8,10 @@ from zepid.causal.ipw.utils import propensity_score
 
 
 class GEstimationSNM:
-    """G-estimation for structural nested models. G-estimation is distinct from the other g-methods (inverse
+    r"""G-estimation for structural nested mean models. G-estimation is distinct from the other g-methods (inverse
     probability weights and g-formula) in the parameter it estimates. Rather than estimating the average causal effect
     of treating everyone versus treating no one, g-estimation estimates the average causal effect within strata of L.
-    It does this by specifying a structural nested model. The structural nested model looks like the following for
+    It does this by specifying a structural nested model. The structural nested mean model looks like the following for
     additive effects
 
     .. math::
@@ -45,26 +45,89 @@ class GEstimationSNM:
         logit(\Pr(A=1|Y^{a=0}, L)) = alpha + alpha H(\psi) + alpha H(\psi) V + alpha L
 
     To find the values for the psi's where the alpha for those terms is approximately zero, we have two options;
-    (1) grid search or (2) closed form. The closed form is ultimately faster since we are only required to do some
+    (1) grid-search or (2) closed form. The closed form is ultimately faster since we are only required to do some
     basic matrix manipulation to solve. For the grid search, we need to search across the potential values that
-    minimize the values of alphas. We use SciPy's optimize for the heavy lifting.
+    minimize the values of alphas. We use SciPy's Nelder-Mead optimization procedure for the heavy lifting.
 
     Parameters
     ----------
-    df :
-        -
-    exposure :
-        -
-    outcome :
-        -
+    df : DataFrame
+        Pandas DataFrame object containing all variables of interest
+    exposure : str
+        Column name of the exposure variable. Currently only binary is supported
+    outcome : str
+        Column name of the outcome variable. Either continuous or binary outcomes are supported
     weights :
-        -
+        Column name of weights. Weights allow for items like sampling weights, missing weights, and censoring weights
+        to estimate effects
 
     Notes
     -----
+    Similar to marginal structural models, g-estimation cannot inherently account for missing at random data. To
+    account for missing outcome data, inverse probability of missing weights should be used
+
+    The grid-search approach does allow for some unique sensitivity analyses that are not incorporated into the
+    closed-form. Specifically, we can imagine that there is some unobserved confounding. With unobserved confounding,
+    we know that the alpha value will not exactly equal zero. We can optimize for slightly different alphas to see
+    how sensitive our results are to some assumptions regarding unobserved confounding. For further details on
+    translating unobserved confounding to alpha values, see Scharfstein et al. 1999 in the references
 
     Examples
     --------
+    Set up the environment and the data set
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.snm import GEstimationSNM
+    >>> df = load_sample_data(timevary=False).drop(columns=['death'])
+    >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
+    >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
+
+    One-parameter structural nested mean model via closed-form solution
+    >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.structural_nested_model(model='art')
+    >>> snm.fit()
+    >>> snm.summary()
+
+    One-parameter structural nested mean model via grid-search
+    >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.structural_nested_model(model='art')
+    >>> snm.fit(solver='search')
+
+    One-parameter structural nested mean model via grid-search with different alphas
+    >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.structural_nested_model(model='art')
+    >>> snm.fit(solver='search', alpha_value=0.03)
+
+    Two-parameter structural nested mean model via closed-form
+    >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.structural_nested_model(model='art + art:male')
+    >>> snm.fit()
+
+    Two-parameter structural nested mean model via grid-search and starting values
+    >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+    >>> snm.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> snm.structural_nested_model(model='art + art:male')
+    >>> snm.fit(solver='search', starting_value=[-0.05, 0.0])
+
+    References
+    ----------
+    Naimi AI, Cole SR, Kennedy EH. (2017). An introduction to g methods. International journal of epidemiology,
+    46(2), 756-762.
+
+    Robins JM. (2000). Marginal structural models versus structural nested models as tools for causal inference.
+    In Statistical models in epidemiology, the environment, and clinical trials (pp. 95-133). Springer, New York, NY.
+
+    Vansteelandt S, Joffe M. (2014). Structural nested models and G-estimation: the partially realized promise.
+    Statistical Science, 29(4), 707-731.
+
+    Wallace MP, Moodie EE, Stephens DA. (2017). An R package for G-estimation of structural nested mean models.
+    Epidemiology, 28(2), e18-e20.
+
+    Scharfstein DO, Rotnitzky A, Robins JM. (1999). Adjusting for nonignorable drop-out using semiparametric
+    nonresponse models. Journal of the American Statistical Association, 94(448), 1096-1120.
     """
     def __init__(self, df, exposure, outcome, weights=None):
         if df.dropna().shape[0] != df.shape[0]:
