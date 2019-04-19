@@ -81,6 +81,9 @@ Current implementation includes the estimator described by Funk et al 2011 AJE
 TMLE can be estimated through standard logistic regression model, or through user-input functions. Alternatively, users 
 can input machine learning algorithms to estimate probabilities. 
 
+#### G-estimation of Structural Nested Mean Models
+Single time-point g-estimation of structural nested mean models are supported.
+
 ## Sensitivity Analyses
 Includes trapezoidal distribution generator, corrected Risk Ratio
 
