@@ -79,6 +79,9 @@ include inverse probability of sampling weights, g-transport formula, and doubly
 Tutorials for the usage of these estimators are available at:
 https://github.com/pzivich/Python-for-Epidemiologists/tree/master/3_Epidemiology_Analysis/c_causal_inference
 
+#### G-estimation of Structural Nested Mean Models
+Single time-point g-estimation of structural nested mean models are supported.
+
 ## Sensitivity Analyses
 Includes trapezoidal distribution generator, corrected Risk Ratio
 

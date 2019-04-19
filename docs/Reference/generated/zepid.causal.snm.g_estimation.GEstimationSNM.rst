@@ -1,0 +1,16 @@
+zepid.causal.snm.g\_estimation.GEstimationSNM
+=============================================
+
+.. currentmodule:: zepid.causal.snm.GEstimation
+
+.. autoclass:: GEstimationSNM
+   :members:
+
+   .. rubric:: Methods
+
+   .. autosummary::
+
+      ~GEstimationSNM.exposure_model
+      ~GEstimationSNM.structural_nested_model
+      ~GEstimationSNM.fit
+      ~GEstimationSNM.summary

@@ -68,6 +68,16 @@ Targeted Maximum Likelihood Estimator
 
    TMLE
 
+G-estimation of SNM
+-------------------
+
+.. currentmodule:: zepid.causal.snm.GEstimationSNM
+
+.. autosummary::
+   :toctree: generated/
+
+   GestimationSNM
+
 Generalizability / Transportability
 -----------------------------------
 
