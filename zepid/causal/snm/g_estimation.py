@@ -129,7 +129,7 @@ class GEstimationSNM:
         self._snm_ = model
 
     def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-7, verbose_solver=False,
-            maxiter=200):
+            maxiter=500):
         """Using the treatment model and the format of the structural nested mean model, the solutions for psi are
         calculated.
 
@@ -153,7 +153,7 @@ class GEstimationSNM:
             For this grid-search procedure, setting this option to true print results for each iteration of the SciPy
             optimization procedure. Each iteration prints the psi values and the correspond alpha values from the
             fitted model
-        max_iter : optional, int
+        maxiter : optional, int
             Maximum number of iterations to perform. If the maximum number of iterations is hit, the optimization
             procedure will stop and SciPy will say the convergence failed
         """
@@ -180,7 +180,7 @@ class GEstimationSNM:
 
             # Resolving if not initial parameters
             if starting_value is None:
-                starting_value = [0.01] * len(self.psi_labels)
+                starting_value = [0.0] * len(self.psi_labels)
 
             # Passing to optimization procedure
             self._scipy_solver_obj = self._grid_search_(data_set=sf,
