@@ -178,11 +178,11 @@ class TimeFixedGFormula:
 
         # Modeling the outcome
         if self._weights is None:
-            m = smf.glm(self.outcome+' ~ '+model, self.gf, family=linkdist)
+            m = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist)
             self._outcome_model = m.fit()
         else:
-            m = smf.gee(self.outcome+' ~ '+model, self.gf.index, self.gf, family=linkdist,
-                        weights=self.gf[self._weights])
+            m = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist,
+                        freq_weights=self.gf[self._weights])
             self._outcome_model = m.fit()
 
         # Printing results of the model and if any observations were dropped

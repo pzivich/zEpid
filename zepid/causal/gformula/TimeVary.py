@@ -130,6 +130,7 @@ class MonteCarloGFormula:
     Keil, AP, Edwards, JK, Richardson, DB, Naimi, AI, Cole, SR (2014). The Parametric g-Formula for Time-
     to-Event Data: Intuition and a Worked Example. Epidemiology 25(6), 889-897
     """
+
     def __init__(self, df, idvar, exposure, outcome, time_in, time_out, weights=None):
         self.gf = df.sort_values(by=[idvar, time_out]).copy()
         self.idvar = idvar
@@ -194,7 +195,7 @@ class MonteCarloGFormula:
         if self._weights is None:  # Unweighted g-formula
             self.exp_model = smf.glm(self.exposure + ' ~ ' + model, g, family=linkdist).fit()
         else:  # Weighted g-formula
-            self.exp_model = smf.gee(self.exposure + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
+            self.exp_model = smf.glm(self.exposure + ' ~ ' + model, g, freq_weights=g[self._weights],
                                      family=linkdist).fit()
 
         if print_results:
@@ -230,7 +231,7 @@ class MonteCarloGFormula:
         else:  # Weighted g-formula
             if self._competing_event:
                 raise ValueError("The weighted MonteCarloGFormula is not supported for competing events")
-            self.out_model = smf.gee(self.outcome + ' ~ ' + model, self.idvar, g, weights=g[self._weights],
+            self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, freq_weights=g[self._weights],
                                      family=linkdist).fit()
         if print_results:
             print(self.out_model.summary())
@@ -261,7 +262,7 @@ class MonteCarloGFormula:
         if self._weights is None:  # Unweighted g-formula
             self.cens_model = smf.glm('__uncensored__ ~ ' + model, g, family=linkdist).fit()
         else:  # Weighted g-formula
-            self.cens_model = smf.gee('__uncensored__ ~ ' + model, self.idvar, g, weights=g[self._weights],
+            self.cens_model = smf.glm('__uncensored__ ~ ' + model, g, freq_weights=g[self._weights],
                                       family=linkdist).fit()
         if print_results:
             print(self.cens_model.summary())
@@ -321,10 +322,9 @@ class MonteCarloGFormula:
         else:  # Weighted g-formula
             if var_type == 'binary':
                 linkdist = sm.families.family.Binomial()
-                m = smf.gee(covariate + ' ~ ' + model, self.idvar, g, weights=g[self._weights], family=linkdist)
+                m = smf.glm(covariate + ' ~ ' + model, g, freq_weights=g[self._weights], family=linkdist)
             elif var_type == 'continuous':
-                linkdist = sm.families.family.Gaussian(sm.families.links.identity)
-                m = smf.gee(covariate + ' ~ ' + model, self.idvar, g, weights=g[self._weights], family=linkdist)
+                m = smf.wls(covariate + ' ~ ' + model, g, weights=g[self._weights])
             else:
                 raise ValueError('Only binary or continuous covariates are currently supported')
 
@@ -457,7 +457,7 @@ class MonteCarloGFormula:
                 g[self.outcome] = np.where(g['uncensored'] == 1, g[self.outcome], 0)
 
             # last iteration, marking everyone as censored
-            if i == t_max-1:
+            if i == t_max - 1:
                 g['uncensored'] = 0
 
             # executing any code before appending
@@ -479,14 +479,10 @@ class MonteCarloGFormula:
             gs = pd.concat(mc_simulated_data, ignore_index=True, sort=False)
         except TypeError:  # gets around pandas <0.22 error
             gs = pd.concat(mc_simulated_data, ignore_index=True)
-        if self._weights is None:
-            self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self.time_in,
-                                          self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
-                                                                        self.time_in]).reset_index(drop=True)
-        else:
-            self.predicted_outcomes = gs[['uid_g_zepid', self.exposure, self.outcome, self._weights, self.time_in,
-                                          self.time_out] + self._covariate].sort_values(by=['uid_g_zepid',
-                                                                         self.time_in]).reset_index(drop=True)
+
+        self.predicted_outcomes = gs[
+            ['uid_g_zepid', self.exposure, self.outcome, self.time_in, self.time_out] + self._covariate].sort_values(
+            by=['uid_g_zepid', self.time_in]).reset_index(drop=True)
 
     @staticmethod
     def _predict(df, model, variable):
@@ -524,7 +520,7 @@ class MonteCarloGFormula:
         import patsy
         from zepid.calc import odds_to_probability
 
-        xdata = patsy.dmatrix(formula, df) #, return_type='dataframe')
+        xdata = patsy.dmatrix(formula, df)  # , return_type='dataframe')
         # pred = xdata.mul(np.array(model.params), axis='columns').sum(axis=1)
         pred = xdata.dot(model.params)  # TODO optimize this...
 
@@ -611,6 +607,7 @@ class IterativeCondGFormula:
     comparative effectiveness of feeding interventions in the pediatric intensive care unit: a demonstration of
     longitudinal targeted maximum likelihood estimation. American Journal of Epidemiology, 186(12), 1370-1379.
     """
+
     def __init__(self, df, exposures, outcomes):
         self.gf = df.copy()
 

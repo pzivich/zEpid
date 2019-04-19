@@ -35,7 +35,7 @@ def propensity_score(df, model, weights=None, print_results=True):
     if weights is None:
         log = smf.glm(model, df, family=f).fit()
     else:
-        log = smf.gee(model, df.index, df, weights=df[weights], family=f).fit()
+        log = smf.glm(model, df, freq_weights=df[weights], family=f).fit()
 
     if print_results:
         print('\n----------------------------------------------------------------')

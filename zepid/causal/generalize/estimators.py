@@ -346,8 +346,8 @@ class GTransportFormula:
             m = smf.glm(self.outcome+' ~ '+model, self.sample, family=linkdist)
             self._outcome_model = m.fit()
         else:
-            m = smf.gee(self.outcome+' ~ '+model, self.sample.index, self.sample, family=linkdist,
-                        weights=self.sample[self.weight])
+            m = smf.glm(self.outcome+' ~ '+model, self.sample, family=linkdist,
+                        freq_weights=self.sample[self.weight])
             self._outcome_model = m.fit()
 
         # Printing results of the model and if any observations were dropped

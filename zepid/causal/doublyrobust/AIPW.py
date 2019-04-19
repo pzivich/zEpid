@@ -175,7 +175,7 @@ class AIPTW:
         if self._weight_ is None:
             log = smf.glm(self._out_model, self.df, family=f).fit()
         else:
-            log = smf.gee(self._out_model, self.df.index, self.df, weights=self.df[self._weight_], family=f).fit()
+            log = smf.glm(self._out_model, self.df, freq_weights=self.df[self._weight_], family=f).fit()
 
         if print_results:
             print('\n----------------------------------------------------------------')
