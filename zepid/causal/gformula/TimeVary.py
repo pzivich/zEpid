@@ -27,6 +27,8 @@ class MonteCarloGFormula:
     ----------
     df : DataFrame
         Pandas dataframe containing the variables of interest
+    idvar : str
+        ID column label
     exposure : str
         Treatment column label
     outcome : str

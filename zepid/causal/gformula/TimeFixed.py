@@ -423,7 +423,7 @@ class SurvivalGFormula:
         self.predicted_df = g
 
     def plot(self, **plot_kwargs):
-        """Plot the cumulative incidence function. Arguments for 
+        """Plot the cumulative incidence function. Arguments for
         """
         ax = plt.gca()
         ax.step(self.marginal_outcome.index, self.marginal_outcome, where='post', **plot_kwargs)
