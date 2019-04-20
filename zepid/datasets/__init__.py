@@ -77,6 +77,7 @@ def load_sample_data(timevary):
         dfll.rename(columns={'cd4': 'cd4_wk45'}, inplace=True)
         dff = pd.merge(dff, dfll, left_on='id', right_on='id')
         dff['cd4_wk45'] = np.where(dff['dead'] == 1, np.nan, dff['cd4_wk45'])
+        dff['t'] = np.where(dff['t'] >= 45, 45, dff['t'])
 
         return dff
 

@@ -1,9 +1,9 @@
 import warnings
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import links
 
 
 class TimeFixedGFormula:
@@ -345,3 +345,98 @@ class TimeFixedGFormula:
         if np.sum(np.where(a > 1, 1, 0)):
             warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
                           "the conditions that designate each category should be exclusive", UserWarning)
+
+
+class SurvivalGFormula:
+    """G-formula for time-to-event data where the exposure is fixed at baseline.
+
+    """
+    def __init__(self, df, idvar, exposure, outcome, time, weights=None):
+        # TODO check no missing data
+        # TODO check binary outcomes only
+        self.gf = df.copy()
+
+        # TODO sort by time and ID
+
+        self.exposure = exposure
+        self.outcome = outcome
+        self.t = time
+        self.id = idvar
+
+        self._weights = weights
+        self._outcome_model = None
+        self.marginal_outcome = np.nan
+        self.predicted_df = None
+
+    def outcome_model(self, model, print_results=True):
+        """Estimates the outcome model
+        """
+        linkdist = sm.families.family.Binomial()
+
+        # Modeling the outcome
+        if self._weights is None:
+            m = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist)
+        else:
+            m = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist,
+                        freq_weights=self.gf[self._weights])
+
+        self._outcome_model = m.fit()
+
+        # Printing results of the model
+        if print_results:
+            print(self._outcome_model.summary())
+
+    def fit(self, treatment):
+        """Estimate
+        """
+        if self._outcome_model is None:
+            raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
+        if (type(treatment) != str) and (type(treatment) != list):
+            raise ValueError('Specified treatment must be a string object or a list of string objects')
+
+        # Setting outcome as blank
+        g = self.gf.copy()
+
+        # Setting treatment (either multivariate or binary)
+        if treatment == 'all':
+            g[self.exposure] = 1
+        elif treatment == 'none':
+            g[self.exposure] = 0
+        elif treatment == 'natural':
+            pass
+        else:  # custom exposure pattern
+            g[self.exposure] = np.where(eval(treatment), 1, 0)
+
+        g[self.outcome] = np.nan
+        g[self.outcome] = 1 - self._outcome_model.predict(g)
+
+        # Cumulative product
+        g[self.outcome] = 1 - g.groupby(self.id)[self.outcome].cumprod()
+
+        if self._weights is None:  # unweighted marginal estimate
+            marginal = g.groupby(self.t)[self.outcome].mean()
+
+        else:  # weighted marginal estimate
+            marginal = self._weighted_average(data=g, y_col=self.outcome, weight_col=self._weights, by_col=self.t)
+
+        self.marginal_outcome = marginal  # .index.rename('timeline')
+        self.predicted_df = g
+
+    def plot(self, **plot_kwargs):
+        """Plot the cumulative incidence function. Arguments for 
+        """
+        ax = plt.gca()
+        ax.step(self.marginal_outcome.index, self.marginal_outcome, where='post', **plot_kwargs)
+        ax.set_xlabel(self.t)
+        ax.set_ylabel('Risk of '+ self.outcome)
+        return ax
+
+    @staticmethod
+    def _weighted_average(data, y_col, weight_col, by_col):
+        """Background function to calculate the weighted mean by time
+        """
+        data['_w_y_'] = data[y_col] * data[weight_col]
+        data['_w_t_'] = data[weight_col] * pd.notnull(data[y_col])
+        g = data.groupby(by_col)
+        result = g['_w_y_'].sum() / g['_w_t_'].sum()
+        return result
