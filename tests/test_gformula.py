@@ -6,7 +6,7 @@ import pandas.testing as pdt
 from scipy.stats import logistic
 
 from zepid import load_sample_data, spline, load_gvhd_data, load_longitudinal_data
-from zepid.causal.gformula import TimeFixedGFormula, MonteCarloGFormula, IterativeCondGFormula
+from zepid.causal.gformula import TimeFixedGFormula, SurvivalGFormula, MonteCarloGFormula, IterativeCondGFormula
 
 
 @pytest.fixture
@@ -269,7 +269,72 @@ class TestTimeFixedGFormula:
             g.fit_stochastic(p=[1.0, 1.0], conditional=["(g['L']==1) | (g['L']==0)", "g['L']==0"])
 
 
-class TestTimeVaryGFormula:
+class TestSurvivalGFormula:
+
+    @pytest.fixture
+    def data(self):
+        df = load_sample_data(False).drop(columns=['cd4_wk45'])
+        df['t'] = np.round(df['t']).astype(int)
+        df = pd.DataFrame(np.repeat(df.values, df['t'], axis=0), columns=df.columns)
+        df['t'] = df.groupby('id')['t'].cumcount() + 1
+        df.loc[((df['dead'] == 1) & (df['id'] != df['id'].shift(-1))), 'd'] = 1
+        df['d'] = df['d'].fillna(0)
+        df['t_sq'] = df['t'] ** 2
+        df['t_cu'] = df['t'] ** 3
+        return df.drop(columns=['dead'])
+
+    def test_error_continuous_a(self, data):
+        with pytest.raises(ValueError):
+            SurvivalGFormula(data, idvar='id', exposure='cd40', outcome='d', time='t')
+
+    def test_error_no_outcome_model(self, data):
+        sgf = SurvivalGFormula(data, idvar='id', exposure='art', outcome='d', time='t')
+        with pytest.raises(ValueError):
+            sgf.fit(treatment='all')
+
+    def test_error_no_fit(self, data):
+        sgf = SurvivalGFormula(data, idvar='id', exposure='art', outcome='d', time='t')
+        with pytest.raises(ValueError):
+            sgf.plot(treatment='all')
+
+    def test_treat_all(self, data):
+        sgf = SurvivalGFormula(data, idvar='id', exposure='art', outcome='d', time='t')
+        sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu', print_results=False)
+        sgf.fit(treatment='all')
+
+        npt.assert_allclose(sgf.marginal_outcome.iloc[0], 0.009365, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[-1], 0.088415, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[9], 0.056269, atol=1e-5)
+
+    def test_treat_none(self, data):
+        sgf = SurvivalGFormula(data, idvar='id', exposure='art', outcome='d', time='t')
+        sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu', print_results=False)
+        sgf.fit(treatment='none')
+
+        npt.assert_allclose(sgf.marginal_outcome.iloc[0], 0.016300, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[-1], 0.147303, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[9], 0.095469, atol=1e-5)
+
+    def test_treat_natural(self, data):
+        sgf = SurvivalGFormula(data, idvar='id', exposure='art', outcome='d', time='t')
+        sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu', print_results=False)
+        sgf.fit(treatment='natural')
+
+        npt.assert_allclose(sgf.marginal_outcome.iloc[0], 0.015030, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[-1], 0.135694, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[9], 0.088382, atol=1e-5)
+
+    def test_treat_custom(self, data):
+        sgf = SurvivalGFormula(data, idvar='id', exposure='art', outcome='d', time='t')
+        sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu', print_results=False)
+        sgf.fit(treatment="((g['age0']>=25) & (g['male']==0))")
+
+        npt.assert_allclose(sgf.marginal_outcome.iloc[0], 0.015090, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[-1], 0.137336, atol=1e-5)
+        npt.assert_allclose(sgf.marginal_outcome.iloc[9], 0.088886, atol=1e-5)
+
+
+class TestMonteCarloGFormula:
 
     def test_error_continuous_treatment(self, sim_t_fixed_data):
         with pytest.raises(ValueError):

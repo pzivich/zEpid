@@ -11,7 +11,7 @@ from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, Incid
 from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot, spaghetti_plot,
                             roc, dynamic_risk_plot, labbe_plot)
 from zepid.causal.ipw import IPTW
-from zepid.causal.gformula import MonteCarloGFormula
+from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 
@@ -135,7 +135,7 @@ def senstivity_check():
 
 
 def causal_check():
-    # 9) Check IPTW plots
+    # Check IPTW plots
     data = load_sample_data(False)
     data[['cd4_rs1', 'cd4_rs2']] = spline(data, 'cd40', n_knots=3, term=2, restricted=True)
     data[['age_rs1', 'age_rs2']] = spline(data, 'age0', n_knots=3, term=2, restricted=True)
@@ -152,6 +152,23 @@ def causal_check():
     ipt.plot_boxplot()
     plt.show()
     ipt.plot_boxplot(measure='logit')
+    plt.show()
+
+    # Check SurvivalGFormula plots
+    df = load_sample_data(False).drop(columns=['cd4_wk45'])
+    df['t'] = np.round(df['t']).astype(int)
+    df = pd.DataFrame(np.repeat(df.values, df['t'], axis=0), columns=df.columns)
+    df['t'] = df.groupby('id')['t'].cumcount() + 1
+    df.loc[((df['dead'] == 1) & (df['id'] != df['id'].shift(-1))), 'd'] = 1
+    df['d'] = df['d'].fillna(0)
+    df['t_sq'] = df['t'] ** 2
+    df['t_cu'] = df['t'] ** 3
+    sgf = SurvivalGFormula(df, idvar='id', exposure='art', outcome='d', time='t')
+    sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu')
+    sgf.fit(treatment='all')
+    sgf.plot()
+    plt.show()
+    sgf.plot(c='r', linewidth=3, alpha=0.8)
     plt.show()
 
 

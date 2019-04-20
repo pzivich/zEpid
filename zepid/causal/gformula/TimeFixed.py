@@ -402,9 +402,10 @@ class SurvivalGFormula:
                           str(df.shape[0]) + ' observations', UserWarning)
 
         self.gf = df.copy().dropna()
-        self.gf.sort_values(by=[idvar, time], inplace=True).reset_index()
+        self.gf.sort_values(by=[idvar, time], inplace=True)
+        self.gf = self.gf.reset_index(drop=True)
 
-        if not df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+        if not df[exposure].dropna().value_counts().index.isin([0, 1]).all():
             raise ValueError("Only binary exposures are supported")
 
         self.exposure = exposure
@@ -491,7 +492,7 @@ class SurvivalGFormula:
         else:  # weighted marginal estimate
             marginal = self._weighted_average(data=g, y_col=self.outcome, weight_col=self._weights, by_col=self.t)
 
-        self.marginal_outcome = marginal  # .index.rename('timeline')
+        self.marginal_outcome = marginal.rename(index='timeline')
         self.predicted_df = g
 
     def plot(self, **plot_kwargs):
@@ -513,7 +514,7 @@ class SurvivalGFormula:
         ax = plt.gca()
         ax.step(self.marginal_outcome.index, self.marginal_outcome, where='post', **plot_kwargs)
         ax.set_xlabel(self.t)
-        ax.set_ylabel('Risk of '+ self.outcome)
+        ax.set_ylabel('Risk of ' + self.outcome)
         return ax
 
     @staticmethod
