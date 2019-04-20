@@ -12,12 +12,13 @@ along with the tutorial, run the following code to set up the data
 
     import numpy as np
     import pandas as pd
+    from lifelines import KaplanMeierFitter
     import statsmodels.api as sm
     import statsmodels.formula.api as smf
     from statsmodels.genmod.families import family
 
     from zepid import load_sample_data, spline, RiskDifference
-    from zepid.causal.gformula import TimeFixedGFormula
+    from zepid.causal.gformula import TimeFixedGFormula, SurvivalGFormula
     from zepid.causal.ipw import IPTW, IPMW
     from zepid.causal.snm import GEstimationSNM
     from zepid.causal.doublyrobust import AIPTW, TMLE
@@ -567,11 +568,113 @@ function to estimate risk function
 
 Parametric g-formula
 ----------------------------------------
+We can use a similar g-formula procedure to estimate average causal effects with time-to-event data. To do this, we
+use a pooled logistic model. We then use the pooled logistic regression model to predict outcomes at each time under
+the treatment strategy of interest. For the pooled logistic model, it is fit to data in a long format, where each row
+corresponds to one unit of time per participant. There will be multiple rows per participant.
+
+For `SurvivalGFormula`, we need to convert the data set into a long format. We can do that with the following code
+
+.. code::
+
+    df = load_sample_data(False).drop(columns=['cd4_wk45'])
+    df['t'] = np.round(df['t']).astype(int)
+    df = pd.DataFrame(np.repeat(df.values, df['t'], axis=0), columns=df.columns)
+    df['t'] = df.groupby('id')['t'].cumcount() + 1
+    df.loc[((df['dead'] == 1) & (df['id'] != df['id'].shift(-1))), 'd'] = 1
+    df['d'] = df['d'].fillna(0)
+
+    # Spline terms
+    df[['t_rs1', 't_rs2', 't_rs3']] = spline(df, 't', n_knots=4, term=2, restricted=True)
+    df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+    df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+
+If you look at this data, you will notice there are multiple rows per participant. Each row for a participant
+corresponds to one unit of time (weeks in this example) up to the event time or 45-weeks. All variables (aside from
+time and outcomes) take the same value over follow-up. This is because we are interested in the baseline exposure. We
+then adjust for all baseline confounders. Nothing should be time-varying in this model (aside from the outcome and
+time).
+
+We can estimate the average causal effect comparing a treat-all plan versus a treat-none. Below is code to estimate
+the time-to-event g-formula
+
+.. code::
+
+    sgf = SurvivalGFormula(df.drop(columns=['dead']), idvar='id', exposure='art', outcome='d', time='t')
+    sgf.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + '
+                            'cd4_rs1 + cd4_rs2 + dvl0 + t + t_rs1 + t_rs2 + t_rs3')
+    sgf.fit(treatment='all')
+    sgf.plot(c='b')
+
+    sgf.fit(treatment='none')
+    sgf.plot(c='r')
+    plt.ylabel('Probability of death')
+    plt.show()
+
+
+The plot functionality will return the following plot of the cumulative incidence function
+
+.. image:: images/survival_gf_cif.png
+
+We see that ART reduces mortality throughout follow-up
 
 Inverse probability of treatment weights
 ----------------------------------------
+For time-to-event analyses, IPTW is the same. This is because we are estimating the treatment model. The baseline
+treatment model is the same for the time-fixed and time-to-event data. Below is code that reloads the data and
+estimates the IPTW
 
+.. code::
+
+    df = load_sample_data(False).drop(columns=['cd4_wk45'])
+    df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+    df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+    df.fillna(0, inplace=True)
+
+    # Calculating IPTW
+    iptw = IPTW(df, treatment='art')
+    iptw.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+    iptw.fit()
+    df['sw'] = iptw.Weight
+
+After the weights are estimated, we divide our data into the treated and untreated groups. We then use a weighted
+Kaplan-Meier to estimate the probability of death. Below is code to calculate the cumulative incidence functions and
+generate a plot of the cumulative incidence functions.
+
+.. code::
+
+    # Estimating CIF in treated
+    dft = df.loc[df['art'] == 1].copy()
+    km_t = KaplanMeierFitter()
+    km_t.fit(durations=dft['t'], event_observed=dft['dead'], weights=dft['sw'])
+
+    # Estimating CIF in untreated
+    dfu = df.loc[df['art'] == 0].copy()
+    km_u = KaplanMeierFitter()
+    km_u.fit(durations=dfu['t'], event_observed=dfu['dead'], weights=dfu['sw'])
+
+    # Generating CIF plot
+    plt.step(km_t.event_table.index, 1 - km_t.survival_function_, c='b', where='post')
+    plt.step(km_u.event_table.index, 1 - km_u.survival_function_, c='r', where='post')
+    plt.xlabel('t')
+    plt.ylabel('Probability of death')
+    plt.show()
+
+Below is a plot of the results
+
+.. image:: images/iptw_cif.png
+
+This plot has some substantial differences. This is because the two methods use very different approaches. Among the
+treated, there are rather large jump sizes in the cumulative incidence function. This is because there are few observed
+individuals with treatment at baseline. IPTW uses the observed events
 
 Summary
 ----------------------------------------
 Currently, only these two options are available. I plan on adding further functionalities in future updates
+
+The difference in these results highlight the differences between the approaches. The g-formula makes some strong
+parametric assumptions, but smooths over sparse data. IPTW uses the observed data, so it is more sensitive to sparse
+data. IPTW particularly highlights why we might consider using methods to handle time-varying treatments.
+Particularly, if few participants are treated at baseline, then we may have trouble estimating the average causal
+effect. Please refer to the *Time-Varying Treatment* tutorial for further discussion.
