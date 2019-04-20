@@ -348,15 +348,64 @@ class TimeFixedGFormula:
 
 
 class SurvivalGFormula:
-    """G-formula for time-to-event data where the exposure is fixed at baseline.
+    r"""G-formula for time-to-event data where the exposure is fixed at baseline. Only supports binary exposures and
+    outcomes. Outcomes are predicted using a logistic regression model
 
+    Input data set should be in a long format, where each row corresponds to an individual observed for one unit of
+    time. The format is the same as the IPCW format
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    idvar : str
+        Column name for the ID label
+    exposure : str, list
+        Column name for exposure variable label or a list of disjoint indicator exposures
+    outcome : str
+        Column name for outcome variable
+    time : str
+        Column name for time variable
+    weights : str, optional
+        Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+
+    Examples
+    --------
+
+
+    Notes
+    -----
+    Key options for treatments:
+
+        * `'all'`     -all individuals are given treatment
+        * `'none'`    -no individuals are given treatment
+        * custom treatments -create a custom treatment. When specifying this, the dataframe must be referred to as 'g'.
+          The following is an example that selects those whose age is 30 or younger and are females:
+          ``treatment="((g['age0']<=30) & (g['male']==0))``
+
+    The following process is used to estimate the cumulative incidence function.
+    (1) A pooled logistic regression model is fit to the data. The model should predict the outcome conditional on
+    treatment, baseline confounders, and time. Time should be modeled using flexible functional forms (e.g. splines)
+    (2) Survival probabilities are estimated by predicting values at each time from the pooled logistic model and taking
+    the cumulative product. The survival probabilities are predicted under the treatment plan of interest
+    (3) Average the cumulative incidence function for each time period from all the subjects.
+
+    References
+    ----------
+    Hernán MA. (2010). The hazards of hazard ratios. Epidemiology, 21(1), 13–15.
+    doi:10.1097/EDE.0b013e3181c1ea43
     """
     def __init__(self, df, idvar, exposure, outcome, time, weights=None):
-        # TODO check no missing data
-        # TODO check binary outcomes only
-        self.gf = df.copy()
+        if df.dropna().shape[0] != df.shape[0]:
+            warnings.warn("There is missing data in the dataset. By default, SurvivalGFormula will drop all missing "
+                          "data. SurvivalGFormula will fit " + str(df.dropna().shape[0]) + ' of ' +
+                          str(df.shape[0]) + ' observations', UserWarning)
 
-        # TODO sort by time and ID
+        self.gf = df.copy().dropna()
+        self.gf.sort_values(by=[idvar, time], inplace=True).reset_index()
+
+        if not df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+            raise ValueError("Only binary exposures are supported")
 
         self.exposure = exposure
         self.outcome = outcome
@@ -365,15 +414,23 @@ class SurvivalGFormula:
 
         self._weights = weights
         self._outcome_model = None
-        self.marginal_outcome = np.nan
+        self.marginal_outcome = None
         self.predicted_df = None
 
     def outcome_model(self, model, print_results=True):
-        """Estimates the outcome model
-        """
-        linkdist = sm.families.family.Binomial()
+        """Build the pooled logistic model. This must be specified before the fit function. It is encouraged to model
+        time as flexible as possible. For example, use spline terms
 
+        Parameters
+        ----------
+        model : str
+            Variables to include in the model for predicting the outcome. Must be contained within the input
+            pandas dataframe when initialized. Model form should contain the exposure, i.e. 'art + age + male'
+        print_results : bool, optional
+            Whether to print the logistic regression results to the terminal. Default is True
+        """
         # Modeling the outcome
+        linkdist = sm.families.family.Binomial()
         if self._weights is None:
             m = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist)
         else:
@@ -387,12 +444,27 @@ class SurvivalGFormula:
             print(self._outcome_model.summary())
 
     def fit(self, treatment):
-        """Estimate
+        """Fit the parametric g-formula for time-to-event data. To obtain the confidence intervals, use a bootstrap
+        procedure
+
+        Parameters
+        ----------
+        treatment : str, list
+            There are three options available for treatment plans. All, none, or a custom pattern
+              * `'all'`     -all individuals are given treatment
+              * `'none'`    -no individuals are given treatment
+              * `'natural'` -all individuals retain their observed exposure
+              * custom  -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
+                following is an example that selects those whose age is 25 or older and are females;
+                ``treatment="((g['age0']>=25) & (g['male']==0))``
+
+        Returns
+        -------
+        marginal_outcome
+            Parameter of `marginal_outcome` is filled, which is the mean predicted outcome under the treatment strategy
         """
         if self._outcome_model is None:
             raise ValueError('Before the g-formula can be calculated, the outcome model must be specified')
-        if (type(treatment) != str) and (type(treatment) != list):
-            raise ValueError('Specified treatment must be a string object or a list of string objects')
 
         # Setting outcome as blank
         g = self.gf.copy()
@@ -423,8 +495,21 @@ class SurvivalGFormula:
         self.predicted_df = g
 
     def plot(self, **plot_kwargs):
-        """Plot the cumulative incidence function. Arguments for
+        """Plots the estimated cumulative incidence function
+
+        Parameters
+        ----------
+        **plot_kwargs : optional
+            Optional keyword arguments for matplotlib. kwargs will pass matplotlib.pyploy.step kwargs are accepted. See
+            matplotlib 'step()' function documentation for further details
+
+        Returns
+        -------
+        matplotlib axes
         """
+        if self.marginal_outcome is None:
+            raise ValueError('Before plotting, the marginal outcomes must be estimated with the fit() function')
+
         ax = plt.gca()
         ax.step(self.marginal_outcome.index, self.marginal_outcome, where='post', **plot_kwargs)
         ax.set_xlabel(self.t)
