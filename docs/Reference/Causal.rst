@@ -36,6 +36,7 @@ Time-Fixed Treatment G-Formula
    :toctree: generated/
 
    TimeFixedGFormula
+   SurvivalGFormula
 
 Time-Varying Treatment G-Formula
 --------------------------------
