@@ -6,13 +6,12 @@ import numpy.testing as npt
 from zepid.calc import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat, odds_ratio,
                         incidence_rate_ratio, incidence_rate_difference, odds_to_probability, probability_to_odds,
                         semibayes, attributable_community_risk, population_attributable_fraction, sensitivity,
-                        specificity, npv_converter, ppv_converter)
+                        specificity, npv_converter, ppv_converter, rubins_rules)
 
 
 @pytest.fixture
 def counts_1():
     return 25, 25, 25, 25
-
 
 
 # Tests for Basic Measures
@@ -30,13 +29,13 @@ class TestRisks:
         npt.assert_allclose(r[1:3], sas_ci)
         npt.assert_allclose([r.lower_bound, r.upper_bound], sas_ci)
 
-    def test_match_sas_se(self):
+    def test_match_sas_se1(self):
         sas_se = 0.070710678
         r = risk_ci(25, 50, confint='wald')
         npt.assert_allclose(r[3], sas_se)
         npt.assert_allclose(r.standard_error, sas_se)
 
-    def test_match_sas_se(self):
+    def test_match_sas_se2(self):
         sas_se = 0.070710678
         r = risk_ci(25, 50, confint='wald')
         npt.assert_allclose(r[3], sas_se)
@@ -315,3 +314,38 @@ class TestsSemiBayes:
                        ln_transform=True, print_results=False)
         npt.assert_allclose(sb[0], posterior_rr, atol=1e-3)
         npt.assert_allclose(sb[1:], posterior_ci, rtol=1e-3)
+
+
+class TestRubinsRules:
+
+    def test_error_wrong_len(self):
+        rr_est = [1, 1, 3]
+        rr_std = [0.05, 0.05]
+        with pytest.raises(ValueError):
+            rubins_rules(rr_est, rr_std)
+
+    def test_match_sas1(self):
+        # points
+        rr_est = [0.52, 0.31, -0.04]
+        rr_var = [0.075, 0.083, 0.065]
+
+        # SAS calculations via PROC MIANALYZE
+        est_sas = 0.26333333
+        std_sas = 0.33509816
+
+        b = rubins_rules(rr_est, rr_var)
+        npt.assert_allclose(b[0], est_sas)
+        npt.assert_allclose(b[1], std_sas)
+
+    def test_match_sas2(self):
+        # points
+        rr_est = [-0.52, -0.31, -0.04, -0.8, 0.01, -0.12, -0.34]
+        rr_var = [0.035, 0.043, 0.025, 0.045, 0.023, 0.001, 0.021]
+
+        # SAS calculations via PROC MIANALYZE
+        est_sas = -0.30285714
+        std_sas = 0.30896574
+
+        b = rubins_rules(rr_est, rr_var)
+        npt.assert_allclose(b[0], est_sas)
+        npt.assert_allclose(b[1], std_sas)

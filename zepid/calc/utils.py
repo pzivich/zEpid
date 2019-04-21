@@ -1235,3 +1235,72 @@ def screening_cost_analyzer(cost_miss_case, cost_false_pos, prevalence, sensitiv
     if (pc_t_cost < pc_ct_cost) and (pc_t_cost < pc_nt_cost):
         print('Treating everyone as test-positive is least costly')
     print('----------------------------------------------------------------------\n')
+
+
+def rubins_rules(point_estimates, std_error):
+    r"""Function to merge multiple imputed data sets into a single summary estimate and variance. Results are based on
+    Rubin's Rules for merging estimates. The summary point estimate is calculated via
+
+    .. math::
+
+        \bar{\beta} = m^{-1} \sum_{k=1}^m \hat{\beta_k}
+
+    where m is the number of imputed data sets. The variance is calculated via
+
+    .. math::
+
+        Var(\hat{\beta}) = m_{-1} \sum_{k=1}^m Var(\hat{\beta}) + (1 + m^{-1})(m-1)^{-1} \sum_{k=1}^m
+        (\hat{\beta_k} - \bar{\beta})^2
+
+    The variance is constructed from the within-sample variance and the between sample variance
+
+    Notes
+    -----
+    If your point estimates correspond to ratios, be sure to provide the natural-log transformed point estimates and
+    the variance of the natural-log estimate
+
+    Parameters
+    ----------
+    point_estimates : list
+        Container object of the point estimates
+    std_error : list
+        Container object of the estimate standard errors
+
+    Returns
+    -------
+    tuple
+        Tuple of summary beta, summary standard error
+
+    Examples
+    --------
+    >>> from zepid.calc import rubins_rules
+    >>> rr_est = []
+    >>> rr_std = []
+
+    Calculating summary estimate
+
+    >>> b = rubins_rules(rr_est, rr_std)
+
+    Printing the summary risk ratio
+
+    >>> print("RR = ", np.exp(b[0]))
+    >>> print("95% LCL:", np.exp(b[0] - 1.96*b[1]))
+    >>> print("95% UCL:", np.exp(b[0] + 1.96*b[1]))
+
+    References
+    ----------
+    Rubin DB. (2004). Multiple imputation for nonresponse in surveys (Vol. 81). John Wiley & Sons.
+    """
+    if len(point_estimates) != len(std_error):
+        raise ValueError("The number of point estimates and variances must be the same")
+
+    # Calculate summary point estimate
+    beta = np.mean(point_estimates)
+
+    # Calculate summary variance estimate
+    variance = np.array(std_error)**2
+    var_between = np.sum((np.array(point_estimates) - beta)**2)
+    var_within = np.mean(variance)
+    var = var_within + (1 + len(variance)**-1)*((len(variance) - 1)**-1)*var_between
+
+    return beta, np.sqrt(var)
