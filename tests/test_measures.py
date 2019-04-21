@@ -341,7 +341,7 @@ class TestInteractionContrasts:
         npt.assert_allclose(np.round(icr[0], 4), -0.4908)
 
     def test_interaction_contrast_ratio_delta_ci(self, data_ic):
-        icr = interaction_contrast_ratio(data_ic, exposure='exp', outcome='y', modifier='mod', print_results=True)
+        icr = interaction_contrast_ratio(data_ic, exposure='exp', outcome='y', modifier='mod', print_results=False)
         assert icr[1] < -0.4908 < icr[2]
 
     def test_interaction_contrast_ratio_bootstrap_ci(self, data_ic):

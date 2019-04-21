@@ -1567,18 +1567,16 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
 
     >>>interaction_contrast(df, exposure='art', outcome='dead', modifier='male')
     """
-    df.loc[((df[exposure] == 1) & (df[modifier] == 1)), 'E1M1'] = 1
-    df.loc[((df[exposure] != 1) | (df[modifier] != 1)), 'E1M1'] = 0
-    df.loc[((df[exposure].isnull()) | (df[modifier].isnull())), 'E1M1'] = np.nan
     if adjust is None:
-        eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + E1M1'
+        eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + ' + exposure + ':' + modifier
     else:
-        eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + E1M1 + ' + adjust
+        eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + ' + exposure + ':' + modifier + ' + ' + adjust
     f = sm.families.family.Binomial(sm.families.links.identity)
     model = smf.glm(eq, df, family=f).fit()
-    ic = model.params['E1M1']
-    lcl = model.conf_int().loc['E1M1'][0]
-    ucl = model.conf_int().loc['E1M1'][1]
+    ic = model.params[exposure + ':' + modifier]
+    lcl = model.conf_int().loc[exposure + ':' + modifier][0]
+    ucl = model.conf_int().loc[exposure + ':' + modifier][1]
+
     if print_results:
         print(model.summary())
         print('\n======================================================================')
@@ -1587,6 +1585,7 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
         print('IC:\t\t' + str(round(ic, decimal)))
         print('95% CI:\t\t(' + str(round(lcl, decimal)) + ', ' + str(round(ucl, decimal)) + ')')
         print('======================================================================')
+
     return ic, lcl, ucl
 
 
@@ -1656,44 +1655,45 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
 
     >>>interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male', ci='bootstrap')
     """
-    df.loc[((df[exposure] == 1) & (df[modifier] == 0)), 'E1M0'] = 1
-    df.loc[((df[exposure] != 1) | (df[modifier] != 0)), 'E1M0'] = 0
-    df.loc[((df[exposure].isnull()) | (df[modifier].isnull())), 'E1M0'] = 0
-    df.loc[((df[exposure] == 0) & (df[modifier] == 1)), 'E0M1'] = 1
-    df.loc[((df[exposure] != 0) | (df[modifier] != 1)), 'E0M1'] = 0
-    df.loc[((df[exposure].isnull()) | (df[modifier].isnull())), 'E0M1'] = 0
-    df.loc[((df[exposure] == 1) & (df[modifier] == 1)), 'E1M1'] = 1
-    df.loc[((df[exposure] != 1) | (df[modifier] != 1)), 'E1M1'] = 0
-    df.loc[((df[exposure].isnull()) | (df[modifier].isnull())), 'E1M1'] = np.nan
     if regression == 'logit':
         f = sm.families.family.Binomial()
         warnings.warn('Using the Odds Ratio to calculate the ICR is only valid when the OR approximates the RR',
                       UserWarning)
     elif regression == 'log':
         f = sm.families.family.Binomial(sm.families.links.log)
-    if adjust is None:
-        eq = outcome + ' ~ E1M0 + E0M1 + E1M1'
     else:
-        eq = outcome + ' ~ E1M0 + E0M1 + E1M1 + ' + adjust
+        raise ValueError("Either 'logit' or 'log' must be specified for the regression parameter")
+
+    df = df.copy()
+    df['_'+exposure] = np.where(df[modifier] == 0, df[exposure], 0)
+    df['_'+modifier] = np.where(df[exposure] == 0, df[modifier], 0)
+    if adjust is None:
+        eq = outcome + ' ~ ' + '_'+exposure + ' + ' + '_'+modifier + ' + ' + exposure + ':' + modifier
+    else:
+        eq = outcome + ' ~ ' + '_'+exposure + ' + ' + '_'+modifier + ' + ' + exposure + ':' + modifier + ' + ' + adjust
+
     model = smf.glm(eq, df, family=f).fit()
-    em10 = np.exp(model.params['E1M0'])
-    em01 = np.exp(model.params['E0M1'])
-    em11 = np.exp(model.params['E1M1'])
+    em10 = np.exp(model.params['_'+exposure])
+    em01 = np.exp(model.params['_'+modifier])
+    em11 = np.exp(model.params[exposure + ':' + modifier])
     em_expect = em10 + em01 - 1
     icr = em11 - em_expect
     zalpha = norm.ppf((1 - alpha / 2), loc=0, scale=1)
+
     if ci == 'delta':
         cov_matrix = model.cov_params()
-        vb10 = cov_matrix.loc['E1M0']['E1M0']
-        vb01 = cov_matrix.loc['E0M1']['E0M1']
-        vb11 = cov_matrix.loc['E1M1']['E1M1']
-        cvb10_01 = cov_matrix.loc['E1M0']['E0M1']
-        cvb10_11 = cov_matrix.loc['E1M0']['E1M1']
-        cvb01_11 = cov_matrix.loc['E0M1']['E1M1']
-        varICR = (((em10 ** 2) * vb10) + ((em01 ** 2) * vb01) + ((em11 ** 2) * vb11) + (
-        (em10 * em01 * 2 * cvb10_01)) + (-1 * em10 * em11 * 2 * cvb10_11) + (-1 * em01 * em11 * 2 * cvb01_11))
-        icr_lcl = icr - zalpha * np.sqrt(varICR)
-        icr_ucl = icr + zalpha * np.sqrt(varICR)
+        vb10 = cov_matrix.loc['_'+exposure]['_'+exposure]
+        vb01 = cov_matrix.loc['_'+modifier]['_'+modifier]
+        vb11 = cov_matrix.loc[exposure + ':' + modifier][exposure + ':' + modifier]
+        cvb10_01 = cov_matrix.loc['_'+exposure]['_'+modifier]
+        cvb10_11 = cov_matrix.loc['_'+exposure][exposure + ':' + modifier]
+        cvb01_11 = cov_matrix.loc['_'+modifier][exposure + ':' + modifier]
+        var_icr = (((em10 ** 2) * vb10) + ((em01 ** 2) * vb01) + ((em11 ** 2) * vb11) +
+                  (em10 * em01 * 2 * cvb10_01) + (-1 * em10 * em11 * 2 * cvb10_11) +
+                  (-1 * em01 * em11 * 2 * cvb01_11))
+        icr_lcl = icr - zalpha * np.sqrt(var_icr)
+        icr_ucl = icr + zalpha * np.sqrt(var_icr)
+
     elif ci == 'bootstrap':
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -1704,19 +1704,19 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
                 dfs = df.sample(n=df.shape[0], replace=True)
                 try:
                     bmodel = smf.glm(eq, dfs, family=f).fit()
-                    em_bexpect = np.exp(bmodel.params['E1M0']) + np.exp(bmodel.params['E0M1']) - 1
-                    bicr = np.exp(bmodel.params['E1M1']) - em_bexpect
+                    em_bexpect = np.exp(bmodel.params['_'+exposure]) + np.exp(bmodel.params['_'+modifier]) - 1
+                    bicr = np.exp(bmodel.params[exposure + ':' + modifier]) - em_bexpect
                     sigma = bicr - icr
                     bse_icr.append(sigma)
                 except:
                     bse_icr.append(np.nan)
-            bsdf = pd.DataFrame()
-            bsdf['sigma'] = bse_icr
-            lsig, usig = bsdf['sigma'].dropna().quantile(q=[ll, ul])
-            icr_lcl = lsig + icr
-            icr_ucl = usig + icr
+            se = np.std(bse_icr)
+            icr_lcl = icr - zalpha * se
+            icr_ucl = icr + zalpha * se
+
     else:
         raise ValueError('Please specify a supported confidence interval type')
+
     if print_results:
         print(model.summary())
         print('\n======================================================================')
@@ -1724,13 +1724,15 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         print('======================================================================')
         if regression == 'logit':
             print('ICR based on Odds Ratio\t\tAlpha = ' + str(alpha))
-            print('Note: Using the Odds Ratio to calculate the ICR is only valid when\nthe OR approximates the RR')
+            print('Note: Using the Odds Ratio to calculate the ICR is only valid when'
+                  'the OR approximates the RR')
         elif regression == 'log':
             print('ICR based on Risk Ratio\t\tAlpha = ' + str(alpha))
         print('----------------------------------------------------------------------')
         print('ICR:\t\t' + str(round(icr, decimal)))
         print('CI:\t\t(' + str(round(icr_lcl, decimal)) + ', ' + str(round(icr_ucl, decimal)) + ')')
         print('======================================================================')
+
     return icr, icr_lcl, icr_ucl
 
 
