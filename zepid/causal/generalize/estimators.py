@@ -64,36 +64,36 @@ class IPSW:
     --------
     Setting up the environment
 
-    >>>from zepid import load_generalize_data
-    >>>from zepid.causal.generalize import IPSW
-    >>>df = load_generalize_data(False)
+    >>> from zepid import load_generalize_data
+    >>> from zepid.causal.generalize import IPSW
+    >>> df = load_generalize_data(False)
 
     Generalizability for RCT results
 
-    >>>ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
-    >>>ipsw.regression_models('L + W + L:W', print_results=False)
-    >>>ipsw.fit()
-    >>>ipsw.summary()
+    >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
+    >>> ipsw.regression_models('L + W + L:W', print_results=False)
+    >>> ipsw.fit()
+    >>> ipsw.summary()
 
     Transportability for RCT results
 
-    >>>ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
-    >>>ipsw.regression_models('L + W + L:W', print_results=False)
-    >>>ipsw.fit()
-    >>>ipsw.summary()
+    >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>> ipsw.regression_models('L + W + L:W', print_results=False)
+    >>> ipsw.fit()
+    >>> ipsw.summary()
 
     For observational studies, IPTW can be used to account for confounders
 
-    >>>from zepid.causal.ipw import IPTW
-    >>>iptw = IPTW(df, treatment='A')
-    >>>iptw.regression_models('L')
-    >>>iptw.fit()
-    >>>df['iptw'] = iptw.Weight
+    >>> from zepid.causal.ipw import IPTW
+    >>> iptw = IPTW(df, treatment='A')
+    >>> iptw.regression_models('L')
+    >>> iptw.fit()
+    >>> df['iptw'] = iptw.Weight
 
-    >>>ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', weights='iptw', generalize=False)
-    >>>ipsw.regression_models('L + W + L:W', print_results=False)
-    >>>ipsw.fit()
-    >>>ipsw.summary()
+    >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', weights='iptw', generalize=False)
+    >>> ipsw.regression_models('L + W + L:W', print_results=False)
+    >>> ipsw.fit()
+    >>> ipsw.summary()
 
     References
     ----------
@@ -273,23 +273,23 @@ class GTransportFormula:
     --------
     Setting up the environment
 
-    >>>from zepid import load_generalize_data
-    >>>from zepid.causal.generalize import GTransportFormula
-    >>>df = load_generalize_data(False)
+    >>> from zepid import load_generalize_data
+    >>> from zepid.causal.generalize import GTransportFormula
+    >>> df = load_generalize_data(False)
 
     Generalizability
 
-    >>>gtf = GTransportFormula(df, exposure='A', outcome='Y', selection='S', generalize=True)
-    >>>gtf.outcome_model('A + L + L:A + W + W:A + W:A:L')
-    >>>gtf.fit()
-    >>>gtf.summary()
+    >>> gtf = GTransportFormula(df, exposure='A', outcome='Y', selection='S', generalize=True)
+    >>> gtf.outcome_model('A + L + L:A + W + W:A + W:A:L')
+    >>> gtf.fit()
+    >>> gtf.summary()
 
     Transportability
 
-    >>>gtf = GTransportFormula(df, exposure='A', outcome='Y', selection='S', generalize=False)
-    >>>gtf.outcome_model('A + L + L:A + W + W:A + W:A:L')
-    >>>gtf.fit()
-    >>>gtf.summary()
+    >>> gtf = GTransportFormula(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>> gtf.outcome_model('A + L + L:A + W + W:A + W:A:L')
+    >>> gtf.fit()
+    >>> gtf.summary()
 
     For observational studies, confounders should be included in the Q-model
 
@@ -480,25 +480,25 @@ class AIPSW:
     --------
     Setting up the environment
 
-    >>>from zepid import load_generalize_data
-    >>>from zepid.causal.generalize import AIPSW
-    >>>df = load_generalize_data(False)
+    >>> from zepid import load_generalize_data
+    >>> from zepid.causal.generalize import AIPSW
+    >>> df = load_generalize_data(False)
 
     Generalizability
 
-    >>>aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
-    >>>aipw.weight_model('L + W_sq', print_results=False)
-    >>>aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
-    >>>aipw.fit()
-    >>>aipw.summary()
+    >>> aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
+    >>> aipw.weight_model('L + W_sq', print_results=False)
+    >>> aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
+    >>> aipw.fit()
+    >>> aipw.summary()
 
     Transportability
 
-    >>>aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
-    >>>aipw.weight_model('L + W_sq', print_results=False)
-    >>>aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
-    >>>aipw.fit()
-    >>>aipw.summary()
+    >>> aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>> aipw.weight_model('L + W_sq', print_results=False)
+    >>> aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
+    >>> aipw.fit()
+    >>> aipw.summary()
 
     References
     ----------

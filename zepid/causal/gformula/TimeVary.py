@@ -67,65 +67,65 @@ class MonteCarloGFormula:
     --------
     Setting up the environment
 
-    >>>import numpy as np
-    >>>from zepid import load_sample_data, spline
-    >>>from zepid.causal.gformula import MonteCarloGFormula
-    >>>df = load_sample_data(timevary=True)
-    >>>df['lag_art'] = df['art'].shift(1)
-    >>>df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
-    >>>df['lag_cd4'] = df['cd4'].shift(1)
-    >>>df['lag_cd4'] = np.where(df.groupby('id').cumcount() == 0, df['cd40'], df['lag_cd4'])
-    >>>df['lag_dvl'] = df['dvl'].shift(1)
-    >>>df['lag_dvl'] = np.where(df.groupby('id').cumcount() == 0, df['dvl0'], df['lag_dvl'])
-    >>>df[['age_rs0', 'age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=4, term=2, restricted=True)
-    >>>df['cd40_sq'] = df['cd40'] ** 2
-    >>>df['cd40_cu'] = df['cd40'] ** 3
-    >>>df['cd4_sq'] = df['cd4'] ** 2
-    >>>df['cd4_cu'] = df['cd4'] ** 3
-    >>>df['enter_sq'] = df['enter'] ** 2
-    >>>df['enter_cu'] = df['enter'] ** 3
+    >>> import numpy as np
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.gformula import MonteCarloGFormula
+    >>> df = load_sample_data(timevary=True)
+    >>> df['lag_art'] = df['art'].shift(1)
+    >>> df['lag_art'] = np.where(df.groupby('id').cumcount() == 0, 0, df['lag_art'])
+    >>> df['lag_cd4'] = df['cd4'].shift(1)
+    >>> df['lag_cd4'] = np.where(df.groupby('id').cumcount() == 0, df['cd40'], df['lag_cd4'])
+    >>> df['lag_dvl'] = df['dvl'].shift(1)
+    >>> df['lag_dvl'] = np.where(df.groupby('id').cumcount() == 0, df['dvl0'], df['lag_dvl'])
+    >>> df[['age_rs0', 'age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=4, term=2, restricted=True)
+    >>> df['cd40_sq'] = df['cd40'] ** 2
+    >>> df['cd40_cu'] = df['cd40'] ** 3
+    >>> df['cd4_sq'] = df['cd4'] ** 2
+    >>> df['cd4_cu'] = df['cd4'] ** 3
+    >>> df['enter_sq'] = df['enter'] ** 2
+    >>> df['enter_cu'] = df['enter'] ** 3
 
     Estimating the g-formula with the Monte Carlo estimator
 
-    >>>g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
+    >>> g = MonteCarloGFormula(df, idvar='id', exposure='art', outcome='dead', time_in='enter', time_out='out')
 
-    >>># Specifying the exposure/treatment model
-    >>>exp_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq +' +
-    >>>        'cd4_cu + dvl + enter + enter_sq + enter_cu'
-    >>>g.exposure_model(exp_m, restriction="g['lag_art']==0")  # restriction enforces intent-to-treat
+    >>> # Specifying the exposure/treatment model
+    >>> exp_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 + cd4_sq +' +
+    >>>         'cd4_cu + dvl + enter + enter_sq + enter_cu'
+    >>> g.exposure_model(exp_m, restriction="g['lag_art']==0")  # restriction enforces intent-to-treat
 
-    >>># Specifying the outcome model
-    >>>out_m = 'art + male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 +' +
-    >>>        'cd4_sq + cd4_cu + dvl + enter + enter_sq + enter_cu'
-    >>>g.outcome_model(out_m, restriction="g['drop']==0")  # restriction enforces loss-to-follow-up
+    >>> # Specifying the outcome model
+    >>> out_m = 'art + male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + cd4 +' +
+    >>>         'cd4_sq + cd4_cu + dvl + enter + enter_sq + enter_cu'
+    >>> g.outcome_model(out_m, restriction="g['drop']==0")  # restriction enforces loss-to-follow-up
 
-    >>># Specifying the time-varying confounder models
-    >>>dvl_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
-    >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
-    >>>g.add_covariate_model(label=1, covariate='dvl', model=dvl_m, var_type='binary')
-    >>>cd4_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
-    >>>        'lag_dvl + lag_art + enter + enter_sq + enter_cu'
-    >>>cd4_recode_scheme = ("g['cd4'] = np.maximum(g['cd4'],1);"  # Recode scheme makes sure variables are recoded
-    >>>                     "g['cd4_sq'] = g['cd4']**2;"
-    >>>                     "g['cd4_cu'] = g['cd4']**3")
-    >>>g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
+    >>> # Specifying the time-varying confounder models
+    >>> dvl_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 + cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
+    >>>         'lag_dvl + lag_art + enter + enter_sq + enter_cu'
+    >>> g.add_covariate_model(label=1, covariate='dvl', model=dvl_m, var_type='binary')
+    >>> cd4_m = 'male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 + ' +
+    >>>         'lag_dvl + lag_art + enter + enter_sq + enter_cu'
+    >>> cd4_recode_scheme = ("g['cd4'] = np.maximum(g['cd4'],1);"  # Recode scheme makes sure variables are recoded
+    >>>                      "g['cd4_sq'] = g['cd4']**2;"
+    >>>                      "g['cd4_cu'] = g['cd4']**3")
+    >>> g.add_covariate_model(label=2, covariate='cd4', model=cd4_m, recode=cd4_recode_scheme, var_type='continuous')
 
-    >>># Specifying a model for informative censoring
-    >>>cens_m = "male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 +" +
-    >>>         "lag_dvl + lag_art + enter + enter_sq + enter_cu"
-    >>>g.add_covariate_model(cens_m)
+    >>> # Specifying a model for informative censoring
+    >>> cens_m = "male + age0 + age_rs0 + age_rs1 + age_rs2 +  cd40 + cd40_sq + cd40_cu + dvl0 + lag_cd4 +" +
+    >>>          "lag_dvl + lag_art + enter + enter_sq + enter_cu"
+    >>> g.censoring_model(cens_m)
 
-    >>># Estimating outcomes under a simulated Markov Chain Monte Carlo for natural course
-    >>>g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",  # Treatment plan (natural course in this case)
-    >>>      lags={'art': 'lag_art',  # Creating variables to lag in the process
-    >>>            'cd4': 'lag_cd4',
-    >>>            'dvl': 'lag_dvl'},
-    >>>      sample=50000,  # Number of resamples to use (should be large number to reduce simulation error)
-    >>>      t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
-    >>>      in_recode=("g['enter_sq'] = g['enter']**2;"
-    >>>                 "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
-    >>># See website documentation for further instructions
-    >>># (https://zepid.readthedocs.io/en/latest/Causal.html#g-computation-algorithm-monte-carlo)
+    >>> # Estimating outcomes under a simulated Markov Chain Monte Carlo for natural course
+    >>> g.fit(treatment="((g['art']==1) | (g['lag_art']==1))",  # Treatment plan (natural course in this case)
+    >>>       lags={'art': 'lag_art',  # Creating variables to lag in the process
+    >>>             'cd4': 'lag_cd4',
+    >>>             'dvl': 'lag_dvl'},
+    >>>       sample=50000,  # Number of resamples to use (should be large number to reduce simulation error)
+    >>>       t_max=None,  # Maximum time to simulate to (None uses data set maximum time)
+    >>>       in_recode=("g['enter_sq'] = g['enter']**2;"
+    >>>                  "g['enter_cu'] = g['enter']**3"))  # How to recode time in each time-step
+    >>> # See website documentation for further instructions
+    >>> # (https://zepid.readthedocs.io/en/latest/Causal.html#g-computation-algorithm-monte-carlo)
 
     References
     ----------
@@ -572,36 +572,36 @@ class IterativeCondGFormula:
     --------
     Setting up the environment
 
-    >>>from zepid import load_longitudinal_data
-    >>>from zepid.causal.gformula import IterativeCondGFormula
-    >>>df = load_longitudinal_data()
+    >>> from zepid import load_longitudinal_data
+    >>> from zepid.causal.gformula import IterativeCondGFormula
+    >>> df = load_longitudinal_data()
 
     Estimating the g-formula with the Monte Carlo estimator
 
-    >>>icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
+    >>> icgf = IterativeCondGFormula(df, exposures=['A1', 'A2', 'A3'], outcomes=['Y1', 'Y2', 'Y3'])
 
-    >>># Specifying regression models for each treatment-outcome pair
-    >>>icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2', 'A3 + A2 + L3'], print_results=False)
+    >>> # Specifying regression models for each treatment-outcome pair
+    >>> icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2', 'A3 + A2 + L3'], print_results=False)
 
-    >>># Estimating marginal 'Y3' under treat-all at every time
-    >>>icgf.fit(treatments=[1, 1, 1])
-    >>>print(icgf.marginal_outcome)
+    >>> # Estimating marginal 'Y3' under treat-all at every time
+    >>> icgf.fit(treatments=[1, 1, 1])
+    >>> print(icgf.marginal_outcome)
 
-    >>># Estimating marginal 'Y3' under treat-none at every time
-    >>>icgf.fit(treatments=[0, 0, 0])
-    >>>print(icgf.marginal_outcome)
+    >>> # Estimating marginal 'Y3' under treat-none at every time
+    >>> icgf.fit(treatments=[0, 0, 0])
+    >>> print(icgf.marginal_outcome)
 
     Custom treatments can be specified. Below is an example of treating everyone at the first and last time points
 
-    >>># Estimating marginal 'Y3' under custom treatment plan
-    >>>icgf.fit(treatments=[1, 0, 1])
-    >>>print(icgf.marginal_outcome)
+    >>> # Estimating marginal 'Y3' under custom treatment plan
+    >>> icgf.fit(treatments=[1, 0, 1])
+    >>> print(icgf.marginal_outcome)
 
     To estimate 'Y2', we can use a similar procedure but restrict our list of exposures and outcomes
-    >>>icgf = IterativeCondGFormula(df, exposures=['A1', 'A2'], outcomes=['Y1', 'Y2'])
-    >>>icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2'], print_results=False)
-    >>>icgf.fit(treatments=[1, 1])
-    >>>print(icgf.marginal_outcome)
+    >>> icgf = IterativeCondGFormula(df, exposures=['A1', 'A2'], outcomes=['Y1', 'Y2'])
+    >>> icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2'], print_results=False)
+    >>> icgf.fit(treatments=[1, 1])
+    >>> print(icgf.marginal_outcome)
 
     References
     ----------

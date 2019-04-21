@@ -79,6 +79,7 @@ class GEstimationSNM:
     Examples
     --------
     Set up the environment and the data set
+
     >>> from zepid import load_sample_data, spline
     >>> from zepid.causal.snm import GEstimationSNM
     >>> df = load_sample_data(timevary=False).drop(columns=['dead'])
@@ -86,6 +87,7 @@ class GEstimationSNM:
     >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
 
     One-parameter structural nested mean model via closed-form solution
+
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
     >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art')
@@ -93,24 +95,28 @@ class GEstimationSNM:
     >>> snm.summary()
 
     One-parameter structural nested mean model via grid-search
+
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
     >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art')
     >>> snm.fit(solver='search')
 
     One-parameter structural nested mean model via grid-search with different alphas
+
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
     >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art')
     >>> snm.fit(solver='search', alpha_value=0.03)
 
     Two-parameter structural nested mean model via closed-form
+
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
     >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art + art:male')
     >>> snm.fit()
 
     Two-parameter structural nested mean model via grid-search and starting values
+
     >>> snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
     >>> snm.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> snm.structural_nested_model(model='art + art:male')

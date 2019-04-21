@@ -308,13 +308,13 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
 
     Adding summary points to the plot. Points are grouped together and their size reflects their relative n
 
-    >>>functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False, points=True)
-    >>>plt.show()
+    >>> functional_form_plot(df, outcome='dead', var='cd4', loess=False, legend=False, points=True)
+    >>> plt.show()
 
     Functional form assessment for a discrete variable (age)
 
-    >>>functional_form_plot(df, outcome='dead', var='age0', discrete=True)
-    >>>plt.show()
+    >>> functional_form_plot(df, outcome='dead', var='age0', discrete=True)
+    >>> plt.show()
     """
     # Copying out the dataframe to a new object we will manipulate a bit
     rf = df.copy()
@@ -432,23 +432,23 @@ def pvalue_plot(point, sd, color='b', fill=True, null=0, alpha=None):
     -----------
     Setting up the environment
 
-    >>>from zepid.graphics import pvalue_plot
-    >>>import matplotlib.pyplot as plt
+    >>> from zepid.graphics import pvalue_plot
+    >>> import matplotlib.pyplot as plt
 
     Basic P-value plot
 
-    >>>pvalue_plot(point=-0.1, sd=0.061, color='r')
-    >>>plt.show()
+    >>> pvalue_plot(point=-0.1, sd=0.061, color='r')
+    >>> plt.show()
 
     P-value plot with significance line drawn at 'alpha'
 
-    >>>pvalue_plot(point=-0.1, sd=0.061, color='r', alpha=0.025)
-    >>>plt.show()
+    >>> pvalue_plot(point=-0.1, sd=0.061, color='r', alpha=0.025)
+    >>> plt.show()
 
     P-value plot with different comparison value
 
-    >>>pvalue_plot(point=-0.1, sd=0.061, color='r', null=0.1)
-    >>>plt.show()
+    >>> pvalue_plot(point=-0.1, sd=0.061, color='r', null=0.1)
+    >>> plt.show()
 
     References
     ----------
@@ -506,14 +506,14 @@ def spaghetti_plot(df, idvar, variable, time):
     -----------
     Setting up the environment
 
-    >>>from zepid import load_sample_data
-    >>>from zepid.graphics import spaghetti_plot
-    >>>df = load_sample_data(timevary=True)
+    >>> from zepid import load_sample_data
+    >>> from zepid.graphics import spaghetti_plot
+    >>> df = load_sample_data(timevary=True)
 
     Generating spaghetti plot for changing CD4 count
 
-    >>>spaghetti_plot(df, idvar='id', variable='cd4', time='enter')
-    >>>plt.show()
+    >>> spaghetti_plot(df, idvar='id', variable='cd4', time='enter')
+    >>> plt.show()
     """
     ax = plt.gca()
     for i in df[idvar].unique():
@@ -553,17 +553,17 @@ def roc(df, true, threshold, youden_index=True):
     --------
     Creating a dataframe with true disease status (`'d'`) and predicted probability of the outcome (`'p'`)
 
-    >>>import pandas as pd
-    >>>import matplotlib.pyplot as plt
-    >>>from zepid.graphics import roc
-    >>>df = pd.DataFrame()
-    >>>df['d'] = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
-    >>>df['p'] = [0.1, 0.15, 0.1, 0.7, 0.5, 0.9, 0.95, 0.5, 0.4, 0.8, 0.99, 0.99, 0.89, 0.95]
+    >>> import pandas as pd
+    >>> import matplotlib.pyplot as plt
+    >>> from zepid.graphics import roc
+    >>> df = pd.DataFrame()
+    >>> df['d'] = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
+    >>> df['p'] = [0.1, 0.15, 0.1, 0.7, 0.5, 0.9, 0.95, 0.5, 0.4, 0.8, 0.99, 0.99, 0.89, 0.95]
 
     Creating ROC curve
 
-    >>>roc(df, true='d', threshold='p', youden_index=False)
-    >>>plt.show()
+    >>> roc(df, true='d', threshold='p', youden_index=False)
+    >>> plt.show()
     """
     sens = []
     fpr = []
@@ -648,7 +648,7 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     --------
     See graphics documentation or causal documentation for a detailed example.
 
-    >>>dynamic_risk_plot(a, b, loess=True)
+    >>> dynamic_risk_plot(a, b, loess=True)
 
     References
     ----------
@@ -737,28 +737,28 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
     --------
     Setting up environment
 
-    >>>import matplotlib.pyplot as plt
+    >>> import matplotlib.pyplot as plt
     >>> from zepid.graphics import labbe_plot
 
     Creating a blank plot
 
-    >>>labbe_plot()
-    >>>plt.show()
+    >>> labbe_plot()
+    >>> plt.show()
 
     Adding customized points to the plot
 
-    >>>labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', color='r', marker='D', markersize=10, linestyle='')
-    >>>plt.show()
+    >>> labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', color='r', marker='D', markersize=10, linestyle='')
+    >>> plt.show()
 
     Only returning the additive plot
 
-    >>>labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', markersize=10)
-    >>>plt.show()
+    >>> labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', markersize=10)
+    >>> plt.show()
 
     Only returning the multiplicative plot
 
-    >>>labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='multiplicative', markersize=10)
-    >>>plt.show()
+    >>> labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='multiplicative', markersize=10)
+    >>> plt.show()
     """
     if r1 is not None or r0 is not None:
         if len(list(r1)) != len(list(r0)):

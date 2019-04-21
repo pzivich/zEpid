@@ -46,25 +46,25 @@ class RiskRatio:
     --------
     Calculate the risk ratio in a data set
 
-    >>>from zepid import RiskRatio, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>rr = RiskRatio()
-    >>>rr.fit(df, exposure='art', outcome='dead')
-    >>>rr.summary()
+    >>> from zepid import RiskRatio, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> rr = RiskRatio()
+    >>> rr.fit(df, exposure='art', outcome='dead')
+    >>> rr.summary()
 
     Calculate the risk ratio with exposure of '1' as the reference category
 
-    >>>rr = RiskRatio(reference=1)
-    >>>rr.fit(df, exposure='art', outcome='dead')
-    >>>rr.summary()
+    >>> rr = RiskRatio(reference=1)
+    >>> rr.fit(df, exposure='art', outcome='dead')
+    >>> rr.summary()
 
     Generate a plot of the calculated risk ratio(s)
 
-    >>>import matplotlib.pyplot as plt
-    >>>rr = RiskRatio()
-    >>>rr.fit(df, exposure='art', outcome='dead')
-    >>>rr.plot()
-    >>>plt.show()
+    >>> import matplotlib.pyplot as plt
+    >>> rr = RiskRatio()
+    >>> rr.fit(df, exposure='art', outcome='dead')
+    >>> rr.plot()
+    >>> plt.show()
     """
 
     def __init__(self, reference=0, alpha=0.05):
@@ -271,25 +271,25 @@ class RiskDifference:
     --------
     Calculate the risk difference in a data set
 
-    >>>from zepid import RiskDifference, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>rd = RiskDifference()
-    >>>rd.fit(df, exposure='art', outcome='dead')
-    >>>rd.summary()
+    >>> from zepid import RiskDifference, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> rd = RiskDifference()
+    >>> rd.fit(df, exposure='art', outcome='dead')
+    >>> rd.summary()
 
     Calculate the risk difference with exposure of '1' as the reference category
 
-    >>>rd = RiskDifference(reference=1)
-    >>>rd.fit(df, exposure='art', outcome='dead')
-    >>>rd.summary()
+    >>> rd = RiskDifference(reference=1)
+    >>> rd.fit(df, exposure='art', outcome='dead')
+    >>> rd.summary()
 
     Generate a plot of the calculated risk difference(s)
 
-    >>>import matplotlib.pyplot as plt
-    >>>rd = RiskDifference()
-    >>>rd.fit(df, exposure='art', outcome='dead')
-    >>>rd.plot()
-    >>>plt.show()
+    >>> import matplotlib.pyplot as plt
+    >>> rd = RiskDifference()
+    >>> rd.fit(df, exposure='art', outcome='dead')
+    >>> rd.plot()
+    >>> plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
         self.reference = reference
@@ -497,17 +497,17 @@ class NNT:
     --------
     Calculate the number needed to treat in a data set
 
-    >>>from zepid import NNT, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>nnt = NNT()
-    >>>nnt.fit(df, exposure='art', outcome='dead')
-    >>>nnt.summary()
+    >>> from zepid import NNT, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> nnt = NNT()
+    >>> nnt.fit(df, exposure='art', outcome='dead')
+    >>> nnt.summary()
 
     Calculate the number needed to treat with '1' as the reference category
 
-    >>>nnt = NNT(reference=1)
-    >>>nnt.fit(df, exposure='art', outcome='dead')
-    >>>nnt.summary()
+    >>> nnt = NNT(reference=1)
+    >>> nnt.fit(df, exposure='art', outcome='dead')
+    >>> nnt.summary()
     """
     def __init__(self, reference=0, alpha=0.05):
         self.reference = reference
@@ -650,25 +650,25 @@ class OddsRatio:
     --------
     Calculate the odds ratio in a data set
 
-    >>>from zepid import OddsRatio, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>ort = OddsRatio()
-    >>>ort.fit(df, exposure='art', outcome='dead')
-    >>>ort.summary()
+    >>> from zepid import OddsRatio, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> ort = OddsRatio()
+    >>> ort.fit(df, exposure='art', outcome='dead')
+    >>> ort.summary()
 
     Calculate the odds ratio with exposure of '1' as the reference category
 
-    >>>ort = OddsRatio(reference=1)
-    >>>ort.fit(df, exposure='art', outcome='dead')
-    >>>ort.summary()
+    >>> ort = OddsRatio(reference=1)
+    >>> ort.fit(df, exposure='art', outcome='dead')
+    >>> ort.summary()
 
     Generate a plot of the calculated odds ratio(s)
 
-    >>>import matplotlib.pyplot as plt
-    >>>ort = OddsRatio()
-    >>>ort.fit(df, exposure='art', outcome='dead')
-    >>>ort.plot()
-    >>>plt.show()
+    >>> import matplotlib.pyplot as plt
+    >>> ort = OddsRatio()
+    >>> ort.fit(df, exposure='art', outcome='dead')
+    >>> ort.plot()
+    >>> plt.show()
     """
 
     def __init__(self, reference=0, alpha=0.05):
@@ -823,25 +823,25 @@ class IncidenceRateRatio:
     --------
     Calculate the incidence rate ratio in a data set
 
-    >>>from zepid import IncidenceRateRatio, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>irr = IncidenceRateRatio()
-    >>>irr.fit(df, exposure='art', outcome='dead', time='t')
-    >>>irr.summary()
+    >>> from zepid import IncidenceRateRatio, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> irr = IncidenceRateRatio()
+    >>> irr.fit(df, exposure='art', outcome='dead', time='t')
+    >>> irr.summary()
 
     Calculate the incidence rate ratio with exposure of '1' as the reference category
 
-    >>>irr = IncidenceRateRatio(reference=1)
-    >>>irr.fit(df, exposure='art', outcome='dead', time='t')
-    >>>irr.summary()
+    >>> irr = IncidenceRateRatio(reference=1)
+    >>> irr.fit(df, exposure='art', outcome='dead', time='t')
+    >>> irr.summary()
 
     Generate a plot of the calculated incidence rate ratio(s)
 
-    >>>import matplotlib.pyplot as plt
-    >>>irr = IncidenceRateRatio()
-    >>>irr.fit(df, exposure='art', outcome='dead', time='t')
-    >>>irr.plot()
-    >>>plt.show()
+    >>> import matplotlib.pyplot as plt
+    >>> irr = IncidenceRateRatio()
+    >>> irr.fit(df, exposure='art', outcome='dead', time='t')
+    >>> irr.plot()
+    >>> plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
         self.reference = reference
@@ -1035,25 +1035,25 @@ class IncidenceRateDifference:
     --------
     Calculate the incidence rate difference in a data set
 
-    >>>from zepid import IncidenceRateDifference, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>ird = IncidenceRateDifference()
-    >>>ird.fit(df, exposure='art', outcome='dead', time='t')
-    >>>ird.summary()
+    >>> from zepid import IncidenceRateDifference, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> ird = IncidenceRateDifference()
+    >>> ird.fit(df, exposure='art', outcome='dead', time='t')
+    >>> ird.summary()
 
     Calculate the incidence rate difference with exposure of '1' as the reference category
 
-    >>>ird = IncidenceRateDifference(reference=1)
-    >>>ird.fit(df, exposure='art', outcome='dead', time='t')
-    >>>ird.summary()
+    >>> ird = IncidenceRateDifference(reference=1)
+    >>> ird.fit(df, exposure='art', outcome='dead', time='t')
+    >>> ird.summary()
 
     Generate a plot of the calculated incidence rate difference(s)
 
-    >>>import matplotlib.pyplot as plt
-    >>>ird = IncidenceRateDifference()
-    >>>ird.fit(df, exposure='art', outcome='dead', time='t')
-    >>>ird.plot()
-    >>>plt.show()
+    >>> import matplotlib.pyplot as plt
+    >>> ird = IncidenceRateDifference()
+    >>> ird.fit(df, exposure='art', outcome='dead', time='t')
+    >>> ird.plot()
+    >>> plt.show()
     """
     def __init__(self, reference=0, alpha=0.05):
         self.reference = reference
@@ -1272,11 +1272,11 @@ class Sensitivity:
     --------
     Calculate the sensitivity in a data set
 
-    >>>from zepid import Sensitivity, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>sens = Sensitivity()
-    >>>sens.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
-    >>>sens.summary()
+    >>> from zepid import Sensitivity, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> sens = Sensitivity()
+    >>> sens.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
+    >>> sens.summary()
     """
     def __init__(self, alpha=0.05):
         self.alpha = alpha
@@ -1361,11 +1361,11 @@ class Specificity:
     Examples
     --------
     Calculate the specificity in a data set
-    >>>from zepid import Specificity, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>spec = Specificity()
-    >>>spec.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
-    >>>spec.summary()
+    >>> from zepid import Specificity, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> spec = Specificity()
+    >>> spec.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
+    >>> spec.summary()
     """
     def __init__(self, alpha=0.05):
         self.alpha = alpha
@@ -1463,11 +1463,11 @@ class Diagnostics:
     --------
     Calculate the sensitivity and specificity in a data set
 
-    >>>from zepid import Diagnostics, load_sample_data
-    >>>df = load_sample_data(False)
-    >>>diag = Diagnostics()
-    >>>diag.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
-    >>>diag.summary()
+    >>> from zepid import Diagnostics, load_sample_data
+    >>> df = load_sample_data(False)
+    >>> diag = Diagnostics()
+    >>> diag.fit(df, test='art', disease='dead')  # Note this example is not great... ART is a treatment not test
+    >>> diag.summary()
     """
     def __init__(self, alpha=0.05):
         self.alpha = alpha
@@ -1560,12 +1560,12 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
     --------
     Setting up environment
 
-    >>>from zepid import interaction_contrast, load_sample_data
-    >>>df = load_sample_data(False)
+    >>> from zepid import interaction_contrast, load_sample_data
+    >>> df = load_sample_data(False)
 
     Calculating interaction contrast for ART and gender
 
-    >>>interaction_contrast(df, exposure='art', outcome='dead', modifier='male')
+    >>> interaction_contrast(df, exposure='art', outcome='dead', modifier='male')
     """
     if adjust is None:
         eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + ' + exposure + ':' + modifier
@@ -1644,16 +1644,16 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
     --------
     Setting up environment
 
-    >>>from zepid import interaction_contrast_ratio, load_sample_data
-    >>>df = load_sample_data(False)
+    >>> from zepid import interaction_contrast_ratio, load_sample_data
+    >>> df = load_sample_data(False)
 
     Calculating interaction contrast ratio for ART and gender
 
-    >>>interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male')
+    >>> interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male')
 
     Calculating interaction contrast ratio for ART and gender, confidence intervals from bootstrap
 
-    >>>interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male', ci='bootstrap')
+    >>> interaction_contrast_ratio(df, exposure='art', outcome='dead', modifier='male', ci='bootstrap')
     """
     if regression == 'logit':
         f = sm.families.family.Binomial()

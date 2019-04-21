@@ -72,42 +72,42 @@ class IPTW:
     ---------
     Setting up environment
 
-    >>>import matplotlib.pyplot as plt
-    >>>from zepid import load_sample_data
-    >>>from zepid.causal.ipw import IPTW
-    >>>df = load_sample_data(False)
+    >>> import matplotlib.pyplot as plt
+    >>> from zepid import load_sample_data
+    >>> from zepid.causal.ipw import IPTW
+    >>> df = load_sample_data(False)
 
     Calculate stabilized IPTW
 
-    >>>ipt = IPTW(df, treatment='art', stabilized=True)
-    >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>>ipt.fit()
+    >>> ipt = IPTW(df, treatment='art', stabilized=True)
+    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.fit()
 
     Calculate unstabilized IPTW weights
 
-    >>>ipt = IPTW(df, treatment='art', stabilized=False)
-    >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>>ipt.fit()
+    >>> ipt = IPTW(df, treatment='art', stabilized=False)
+    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.fit()
 
     SMR weight to the exposed population
 
-    >>>ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
-    >>>ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>>ipt.fit()
+    >>> ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
+    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.fit()
 
     Diagnostics:
 
-    >>>ipt.positivity()
-    >>>print(ipt.standardized_mean_differences())
+    >>> ipt.positivity()
+    >>> print(ipt.standardized_mean_differences())
 
-    >>>ipt.plot_boxplot()
-    >>>plt.show()
+    >>> ipt.plot_boxplot()
+    >>> plt.show()
 
-    >>>ipt.plot_kde()
-    >>>plt.show()
+    >>> ipt.plot_kde()
+    >>> plt.show()
 
-    >>>ipt.plot_love()
-    >>>plt.show()
+    >>> ipt.plot_love()
+    >>> plt.show()
 
     References
     ----------
