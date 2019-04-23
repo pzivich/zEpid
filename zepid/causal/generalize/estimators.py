@@ -691,9 +691,9 @@ class AIPSW:
         print('           Augmented Inverse Probability of Sampling Weights          ')
         print('======================================================================')
         fmt = 'Treatment:        {:<15} Sample Observations:  {:<20}'
-        print(fmt.format(self.exposure, self.sample.shape[0]))
+        print(fmt.format(self.exposure, self.df[self.sample].shape[0]))
         fmt = 'Outcome:          {:<15} Target Observations:  {:<20}'
-        print(fmt.format(self.outcome, self.target.shape[0]))
+        print(fmt.format(self.outcome, self.df[self.target].shape[0]))
         fmt = 'Target estimate:  {:<15}'
         if self.generalize:
             print(fmt.format('Generalize'))
