@@ -239,8 +239,8 @@ class TMLE:
             self.df[self._missing_indicator] = 1
 
         # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
-        self._exposure = exposure
-        self._outcome = outcome
+        self.exposure = exposure
+        self.outcome = outcome
 
         if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
             self._continuous_outcome = False
@@ -256,6 +256,9 @@ class TMLE:
         self._out_model = None
         self._exp_model = None
         self._miss_model = None
+        self._out_model_custom = False
+        self._exp_model_custom = False
+        self._miss_model_custom = False
         self._fit_exposure_model = False
         self._fit_outcome_model = False
         self._fit_missing_model = False
@@ -299,7 +302,7 @@ class TMLE:
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
-        self._exp_model = self._exposure + ' ~ ' + model
+        self._exp_model = self.exposure + ' ~ ' + model
 
         # Step 3) Estimation of g-model (exposure model)
         if custom_model is None:
@@ -308,8 +311,9 @@ class TMLE:
 
         # User-specified prediction model
         else:
+            self._exp_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
-            self.g1W = _exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self._exposure]),
+            self.g1W = _exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.exposure]),
                                                  ml_model=custom_model, print_results=print_results)
 
         self.g0W = 1 - self.g1W
@@ -342,7 +346,7 @@ class TMLE:
             raise ValueError("No missing outcome data is present in the data set")
 
         # Warning if exposure is not included in the missingness of outcome model
-        if self._exposure not in model:
+        if self.exposure not in model:
             warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
                           "model", UserWarning)
 
@@ -352,21 +356,22 @@ class TMLE:
         if custom_model is None:  # Logistic Regression model for predictions
             fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
             dfx = self.df.copy()
-            dfx[self._exposure] = 1
+            dfx[self.exposure] = 1
             self.m1W = fitmodel.predict(dfx)
             dfx = self.df.copy()
-            dfx[self._exposure] = 0
+            dfx[self.exposure] = 0
             self.m0W = fitmodel.predict(dfx)
 
         # User-specified model
         else:
+            self._miss_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
 
             dfx = self.df.copy()
-            dfx[self._exposure] = 1
+            dfx[self.exposure] = 1
             adata = patsy.dmatrix(model + ' - 1', dfx)
             dfx = self.df.copy()
-            dfx[self._exposure] = 0
+            dfx[self.exposure] = 0
             ndata = patsy.dmatrix(model + ' - 1', dfx)
 
             self.m1W, self.m0W = _missing_machine_learner(xdata=np.array(data),
@@ -400,7 +405,7 @@ class TMLE:
             Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
             for Poisson distributions
         """
-        self._out_model = self._outcome + ' ~ ' + model
+        self._out_model = self.outcome + ' ~ ' + model
 
         if self._miss_flag:
             cc = self.df.copy().dropna()
@@ -409,6 +414,7 @@ class TMLE:
 
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
+            self._continuous_type = continuous_distribution
             if self._continuous_outcome:
                 if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
                     f = sm.families.family.Gaussian()
@@ -429,25 +435,26 @@ class TMLE:
 
             # Step 2) Estimation under the scenarios
             dfx = self.df.copy()
-            dfx[self._exposure] = 1
+            dfx[self.exposure] = 1
             self.QA1W = log.predict(dfx)
             dfx = self.df.copy()
-            dfx[self._exposure] = 0
+            dfx[self.exposure] = 0
             self.QA0W = log.predict(dfx)
 
         # User-specified model
         else:
+            self._out_model_custom =True
             data = patsy.dmatrix(model + ' - 1', cc)
 
             dfx = self.df.copy()
-            dfx[self._exposure] = 1
+            dfx[self.exposure] = 1
             adata = patsy.dmatrix(model + ' - 1', dfx)
             dfx = self.df.copy()
-            dfx[self._exposure] = 0
+            dfx[self.exposure] = 0
             ndata = patsy.dmatrix(model + ' - 1', dfx)
 
             self.QA1W, self.QA0W = _outcome_machine_learner(xdata=np.asarray(data),
-                                                            ydata=np.asarray(cc[self._outcome]),
+                                                            ydata=np.asarray(cc[self.outcome]),
                                                             all_a=adata, none_a=ndata,
                                                             ml_model=custom_model,
                                                             continuous=self._continuous_outcome,
@@ -459,7 +466,7 @@ class TMLE:
         # This bounding step prevents continuous outcomes from being outside the range
         self.QA1W = self._bounding(self.QA1W, bounds=bound)
         self.QA0W = self._bounding(self.QA0W, bounds=bound)
-        self.QAW = self.QA1W * self.df[self._exposure] + self.QA0W * (1 - self.df[self._exposure])
+        self.QAW = self.QA1W * self.df[self.exposure] + self.QA0W * (1 - self.df[self.exposure])
         self._fit_outcome_model = True
 
     def fit(self):
@@ -486,13 +493,13 @@ class TMLE:
         else:
             self.g1W_total = self.g1W
             self.g0W_total = self.g0W
-        H1W = self.df[self._exposure] / self.g1W_total
-        H0W = -(1 - self.df[self._exposure]) / self.g0W_total
+        H1W = self.df[self.exposure] / self.g1W_total
+        H0W = -(1 - self.df[self.exposure]) / self.g0W_total
         HAW = H1W + H0W
 
         # Step 5) Estimating TMLE
         f = sm.families.family.Binomial()
-        y = self.df[self._outcome]
+        y = self.df[self.outcome]
         log = sm.GLM(y, np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
                      family=f, missing='drop').fit()
         self._epsilon = log.params
@@ -516,7 +523,7 @@ class TMLE:
 
             self.average_treatment_effect = np.nanmean(Qstar1 - Qstar0)
             # Influence Curve for CL
-            y_unbound = self._unit_unbound(self.df[self._outcome], mini=self._continuous_min, maxi=self._continuous_max)
+            y_unbound = self._unit_unbound(self.df[self.outcome], mini=self._continuous_min, maxi=self._continuous_max)
             ic = np.where(delta == 1,
                           HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect,
                           Qstar1 - Qstar0 - self.average_treatment_effect)
@@ -528,7 +535,7 @@ class TMLE:
             self.risk_difference = np.nanmean(Qstar1 - Qstar0)
             # Influence Curve for CL
             ic = np.where(delta == 1,
-                          HAW * (self.df[self._outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference,
+                          HAW * (self.df[self.outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference,
                           (Qstar1 - Qstar0) - self.risk_difference)
             varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
             self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(varIC),
@@ -538,8 +545,8 @@ class TMLE:
             self.risk_ratio = np.nanmean(Qstar1) / np.nanmean(Qstar0)
             # Influence Curve for CL
             ic = np.where(delta == 1,
-                          (1/np.mean(Qstar1) * (H1W * (self.df[self._outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
-                           (1/np.mean(Qstar0)) * (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0 - np.mean(Qstar0))),
+                          (1 / np.mean(Qstar1) * (H1W * (self.df[self.outcome] - Qstar) + Qstar1 - np.mean(Qstar1)) -
+                           (1/np.mean(Qstar0)) * (-1 * H0W * (self.df[self.outcome] - Qstar) + Qstar0 - np.mean(Qstar0))),
                           (Qstar1 - np.mean(Qstar1)) + Qstar0 - np.mean(Qstar0))
 
             varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
@@ -551,10 +558,10 @@ class TMLE:
                                                      )) / (np.nanmean(Qstar0) / (1 - np.nanmean(Qstar0)))
             # Influence Curve for CL
             ic = np.where(delta == 1,
-                          ((1/(np.nanmean(Qstar1)*(1 - np.nanmean(Qstar1))) *
-                            (H1W*(self.df[self._outcome] - Qstar) + Qstar1)) -
-                           (1/(np.nanmean(Qstar0)*(1 - np.nanmean(Qstar0))) *
-                            (-1*H0W*(self.df[self._outcome] - Qstar) + Qstar0))),
+                          ((1 / (np.nanmean(Qstar1)*(1 - np.nanmean(Qstar1))) *
+                            (H1W * (self.df[self.outcome] - Qstar) + Qstar1)) -
+                           (1 / (np.nanmean(Qstar0)*(1 - np.nanmean(Qstar0))) *
+                            (-1 * H0W * (self.df[self.outcome] - Qstar) + Qstar0))),
 
                           ((1 / (np.nanmean(Qstar1) * (1 - np.nanmean(Qstar1))) * Qstar1 -
                            (1 / (np.nanmean(Qstar0) * (1 - np.nanmean(Qstar0))) * Qstar0))))
@@ -577,23 +584,54 @@ class TMLE:
         print('======================================================================')
         print('                Targeted Maximum Likelihood Estimator                 ')
         print('======================================================================')
+        fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
+        print(fmt.format(self.exposure, self.df.shape[0]))
+
+        fmt = 'Outcome:          {:<15} No. Missing Outcome:  {:<20}'
+        print(fmt.format(self.outcome, np.sum(self.df[self.outcome].isnull())))
+
+        fmt = 'g-Model:          {:<15} Missing Model:        {:<20}'
+        if self._exp_model_custom:
+            e = 'User-specified'
+        else:
+            e = 'Logistic'
+        if self._miss_model_custom and self._miss_model is not None:
+            m = 'User-specified'
+        elif self._miss_model is None:
+            m = 'None'
+        else:
+            m = 'Logistic'
+
+        print(fmt.format(e, m))
+
+        fmt = 'Q-Model:          {:<15}'
+        if self._out_model_custom:
+            y = 'User-specified'
+        elif self._continuous_outcome:
+            y = self._continuous_type
+        else:
+            y = 'Logistic'
+        print(fmt.format(y))
+
+        print('======================================================================')
+
         if self._continuous_outcome:
             print('Average Treatment Effect: ', round(float(self.average_treatment_effect), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.average_treatment_effect_ci[0], decimal)), ',',
                   str(round(self.average_treatment_effect_ci[1], decimal)) + ')')
         else:
-            print('Risk Difference: ', round(float(self.risk_difference), decimal))
+            print('Risk Difference:    ', round(float(self.risk_difference), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.risk_difference_ci[0], decimal)), ',',
                   str(round(self.risk_difference_ci[1], decimal)) + ')')
             print('----------------------------------------------------------------------')
-            print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+            print('Risk Ratio:         ', round(float(self.risk_ratio), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.risk_ratio_ci[0], decimal)), ',',
                   str(round(self.risk_ratio_ci[1], decimal)) + ')')
             print('----------------------------------------------------------------------')
-            print('Odds Ratio: ', round(float(self.odds_ratio), decimal))
+            print('Odds Ratio:         ', round(float(self.odds_ratio), decimal))
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.odds_ratio_ci[0], decimal)), ',',
                   str(round(self.odds_ratio_ci[1], decimal)) + ')')

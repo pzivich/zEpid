@@ -149,7 +149,7 @@ class GEstimationSNM:
         if not self.df[exposure].value_counts().index.isin([0, 1]).all():
             raise ValueError("GEstimationSNM only supports binary exposures currently")
 
-        self.treatment = exposure
+        self.exposure = exposure
         self.outcome = outcome
 
         self.psi = None
@@ -250,20 +250,20 @@ class GEstimationSNM:
 
         if solver == 'closed':
             # Pulling array of outcomes with the interaction terms (copy and rename column to get right interactions)
-            yf = self.df.copy().drop(columns=[self.treatment])
-            yf = yf.rename(columns={self.outcome: self.treatment})
+            yf = self.df.copy().drop(columns=[self.exposure])
+            yf = yf.rename(columns={self.outcome: self.exposure})
             y_vals = patsy.dmatrix(self._snm_ + ' - 1', yf, return_type='dataframe')
 
             # Solving for the array of Psi values
-            self.psi = self._closed_form_solver_(treat=self.treatment,
-                                                 model=self.treatment + ' ~ ' + self._treatment_model,
+            self.psi = self._closed_form_solver_(treat=self.exposure,
+                                                 model=self.exposure + ' ~ ' + self._treatment_model,
                                                  df=self.df,
                                                  snm_matrix=snm, y_matrix=y_vals,
                                                  weights=self._weights, print_results=self._print_results)
 
         elif solver == 'search':
             # Adding other potential SNM variables to the input data
-            sf = pd.concat([self.df, snm.drop(columns=[self.treatment])], axis=1)
+            sf = pd.concat([self.df, snm.drop(columns=[self.exposure])], axis=1)
 
             # Resolving if not initial parameters
             if starting_value is None:
@@ -271,7 +271,7 @@ class GEstimationSNM:
 
             # Passing to optimization procedure
             self._scipy_solver_obj = self._grid_search_(data_set=sf,
-                                                        treatment=self.treatment, outcome=self.outcome,
+                                                        treatment=self.exposure, outcome=self.outcome,
                                                         weights=self._weights,
                                                         model=self._treatment_model, snm_terms=self.psi_labels,
                                                         start_vals=starting_value, alpha_shift=np.array(alpha_value),
@@ -286,15 +286,6 @@ class GEstimationSNM:
     def summary(self, decimal=3):
         """Summary of results
         """
-        print('======================================================================')
-        print('           G-estimation of Structural Nested Mean Model               ')
-        print('======================================================================')
-        # Printing scipy optimization if possible
-        if self._scipy_solver_obj is not None:
-            self._print_scipy_results(self._scipy_solver_obj, self._alphas)
-        else:
-            self._print_closed_results()
-
         snm_form = ''
         is_first = False
         for l in self.psi_labels:
@@ -304,11 +295,26 @@ class GEstimationSNM:
             else:
                 snm_form += ' + psi*' + l
 
-        print('E[Y^a - Y^a=0 |A=a, L] = ' + snm_form)
+        print('======================================================================')
+        print('           G-estimation of Structural Nested Mean Model               ')
+        print('======================================================================')
+        fmt = 'Treatment:        {:<24} No. Observations: {:<10}'
+        print(fmt.format(self.exposure, self.df.shape[0]))
+        print('Outcome:         ', self.outcome)
+
+        # Printing scipy optimization if possible
+        if self._scipy_solver_obj is not None:
+            self._print_scipy_results(self._scipy_solver_obj, self._alphas)
+        else:
+            self._print_closed_results()
+
+        print('SNM:     ' + snm_form)
         print('----------------------------------------------------------------------')
 
+        fmt = '{:<25} {:<30}'
         for p, pl in zip(self.psi, self.psi_labels):  # Printing all psi's and their labels
-            print(pl+':  ', np.round(p, decimals=decimal))
+            print(fmt.format(pl, np.round(p, decimals=decimal)))
+            # print(pl+':  ', np.round(p, decimals=decimal))
 
         print('======================================================================')
 
@@ -382,15 +388,13 @@ class GEstimationSNM:
     def _print_scipy_results(optimized_function, alpha_values):
         """Background print function to the scipy optimized results results
         """
-        print('Method:                                           ', 'Nelder-Mead')
-        print('Number of iterations:                             ', optimized_function.nit)
-        print('Optimization successful:                          ', optimized_function.success)
-        print('Alpha values:                                     ', alpha_values)
-        print('----------------------------------------------------------------------')
+        fmt = 'Method:           {:<24} No. Iterations:   {:<10}'
+        print(fmt.format('Nelder-Mead', optimized_function.nit))
+        fmt = 'Alpha values:     {:<24} Optimized:        {:<10}'
+        print(fmt.format(alpha_values, str(optimized_function.success)))
 
     @staticmethod
     def _print_closed_results():
         """Background print function to print the closed-form info
         """
-        print('Method:                                              ', 'Closed-form')
-        print('----------------------------------------------------------------------')
+        print('Method:           Closed-form')

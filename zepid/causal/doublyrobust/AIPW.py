@@ -105,8 +105,8 @@ class AIPTW:
         else:
             self._continuous_outcome = True
 
-        self._exposure = exposure
-        self._outcome = outcome
+        self.exposure = exposure
+        self.outcome = outcome
         self._weight_ = weights
         self.alpha = alpha
 
@@ -138,7 +138,7 @@ class AIPTW:
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
-        self._exp_model = self._exposure + ' ~ ' + model
+        self._exp_model = self.exposure + ' ~ ' + model
         fitmodel = propensity_score(self.df, self._exp_model, weights=self._weight_, print_results=print_results)
         self.df['_ps_'] = fitmodel.predict(self.df)
         self._fit_exposure_ = True
@@ -160,9 +160,10 @@ class AIPTW:
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
-        self._out_model = self._outcome + ' ~ ' + model
+        self._out_model = self.outcome + ' ~ ' + model
 
         if self._continuous_outcome:
+            self._continuous_type = continuous_distribution
             if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
                 f = sm.families.family.Gaussian()
             elif continuous_distribution == 'poisson':
@@ -184,10 +185,10 @@ class AIPTW:
             print(log.summary())
 
         dfx = self.df.copy()
-        dfx[self._exposure] = 1
+        dfx[self.exposure] = 1
         self.df['_pY1_'] = log.predict(dfx)
         dfx = self.df.copy()
-        dfx[self._exposure] = 0
+        dfx[self.exposure] = 0
         self.df['_pY0_'] = log.predict(dfx)
         self._fit_outcome_ = True
 
@@ -203,8 +204,8 @@ class AIPTW:
                              'be generated')
 
         # Doubly robust estimator under all treated
-        a_obs = self.df[self._exposure]
-        y_obs = self.df[self._outcome]
+        a_obs = self.df[self.exposure]
+        y_obs = self.df[self.outcome]
         ps = self.df['_ps_']
         py_a1 = self.df['_pY1_']
         py_a0 = self.df['_pY0_']
@@ -258,7 +259,22 @@ class AIPTW:
                              'be generated')
 
         print('======================================================================')
-        print('           Augment Inverse Probability of Treatment Weights           ')
+        print('          Augmented Inverse Probability of Treatment Weights          ')
+        print('======================================================================')
+        fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
+        print(fmt.format(self.exposure, self.df.shape[0]))
+
+        fmt = 'Outcome:          {:<15}'
+        print(fmt.format(self.outcome))
+
+        fmt = 'g-Model:          {:<15} Q-model:              {:<20}'
+        e = 'Logistic'
+        if self._continuous_outcome:
+            y = self._continuous_type
+        else:
+            y = 'Logistic'
+
+        print(fmt.format(e, y))
         print('======================================================================')
 
         if self._continuous_outcome:
@@ -270,7 +286,7 @@ class AIPTW:
             else:
                 print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
         else:
-            print('Risk Difference:   ', round(float(self.risk_difference), decimal))
+            print('Risk Difference:    ', round(float(self.risk_difference), decimal))
             if self._weight_ is None:
                 print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                       str(round(self.risk_difference_ci[0], decimal)), ',',

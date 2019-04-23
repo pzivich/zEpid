@@ -214,9 +214,19 @@ class IPSW:
         else:
             print('               Inverse Odds of Sampling Weights')
         print('======================================================================')
-        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        fmt = 'Treatment:        {:<15} Sample Observations:  {:<20}'
+        print(fmt.format(self.exposure, self.sample.shape[0]))
+        fmt = 'Outcome:          {:<15} Target Observations:  {:<20}'
+        print(fmt.format(self.outcome, self.target.shape[0]))
+        fmt = 'Target estimate:  {:<15}'
+        if self.generalize:
+            print(fmt.format('Generalize'))
+        else:
+            print(fmt.format('Transport'))
+
         print('----------------------------------------------------------------------')
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        print('Risk Ratio:      ', round(float(self.risk_ratio), decimal))
         print('======================================================================')
 
 
@@ -413,9 +423,19 @@ class GTransportFormula:
         print('======================================================================')
         print('                       g-Transport formula')
         print('======================================================================')
-        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        fmt = 'Treatment:        {:<15} Sample Observations:  {:<20}'
+        print(fmt.format(self.exposure, self.sample.shape[0]))
+        fmt = 'Outcome:          {:<15} Target Observations:  {:<20}'
+        print(fmt.format(self.outcome, self.target.shape[0]))
+        fmt = 'Target estimate:  {:<15}'
+        if self.generalize:
+            print(fmt.format('Generalize'))
+        else:
+            print(fmt.format('Transport'))
+
         print('----------------------------------------------------------------------')
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        print('Risk Ratio:      ', round(float(self.risk_ratio), decimal))
         print('======================================================================')
 
 
@@ -668,9 +688,19 @@ class AIPSW:
             Number of decimal places to display in the result
         """
         print('======================================================================')
-        print('           Augmented Inverse Probability of Sampling Weights')
+        print('           Augmented Inverse Probability of Sampling Weights          ')
         print('======================================================================')
-        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        fmt = 'Treatment:        {:<15} Sample Observations:  {:<20}'
+        print(fmt.format(self.exposure, self.sample.shape[0]))
+        fmt = 'Outcome:          {:<15} Target Observations:  {:<20}'
+        print(fmt.format(self.outcome, self.target.shape[0]))
+        fmt = 'Target estimate:  {:<15}'
+        if self.generalize:
+            print(fmt.format('Generalize'))
+        else:
+            print(fmt.format('Transport'))
+
         print('----------------------------------------------------------------------')
-        print('Risk Ratio: ', round(float(self.risk_ratio), decimal))
+        print('Risk Difference: ', round(float(self.risk_difference), decimal))
+        print('Risk Ratio:      ', round(float(self.risk_ratio), decimal))
         print('======================================================================')
