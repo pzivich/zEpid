@@ -143,10 +143,19 @@ class TestGEstimationSNM:
         ipmw.fit()
         df['ipcw'] = ipmw.Weight
 
-        snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45', weights='ipcw')
+        snm = GEstimationSNM(df.dropna(), exposure='art', outcome='cd4_wk45', weights='ipcw')
         snm.exposure_model('male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0', print_results=False)
         snm.structural_nested_model('art')
         snm.fit()
+
+        npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
+
+        snm = GEstimationSNM(df.dropna(), exposure='art', outcome='cd4_wk45', weights='ipcw')
+        snm.exposure_model('male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0', print_results=False)
+        snm.structural_nested_model('art')
+        snm.fit(solver='search')
+
+        npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
 
     def test_match_r_continuous(self, data_c):
         # Comparing to R's DTRreg
