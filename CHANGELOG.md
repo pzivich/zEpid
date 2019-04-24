@@ -4,7 +4,24 @@
 G-estimation of structural nested models (for a single time point) are now available through `GEstimationSNM`. Psi 
 parameters can be calculated using a closed form solution or via a `scipy` optimization procedure
 
+Survival analysis g-formula is now implemented with `SurvivalGFormula`. This g-formula implementation is for 
+time-to-event data, where the treatment/exposure is determined at baseline. This does not allow for time-varying 
+exposures. For time-varying exposures, `MonteCarloGFormula` or `IterativeCondGFormula` should be used instead
 
+`summary()` functions have been updated to provide more information regarding the model
+
+Added a calculator function for Rubin's Rule to merge multiple imputation results. Input is a list of point estimates 
+and a list of variance estimates for `rubins_rules()`. This function returns a summary point estimate and summary 
+variance
+
+Weighted models are switched from `GEE` to `GLM` when possible. GEE takes extra computation time. GLM provides the 
+correct point estimates, but wrong variance. Since I don't need the variance to be correct from most models, I switched 
+to GLM. This improves the speed of fitting weighted models. Especially important for bootstrapping procedures
+
+Aligned `exposure` and `outcome` references with the causal functions. All classes now use the same labels for the 
+exposure and the outcome column labels.
+
+Updated ReadTheDocs website
 
 ### v0.6.1
 ``AIPTW`` now supports continuous outcomes (normal or Poisson). Format is the same as `TMLE`.
