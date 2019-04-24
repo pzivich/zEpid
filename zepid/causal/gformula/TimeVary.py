@@ -688,21 +688,22 @@ class IterativeCondGFormula:
         linkdist = sm.families.family.Binomial()
 
         # Step 1: Creating indicator for individuals who followed counterfactual outcome
-        adhere = self._identify_adherence_(observations=np.matrix(self.gf[self.exposure]), plan=treatment)
-        y_adhere = pd.DataFrame(self.gf[self.outcome].values * adhere.values,
-                                columns=[self.outcome], index=self.gf.index)
-        y_adhere = y_adhere.where(~y_adhere.any(axis=1), y_adhere.fillna(1), axis=1)
+        # TODO remove this. Only needed for TMLE's IPTW calculation
+        # adhere = self._identify_adherence_(observations=np.matrix(self.gf[self.exposure]), plan=treatment)
+        # y_adhere = pd.DataFrame(self.gf[self.outcome].values * adhere.values,
+        #                        columns=[self.outcome], index=self.gf.index)
+        # y_adhere = y_adhere.where(~y_adhere.any(axis=1), y_adhere.fillna(1), axis=1)
 
         # Step 2: Sequential Regression Estimation
         treat_plan = ['_tplan_' + str(p) for p in range(treatment.shape[1])]
         df = self.gf.copy()
         df[treat_plan] = pd.DataFrame(treatment)
-        adhere_cols = list(y_adhere.columns)
-        df[adhere_cols] = y_adhere
+        # adhere_cols = list(y_adhere.columns)
+        # df[adhere_cols] = y_adhere
 
         items_to_loop = zip(self.exposure[::-1], self.outcome[::-1], self._modelform[::-1],
-                            treat_plan[::-1], adhere_cols[::-1])
-        for e, d, m, t, f in items_to_loop:
+                            treat_plan[::-1])  # , adhere_cols[::-1])
+        for e, d, m, t in items_to_loop:
             # 2.1) Fit the model to the observed data
             if self.outcome[::-1].index(d) == 0:
                 fm = smf.glm(d + ' ~ ' + m, df, family=linkdist).fit()  # GLM
