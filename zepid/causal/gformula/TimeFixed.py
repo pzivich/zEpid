@@ -372,6 +372,7 @@ class SurvivalGFormula:
     Examples
     --------
     Setting up data in long format
+
     >>> from zepid import load_sample_data
     >>> from zepid.causal.gformula import SurvivalGFormula
     >>> import matplotlib.pyplot as plt
@@ -386,21 +387,25 @@ class SurvivalGFormula:
     >>> df['t_cu'] = df['t']**3
 
     Estimating the time-to-event mean effect under treat-all plan
+
     >>> sgf = SurvivalGFormula(df.drop(columns=['dead']), idvar='id', exposure='art', outcome='d', time='t')
     >>> sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu')
     >>> sgf.fit(treatment='all')
     >>> print(sgf.marginal_outcome)
 
     Plotting cumulative incidence function
+
     >>> sgf.plot(color='r')
     >>> plt.show()
 
     Estimating the time-to-event mean effect under treat-none plan
+
     >>> sgf = SurvivalGFormula(df.drop(columns=['dead']), idvar='id', exposure='art', outcome='d', time='t')
     >>> sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu')
     >>> sgf.fit(treatment='none')
 
     Estimating the time-to-event mean effect under custom treatment plan
+    
     >>> sgf = SurvivalGFormula(df.drop(columns=['dead']), idvar='id', exposure='art', outcome='d', time='t')
     >>> sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu')
     >>> sgf.fit(treatment="((g['age0']>=25) & (g['male']==0))")
