@@ -47,3 +47,4 @@ Others
   odds_to_probability
   counternull_pvalue
   semibayes
+  rubins_rules

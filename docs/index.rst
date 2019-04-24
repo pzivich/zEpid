@@ -48,6 +48,8 @@ Contents:
 
   Time-Fixed Exposures
   Time-Varying Exposures
+  Generalizability
+  Missing Data
   Graphics
   Sensitivity Analyses
   Reference/index
