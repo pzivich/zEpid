@@ -46,8 +46,8 @@ Contents:
 .. toctree::
   :maxdepth: 3
 
-  Time-Fixed Exposures
-  Time-Varying Exposures
+  Time-Fixed Exposure
+  Time-Varying Exposure
   Generalizability
   Missing Data
   Graphics
