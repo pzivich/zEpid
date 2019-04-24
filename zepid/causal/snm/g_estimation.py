@@ -391,7 +391,8 @@ class GEstimationSNM:
         fmt = 'Method:           {:<24} No. Iterations:   {:<10}'
         print(fmt.format('Nelder-Mead', optimized_function.nit))
         fmt = 'Alpha values:     {:<24} Optimized:        {:<10}'
-        print(fmt.format(alpha_values, str(optimized_function.success)))
+        print(optimized_function.success)
+        print(fmt.format(np.str(alpha_values), str(optimized_function.success)))
 
     @staticmethod
     def _print_closed_results():
