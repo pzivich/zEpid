@@ -1,7 +1,7 @@
 zepid.causal.gformula.TimeFixed.SurvivalGFormula
 =================================================
 
-.. currentmodule:: zepid.causal.gformula.SurvivalGFormula
+.. currentmodule:: zepid.causal.gformula.TimeFixed
 
 .. autoclass:: SurvivalGFormula
    :members:

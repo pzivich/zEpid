@@ -72,12 +72,12 @@ Targeted Maximum Likelihood Estimator
 G-estimation of SNM
 -------------------
 
-.. currentmodule:: zepid.causal.snm.GEstimationSNM
+.. currentmodule:: zepid.causal.snm.g_estimation
 
 .. autosummary::
    :toctree: generated/
 
-   GestimationSNM
+   GEstimationSNM
 
 Generalizability / Transportability
 -----------------------------------

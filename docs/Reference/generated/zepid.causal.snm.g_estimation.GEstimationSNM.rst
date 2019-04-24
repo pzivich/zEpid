@@ -1,7 +1,7 @@
 zepid.causal.snm.g\_estimation.GEstimationSNM
 =============================================
 
-.. currentmodule:: zepid.causal.snm.GEstimation
+.. currentmodule:: zepid.causal.snm.g_estimation
 
 .. autoclass:: GEstimationSNM
    :members:
