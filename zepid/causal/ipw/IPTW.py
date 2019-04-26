@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from .utils import propensity_score
 
 from zepid.calc import probability_to_odds
+from zepid.causal.utils import exposure_machine_learner
 
 
 class IPTW:
@@ -198,22 +199,8 @@ class IPTW:
             d = self.denominator_model.predict(self.df)
         else:
             data = patsy.dmatrix(model_denominator + ' - 1', self.df)
-            try:
-                fm = custom_model_denominator.fit(X=data, y=self.df[self.ex])
-            except TypeError:
-                raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
-                                "covers both sklearn and supylearner. If there is a predictive model you would "
-                                "like to use, please open an issue at https://github.com/pzivich/zepid and I "
-                                "can work on adding support")
-            if print_results and hasattr(fm, 'summarize'):
-                fm.summarize()
-            if hasattr(fm, 'predict_proba'):
-                d = fm.predict_proba(data)[:, 1]
-            elif hasattr(fm, 'predict'):
-                d = fm.predict(data)
-            else:
-                raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
-            self.denominator_model = fm
+            d = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.ex]),
+                                         ml_model=custom_model_numerator, print_results=print_results)
 
         self.df['__denom__'] = d
 
@@ -227,21 +214,8 @@ class IPTW:
 
             else:
                 data = patsy.dmatrix(model_numerator + ' - 1', self.df)
-                try:
-                    fm = custom_model_numerator.fit(X=data, y=self.df[self.ex])
-                except TypeError:
-                    raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
-                                    "covers both sklearn and supylearner. If there is a predictive model you would "
-                                    "like to use, please open an issue at https://github.com/pzivich/zepid and I "
-                                    "can work on adding support")
-                if print_results and hasattr(fm, 'summarize'):
-                    fm.summarize()
-                if hasattr(fm, 'predict_proba'):
-                    n = fm.predict_proba(data)[:, 1]
-                elif hasattr(fm, 'predict'):
-                    n = fm.predict(data)
-                else:
-                    raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+                n = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.ex]),
+                                             ml_model=custom_model_numerator, print_results=print_results)
 
         # If unstabilized, numerator is always 1
         else:
