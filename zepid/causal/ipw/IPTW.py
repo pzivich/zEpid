@@ -5,8 +5,8 @@ import pandas as pd
 from scipy.stats.kde import gaussian_kde
 from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
-from .utils import propensity_score
 
+from zepid.causal.utils import propensity_score
 from zepid.calc import probability_to_odds
 from zepid.causal.utils import exposure_machine_learner
 
@@ -199,8 +199,9 @@ class IPTW:
             d = self.denominator_model.predict(self.df)
         else:
             data = patsy.dmatrix(model_denominator + ' - 1', self.df)
+            self.denominator_model = 'User-specified model'
             d = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.ex]),
-                                         ml_model=custom_model_numerator, print_results=print_results)
+                                         ml_model=custom_model_denominator, print_results=print_results)
 
         self.df['__denom__'] = d
 

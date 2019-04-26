@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy.optimize
 
-from zepid.causal.ipw.utils import propensity_score
+from zepid.causal.utils import propensity_score
 
 
 class GEstimationSNM:

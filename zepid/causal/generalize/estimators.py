@@ -3,7 +3,7 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from zepid.causal.ipw.utils import propensity_score
+from zepid.causal.utils import propensity_score
 
 
 class IPSW:

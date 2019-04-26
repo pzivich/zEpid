@@ -1,7 +1,8 @@
 import warnings
 import numpy as np
 import pandas as pd
-from .utils import propensity_score
+
+from zepid.causal.utils import propensity_score
 
 
 class IPMW:

@@ -6,7 +6,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from scipy.stats import logistic, norm
 
-from zepid.causal.ipw import propensity_score
+from zepid.causal.utils import propensity_score
 from zepid.calc import probability_to_odds
 from zepid.causal.utils import exposure_machine_learner, outcome_machine_learner, missing_machine_learner
 

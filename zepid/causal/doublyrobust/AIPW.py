@@ -5,8 +5,8 @@ import statsmodels.formula.api as smf
 from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
-from zepid.causal.ipw import propensity_score
-
+from zepid.causal.utils import propensity_score
+from zepid.causal.utils import exposure_machine_learner, outcome_machine_learner
 
 class AIPTW:
     r"""Augmented inverse probablity weight estimator. This is a simple implementation of AIPW for a time-fixed exposure
