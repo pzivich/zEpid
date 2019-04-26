@@ -593,3 +593,78 @@ class IPTW:
 
         return np.array(cv2)
 
+
+class StochasticIPTW:
+    r"""Calculates the IPTW estimate for a stochastic treatment. `StochasticIPTW` will returns the estimated marginal
+     outcome for that treatment plan. This is distinct from `IPTW`, which returns an array of weights. For confidence
+     intervals, a bootstrapping procedure needs to be used.
+
+    The formula for IPTW for a stochastic treatment is
+
+    .. math::
+
+        \pi_i = \frac{\bar{\Pr}(A=a|L)}{\Pr(A=a|L)}
+
+    where :math:`\bar{\Pr}` is the new probability of treatment under the proposed stochastic treatment. This
+    probability can be unconditional (everyone treated at some constant percent) or it can be conditional on observed
+    covariates. The denominator is the same estimated probability of treatment in the standard IPTW formula. Basically,
+    we are manipulating how many the treated individuals represent in a new pseudo-population
+
+    Note
+    ----
+    `StochasticIPTW` estimates the marginal outcome at a specified treatment distribution. Unlike IPTW, it does not
+    immediately result in a comparison between two treatment levels (i.e. we are not estimating a marginal structural
+    model in this case). For a comparison, two different version would need to be specified.
+
+    `StochasticIPTW` does not contain the diagnostics that are contained within `IPTW`. This IPTW estimation approach
+    makes weaker assumptions regarding positivity and causal consistency.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe object containing all variables of interest
+    treatment : str
+        Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment,
+        while 0 indicates no treatment
+    outcome: str
+        Variable name of outcome variable of interest. May be binary or continuous.
+    weights: str, optional
+        Optional column for weights. If specified, a weighted regression model is instead used to estimate the inverse
+        probability of treatment weights. This optional is useful in the following scenario; some confounder
+        information is missing and IPMW was used to correct for missing data. IPTW should be estimated with the IPMW
+        to standardize to the correct pseudo-population.
+
+    """
+
+    def __init__(self, df, treatment, outcome, weights=None):
+        self.df = df.copy()
+        self.treatment = treatment
+        self.outcome = outcome
+
+        self.weights = weights
+
+    def treatment_model(self, model):
+        r"""Specify the model for the observed treatment
+
+        .. math::
+
+            \widehat{\Pr}(A=a|L)
+
+        Parameters
+        ----------
+        model: str
+            Model
+        """
+
+    def fit(self, treatment):
+        """Estimates the marginal outcome of the specified treatment plan
+        """
+
+    def summary(self, decimal=3):
+        """Prints the summary information for the marginal outcome under the treatment plan of interest.
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
+        """
