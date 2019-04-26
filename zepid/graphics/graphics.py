@@ -13,8 +13,9 @@ import matplotlib.ticker as mticker
 
 
 class EffectMeasurePlot:
-    """Used to generate effect measure (AKA forest) plots. See the 'Notes' section for a rough example of how the
-    plots are set up
+    """Used to generate effect measure (AKA forest) plots. Estimates and confidence intervals are plotted in a diagram
+    on the left and a table of the corresponding estimates is provided in the same plot. See the Graphics page on
+    ReadTheDocs examples of the plots
 
     Parameters
     --------------
@@ -30,23 +31,11 @@ class EffectMeasurePlot:
         List of numbers for upper confidence limits to plot. If point estimate has
         trailing zeroes, input as a character object rather than a float
 
-    Notes
-    ----------
-    .. code::
-
-            _____________________________________________      Measure     % CI
-            |                                           |
-        1   |        --------o-------                   |       x        n, 2n
-            |                                           |
-        2   |                   ----o----               |       w        m, 2m
-            |                                           |
-            |___________________________________________|
-                #           #           #           #
-
     Examples
     -------------
     Setting up the data to plot
 
+    >>> from matplotlib.pyplot as plt
     >>> from zepid.graphics import EffectMeasurePlot
     >>> lab = ['One','Two']
     >>> emm = [1.01,1.31]
@@ -62,6 +51,7 @@ class EffectMeasurePlot:
     Generating matplotlib axes object of forest plot
 
     >>> x.plot(t_adjuster=0.13)
+    >>> plt.show()
     """
     def __init__(self, label, effect_measure, lcl, ucl):
         self.df = pd.DataFrame()
@@ -648,7 +638,11 @@ def dynamic_risk_plot(risk_exposed, risk_unexposed, measure='RD', loess=True, lo
     --------
     See graphics documentation or causal documentation for a detailed example.
 
+    >>> import matplotlib.pyplot as plt
+    >>> from zepid.graphics import dynamic_risk_plot
+
     >>> dynamic_risk_plot(a, b, loess=True)
+    >>> plt.show()
 
     References
     ----------

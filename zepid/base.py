@@ -237,7 +237,7 @@ class RiskDifference:
 
     .. math::
 
-        SE = \left(\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)}\right)^{\frac{1}{2}}
+        SE = \left(\frac{R_1 \times (1 - R_1)}{a+b} + \frac{R_0 \times (1-R_0)}{c+d}\right)^{\frac{1}{2}}
 
     In addition to confidence intervals, the Frechet bounds are calculated as well. These probability bounds are useful
     for a comparison. Within these bounds, the true causal risk difference in the sample must live. The only
@@ -480,7 +480,7 @@ class NNT:
 
     .. math::
 
-        SE = \left(\frac{a*b}{(a+b)^2 * (a+b-1)} + \frac{c*d}{(c*d)^2 * (c+d-1)}\right)^{\frac{1}{2}}
+        SE = \left(\frac{R_1 \times (1 - R_1)}{a+b} + \frac{R_0 \times (1-R_0)}{c+d}\right)^{\frac{1}{2}}
 
     Note
     ----
@@ -1018,7 +1018,7 @@ class IncidenceRateDifference:
 
     .. math::
 
-        SE = \left(\frac{a}{t1^2} + \frac{c}{t2^2}\right)^{\frac{1}{2}}
+        SE = \left(\frac{a}{t_1^2} + \frac{c}{t_0^2}\right)^{\frac{1}{2}}
 
     Note
     ----

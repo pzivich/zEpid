@@ -121,13 +121,13 @@ def incidence_rate_ci(events, time, alpha=0.05):
 
     .. math::
 
-        I = \frac{a}{T}
+        I = \frac{a}{t}
 
     Incidence rate standard error is
 
     .. math::
 
-        SE = \left(\frac{a}{T^2}\right)^\frac{1}{2})
+        SE = \left(\frac{a}{t^2}\right)^\frac{1}{2})
 
     Parameters
     -------------
@@ -257,7 +257,7 @@ def risk_difference(a, b, c, d, alpha=0.05):
 
     .. math::
 
-        SE = \left(\frac{a b}{(a+b)^2   (a+b-1)} + \frac{c d}{(c d)^2  (c+d-1)}\right)^{\frac{1}{2}}
+        SE = \left(\frac{R_1 \times (1 - R_1)}{a+b} + \frac{R_0 \times (1-R_0)}{c+d}\right)^{\frac{1}{2}}
 
     Parameters
     ------------
@@ -325,7 +325,7 @@ def number_needed_to_treat(a, b, c, d, alpha=0.05):
 
     .. math::
 
-        SE = \left(\frac{a b}{(a+b)^2   (a+b-1)} + \frac{c d}{(c d)^2  (c+d-1)}\right)^{\frac{1}{2}}
+        SE = \left(\frac{R_1 \times (1 - R_1)}{a+b} + \frac{R_0 \times (1-R_0)}{c+d}\right)^{\frac{1}{2}}
 
     Note
     ----
@@ -686,7 +686,7 @@ def probability_to_odds(prob):
 
     .. math::
 
-        O = \frac{P}{1 - P}
+        O = \frac{\Pr}{1 - \Pr}
 
     Parameters
     ---------------
@@ -721,7 +721,7 @@ def odds_to_probability(odds):
 
     .. math::
 
-        P = \frac{O}{1 + O}
+        \Pr = \frac{O}{1 + O}
 
     Parameters
     ---------------
@@ -750,8 +750,7 @@ def odds_to_probability(odds):
 
 
 def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
-    r"""Calculates the counternull based on Rosenthal R & Rubin DB (1994). It is useful to prevent over-interpretation
-    of results
+    r"""Calculates the counternull p-value. It is useful to prevent over-interpretation of results
 
     Parameters
     -------------
@@ -764,9 +763,9 @@ def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     sided : string, optional
         Whether to compute the upper one-sided, lower one-sided, or two-sided counternull
         p-value. Default is the two-sided
-        * 'upper'     Upper one-sided p-value
-        * 'lower'     Lower one-sided p-value
-        * 'two'       Two-sided p-value
+            * 'upper'     Upper one-sided p-value
+            * 'lower'     Lower one-sided p-value
+            * 'two'       Two-sided p-value
     alpha : float, optional
         Alpha level for p-value. Default is 0.05. Verify that this is the same alpha used to generate confidence
         intervals
@@ -821,12 +820,16 @@ def semibayes(prior_mean, prior_lcl, prior_ucl, mean, lcl, ucl, ln_transform=Fal
     continuous measure. See chapter 18 of Modern Epidemiology 3rd Edition (specifically pages 334, 340 for this
     procedure)
 
-    The posterior estimate and variance are calculated as
+    The posterior estimate is calculated as
 
     .. math::
 
-        E_{posterior} = \frac{\left(E_{prior} \frac{1}{Var_{prior}}\right) +
-        (E \frac{1}{Var})}{E_{prior} \frac{1}{Var_{prior}}}
+        E_{posterior} = \frac{\left(E_{prior} \times \frac{1}{Var_{prior}}\right) +
+        (E \times \frac{1}{Var})}{E_{prior} \times \frac{1}{Var_{prior}}}
+
+    and the posterior variance is
+
+    .. math::
 
         Var_{posterior} = \frac{1}{\frac{1}{Var_{prior}} + \frac{1}{Var}}
 
@@ -1077,7 +1080,7 @@ def ppv_converter(sensitivity, specificity, prevalence):
 
     .. math::
 
-        PPV = \frac{Se P}{Se P + (1-Sp) (1-P)}
+        PPV = \frac{Se \times P}{Se \times P + (1-Sp) (1-P)}
 
     Parameters
     -------------
@@ -1115,7 +1118,7 @@ def npv_converter(sensitivity, specificity, prevalence):
 
     .. math::
 
-        NPV = \frac{Sp (1-P)}{(1-Se) P + Sp (1-P)}
+        NPV = \frac{Sp \times (1-P)}{(1-Se) \times P + Sp \times (1-P)}
 
     Parameters
     -------------

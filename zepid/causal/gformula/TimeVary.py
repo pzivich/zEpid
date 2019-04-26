@@ -19,6 +19,12 @@ class MonteCarloGFormula:
         following is an example that selects those whose age is 25 or older and are females
         Ex) treatment="((g['age0']>=25) & (g['male']==0))
 
+    Note
+    ----
+    Custom treatments use a "magic-g" parameter. Internally, the g-formula implementation names the data set as `g`.
+    Therefore, when using custom treatment specifications, the data set must be referred to as `g` when following
+    the pandas selection syntax
+
     Currently, only binary exposures and a binary outcomes are supported. Logistic regression models are used to
     predict exposures and outcomes via statsmodels.
     See http://zepid.readthedocs.io/en/latest/ for an example (highly recommended)
@@ -598,6 +604,7 @@ class IterativeCondGFormula:
     >>> print(icgf.marginal_outcome)
 
     To estimate 'Y2', we can use a similar procedure but restrict our list of exposures and outcomes
+
     >>> icgf = IterativeCondGFormula(df, exposures=['A1', 'A2'], outcomes=['Y1', 'Y2'])
     >>> icgf.outcome_model(models=['A1 + L1', 'A2 + A1 + L2'], print_results=False)
     >>> icgf.fit(treatments=[1, 1])

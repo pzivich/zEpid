@@ -52,8 +52,8 @@ class IPSW:
         IPSW are multiplied to calculate new weights
         When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
 
-    Notes
-    -----
+    Note
+    ----
     There are two related concepts; generalizability and transportability. Generalizability is when your study
     sample is part of your target population. For example, you want to generalize results from California to the
     entire United States. Transportability is when your study sample is not part of your target population. For
@@ -271,8 +271,8 @@ class GTransportFormula:
         Sampling weights may be used for a transportability problem? Either way, I would like to keep this as an
         option (to mirror TimeFixedGFormula)
 
-    Notes
-    -----
+    Note
+    ----
     There are two related concepts; generalizability and transportability. Generalizability is when your study
     sample is part of your target population. For example, you want to generalize results from California to the
     entire United States. Transportability is when your study sample is not part of your target population. For
@@ -488,13 +488,13 @@ class AIPSW:
         and the IPSW are multiplied to calculate new weights
         When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
 
-    Notes
-    -----
+    Note
+    ----
     There are two related concepts; generalizability and transportability. Generalizability is when your study
     sample is part of your target population. For example, you want to generalize results from California to the
     entire United States. Transportability is when your study sample is not part of your target population. For
     example, we want to apply our results from California to Canada. Depending on the scenario, how the marginal
-    risk difference is calculated is slightly different. `GTransportFormula` allows for both of these problems
+    risk difference is calculated is slightly different. `AIPSW` allows for both of these problems
 
     Examples
     --------

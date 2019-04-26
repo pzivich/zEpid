@@ -38,7 +38,11 @@ class TimeFixedGFormula:
           The following is an example that selects those whose age is 30 or younger and are females:
           ``treatment="((g['age0']<=30) & (g['male']==0))``
 
-    `TimeFixedGFormula`
+    Note
+    ----
+    Custom treatments use a "magic-g" parameter. Internally, the g-formula implementation names the data set as `g`.
+    Therefore, when using custom treatment specifications, the data set must be referred to as `g` when following
+    the pandas selection syntax
 
     Parameters
     ----------
@@ -349,10 +353,16 @@ class TimeFixedGFormula:
 
 class SurvivalGFormula:
     r"""G-formula for time-to-event data where the exposure is fixed at baseline. Only supports binary exposures and
-    outcomes. Outcomes are predicted using a logistic regression model
+    outcomes. Outcomes are predicted using a logistic regression model. Input data set should be in a long format,
+    where each row corresponds to an individual observed for one unit of time
 
-    Input data set should be in a long format, where each row corresponds to an individual observed for one unit of
-    time. The format is the same as the IPCW format
+    Key options for treatments:
+
+        * `'all'`     -all individuals are given treatment
+        * `'none'`    -no individuals are given treatment
+        * custom treatments -create a custom treatment. When specifying this, the dataframe must be referred to as 'g'.
+          The following is an example that selects those whose age is 30 or younger and are females:
+          ``treatment="((g['age0']<=30) & (g['male']==0))``
 
     Parameters
     ----------
@@ -368,6 +378,12 @@ class SurvivalGFormula:
         Column name for time variable
     weights : str, optional
         Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
+
+    Note
+    ----
+    Custom treatments use a "magic-g" parameter. Internally, the g-formula implementation names the data set as `g`.
+    Therefore, when using custom treatment specifications, the data set must be referred to as `g` when following
+    the pandas selection syntax
 
     Examples
     --------
@@ -405,21 +421,13 @@ class SurvivalGFormula:
     >>> sgf.fit(treatment='none')
 
     Estimating the time-to-event mean effect under custom treatment plan
-    
+
     >>> sgf = SurvivalGFormula(df.drop(columns=['dead']), idvar='id', exposure='art', outcome='d', time='t')
     >>> sgf.outcome_model(model='art + male + age0 + cd40 + dvl0 + t + t_sq + t_cu')
     >>> sgf.fit(treatment="((g['age0']>=25) & (g['male']==0))")
 
     Notes
     -----
-    Key options for treatments:
-
-        * `'all'`     -all individuals are given treatment
-        * `'none'`    -no individuals are given treatment
-        * custom treatments -create a custom treatment. When specifying this, the dataframe must be referred to as 'g'.
-          The following is an example that selects those whose age is 30 or younger and are females:
-          ``treatment="((g['age0']<=30) & (g['male']==0))``
-
     The following process is used to estimate the cumulative incidence function.
     (1) A pooled logistic regression model is fit to the data. The model should predict the outcome conditional on
     treatment, baseline confounders, and time. Time should be modeled using flexible functional forms (e.g. splines)
