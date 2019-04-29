@@ -710,9 +710,12 @@ class StochasticIPTW:
         print('======================================================================')
         print('                       Stochastic IPTW')
         print('======================================================================')
-        print('No. Observations', self.df.shape[0])
+        fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
+        print(fmt.format(self.treatment, self.df.shape[0]))
+        fmt = 'Outcome:          {:<15} Treatment Model:      {:<20}'
+        print(fmt.format(self.outcome, 'Logistic'))
         print('======================================================================')
-        print('Risk under treatment plan ', round(self.marginal_outcome, decimal))
+        print('Risk:  ', round(self.marginal_outcome, decimal))
         print('======================================================================')
 
     def _check_conditional(self, conditional):
