@@ -74,9 +74,11 @@ class IPTW:
     Setting up environment
 
     >>> import matplotlib.pyplot as plt
-    >>> from zepid import load_sample_data
+    >>> from zepid import load_sample_data, spline
     >>> from zepid.causal.ipw import IPTW
-    >>> df = load_sample_data(False)
+    >>> df = load_sample_data(timevary=False).drop(columns=['cd4_wk45'])
+    >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
+    >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
 
     Calculate stabilized IPTW
 
@@ -595,9 +597,9 @@ class IPTW:
 
 
 class StochasticIPTW:
-    r"""Calculates the IPTW estimate for a stochastic treatment. `StochasticIPTW` will returns the estimated marginal
-     outcome for that treatment plan. This is distinct from `IPTW`, which returns an array of weights. For confidence
-     intervals, a bootstrapping procedure needs to be used.
+    r"""Calculates the IPTW estimate for stochastic treatment plans. `StochasticIPTW` will returns the estimated
+    marginal outcome for that treatment plan. This is distinct from `IPTW`, which returns an array of weights. For
+    confidence intervals, a bootstrapping procedure needs to be used.
 
     The formula for IPTW for a stochastic treatment is
 
@@ -634,8 +636,38 @@ class StochasticIPTW:
         information is missing and IPMW was used to correct for missing data. IPTW should be estimated with the IPMW
         to standardize to the correct pseudo-population.
 
-    """
+    Examples
+    --------
+    Loading data
 
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.ipw import StochasticIPTW
+    >>> df = load_sample_data(timevary=False).drop(columns=['cd4_wk45'])
+    >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
+    >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
+
+    Estimating marginal outcome under treatment plan where 80% are randomly treated
+
+    >>> ipw = StochasticIPTW(df, treatment='art', outcome='dead')
+    >>> ipw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipw.fit(p=0.8)
+    >>> ipw.summary()
+
+    Estimating marginal outcome under treatment plan where 10% are randomly treated
+
+    >>> ipw.fit(p=0.1)
+    >>> ipw.summary()
+
+    Estimating marginal outcome under treatment plan where 75% of men are treated and 90% of women
+
+    >>> ipw.fit(p=[0.75, 0.90], conditional=["df['male']==1", "df['male']==0"])
+    >>> ipw.summary()
+
+    References
+    ----------
+    Muñoz ID & van der Laan M. (2012). Population intervention causal effects based on stochastic interventions.
+    Biometrics, 68(2), 541-549.
+    """
     def __init__(self, df, treatment, outcome, weights=None):
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. StochasticIPTW will drop all missing data. "
@@ -652,7 +684,8 @@ class StochasticIPTW:
         self._pdenom_ = None
 
     def treatment_model(self, model, print_results=True):
-        r"""Specify the model for the observed treatment
+        r"""Specify the parametric regression model for the observed treatment conditional on the sufficient adjustment
+        set. This model estimates the following component of the stochastic IPTW weights
 
         .. math::
 
@@ -660,10 +693,10 @@ class StochasticIPTW:
 
         Parameters
         ----------
-        model: str
-            Model
+        model : str
+            String listing variables to predict the exposure via `patsy` syntax. For example, `'var1 + var2 + var3'`
         print_results : bool, optional
-
+            Whether to print the model results from the regression models. Default is True
         """
         # Calculating denominator probabilities
         denominator_model = propensity_score(self.df, self.treatment + ' ~ ' + model,
@@ -672,7 +705,23 @@ class StochasticIPTW:
         self._pdenom_ = denominator_model.predict(self.df)
 
     def fit(self, p, conditional=None):
-        """Estimates the marginal outcome of the specified treatment plan
+        """Estimates the mean outcome under the specified stochastic treatment plan.As currently implemented, `p`
+        percent of the population is randomly treated. Unlike the stochastic g-formula, we only need to estimate the
+        marginal outcome once.
+
+        Parameters
+        ----------
+        p : float, list
+            Percent of the population to randomly treat
+        conditional : list, optional
+            Exclusive conditions to place on the data set for treatment percents. If specified, must match the length
+            of the list of probabilities in `p`. For specification of conditions, the data set should be referred to
+            as `df` in strings. For example, `"df['male']==1"` restricts that probability to only males
+
+        Returns
+        -------
+        marginal_outcome
+            Gains marginal outcome attribute. Summary function can also be called afterwards
         """
         if self._pdenom_ is None:
             raise ValueError("The treatment_model() function must be specified before the fit() function")
@@ -719,7 +768,7 @@ class StochasticIPTW:
         print('======================================================================')
 
     def _check_conditional(self, conditional):
-        """Check that conditionals are exclusive for the stochastic fit process
+        """Check that conditionals are exclusive for the stochastic fit process. Generates a warning if not true
         """
         df = self.df.copy()
         a = np.array([0] * df.shape[0])

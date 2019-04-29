@@ -11,6 +11,7 @@ Inverse Probability Weights
    :toctree: generated/
 
    IPTW
+   StochasticIPTW
 
 .. currentmodule:: zepid.causal.ipw.IPMW
 
