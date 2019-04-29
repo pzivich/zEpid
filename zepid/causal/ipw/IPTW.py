@@ -136,6 +136,13 @@ class IPTW:
     See http://chrp.org/love/JSM2004RoundTableHandout. pdf, 1364.
     """
     def __init__(self, df, treatment, weights=None, stabilized=True, standardize='population'):
+
+        warnings.warn("In v0.8.0, IPTW will change to directly estimate the marginal strucutural model for users. "
+                      "The syntax for IPTW will substantially change for this update. The marginal structural model "
+                      "will need to be specified by users. The major advantage is that all calculations will be done"
+                      "by IPTW. The calculated weights will still be able to extracted. Additionally, the "
+                      "regression_models() function will be replaced by treatment_model()", UserWarning)
+
         self.denominator_model = None
         self.numerator_model = None
         self.__mdenom = None
