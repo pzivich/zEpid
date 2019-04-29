@@ -637,13 +637,21 @@ class StochasticIPTW:
     """
 
     def __init__(self, df, treatment, outcome, weights=None):
-        self.df = df.copy()
+        if df.dropna().shape[0] != df.shape[0]:
+            warnings.warn("There is missing data in the dataset. StochasticIPTW will drop all missing data. "
+                          "StochasticIPTW will fit " + str(df.dropna().shape[0]) + ' of ' + str(df.shape[0]) +
+                          " observations", UserWarning)
+        self.df = df.copy().dropna().reset_index()
+
         self.treatment = treatment
         self.outcome = outcome
-
         self.weights = weights
 
-    def treatment_model(self, model):
+        self.marginal_outcome = np.nan
+
+        self._pdenom_ = None
+
+    def treatment_model(self, model, print_results=True):
         r"""Specify the model for the observed treatment
 
         .. math::
@@ -654,11 +662,42 @@ class StochasticIPTW:
         ----------
         model: str
             Model
-        """
+        print_results : bool, optional
 
-    def fit(self, treatment):
+        """
+        # Calculating denominator probabilities
+        denominator_model = propensity_score(self.df, self.treatment + ' ~ ' + model,
+                                             weights=self.weights,
+                                             print_results=print_results)
+        self._pdenom_ = denominator_model.predict(self.df)
+
+    def fit(self, p, conditional=None):
         """Estimates the marginal outcome of the specified treatment plan
         """
+        if self._pdenom_ is None:
+            raise ValueError("The treatment_model() function must be specified before the fit() function")
+        if np.any(np.array(p) >= 1):
+            raise ValueError("All specified treatment probabilities must be less than 1")
+
+        df = self.df.copy()
+
+        if conditional is None:
+            df['_numer_'] = np.where(df[self.treatment] == 1, p, 1 - p)
+        else:
+            self._check_conditional(conditional=conditional)
+            df['_numer_'] = np.nan
+            for c, prop in zip(conditional, p):
+                df['_numer_'] = np.where(eval(c),
+                                         np.where(df[self.treatment] == 1, prop, 1 - prop),
+                                         df['_numer_'])
+
+        df['_denom_'] = np.where(df[self.treatment] == 1, self._pdenom_, 1 - self._pdenom_)
+        df['_ipw_'] = df['_numer_'] / df['_denom_']
+
+        if self.weights is not None:
+            df['_ipw_'] = df['_ipw_'] * df[self.weights]
+
+        self.marginal_outcome = np.average(df[self.outcome], weights=df['_ipw_'])
 
     def summary(self, decimal=3):
         """Prints the summary information for the marginal outcome under the treatment plan of interest.
@@ -668,3 +707,22 @@ class StochasticIPTW:
         decimal : int, optional
             Number of decimal places to display. Default is 3
         """
+        print('======================================================================')
+        print('                       Stochastic IPTW')
+        print('======================================================================')
+        print('No. Observations', self.df.shape[0])
+        print('======================================================================')
+        print('Risk under treatment plan ', round(self.marginal_outcome, decimal))
+        print('======================================================================')
+
+    def _check_conditional(self, conditional):
+        """Check that conditionals are exclusive for the stochastic fit process
+        """
+        df = self.df.copy()
+        a = np.array([0] * df.shape[0])
+        for c in conditional:
+            a = np.add(a, np.where(eval(c), 1, 0))
+
+        if np.sum(np.where(a > 1, 1, 0)):
+            warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
+                          "the conditions that designate each category should be exclusive", UserWarning)
