@@ -32,7 +32,7 @@ def trapezoidal(mini, mode1, mode2, maxi, size=None):
     >>>trapezoidal(mini=0.2, mode1=0.3, mode2=0.5, maxi=0.6)
 
     100 draws from a trapezoidal distribution
-    
+
     >>>trapezoidal(mini=0.2, mode1=0.3, mode2=0.5, maxi=0.6, size=100)
 
     References
