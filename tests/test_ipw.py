@@ -9,7 +9,7 @@ from statsmodels.genmod.families import family, links
 from sklearn.linear_model import LogisticRegression
 
 from zepid import load_sample_data, load_monotone_missing_data, spline
-from zepid.causal.ipw import IPTW, IPMW, IPCW
+from zepid.causal.ipw import IPTW, IPMW, IPCW, StochasticIPTW
 
 
 @pytest.fixture
@@ -18,6 +18,13 @@ def sdata():
     df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
     df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
     return df.drop(columns=['cd4_wk45'])
+
+@pytest.fixture
+def cdata():
+    df = load_sample_data(False)
+    df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+    df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
+    return df.drop(columns=['dead'])
 
 
 class TestIPTW:
@@ -228,6 +235,123 @@ class TestIPTW:
         npt.assert_allclose(np.array(smd['smd_w']),
                             np.array([0.206072, -0.148404,  0.035752, 0.085844]),
                             rtol=1e-4)  # for weighted
+
+
+class TestStochasticIPTW:
+
+    def test_error_no_model(self, sdata):
+        sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
+        with pytest.raises(ValueError):
+            sipw.fit(p=0.8)
+
+    def test_error_prob_high(self, sdata):
+        sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
+        with pytest.raises(ValueError):
+            sipw.fit(p=1.8)
+
+    def test_error_summary(self, sdata):
+        sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
+        with pytest.raises(ValueError):
+            sipw.summary()
+
+    def test_error_conditional(self, sdata):
+        sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        with pytest.raises(ValueError):
+            sipw.fit(p=[0.8, 0.1, 0.1], conditional=["df['male']==1", "df['male']==0"])
+
+    def test_uncond_treatment(self, sdata):
+        r_pred = 0.1165162207
+
+        sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        sipw.fit(p=0.8)
+        r = sipw.marginal_outcome
+
+        npt.assert_allclose(r_pred, r, atol=1e-7)
+
+    def test_cond_treatment(self, sdata):
+        r_pred = 0.117340102
+        sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        sipw.fit(p=[0.75, 0.90], conditional=["df['male']==1", "df['male']==0"])
+        r = sipw.marginal_outcome
+
+        npt.assert_allclose(r_pred, r, atol=1e-7)
+
+    def test_uncond_treatment_continuous(self, cdata):
+        r_pred = 1249.4477406809
+
+        sipw = StochasticIPTW(cdata.dropna(), treatment='art', outcome='cd4_wk45')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        sipw.fit(p=0.8)
+        r = sipw.marginal_outcome
+
+        npt.assert_allclose(r_pred, r, atol=1e-5)
+
+    def test_cond_treatment_continuous(self, cdata):
+        r_pred = 1246.4285662061
+        sipw = StochasticIPTW(cdata.dropna(), treatment='art', outcome='cd4_wk45')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        sipw.fit(p=[0.75, 0.90], conditional=["df['male']==1", "df['male']==0"])
+        r = sipw.marginal_outcome
+
+        npt.assert_allclose(r_pred, r, atol=1e-5)
+
+    def test_match_iptw(self, sdata):
+        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+        sdata = sdata.dropna().copy()
+
+        # Estimating Marginal Structural Model
+        ipt = IPTW(sdata, treatment='art', stabilized=False)
+        ipt.regression_models(model)
+        ipt.fit()
+        sdata['iptw'] = ipt.Weight
+        ind = sm.cov_struct.Independence()
+        f = sm.families.family.Binomial(sm.families.links.identity)
+        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
+
+        # Estimating 'Stochastic Treatment'
+        sipw = StochasticIPTW(sdata, treatment='art', outcome='dead')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        sipw.fit(p=1.0)
+        r_all = sipw.marginal_outcome
+        sipw.fit(p=0.0)
+        r_non = sipw.marginal_outcome
+
+        npt.assert_allclose(linrisk.params[1], r_all - r_non, atol=1e-7)
+
+    def test_match_iptw_continuous(self, cdata):
+        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+        cdata = cdata.dropna().copy()
+
+        # Estimating Marginal Structural Model
+        ipt = IPTW(cdata, treatment='art', stabilized=False)
+        ipt.regression_models(model)
+        ipt.fit()
+        cdata['iptw'] = ipt.Weight
+        ind = sm.cov_struct.Independence()
+        f = sm.families.family.Gaussian()
+        linrisk = smf.gee('cd4_wk45 ~ art', cdata['id'], cdata, cov_struct=ind, family=f, weights=cdata['iptw']).fit()
+
+        # Estimating 'Stochastic Treatment'
+        sipw = StochasticIPTW(cdata, treatment='art', outcome='cd4_wk45')
+        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                             print_results=False)
+        sipw.fit(p=1.0)
+        r_all = sipw.marginal_outcome
+        sipw.fit(p=0.0)
+        r_non = sipw.marginal_outcome
+
+        npt.assert_allclose(linrisk.params[1], r_all - r_non, atol=1e-4)
+
+    # TODO add test for weights
 
 
 class TestIPMW:

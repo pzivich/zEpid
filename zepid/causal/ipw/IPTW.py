@@ -730,10 +730,15 @@ class StochasticIPTW:
         marginal_outcome
             Gains marginal outcome attribute. Summary function can also be called afterwards
         """
+        p = np.array(p)
+
         if self._pdenom_ is None:
             raise ValueError("The treatment_model() function must be specified before the fit() function")
-        if np.any(np.array(p) >= 1):
+        if np.any(p > 1):
             raise ValueError("All specified treatment probabilities must be less than 1")
+        if conditional is not None:
+            if len(p) != len(conditional):
+                raise ValueError("'p' and 'conditional' must be the same length")
 
         df = self.df.copy()
 
@@ -763,6 +768,9 @@ class StochasticIPTW:
         decimal : int, optional
             Number of decimal places to display. Default is 3
         """
+        if np.isnan(self.marginal_outcome):
+            raise ValueError('The fit() function must be specified before summary()')
+
         print('======================================================================')
         print('                       Stochastic IPTW')
         print('======================================================================')
