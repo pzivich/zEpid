@@ -1,5 +1,16 @@
 ## Change logs
 
+### v0.7.1
+Warning for upcoming change for `IPTW` in v0.8.0. To better align with other causal estimators, `IPTW` will no longer 
+only return a vector of weights. Behind the scenes, `IPTW` will be able to estimate the marginal structural model 
+and provide the results directly in v0.8.0. `IPTW` will still allow access to the `Weight` column. Other tweaks are 
+coming, such as `IPTW` estimators built for different data types. For example, `SurvivalIPTW` for survival data (like
+`SurvivalGFormula`).
+
+Stochastic treatments can be estimated with the new `StochasticIPTW` class. This class is different from `IPTW` in that
+it provides the estimated mean of the outcome given the treatment plan. For comparisons, multiple versions of treatment
+plans need to be specified, calculated, then compared. For confidence intervals, a bootstrap procedure should be used
+
 ### v0.7.0
 G-estimation of structural nested models (for a single time point) are now available through `GEstimationSNM`. Psi 
 parameters can be calculated using a closed form solution or via a `scipy` optimization procedure
