@@ -185,12 +185,16 @@ class TMLE:
 
         self.risk_difference = None
         self.risk_difference_ci = None
+        self.risk_difference_se = None
         self.risk_ratio = None
         self.risk_ratio_ci = None
+        self.risk_ratio_se = None
         self.odds_ratio = None
         self.odds_ratio_ci = None
+        self.odds_ratio_se = None
         self.average_treatment_effect = None
         self.average_treatment_effect_ci = None
+        self.average_treatment_effect_se = None
 
     def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
         """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
@@ -437,9 +441,10 @@ class TMLE:
             ic = np.where(delta == 1,
                           HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect,
                           Qstar1 - Qstar0 - self.average_treatment_effect)
-            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
-            self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * math.sqrt(varIC),
-                                                self.average_treatment_effect + zalpha * math.sqrt(varIC)]
+            seIC = np.sqrt(np.nanvar(ic, ddof=1) / self.df.shape[0])
+            self.average_treatment_effect_se = seIC
+            self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * seIC,
+                                                self.average_treatment_effect + zalpha * seIC]
         else:
             # Calculating Risk Difference
             self.risk_difference = np.nanmean(Qstar1 - Qstar0)
@@ -447,9 +452,10 @@ class TMLE:
             ic = np.where(delta == 1,
                           HAW * (self.df[self.outcome] - Qstar) + (Qstar1 - Qstar0) - self.risk_difference,
                           (Qstar1 - Qstar0) - self.risk_difference)
-            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
-            self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(varIC),
-                                       self.risk_difference + zalpha * np.sqrt(varIC)]
+            seIC = np.sqrt(np.nanvar(ic, ddof=1) / self.df.shape[0])
+            self.risk_difference_se = seIC
+            self.risk_difference_ci = [self.risk_difference - zalpha * seIC,
+                                       self.risk_difference + zalpha * seIC]
 
             # Calculating Risk Ratio
             self.risk_ratio = np.nanmean(Qstar1) / np.nanmean(Qstar0)
@@ -459,9 +465,10 @@ class TMLE:
                            (1/np.mean(Qstar0)) * (-1 * H0W * (self.df[self.outcome] - Qstar) + Qstar0 - np.mean(Qstar0))),
                           (Qstar1 - np.mean(Qstar1)) + Qstar0 - np.mean(Qstar0))
 
-            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
-            self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * np.sqrt(varIC)),
-                                  np.exp(np.log(self.risk_ratio) + zalpha * np.sqrt(varIC))]
+            seIC = np.sqrt(np.nanvar(ic, ddof=1) / self.df.shape[0])
+            self.risk_ratio_se = seIC
+            self.risk_ratio_ci = [np.exp(np.log(self.risk_ratio) - zalpha * seIC),
+                                  np.exp(np.log(self.risk_ratio) + zalpha * seIC)]
 
             # Calculating Odds Ratio
             self.odds_ratio = (np.nanmean(Qstar1) / (1 - np.nanmean(Qstar1)
@@ -475,9 +482,10 @@ class TMLE:
 
                           ((1 / (np.nanmean(Qstar1) * (1 - np.nanmean(Qstar1))) * Qstar1 -
                            (1 / (np.nanmean(Qstar0) * (1 - np.nanmean(Qstar0))) * Qstar0))))
-            varIC = np.nanvar(ic, ddof=1) / self.df.shape[0]
-            self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * np.sqrt(varIC)),
-                                  np.exp(np.log(self.odds_ratio) + zalpha * np.sqrt(varIC))]
+            seIC = np.sqrt(np.nanvar(ic, ddof=1) / self.df.shape[0])
+            self.odds_ratio_se = seIC
+            self.odds_ratio_ci = [np.exp(np.log(self.odds_ratio) - zalpha * seIC),
+                                  np.exp(np.log(self.odds_ratio) + zalpha * seIC)]
 
     def summary(self, decimal=3):
         """Prints summary of model results

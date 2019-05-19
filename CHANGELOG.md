@@ -1,5 +1,10 @@
 ## Change logs
 
+### v0.7.2
+Labeling fix for `RiskDifference` summary
+
+Adding option to extract standard errors from `TMLE` and `AIPTW`
+
 ### v0.7.1
 Warning for upcoming change for `IPTW` in v0.8.0. To better align with other causal estimators, `IPTW` will no longer 
 only return a vector of weights. Behind the scenes, `IPTW` will be able to estimate the marginal structural model 

@@ -114,9 +114,11 @@ class AIPTW:
         self.risk_ratio = None
         self.risk_difference_ci = None
         self.risk_ratio_ci = None
+        self.risk_difference_se = None
 
         self.average_treatment_effect = None
         self.average_treatment_effect_ci = None
+        self.average_treatment_effect_se = None
 
         self._fit_exposure_ = False
         self._fit_outcome_ = False
@@ -225,14 +227,15 @@ class AIPTW:
             if self._continuous_outcome:
                 self.average_treatment_effect = np.mean(dr_a1) - np.mean(dr_a0)
                 var_ic = np.var((dr_a1 - dr_a0) - self.average_treatment_effect, ddof=1) / self.df.shape[0]
+                self.average_treatment_effect_se = np.sqrt(var_ic)
                 self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * np.sqrt(var_ic),
                                                     self.average_treatment_effect + zalpha * np.sqrt(var_ic)]
 
             else:
                 self.risk_difference = np.mean(dr_a1) - np.mean(dr_a0)
                 self.risk_ratio = np.mean(dr_a1) / np.mean(dr_a0)
-
                 var_ic = np.var((dr_a1 - dr_a0) - self.risk_difference, ddof=1) / self.df.shape[0]
+                self.risk_difference_se = np.sqrt(var_ic)
                 self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(var_ic),
                                            self.risk_difference + zalpha * np.sqrt(var_ic)]
         else:

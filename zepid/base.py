@@ -411,7 +411,7 @@ class RiskDifference:
             print(tabulate([['E=1', a, b], ['E=0', self._c, self._d]], headers=['', 'D=1', 'D=0'],
                            tablefmt='grid'), '\n')
         print('======================================================================')
-        print('                            Risk Ratio                                ')
+        print('                         Risk Difference                              ')
         print('======================================================================')
         print(self.results[['Risk', 'SD(Risk)', 'Risk_LCL', 'Risk_UCL']].round(decimals=decimal))
         print('----------------------------------------------------------------------')
