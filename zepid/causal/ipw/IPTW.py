@@ -3,12 +3,14 @@ import patsy
 import numpy as np
 import pandas as pd
 from scipy.stats.kde import gaussian_kde
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from statsmodels.genmod.families import family
 from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
 
 from zepid.causal.utils import propensity_score
 from zepid.calc import probability_to_odds
-from zepid.causal.utils import exposure_machine_learner
 
 
 class IPTW:
@@ -52,8 +54,9 @@ class IPTW:
     df : DataFrame
         Pandas dataframe object containing all variables of interest
     treatment : str
-        Variable name of treatment variable of interest. Must be coded as binary. 1 should indicate treatment,
-        while 0 indicates no treatment
+        Variable name of treatment of interest. Must be coded as binary
+    outcome : str
+        Variable name of outcome of interest. Can be either binary or continuous
     stabilized : bool, optional
         Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
     standardize : str, optional
@@ -135,25 +138,36 @@ class IPTW:
     Love T. (2004). Graphical Display of Covariate Balance. Presentation,
     See http://chrp.org/love/JSM2004RoundTableHandout. pdf, 1364.
     """
-    def __init__(self, df, treatment, weights=None, stabilized=True, standardize='population'):
+    def __init__(self, df, treatment, outcome, weights=None, stabilized=True, standardize='population'):
+        if df.dropna().shape[0] != df.shape[0]:
+            warnings.warn("There is missing data in the dataset. By default, IPTW will drop all missing data. IPTW "
+                          "will fit " + str(df.dropna().shape[0]) + ' of ' + str(df.shape[0]) + ' observations',
+                          UserWarning)
+        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+            self._continuous_outcome = False
+        else:
+            self._continuous_outcome = True
 
-        warnings.warn("In v0.8.0, IPTW will change to directly estimate the marginal strucutural model for users. "
-                      "The syntax for IPTW will substantially change for this update. The marginal structural model "
-                      "will need to be specified by users. The major advantage is that all calculations will be done"
-                      "by IPTW. The calculated weights will still be able to extracted. Additionally, the "
-                      "regression_models() function will be replaced by treatment_model()", UserWarning)
+        self.df = df.copy().dropna().reset_index()
+        # TODO add detection of continuous treatments
+        self.treatment = treatment
+        self.outcome = outcome
 
-        self.denominator_model = None
-        self.numerator_model = None
-        self.__mdenom = None
-
-        self.Weight = None
+        self.ms_model = None
+        self.iptw = None
         self.ProbabilityNumerator = None
         self.ProbabilityDenominator = None
 
-        self.df = df.copy()
-        self.ex = treatment
-        self._weight_ = weights
+        self.average_treatment_effect = None
+        self.average_treatment_effect_ci = None
+        self.average_treatment_effect_se = None
+        self.risk_ratio = None
+        self.risk_ratio_se = None
+        self.risk_ratio_ci = None
+        self.risk_difference = None
+        self.risk_difference_ci = None
+        self.risk_difference_se = None
+
         self.stabilized = stabilized
         if standardize in ['population', 'exposed', 'unexposed']:
             self.standardize = standardize
@@ -161,13 +175,15 @@ class IPTW:
             raise ValueError('Please specify one of the currently supported weighting schemes: ' +
                              'population, exposed, unexposed')
 
+        self._weight_ = weights
+        self.__mdenom = None
         self._pos_avg = None
         self._pos_min = None
         self._pos_max = None
         self._pos_sd = None
+        self._continuous_y_type = None
 
-    def regression_models(self, model_denominator, model_numerator='1', print_results=True,
-                          custom_model_denominator=None, custom_model_numerator=None):
+    def treatment_model(self, model_denominator, model_numerator='1', print_results=True):
         """Logistic regression model(s) for propensity score models. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
@@ -185,79 +201,158 @@ class IPTW:
             also only used when calculating stabilized weights
         print_results : bool, optional
             Whether to print the model results from the regression models. Default is True
-        custom_model_denominator : optional
-            Input for a custom model that is used in place of the logit model. The model must have the
-            `fit()` and  `predict()` attributes. Both `sklearn` and `supylearner` are supported as custom models. In the
-            background, `IPTW` will fit the custom model and generate the predicted probablities
-        custom_model_numerator : optional
-            Input for a custom model that is used in place of the logit model. The model must have the
-            `fit()` and  `predict()` attributes. Both `sklearn` and `supylearner` are supported as custom models. In the
-            background, `IPTW` will fit the custom model and generate the predicted probablities
 
         Note
         ----
         If custom models are used, it is important that GEE is used to obtain the variance. Bootstrapped confidence
         intervals are incorrect with the usage of some machine learning models
         """
+        if self._weight_ is None:
+            weights = None
+        else:
+            weights = self.df[self._weight_]
+
         # Calculating denominator probabilities
         self.__mdenom = model_denominator
-        if custom_model_denominator is None:
-            self.denominator_model = propensity_score(self.df, self.ex + ' ~ ' + model_denominator,
-                                                      weights=self._weight_,
-                                                      print_results=print_results)
-            d = self.denominator_model.predict(self.df)
-        else:
-            data = patsy.dmatrix(model_denominator + ' - 1', self.df)
-            self.denominator_model = 'User-specified model'
-            d = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.ex]),
-                                         ml_model=custom_model_denominator, print_results=print_results)
-
+        denominator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_denominator,
+                                             weights=weights,
+                                             print_results=print_results)
+        d = denominator_model.predict(self.df)
         self.df['__denom__'] = d
 
         # Calculating numerator probabilities (if stabilized)
         if self.stabilized is True:
-            if custom_model_numerator is None:
-                self.numerator_model = propensity_score(self.df, self.ex + ' ~ ' + model_numerator,
-                                                        weights=self._weight_,
-                                                        print_results=print_results)
-                n = self.numerator_model.predict(self.df)
-
-            else:
-                data = patsy.dmatrix(model_numerator + ' - 1', self.df)
-                n = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.ex]),
-                                             ml_model=custom_model_numerator, print_results=print_results)
-
-        # If unstabilized, numerator is always 1
+            numerator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_numerator,
+                                               weights=weights,
+                                               print_results=print_results)
+            n = numerator_model.predict(self.df)
         else:
             if model_numerator != '1':
                 raise ValueError('Argument for model_numerator is only used for stabilized=True')
             n = 1
         self.df['__numer__'] = n
 
-    def fit(self):
-        """Calculates the inverse probability of treatment weights from the calculate probabilities from the specified
-        models / prediction algorithms.
-
-        Returns
-        -------
-        IPTW class gains the Weight, ProbabilityDenominator, and ProbabilityNumerator attributed. Weights is a pandas
-        Series containing the calculated IPTW.
-        """
-        if self.denominator_model is None:
-            raise ValueError('No model has been fit to generated predicted probabilities')
-
+        # Calculating weights
         self.ProbabilityDenominator = self.df['__denom__']
         self.ProbabilityNumerator = self.df['__numer__']
-        self.Weight = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
+        self.iptw = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
 
-        if self._weight_ is not None:  # Multiplying calculate IPTW and specified weights
-            warnings.warn("You specified the optional `weights` argument. A regression model weighted by the `weights` "
-                          "column was used to generate IPTW. Additionally, the calculated IPTW were multiplied by the "
-                          "specified `weights` column. Diagnostics for the weights include IPTW multiplied by the "
-                          "`weights` column. Diagnostics for probabilities include only IPTW", UserWarning)
-            self.Weight = self.Weight * self.df[self._weight_]
+        if weights is not None:  # Multiplying calculate IPTW and specified weights
+            self.ipfw = self.iptw * self.df[weights]
+        else:
+            self.ipfw = self.iptw
 
-        self.df['_iptw_'] = self.Weight
+        self.df['_iptw_'] = self.iptw
+        self.df['_ipfw_'] = self.ipfw
+
+    def marginal_structural_model(self, model):
+        """Specify the marginal structural model to estimate using the inverse probability of treatment weights
+
+        Parameters
+        ----------
+        model : str
+            The specified marginal structural model to fit.
+        """
+        self.ms_model = model
+
+    def fit(self, continuous_distribution='gaussian'):
+        """Fit the specified marginal structural model using the calculated inverse probability of treatment weights.
+        """
+        if self.__mdenom is None:
+            raise ValueError('No model has been fit to generated predicted probabilities')
+
+        ind = sm.cov_struct.Independence()
+        full_msm = self.outcome + ' ~ ' + self.ms_model
+
+        if self._continuous_outcome:
+            if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
+                f = sm.families.family.Gaussian()
+            elif continuous_distribution == 'poisson':
+                f = sm.families.family.Poisson()
+            else:
+                raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
+            self._continuous_y_type = continuous_distribution
+            fm = smf.gee(full_msm, self.df.index, self.df,
+                         cov_struct=ind, family=f, weights=self.iptw).fit()
+            self.average_treatment_effect = fm.params[1]
+            self.average_treatment_effect_se = fm.bse[1]
+            self.average_treatment_effect_ci = fm.conf_int()[1]
+
+        else:
+            # Estimating Risk Difference
+            f = sm.families.family.Binomial(sm.families.links.identity)
+            fm = smf.gee(full_msm, self.df.index, self.df,
+                         cov_struct=ind, family=f, weights=self.ipfw).fit()
+            self.risk_difference = fm.params[1]
+            self.risk_difference_se = fm.bse[1]
+            self.risk_difference_ci = fm.conf_int().iloc[1]
+
+            # Estimating Risk Ratio
+            f = sm.families.family.Binomial(sm.families.links.log)
+            fm = smf.gee(full_msm, self.df.index, self.df,
+                         cov_struct=ind, family=f, weights=self.ipfw).fit()
+            self.risk_ratio = np.exp(fm.params[1])
+            self.risk_ratio_se = fm.bse[1]
+            self.risk_ratio_ci = np.exp(fm.conf_int().iloc[1])
+
+    def summary(self, decimal=3):
+        """Print results
+        """
+        print('======================================================================')
+        print('          Augmented Inverse Probability of Treatment Weights          ')
+        print('======================================================================')
+        fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
+        print(fmt.format(self.treatment, self.df.shape[0]))
+
+        fmt = 'Outcome:          {:<15} g-model:              {:<20}'
+        if self._continuous_outcome:
+            y = self._continuous_y_type
+        else:
+            y = 'Logistic'
+        print(fmt.format(self.outcome, y))
+        print('======================================================================')
+
+        if self._continuous_outcome:
+            print('Average Treatment Effect:   ', round(float(self.average_treatment_effect), decimal))
+            print('95% two-sided CI: (' +
+                  str(round(self.average_treatment_effect_ci[0], decimal)), ',',
+                  str(round(self.average_treatment_effect_ci[1], decimal)) + ')')
+        else:
+            print('Risk Difference:    ', round(float(self.risk_difference), decimal))
+            print('95% two-sided CI: (' +
+                  str(round(self.risk_difference_ci[0], decimal)), ',',
+                  str(round(self.risk_difference_ci[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
+            print('Risk Ratio:        ', round(float(self.risk_ratio), decimal))
+            print('95% two-sided CI: (' +
+                  str(round(self.risk_ratio_ci[0], decimal)), ',',
+                  str(round(self.risk_ratio_ci[1], decimal)) + ')')
+
+        print('======================================================================')
+
+    def run_weight_diagnostics(self):
+        """Run all currently implemented diagnostics for inverse probability of treatment weights available. Each
+        diagnostic can be called individually for further optional specifications. `run_weight_diagnostics` will
+        provide results for all implemented diagnostics for ease of the user. For presentation of results, I recommend
+        calling each function individually and utilizing the optional parameters
+
+        Note
+        ----
+        The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
+        functions return an axes object
+        """
+        self.positivity()
+        print(self.standardized_mean_differences())
+
+        plt.figure(figsize=[5, 3])
+        plt.subplot(121)
+        self.plot_kde()
+        plt.title("Kernel Density of Propensity Scores")
+
+        plt.subplot(122)
+        self.plot_love()
+        plt.title("Love Plot")
+        plt.show()
 
     def plot_kde(self, measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
         """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
@@ -284,15 +379,15 @@ class IPTW:
         """
         if measure == 'probability':
             x = np.linspace(0, 1, 10000)
-            density_t = gaussian_kde(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
+            density_t = gaussian_kde(self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna(),
                                      bw_method=bw_method)
-            density_u = gaussian_kde(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna(),
+            density_u = gaussian_kde(self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna(),
                                      bw_method=bw_method)
         elif measure == 'logit':
-            t = np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna()))
+            t = np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna()))
             density_t = gaussian_kde(t, bw_method=bw_method)
 
-            u = np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna()))
+            u = np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna()))
             density_u = gaussian_kde(u, bw_method=bw_method)
             x = np.linspace(np.min((np.min(t), np.min(u))) - 1, np.max((np.max(t), np.max(u))) + 1, 10000)
         else:
@@ -328,12 +423,12 @@ class IPTW:
         matplotlib axes
         """
         if measure == 'probability':
-            boxes = (self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna(),
-                     self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna())
+            boxes = (self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna(),
+                     self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna())
 
         elif measure == 'logit':
-            boxes = (np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 1]['__denom__'].dropna())),
-                     np.log(probability_to_odds(self.df.loc[self.df[self.ex] == 0]['__denom__'].dropna())))
+            boxes = (np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna())),
+                     np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna())))
         else:
             raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
                              "'probability' or 'logit")
@@ -342,13 +437,14 @@ class IPTW:
         meanpointprops = dict(marker='D', markeredgecolor='black', markerfacecolor='black')
         ax = plt.gca()
         ax.boxplot(boxes, labels=labs, meanprops=meanpointprops, showmeans=True)
+        ax.set_ylim([0, 1])
         if measure == 'probability':
             ax.set_ylabel('Probability')
         else:
             ax.set_ylabel('Log-Odds')
         return ax
 
-    def positivity(self, decimal=3):
+    def positivity(self, decimal=3, iptw_only=True):
         """Use this to assess whether positivity is a valid assumption. For stabilized weights, the mean weight should
         be approximately 1. For unstabilized weights, the mean weight should be approximately 2. If there are extreme
         outliers, this may indicate problems with the calculated weights
@@ -357,16 +453,23 @@ class IPTW:
         --------------
         decimal : int, optional
             Number of decimal places to display. Default is three
+        iptw_only : bool, optional
+            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
 
         Returns
         --------------
         None
             Prints the positivity results to the console but does not return any objects
         """
-        self._pos_avg = float(np.mean(self.df['_iptw_'].dropna()))
-        self._pos_max = np.max(self.df['_iptw_'].dropna())
-        self._pos_min = np.min(self.df['_iptw_'].dropna())
-        self._pos_sd = float(np.std(self.df['_iptw_'].dropna()))
+        if iptw_only:
+            ipw_type = '_iptw_'
+        else:
+            ipw_type = '_ipfw_'
+
+        self._pos_avg = float(np.mean(self.df[ipw_type].dropna()))
+        self._pos_max = np.max(self.df[ipw_type].dropna())
+        self._pos_min = np.min(self.df[ipw_type].dropna())
+        self._pos_sd = float(np.std(self.df[ipw_type].dropna()))
         print('======================================================================')
         print('          Inverse Probability of Treatment Weight Diagnostics')
         print('======================================================================')
@@ -383,7 +486,8 @@ class IPTW:
         print('Maximum weight:        ', round(self._pos_max, decimal))
         print('======================================================================')
 
-    def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
+    def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o',
+                  iptw_only=True):
         """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
         this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
 
@@ -391,12 +495,25 @@ class IPTW:
         this level. Below 0.20 may also be sufficient. Variables above this level may be unbalanced despite the
         weighting procedure. Different functional forms (or approaches like machine learning) may be worth considering
 
+        Parameters
+        ----------
+        color_unweighted : str, optional
+            Color for the unweighted standardized mean differences. Default is red
+        color_weighted : str, optional
+            Color for the weighted standardized mean differences. Default is blue
+        shape_unweighted : str, optional
+            Shape of points for the unweighted standardized mean differences. Default is circles
+        shape_weighted:
+            Shape of points for the weighted standardized mean differences. Default is circles
+        iptw_only : bool, optional
+            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+
         Returns
         -------
         axes
             Matplotlib axes of the Love plot
         """
-        to_plot = self.standardized_mean_differences()
+        to_plot = self.standardized_mean_differences(iptw_only=iptw_only)
         to_plot['smd_w'] = np.absolute(to_plot['smd_w'])
         to_plot['smd_u'] = np.absolute(to_plot['smd_u'])
         to_plot = to_plot.sort_values(by='smd_u', ascending=True).reset_index(drop=True)
@@ -413,7 +530,7 @@ class IPTW:
         ax.legend()
         return ax
 
-    def standardized_mean_differences(self):
+    def standardized_mean_differences(self, iptw_only=True):
         """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
         difference for all variables included in the IPTW denominator
 
@@ -422,7 +539,14 @@ class IPTW:
         DataFrame
             Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
             smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
+        iptw_only : bool, optional
+            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
         """
+        if iptw_only:
+            ipw_type = '_iptw_'
+        else:
+            ipw_type = '_ipfw_'
+
         vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
         w_diff = []
         u_diff = []
@@ -449,10 +573,10 @@ class IPTW:
                 vtype = 'continuous'
 
             # calculate the absolute standardized difference
-            dat = pd.concat([v, self.df[[self.ex, '_iptw_']]], axis=1)
-            wsmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=True)
+            dat = pd.concat([v, self.df[[self.treatment, ipw_type]]], axis=1)
+            wsmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=True, ipw_type=ipw_type)
             w_diff.append(wsmd)
-            usmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=False)
+            usmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=False, ipw_type=ipw_type)
             u_diff.append(usmd)
 
         # Setting up DataFrame to return with calculated differences
@@ -462,7 +586,7 @@ class IPTW:
         s['smd_u'] = u_diff
         return s
 
-    def _standardized_difference(self, variable, var_type, weighted=True):
+    def _standardized_difference(self, variable, var_type, ipw_type, weighted=True):
         """Background function to calculate the standardized mean difference between the treat and untreated for a
         specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
         by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
@@ -481,22 +605,22 @@ class IPTW:
 
         Returns
         --------------
-        None
-            Prints the positivity results to the console but does not return any objects
+        float
+            Returns the calculated standardized mean differences
         """
         # Pulling out relevant data
-        dft = variable.loc[(variable[self.ex] == 1) & (variable['_iptw_'].notnull())].copy()
-        dfn = variable.loc[(variable[self.ex] == 0) & (variable['_iptw_'].notnull())].copy()
+        dft = variable.loc[(variable[self.treatment] == 1) & (variable[ipw_type].notnull())].copy()
+        dfn = variable.loc[(variable[self.treatment] == 0) & (variable[ipw_type].notnull())].copy()
         # removing self.ex and 'iptw' from vars to calculate for
         vcols = list(variable.columns)
-        vcols.remove(self.ex)
-        vcols.remove('_iptw_')
+        vcols.remove(self.treatment)
+        vcols.remove(ipw_type)
 
         if var_type == 'binary':
             if weighted:
-                dwt = DescrStatsW(dft[vcols], weights=dft['_iptw_'])
+                dwt = DescrStatsW(dft[vcols], weights=dft[ipw_type])
                 wt = dwt.mean
-                dwn = DescrStatsW(dfn[vcols], weights=dfn['_iptw_'])
+                dwn = DescrStatsW(dfn[vcols], weights=dfn[ipw_type])
                 wn = dwn.mean
             else:
                 wt = np.mean(dft[vcols].dropna(), axis=0)
@@ -505,10 +629,10 @@ class IPTW:
 
         elif var_type == 'continuous':
             if weighted:
-                dwt = DescrStatsW(dft[vcols], weights=dft['_iptw_'], ddof=1)
+                dwt = DescrStatsW(dft[vcols], weights=dft[ipw_type], ddof=1)
                 wmt = dwt.mean
                 wst = dwt.std
-                dwn = DescrStatsW(dfn[vcols], weights=dfn['_iptw_'], ddof=1)
+                dwn = DescrStatsW(dfn[vcols], weights=dfn[ipw_type], ddof=1)
                 wmn = dwn.mean
                 wsn = dwn.std
             else:
@@ -522,8 +646,8 @@ class IPTW:
 
         elif var_type == 'categorical':
             if weighted:
-                wt = np.average(dft[vcols], weights=dft['_iptw_'], axis=0)
-                wn = np.average(dfn[vcols], weights=dfn['_iptw_'], axis=0)
+                wt = np.average(dft[vcols], weights=dft[ipw_type], axis=0)
+                wn = np.average(dfn[vcols], weights=dfn[ipw_type], axis=0)
             else:
                 wt = np.average(dft[vcols], axis=0)
                 wn = np.mean(dfn[vcols], axis=0)
@@ -544,35 +668,35 @@ class IPTW:
         """
         if self.stabilized:  # Stabilized weights
             if self.standardize == 'population':
-                df['w'] = np.where(df[self.ex] == 1, (df[numerator] / df[denominator]),
+                df['w'] = np.where(df[self.treatment] == 1, (df[numerator] / df[denominator]),
                                    ((1 - df[numerator]) / (1 - df[denominator])))
-                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
+                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
             # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.ex] == 1, 1,
+                df['w'] = np.where(df[self.treatment] == 1, 1,
                                    ((df[denominator] / (1 - df[denominator])) * ((1 - df[numerator]) /
                                                                                  df[numerator])))
-                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
+                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
             # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             else:
-                df['w'] = np.where(df[self.ex] == 1,
+                df['w'] = np.where(df[self.treatment] == 1,
                                    (((1 - df[denominator]) / df[denominator]) * (df[numerator] /
                                                                                  (1 - df[numerator]))),
                                    1)
-                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
+                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
 
         else:  # Unstabilized weights
             if self.standardize == 'population':
-                df['w'] = np.where(df[self.ex] == 1, 1 / df[denominator], 1 / (1 - df[denominator]))
-                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
+                df['w'] = np.where(df[self.treatment] == 1, 1 / df[denominator], 1 / (1 - df[denominator]))
+                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
             # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
             elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.ex] == 1, 1, (df[denominator] / (1 - df[denominator])))
-                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
+                df['w'] = np.where(df[self.treatment] == 1, 1, (df[denominator] / (1 - df[denominator])))
+                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
             # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
             else:
-                df['w'] = np.where(df[self.ex] == 1, ((1 - df[denominator]) / df[denominator]), 1)
-                df['w'] = np.where(df[self.ex].isna(), np.nan, df['w'])
+                df['w'] = np.where(df[self.treatment] == 1, ((1 - df[denominator]) / df[denominator]), 1)
+                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
         return df['w']
 
     @staticmethod
