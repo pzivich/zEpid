@@ -268,7 +268,7 @@ class IPTW:
             else:
                 raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
             self._continuous_y_type = continuous_distribution
-            fm = smf.gee(full_msm, self.df.index, self.df,
+            fm = smf.gee(full_msm, self.df.index, self.df, missing='drop',
                          cov_struct=ind, family=f, weights=self.iptw).fit()
             self.average_treatment_effect = pd.DataFrame()
             self.average_treatment_effect['labels'] = np.asarray(fm.params.index)
@@ -281,7 +281,7 @@ class IPTW:
         else:
             # Estimating Risk Difference
             f = sm.families.family.Binomial(sm.families.links.identity)
-            fm = smf.gee(full_msm, self.df.index, self.df,
+            fm = smf.gee(full_msm, self.df.index, self.df, missing='drop',
                          cov_struct=ind, family=f, weights=self.ipfw).fit()
             self.risk_difference = pd.DataFrame()
             self.risk_difference['labels'] = np.asarray(fm.params.index)
@@ -293,7 +293,7 @@ class IPTW:
 
             # Estimating Risk Ratio
             f = sm.families.family.Binomial(sm.families.links.log)
-            fm = smf.gee(full_msm, self.df.index, self.df,
+            fm = smf.gee(full_msm, self.df.index, self.df, missing='drop',
                          cov_struct=ind, family=f, weights=self.ipfw).fit()
             self.risk_ratio = pd.DataFrame()
             self.risk_ratio['labels'] = np.asarray(fm.params.index)
