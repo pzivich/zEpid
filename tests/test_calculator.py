@@ -6,7 +6,7 @@ import numpy.testing as npt
 from zepid.calc import (risk_ci, incidence_rate_ci, risk_ratio, risk_difference, number_needed_to_treat, odds_ratio,
                         incidence_rate_ratio, incidence_rate_difference, odds_to_probability, probability_to_odds,
                         semibayes, attributable_community_risk, population_attributable_fraction, sensitivity,
-                        specificity, npv_converter, ppv_converter, rubins_rules)
+                        specificity, npv_converter, ppv_converter, rubins_rules, s_value)
 
 
 @pytest.fixture
@@ -349,3 +349,15 @@ class TestRubinsRules:
         b = rubins_rules(rr_est, rr_var)
         npt.assert_allclose(b[0], est_sas)
         npt.assert_allclose(b[1], std_sas)
+
+
+class TestSValues:
+
+    def test_svalue1(self):
+        npt.assert_allclose(4.3219280949, s_value(0.05))
+
+    def test_svalue2(self):
+        npt.assert_allclose(0.2009126939, s_value(0.87))
+
+    def test_svalue3(self):
+        npt.assert_allclose([4.3219280949, 0.2009126939], s_value([0.05, 0.87]))

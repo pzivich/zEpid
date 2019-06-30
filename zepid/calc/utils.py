@@ -1307,3 +1307,48 @@ def rubins_rules(point_estimates, std_error):
     var = var_within + (1 + len(variance)**-1)*((len(variance) - 1)**-1)*var_between
 
     return beta, np.sqrt(var)
+
+
+def s_value(pvalue):
+    r"""Function to calculate the S-value. The 'S' stands for Shannon information or surprisal values. The name comes
+    from Claude Shannon for this work to information theory. S-values are calculated from p-values using the
+    following transformation
+
+    .. math::
+
+        s = -\log(p)
+
+    The S-value transformation allows a more intuitive explanation of what p-values tell us about the null hypothesis
+    and alternative hypothesis compatibility. The S-value tells us how many 'bits' of information exist against the null
+    hypothesis. For an example, a S-value of 5.1 is no more surprising than seeing heads for 5 fair coin tosses. The
+    S-value should be rounded down in the interpretation
+
+    Notes
+    -----
+    S-values do NOT have a significant cut-point. Rather this transformation is to help build intuition what information
+    a p-values is providing and the corresponding 'surprisal'
+
+    Parameters
+    ----------
+    pvalue : float, container
+        P-value (or array of p-values) to convert into a S-value(s)
+
+    Returns
+    -------
+    array
+        NumPy array of calculated S-values
+
+    Examples
+    --------
+    >>> from zepid.calc import s_value
+    >>> s_value(pvalue=0.05)
+
+    References
+    ----------
+    Greenland S. (2019). Valid P-values behave exactly as they should: Some misleading criticisms of P-values and their
+    resolution with S-values. The American Statistician, 73(sup1), 106-114.
+
+    Amrhein V, Trafimow D, & Greenland S. (2018). Inferential Statistics as Descriptive Statistics: There is No
+    Replication Crisis if We Don’t Expect Replication. The American Statistician.
+    """
+    return -1 * np.log2(np.array(pvalue))
