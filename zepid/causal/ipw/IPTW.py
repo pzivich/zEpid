@@ -332,7 +332,7 @@ class IPTW:
             print(np.round(self.risk_ratio, decimals=decimal))
         print('======================================================================')
 
-    def run_weight_diagnostics(self):
+    def run_diagnostics(self, iptw_only=True):
         """Run all currently implemented diagnostics for inverse probability of treatment weights available. Each
         diagnostic can be called individually for further optional specifications. `run_weight_diagnostics` will
         provide results for all implemented diagnostics for ease of the user. For presentation of results, I recommend
@@ -343,17 +343,23 @@ class IPTW:
         The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
         functions return an axes object
         """
-        self.positivity()
-        print(self.standardized_mean_differences())
+        self.positivity(iptw_only=iptw_only)
 
-        plt.figure(figsize=[5, 3])
-        plt.subplot(121)
+        print('\n======================================================================')
+        print('Standardized Mean Differences')
+        print('----------------------------------------------------------------------')
+        print(self.standardized_mean_differences(iptw_only=iptw_only).set_index(keys='labels'))
+        print('======================================================================')
+
+        plt.figure(figsize=[9, 4])
+        plt.subplot(122)
         self.plot_kde()
         plt.title("Kernel Density of Propensity Scores")
 
-        plt.subplot(122)
-        self.plot_love()
+        plt.subplot(121)
+        self.plot_love(iptw_only=iptw_only)
         plt.title("Love Plot")
+        plt.tight_layout()
         plt.show()
 
     def plot_kde(self, measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
