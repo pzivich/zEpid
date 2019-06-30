@@ -148,7 +148,7 @@ class IPTW:
         else:
             self._continuous_outcome = True
 
-        self.df = df.copy().dropna().reset_index()
+        self.df = df.copy().reset_index()
         # TODO add detection of continuous treatments
         self.treatment = treatment
         self.outcome = outcome
@@ -159,14 +159,8 @@ class IPTW:
         self.ProbabilityDenominator = None
 
         self.average_treatment_effect = None
-        self.average_treatment_effect_ci = None
-        self.average_treatment_effect_se = None
         self.risk_ratio = None
-        self.risk_ratio_se = None
-        self.risk_ratio_ci = None
         self.risk_difference = None
-        self.risk_difference_ci = None
-        self.risk_difference_se = None
 
         self.stabilized = stabilized
         if standardize in ['population', 'exposed', 'unexposed']:
@@ -218,6 +212,7 @@ class IPTW:
                                              weights=weights,
                                              print_results=print_results)
         d = denominator_model.predict(self.df)
+        print(np.sum(d.isna()))
         self.df['__denom__'] = d
 
         # Calculating numerator probabilities (if stabilized)
@@ -274,35 +269,47 @@ class IPTW:
             self._continuous_y_type = continuous_distribution
             fm = smf.gee(full_msm, self.df.index, self.df,
                          cov_struct=ind, family=f, weights=self.iptw).fit()
-            self.average_treatment_effect = fm.params[1]
-            self.average_treatment_effect_se = fm.bse[1]
-            self.average_treatment_effect_ci = fm.conf_int()[1]
+            self.average_treatment_effect = pd.DataFrame()
+            self.average_treatment_effect['labels'] = np.asarray(fm.params.index)
+            self.average_treatment_effect.set_index(keys=['labels'], inplace=True)
+            self.average_treatment_effect['ATE'] = np.asarray(fm.params)
+            self.average_treatment_effect['SE(ATE)'] = np.asarray(fm.bse)
+            self.average_treatment_effect['95%LCL'] = np.asarray(fm.conf_int()[0])
+            self.average_treatment_effect['95%UCL'] = np.asarray(fm.conf_int()[1])
 
         else:
             # Estimating Risk Difference
             f = sm.families.family.Binomial(sm.families.links.identity)
             fm = smf.gee(full_msm, self.df.index, self.df,
                          cov_struct=ind, family=f, weights=self.ipfw).fit()
-            self.risk_difference = fm.params[1]
-            self.risk_difference_se = fm.bse[1]
-            self.risk_difference_ci = fm.conf_int().iloc[1]
+            self.risk_difference = pd.DataFrame()
+            self.risk_difference['labels'] = np.asarray(fm.params.index)
+            self.risk_difference.set_index(keys=['labels'], inplace=True)
+            self.risk_difference['RD'] = np.asarray(fm.params)
+            self.risk_difference['SE(RD)'] = np.asarray(fm.bse)
+            self.risk_difference['95%LCL'] = np.asarray(fm.conf_int()[0])
+            self.risk_difference['95%UCL'] = np.asarray(fm.conf_int()[1])
 
             # Estimating Risk Ratio
             f = sm.families.family.Binomial(sm.families.links.log)
             fm = smf.gee(full_msm, self.df.index, self.df,
                          cov_struct=ind, family=f, weights=self.ipfw).fit()
-            self.risk_ratio = np.exp(fm.params[1])
-            self.risk_ratio_se = fm.bse[1]
-            self.risk_ratio_ci = np.exp(fm.conf_int().iloc[1])
+            self.risk_ratio = pd.DataFrame()
+            self.risk_ratio['labels'] = np.asarray(fm.params.index)
+            self.risk_ratio.set_index(keys=['labels'], inplace=True)
+            self.risk_ratio['RR'] = np.exp(np.asarray(fm.params))
+            self.risk_ratio['SE(log(RR))'] = np.asarray(fm.bse)
+            self.risk_ratio['95%LCL'] = np.exp(np.asarray(fm.conf_int()[0]))
+            self.risk_ratio['95%UCL'] = np.exp(np.asarray(fm.conf_int()[1]))
 
     def summary(self, decimal=3):
         """Print results
         """
         print('======================================================================')
-        print('          Augmented Inverse Probability of Treatment Weights          ')
+        print('              Inverse Probability of Treatment Weights                ')
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
-        print(fmt.format(self.treatment, self.df.shape[0]))
+        print(fmt.format(self.treatment, self.ipfw.shape[0]))
 
         fmt = 'Outcome:          {:<15} g-model:              {:<20}'
         if self._continuous_outcome:
@@ -313,21 +320,16 @@ class IPTW:
         print('======================================================================')
 
         if self._continuous_outcome:
-            print('Average Treatment Effect:   ', round(float(self.average_treatment_effect), decimal))
-            print('95% two-sided CI: (' +
-                  str(round(self.average_treatment_effect_ci[0], decimal)), ',',
-                  str(round(self.average_treatment_effect_ci[1], decimal)) + ')')
-        else:
-            print('Risk Difference:    ', round(float(self.risk_difference), decimal))
-            print('95% two-sided CI: (' +
-                  str(round(self.risk_difference_ci[0], decimal)), ',',
-                  str(round(self.risk_difference_ci[1], decimal)) + ')')
+            print('Average Treatment Effect')
             print('----------------------------------------------------------------------')
-            print('Risk Ratio:        ', round(float(self.risk_ratio), decimal))
-            print('95% two-sided CI: (' +
-                  str(round(self.risk_ratio_ci[0], decimal)), ',',
-                  str(round(self.risk_ratio_ci[1], decimal)) + ')')
-
+            print(np.round(self.average_treatment_effect, decimals=decimal))
+        else:
+            print('Risk Difference')
+            print('----------------------------------------------------------------------')
+            print(np.round(self.risk_difference, decimals=decimal))
+            print('----------------------------------------------------------------------')
+            print('Risk Ratio')
+            print(np.round(self.risk_ratio, decimals=decimal))
         print('======================================================================')
 
     def run_weight_diagnostics(self):
