@@ -33,12 +33,14 @@ class TestIPTW:
     def data(self):
         df = pd.DataFrame()
         df['A'] = [1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+        df['Y'] = [1, 0, 0, 0, 1, 1, 1, 0, 0, 1]
         df['L'] = [1, 1, 0, 0, 0, 1, 1, 1, 1, 0]
         return df
 
     def test_probability_calc(self, data):
-        ipt = IPTW(data, treatment='A', stabilized=True)
-        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=True)
+        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt.marginal_structural_model('A')
         ipt.fit()
         pd = ipt.ProbabilityDenominator
         pn = ipt.ProbabilityNumerator
@@ -46,34 +48,39 @@ class TestIPTW:
         npt.assert_allclose(pd, [1/3, 1/3, 0.75, 0.75, 0.75, 1/3, 1/3, 1/3, 1/3, 0.75])
 
     def test_unstabilized_weights(self, data):
-        ipt = IPTW(data, treatment='A', stabilized=False)
-        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=False)
+        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt.marginal_structural_model('A')
         ipt.fit()
-        npt.assert_allclose(ipt.Weight, [3, 3, 4/3, 4/3, 4/3, 1.5, 1.5, 1.5, 1.5, 4])
+        npt.assert_allclose(ipt.df['_iptw_'], [3, 3, 4/3, 4/3, 4/3, 1.5, 1.5, 1.5, 1.5, 4])
 
     def test_stabilized_weights(self, data):
-        ipt = IPTW(data, treatment='A', stabilized=True)
-        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=True)
+        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt.marginal_structural_model('A')
         ipt.fit()
-        npt.assert_allclose(ipt.Weight, [1.5, 1.5, 2/3, 2/3, 2/3, 3/4, 3/4, 3/4, 3/4, 2])
+        npt.assert_allclose(ipt.df['_iptw_'], [1.5, 1.5, 2/3, 2/3, 2/3, 3/4, 3/4, 3/4, 3/4, 2])
 
     def test_unstabilized_weights_w_weights(self, data):
         data['weights'] = 2
-        ipt = IPTW(data, treatment='A', weights='weights', stabilized=False)
-        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y', weights='weights', stabilized=False)
+        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt.marginal_structural_model('A')
         ipt.fit()
-        npt.assert_allclose(ipt.Weight, [6, 6, 8/3, 8/3, 8/3, 3, 3, 3, 3, 8])
+        npt.assert_allclose(ipt.df['_ipfw_'], [6, 6, 8/3, 8/3, 8/3, 3, 3, 3, 3, 8])
 
     def test_stabilized_weights_w_weights(self, data):
         data['weights'] = 2
-        ipt = IPTW(data, treatment='A', weights='weights', stabilized=True)
-        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y', weights='weights', stabilized=True)
+        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt.marginal_structural_model('A')
         ipt.fit()
-        npt.assert_allclose(ipt.Weight, [3, 3, 4/3, 4/3, 4/3, 6/4, 6/4, 6/4, 6/4, 4])
+        npt.assert_allclose(ipt.df['_ipfw_'], [3, 3, 4/3, 4/3, 4/3, 6/4, 6/4, 6/4, 6/4, 4])
 
     def test_positivity_calculator(self, data):
-        ipt = IPTW(data, treatment='A', stabilized=True)
-        ipt.regression_models(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=True)
+        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt.marginal_structural_model('A')
         ipt.fit()
         ipt.positivity()
         npt.assert_allclose(ipt._pos_avg, 1)
@@ -86,122 +93,85 @@ class TestIPTW:
         sas_rd = -0.081519085
         sas_rd_ci = -0.156199938, -0.006838231
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', stabilized=False)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=False)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
-        npt.assert_allclose(np.sum(sdata.dropna()['iptw']), sas_w_sum, rtol=1e-4)
 
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
-        npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
-        npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
+        npt.assert_allclose(np.sum(ipt.df.dropna()['_iptw_']), sas_w_sum, rtol=1e-4)
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_stabilized(self, sdata):
         sas_w_sum = 515.6177
         sas_rd = -0.081519085
         sas_rd_ci = -0.156199938, -0.006838231
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', stabilized=True)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
-        npt.assert_allclose(np.sum(sdata.dropna()['iptw']), sas_w_sum, rtol=1e-4)
 
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
-        npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
-        npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
+        npt.assert_allclose(np.sum(ipt.df.dropna()['_iptw_']), sas_w_sum, rtol=1e-4)
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_e(self, sdata):
         sas_w_sum = 151.2335
         sas_rd = -0.090875986
         sas_rd_ci = -0.180169444, -0.001582527
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', standardize='exposed', stabilized=False)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed', stabilized=False)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
-        npt.assert_allclose(np.sum(sdata.dropna()['iptw']), sas_w_sum, rtol=1e-4)
 
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
-        npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
-        npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
+        npt.assert_allclose(np.sum(ipt.df.dropna()['_iptw_']), sas_w_sum, rtol=1e-4)
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_u(self, sdata):
         sas_w_sum = 886.8178
         sas_rd = -0.080048197
         sas_rd_ci = -0.153567335, -0.006529058
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', standardize='unexposed', stabilized=False)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed', stabilized=False)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
-        npt.assert_allclose(np.sum(sdata.dropna()['iptw']), sas_w_sum, rtol=1e-4)
 
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
-        npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
-        npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
+        npt.assert_allclose(np.sum(ipt.df.dropna()['_iptw_']), sas_w_sum, rtol=1e-4)
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_e_stabilized(self, sdata):
         sas_rd = -0.090875986
         sas_rd_ci = -0.180169444, -0.001582527
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', standardize='exposed', stabilized=True)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed', stabilized=True)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
 
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
-        npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
-        npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_u_stabilized(self, sdata):
         sas_rd = -0.080048197
         sas_rd_ci = -0.153567335, -0.006529058
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', standardize='unexposed', stabilized=True)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed', stabilized=True)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
 
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
-        npt.assert_allclose(linrisk.params[1], sas_rd, rtol=1e-5)
-        npt.assert_allclose((linrisk.conf_int()[0][1], linrisk.conf_int()[1][1]), sas_rd_ci, rtol=1e-4)
-
-    def test_custom_models(self, sdata):
-        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        logd = LogisticRegression(penalty='l1', C=1.0, random_state=203)
-
-        ipt = IPTW(sdata, treatment='art', standardize='unexposed', stabilized=True)
-        ipt.regression_models(model, custom_model_denominator=logd)
-        ipt.fit()
-        sdata['iptw'] = ipt.Weight
-
-        # Estimating GEE
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_standardized_differences(self, sdata):
-        ipt = IPTW(sdata, treatment='art', stabilized=True)
-        ipt.regression_models('male + age0 + cd40 + dvl0')
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt.treatment_model(model_denominator='male + age0 + cd40 + dvl0', print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
         smd = ipt.standardized_mean_differences()
 
@@ -216,14 +186,16 @@ class TestIPTW:
     def test_match_r_stddiff(self):
         # Simulated data for variable detection and standardized differences
         df = pd.DataFrame()
+        df['y'] = [1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0]
         df['treat'] = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
         df['bin'] = [0, 1, 0, np.nan, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1]
         df['con'] = [0.1, 0.0, 1.0, 1.1, 2.2, 1.3, 0.1, 0.5, 0.9, 0.5, 0.3, 0.2, 0.7, 0.9, 1.4]
         df['dis'] = [0, 1, 3, 2, 1, 0, 0, 0, 0, 0, 1, 3, 2, 2, 1]
         df['cat'] = [1, 2, 3, 1, 1, 2, 3, 1, 3, 2, 1, 2, 3, 2, 1]
 
-        ipt = IPTW(df, treatment='treat', stabilized=True)
-        ipt.regression_models('bin + con + dis + C(cat)')
+        ipt = IPTW(df, treatment='treat', outcome='y', stabilized=True)
+        ipt.treatment_model(model_denominator='bin + con + dis + C(cat)', print_results=False)
+        ipt.marginal_structural_model('treat')
         ipt.fit()
         smd = ipt.standardized_mean_differences()
 
@@ -308,48 +280,40 @@ class TestStochasticIPTW:
         sdata = sdata.dropna().copy()
 
         # Estimating Marginal Structural Model
-        ipt = IPTW(sdata, treatment='art', stabilized=False)
-        ipt.regression_models(model)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=False)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        sdata['iptw'] = ipt.Weight
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Binomial(sm.families.links.identity)
-        linrisk = smf.gee('dead ~ art', sdata['id'], sdata, cov_struct=ind, family=f, weights=sdata['iptw']).fit()
 
         # Estimating 'Stochastic Treatment'
         sipw = StochasticIPTW(sdata, treatment='art', outcome='dead')
-        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                             print_results=False)
+        sipw.treatment_model(model=model, print_results=False)
         sipw.fit(p=1.0)
         r_all = sipw.marginal_outcome
         sipw.fit(p=0.0)
         r_non = sipw.marginal_outcome
 
-        npt.assert_allclose(linrisk.params[1], r_all - r_non, atol=1e-7)
+        npt.assert_allclose(ipt.risk_difference['RD'][1], r_all - r_non, atol=1e-7)
 
     def test_match_iptw_continuous(self, cdata):
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         cdata = cdata.dropna().copy()
 
         # Estimating Marginal Structural Model
-        ipt = IPTW(cdata, treatment='art', stabilized=False)
-        ipt.regression_models(model)
+        ipt = IPTW(cdata, treatment='art', outcome='cd4_wk45', stabilized=False)
+        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt.marginal_structural_model('art')
         ipt.fit()
-        cdata['iptw'] = ipt.Weight
-        ind = sm.cov_struct.Independence()
-        f = sm.families.family.Gaussian()
-        linrisk = smf.gee('cd4_wk45 ~ art', cdata['id'], cdata, cov_struct=ind, family=f, weights=cdata['iptw']).fit()
 
         # Estimating 'Stochastic Treatment'
         sipw = StochasticIPTW(cdata, treatment='art', outcome='cd4_wk45')
-        sipw.treatment_model(model='male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                             print_results=False)
+        sipw.treatment_model(model=model, print_results=False)
         sipw.fit(p=1.0)
         r_all = sipw.marginal_outcome
         sipw.fit(p=0.0)
         r_non = sipw.marginal_outcome
 
-        npt.assert_allclose(linrisk.params[1], r_all - r_non, atol=1e-4)
+        npt.assert_allclose(ipt.average_treatment_effect['ATE'][1], r_all - r_non, atol=1e-4)
 
     # TODO add test for weights
 

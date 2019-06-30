@@ -204,7 +204,7 @@ class IPTW:
         if self._weight_ is None:
             weights = None
         else:
-            weights = self.df[self._weight_]
+            weights = self._weight_
 
         # Calculating denominator probabilities
         self.__mdenom = model_denominator
@@ -233,6 +233,7 @@ class IPTW:
         self.iptw = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
 
         if weights is not None:  # Multiplying calculate IPTW and specified weights
+            print(weights)
             self.ipfw = self.iptw * self.df[weights]
         else:
             self.ipfw = self.iptw
