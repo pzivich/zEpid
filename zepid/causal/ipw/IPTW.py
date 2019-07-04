@@ -5,11 +5,12 @@ import pandas as pd
 from scipy.stats.kde import gaussian_kde
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import family
+from statsmodels.tools.sm_exceptions import DomainWarning
 from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
 
-from zepid.causal.utils import propensity_score
+from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
+                                standardized_mean_differences, positivity)
 from zepid.calc import probability_to_odds
 
 
@@ -143,12 +144,13 @@ class IPTW:
             warnings.warn("There is missing data in the dataset. By default, IPTW will drop all missing data. IPTW "
                           "will fit " + str(df.dropna().shape[0]) + ' of ' + str(df.shape[0]) + ' observations',
                           UserWarning)
+
         if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
             self._continuous_outcome = False
         else:
             self._continuous_outcome = True
 
-        self.df = df.copy().reset_index()
+        self.df = df.copy().dropna().reset_index()
         # TODO add detection of continuous treatments
         self.treatment = treatment
         self.outcome = outcome
@@ -268,8 +270,8 @@ class IPTW:
             else:
                 raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
             self._continuous_y_type = continuous_distribution
-            fm = smf.gee(full_msm, self.df.index, self.df, missing='drop',
-                         cov_struct=ind, family=f, weights=self.iptw).fit()
+            fm = smf.gee(full_msm, self.df.index, self.df,
+                         cov_struct=ind, family=f, weights=self.df['_ipfw_']).fit()
             self.average_treatment_effect = pd.DataFrame()
             self.average_treatment_effect['labels'] = np.asarray(fm.params.index)
             self.average_treatment_effect.set_index(keys=['labels'], inplace=True)
@@ -279,29 +281,33 @@ class IPTW:
             self.average_treatment_effect['95%UCL'] = np.asarray(fm.conf_int()[1])
 
         else:
-            # Estimating Risk Difference
-            f = sm.families.family.Binomial(sm.families.links.identity)
-            fm = smf.gee(full_msm, self.df.index, self.df, missing='drop',
-                         cov_struct=ind, family=f, weights=self.ipfw).fit()
-            self.risk_difference = pd.DataFrame()
-            self.risk_difference['labels'] = np.asarray(fm.params.index)
-            self.risk_difference.set_index(keys=['labels'], inplace=True)
-            self.risk_difference['RD'] = np.asarray(fm.params)
-            self.risk_difference['SE(RD)'] = np.asarray(fm.bse)
-            self.risk_difference['95%LCL'] = np.asarray(fm.conf_int()[0])
-            self.risk_difference['95%UCL'] = np.asarray(fm.conf_int()[1])
+            # Ignoring DomainWarnings from statsmodels
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', DomainWarning)
 
-            # Estimating Risk Ratio
-            f = sm.families.family.Binomial(sm.families.links.log)
-            fm = smf.gee(full_msm, self.df.index, self.df, missing='drop',
-                         cov_struct=ind, family=f, weights=self.ipfw).fit()
-            self.risk_ratio = pd.DataFrame()
-            self.risk_ratio['labels'] = np.asarray(fm.params.index)
-            self.risk_ratio.set_index(keys=['labels'], inplace=True)
-            self.risk_ratio['RR'] = np.exp(np.asarray(fm.params))
-            self.risk_ratio['SE(log(RR))'] = np.asarray(fm.bse)
-            self.risk_ratio['95%LCL'] = np.exp(np.asarray(fm.conf_int()[0]))
-            self.risk_ratio['95%UCL'] = np.exp(np.asarray(fm.conf_int()[1]))
+                # Estimating Risk Difference
+                f = sm.families.family.Binomial(sm.families.links.identity)
+                fm = smf.gee(full_msm, self.df.index, self.df,
+                             cov_struct=ind, family=f, weights=self.df['_ipfw_']).fit()
+                self.risk_difference = pd.DataFrame()
+                self.risk_difference['labels'] = np.asarray(fm.params.index)
+                self.risk_difference.set_index(keys=['labels'], inplace=True)
+                self.risk_difference['RD'] = np.asarray(fm.params)
+                self.risk_difference['SE(RD)'] = np.asarray(fm.bse)
+                self.risk_difference['95%LCL'] = np.asarray(fm.conf_int()[0])
+                self.risk_difference['95%UCL'] = np.asarray(fm.conf_int()[1])
+
+                # Estimating Risk Ratio
+                f = sm.families.family.Binomial(sm.families.links.log)
+                fm = smf.gee(full_msm, self.df.index, self.df,
+                             cov_struct=ind, family=f, weights=self.df['_ipfw_']).fit()
+                self.risk_ratio = pd.DataFrame()
+                self.risk_ratio['labels'] = np.asarray(fm.params.index)
+                self.risk_ratio.set_index(keys=['labels'], inplace=True)
+                self.risk_ratio['RR'] = np.exp(np.asarray(fm.params))
+                self.risk_ratio['SE(log(RR))'] = np.asarray(fm.bse)
+                self.risk_ratio['95%LCL'] = np.exp(np.asarray(fm.conf_int()[0]))
+                self.risk_ratio['95%UCL'] = np.exp(np.asarray(fm.conf_int()[1]))
 
     def summary(self, decimal=3):
         """Print results
@@ -310,7 +316,7 @@ class IPTW:
         print('              Inverse Probability of Treatment Weights                ')
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
-        print(fmt.format(self.treatment, self.ipfw.shape[0]))
+        print(fmt.format(self.treatment, self.df.dropna().shape[0]))
 
         fmt = 'Outcome:          {:<15} g-model:              {:<20}'
         if self._continuous_outcome:
@@ -386,35 +392,8 @@ class IPTW:
         ---------------
         matplotlib axes
         """
-        if measure == 'probability':
-            x = np.linspace(0, 1, 10000)
-            density_t = gaussian_kde(self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna(),
-                                     bw_method=bw_method)
-            density_u = gaussian_kde(self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna(),
-                                     bw_method=bw_method)
-        elif measure == 'logit':
-            t = np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna()))
-            density_t = gaussian_kde(t, bw_method=bw_method)
-
-            u = np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna()))
-            density_u = gaussian_kde(u, bw_method=bw_method)
-            x = np.linspace(np.min((np.min(t), np.min(u))) - 1, np.max((np.max(t), np.max(u))) + 1, 10000)
-        else:
-            raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
-                             "'probability' or 'logit'")
-
-        ax = plt.gca()
-        if fill:
-            ax.fill_between(x, density_t(x), color=color_e, alpha=0.2, label=None)
-            ax.fill_between(x, density_u(x), color=color_u, alpha=0.2, label=None)
-        ax.plot(x, density_t(x), color=color_e, label='Treat = 1')
-        ax.plot(x, density_u(x), color=color_u, label='Treat = 0')
-        if measure == 'probability':
-            ax.set_xlabel('Probability')
-        else:
-            ax.set_xlabel('Log-Odds')
-        ax.set_ylabel('Density')
-        ax.legend()
+        ax = plot_kde(df=self.df, treatment=self.treatment, probability='__denom__', measure=measure,
+                      bw_method=bw_method, fill=fill, color_e=color_e, color_u=color_u)
         return ax
 
     def plot_boxplot(self, measure='probability'):
