@@ -1,5 +1,13 @@
+import patsy
+import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from scipy.stats.kde import gaussian_kde
+from statsmodels.stats.weightstats import DescrStatsW
+import matplotlib.pyplot as plt
+
+from zepid.calc import probability_to_odds
 
 
 def propensity_score(df, model, weights=None, print_results=True):
@@ -131,3 +139,315 @@ def missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results
         return ma1, ma0
     else:
         raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
+def plot_kde(df, treatment, probability,
+             measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
+    """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
+    kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+    Alternative option to the boxplot of probabilities
+
+    Parameters
+    ------------
+    measure : str, optional
+        Measure to plot. Options include either the probabilities or log-odds stratified by treatment received.
+        Default is probabilities (measure='probability'). Log-odds can be requested via measure='logit'
+    bw_method : str, optional
+        Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+    fill : bool, optional
+        Whether to color the area under the density curves. Default is true
+    color_e : str, optional
+        Color of the line/area for the treated group. Default is Blue
+    color_u : str, optional
+        Color of the line/area for the treated group. Default is Red
+
+    Returns
+    ---------------
+    matplotlib axes
+    """
+    if measure == 'probability':
+        x = np.linspace(0, 1, 10000)
+        density_t = gaussian_kde(df.loc[df[treatment] == 1][probability].dropna(),
+                                 bw_method=bw_method)
+        density_u = gaussian_kde(df.loc[df[treatment] == 0][probability].dropna(),
+                                 bw_method=bw_method)
+    elif measure == 'logit':
+        t = np.log(probability_to_odds(df.loc[df[treatment] == 1][probability].dropna()))
+        density_t = gaussian_kde(t, bw_method=bw_method)
+
+        u = np.log(probability_to_odds(df.loc[df[treatment] == 0][probability].dropna()))
+        density_u = gaussian_kde(u, bw_method=bw_method)
+        x = np.linspace(np.min((np.min(t), np.min(u))) - 1, np.max((np.max(t), np.max(u))) + 1, 10000)
+    else:
+        raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
+                         "'probability' or 'logit'")
+
+    ax = plt.gca()
+    if fill:
+        ax.fill_between(x, density_t(x), color=color_e, alpha=0.2, label=None)
+        ax.fill_between(x, density_u(x), color=color_u, alpha=0.2, label=None)
+    ax.plot(x, density_t(x), color=color_e, label='Treat = 1')
+    ax.plot(x, density_u(x), color=color_u, label='Treat = 0')
+    if measure == 'probability':
+        ax.set_xlabel('Probability')
+    else:
+        ax.set_xlabel('Log-Odds')
+    ax.set_ylabel('Density')
+    ax.legend()
+    return ax
+
+
+def plot_boxplot(df, treatment, probability, measure='probability'):
+    """Generates a stratified boxplot that can be used to visually check whether positivity may be violated,
+    qualitatively. Alternative option to the kernel density plot.
+
+    Parameters
+    ----------
+    measure : str, optional
+        Measure to plot. Options include either the probabilities or log-odds stratified by treatment received.
+        Default is probabilities (measure='probability'). Log-odds can be requested via measure='logit'
+
+    Returns
+    -------------
+    matplotlib axes
+    """
+    if measure == 'probability':
+        boxes = (df.loc[df[treatment] == 1][probability].dropna(),
+                 df.loc[df[treatment] == 0][probability].dropna())
+
+    elif measure == 'logit':
+        boxes = (np.log(probability_to_odds(df.loc[df[treatment] == 1][probability].dropna())),
+                 np.log(probability_to_odds(df.loc[df[treatment] == 0][probability].dropna())))
+    else:
+        raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
+                         "'probability' or 'logit")
+
+    labs = ['A = 1', 'A = 0']
+    meanpointprops = dict(marker='D', markeredgecolor='black', markerfacecolor='black')
+    ax = plt.gca()
+    ax.boxplot(boxes, labels=labs, meanprops=meanpointprops, showmeans=True)
+    ax.set_ylim([0, 1])
+    if measure == 'probability':
+        ax.set_ylabel('Probability')
+    else:
+        ax.set_ylabel('Log-Odds')
+    return ax
+
+
+def positivity(df, weights):
+    """Use this to assess whether positivity is a valid assumption. For stabilized weights, the mean weight should
+    be approximately 1. For unstabilized weights, the mean weight should be approximately 2. If there are extreme
+    outliers, this may indicate problems with the calculated weights
+
+    Parameters
+    --------------
+    decimal : int, optional
+        Number of decimal places to display. Default is three
+
+    Returns
+    --------------
+    tuple
+        Tuple of positivity results; mean, SD, min, max
+    """
+    pos_avg = float(np.mean(df[weights].dropna()))
+    pos_max = np.max(df[weights].dropna())
+    pos_min = np.min(df[weights].dropna())
+    pos_sd = float(np.std(df[weights].dropna()))
+    return pos_avg, pos_sd, pos_min, pos_max
+
+
+def _categorical_cov_(a, b):
+    """Turns out, pandas and numpy don't have the correct covariance matrix I need for categorical variables.
+    The covariance matrix is defined as
+
+    S = [S_{kl}] = (P_{1k}*(1-P_{1k}) + P_{2k}*(1-P{2k})) / 2     if k == l
+                   (P_{1k}*P_{1l} + P_{2k}*P_{2l}) / 2            if k != l
+
+    Returns the calculate covariance matrix for categorical variables
+    """
+    cv2 = []
+    for i, v in enumerate(a):
+        cv1 = []
+        if i == 0:
+            pass
+        else:
+            for j, w in enumerate(b):
+                if j == 0:
+                    pass
+                elif i == j:
+                    cv1.append((v * (1 - v) + w * (1 - w)) / 2)
+                else:
+                    cv1.append((a[i] * b[j] + a[i] * b[j]) / -2)
+            cv2.append(cv1)
+
+    return np.array(cv2)
+
+
+def _standardized_difference_(df, treatment, var_type, weight, weighted=True):
+    """Background function to calculate the standardized mean difference between the treat and untreated for a
+    specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
+    by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
+
+    Parameters
+    ---------------
+    variable : str, list
+        Label for variable to calculate the standardized difference. If categorical variables, it should be a list
+        of variable labels
+    var_type : str
+        Variable type. Options are 'binary' 'continuous' or 'categorical'. For categorical variable should be a
+        list of columns labels
+    weighted : bool, optional
+        Whether to return the weighted standardized mean difference or the unweighted. Default is to return the
+        weighted.
+
+    Returns
+    --------------
+    float
+        Returns the calculated standardized mean differences
+    """
+    # Pulling out relevant data
+    dft = df.loc[(df[treatment] == 1) & (df[weight].notnull())].copy()
+    dfn = df.loc[(df[treatment] == 0) & (df[weight].notnull())].copy()
+    vcols = list(df.columns)
+    vcols.remove(treatment)
+    vcols.remove(weight)
+
+    if var_type == 'binary':
+        if weighted:
+            dwt = DescrStatsW(dft[vcols], weights=dft[weight])
+            wt = dwt.mean
+            dwn = DescrStatsW(dfn[vcols], weights=dfn[weight])
+            wn = dwn.mean
+        else:
+            wt = np.mean(dft[vcols].dropna(), axis=0)
+            wn = np.mean(dfn[vcols].dropna(), axis=0)
+        return float((wt - wn) / np.sqrt((wt*(1 - wt) + wn*(1 - wn))/2))
+
+    elif var_type == 'continuous':
+        if weighted:
+            dwt = DescrStatsW(dft[vcols], weights=dft[weight], ddof=1)
+            wmt = dwt.mean
+            wst = dwt.std
+            dwn = DescrStatsW(dfn[vcols], weights=dfn[weight], ddof=1)
+            wmn = dwn.mean
+            wsn = dwn.std
+        else:
+            dwt = DescrStatsW(dft[vcols], ddof=1)
+            wmt = dwt.mean
+            wst = dwt.std
+            dwn = DescrStatsW(dfn[vcols], ddof=1)
+            wmn = dwn.mean
+            wsn = dwn.std
+        return float((wmt - wmn) / np.sqrt((wst**2 + wsn**2)/2))
+
+    elif var_type == 'categorical':
+        if weighted:
+            wt = np.average(dft[vcols], weights=dft[weight], axis=0)
+            wn = np.average(dfn[vcols], weights=dfn[weight], axis=0)
+        else:
+            wt = np.average(dft[vcols], axis=0)
+            wn = np.mean(dfn[vcols], axis=0)
+
+        t_c = wt - wn
+        s_inv = np.linalg.inv(_categorical_cov_(a=wt, b=wn))
+        return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
+
+    else:
+        raise ValueError('Not supported')
+
+
+def standardized_mean_differences(df, treatment, weight, formula):
+    """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
+    difference for all variables included in the IPTW denominator
+
+    Returns
+    -------
+    DataFrame
+        Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
+        smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
+    iptw_only : bool, optional
+        Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+    """
+    variables = patsy.dmatrix(formula + ' - 1', df, return_type='dataframe')
+    w_diff = []
+    u_diff = []
+    vlabel = []
+
+    # Pull out list of terms and the corresponding dataframe slice(s)
+    term_dict = variables.design_info.term_name_slices
+
+    # Looping through the terms
+    for term in variables.design_info.terms:
+        # Adding term labels
+        vlabel.append(term.name())
+
+        # Pulling out data corresponding to term
+        chunk = term_dict[term.name()]
+        v = variables.iloc[:, chunk].copy()
+
+        # Detecting variable type
+        if v.shape[1] != 1:
+            vtype = 'categorical'
+        elif np.all(v.dropna().isin([0, 1])):
+            vtype = 'binary'
+        else:
+            vtype = 'continuous'
+
+        # calculate the absolute standardized difference
+        dat = pd.concat([v, df[[treatment, weight]]], axis=1)
+        wsmd = _standardized_difference_(df=dat, treatment=treatment, var_type=vtype, weight=weight, weighted=True)
+        w_diff.append(wsmd)
+        usmd = _standardized_difference_(df=dat, treatment=treatment, var_type=vtype, weight=weight, weighted=False)
+        u_diff.append(usmd)
+
+    # Setting up DataFrame to return with calculated differences
+    s = pd.DataFrame()
+    s['labels'] = vlabel
+    s['smd_w'] = w_diff
+    s['smd_u'] = u_diff
+    return s
+
+
+def plot_love(df, treatment, weight, formula,
+              color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
+    """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
+    this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
+
+    The Love plot generates a dashed line at standardized mean difference of 0.10. Ideally, weighted SMD are below
+    this level. Below 0.20 may also be sufficient. Variables above this level may be unbalanced despite the
+    weighting procedure. Different functional forms (or approaches like machine learning) may be worth considering
+
+    Parameters
+    ----------
+    color_unweighted : str, optional
+        Color for the unweighted standardized mean differences. Default is red
+    color_weighted : str, optional
+        Color for the weighted standardized mean differences. Default is blue
+    shape_unweighted : str, optional
+        Shape of points for the unweighted standardized mean differences. Default is circles
+    shape_weighted:
+        Shape of points for the weighted standardized mean differences. Default is circles
+    iptw_only : bool, optional
+        Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+
+    Returns
+    -------
+    axes
+        Matplotlib axes of the Love plot
+    """
+    to_plot = standardized_mean_differences(df=df, treatment=treatment, weight=weight, formula=formula)
+    to_plot['smd_w'] = np.absolute(to_plot['smd_w'])
+    to_plot['smd_u'] = np.absolute(to_plot['smd_u'])
+    to_plot = to_plot.sort_values(by='smd_u', ascending=True).reset_index(drop=True)
+
+    # Generate plot
+    ax = plt.gca()
+    ax.plot(to_plot.smd_u, to_plot.index, shape_unweighted, c=color_unweighted, label='Unweighted')
+    ax.plot(to_plot.smd_w, to_plot.index, shape_weighted, c=color_weighted, label='Weighted')
+    ax.set_xlim([0, np.max([np.max(to_plot['smd_w']), np.max(to_plot['smd_u'])]) + 0.5])
+    ax.set_xlabel('Absolute Standardized Difference')
+    ax.axvline(0.1, color='gray')
+    ax.set_yticks([i for i in range(to_plot.shape[0])])
+    ax.set_yticklabels(to_plot['labels'])
+    ax.legend()
+    return ax

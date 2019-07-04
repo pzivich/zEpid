@@ -410,26 +410,7 @@ class IPTW:
         -------------
         matplotlib axes
         """
-        if measure == 'probability':
-            boxes = (self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna(),
-                     self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna())
-
-        elif measure == 'logit':
-            boxes = (np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 1]['__denom__'].dropna())),
-                     np.log(probability_to_odds(self.df.loc[self.df[self.treatment] == 0]['__denom__'].dropna())))
-        else:
-            raise ValueError("Only plots of probabilities or log-odds are supported. Please specify either "
-                             "'probability' or 'logit")
-
-        labs = ['Treat = 1', 'Treat = 0']
-        meanpointprops = dict(marker='D', markeredgecolor='black', markerfacecolor='black')
-        ax = plt.gca()
-        ax.boxplot(boxes, labels=labs, meanprops=meanpointprops, showmeans=True)
-        ax.set_ylim([0, 1])
-        if measure == 'probability':
-            ax.set_ylabel('Probability')
-        else:
-            ax.set_ylabel('Log-Odds')
+        ax = plot_boxplot(df=self.df, treatment=self.treatment, probability='__denom__', measure=measure)
         return ax
 
     def positivity(self, decimal=3, iptw_only=True):
@@ -454,25 +435,41 @@ class IPTW:
         else:
             ipw_type = '_ipfw_'
 
-        self._pos_avg = float(np.mean(self.df[ipw_type].dropna()))
-        self._pos_max = np.max(self.df[ipw_type].dropna())
-        self._pos_min = np.min(self.df[ipw_type].dropna())
-        self._pos_sd = float(np.std(self.df[ipw_type].dropna()))
+        self._pos_avg, self._pos_sd, self._pos_min, self._pos_max = positivity(df=self.df, weights=ipw_type)
         print('======================================================================')
         print('          Inverse Probability of Treatment Weight Diagnostics')
         print('======================================================================')
-        print('If the mean of the weights is far from either the min or max, this may\n indicate the model is '
-              'incorrect or positivity is violated')
+        print('If the mean of the weights is far from either the min or max, this may\n '
+              'indicate the model is incorrect or positivity is violated')
         print('Average weight should be')
         print('\t1.0 for stabilized')
         print('\t2.0 for unstabilized')
-        print('Standard deviation can help in IPTW model selection')
         print('----------------------------------------------------------------------')
         print('Mean weight:           ', round(self._pos_avg, decimal))
         print('Standard Deviation:    ', round(self._pos_sd, decimal))
         print('Minimum weight:        ', round(self._pos_min, decimal))
         print('Maximum weight:        ', round(self._pos_max, decimal))
         print('======================================================================')
+
+    def standardized_mean_differences(self, iptw_only=True):
+        """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
+        difference for all variables included in the IPTW denominator
+
+        Returns
+        -------
+        DataFrame
+            Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
+            smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
+        iptw_only : bool, optional
+            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+        """
+        if iptw_only:
+            ipw_type = '_iptw_'
+        else:
+            ipw_type = '_ipfw_'
+
+        s = standardized_mean_differences(df=self.df, treatment=self.treatment, weight=ipw_type, formula=self.__mdenom)
+        return s
 
     def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o',
                   iptw_only=True):
@@ -501,151 +498,15 @@ class IPTW:
         axes
             Matplotlib axes of the Love plot
         """
-        to_plot = self.standardized_mean_differences(iptw_only=iptw_only)
-        to_plot['smd_w'] = np.absolute(to_plot['smd_w'])
-        to_plot['smd_u'] = np.absolute(to_plot['smd_u'])
-        to_plot = to_plot.sort_values(by='smd_u', ascending=True).reset_index(drop=True)
-
-        # Generate plot
-        ax = plt.gca()
-        ax.plot(to_plot.smd_u, to_plot.index, shape_unweighted, c=color_unweighted, label='Unweighted')
-        ax.plot(to_plot.smd_w, to_plot.index, shape_weighted, c=color_weighted, label='Weighted')
-        ax.set_xlim([0, np.max([np.max(to_plot['smd_w']), np.max(to_plot['smd_u'])]) + 0.5])
-        ax.set_xlabel('Absolute Standardized Difference')
-        ax.axvline(0.1, color='gray')
-        ax.set_yticks([i for i in range(to_plot.shape[0])])
-        ax.set_yticklabels(to_plot['labels'])
-        ax.legend()
-        return ax
-
-    def standardized_mean_differences(self, iptw_only=True):
-        """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
-        difference for all variables included in the IPTW denominator
-
-        Returns
-        -------
-        DataFrame
-            Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
-            smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
-        iptw_only : bool, optional
-            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
-        """
         if iptw_only:
             ipw_type = '_iptw_'
         else:
             ipw_type = '_ipfw_'
 
-        vars = patsy.dmatrix(self.__mdenom + ' - 1', self.df, return_type='dataframe')
-        w_diff = []
-        u_diff = []
-        vlabel = []
-
-        # Pull out list of terms and the corresponding dataframe slice(s)
-        term_dict = vars.design_info.term_name_slices
-
-        # Looping through the terms
-        for term in vars.design_info.terms:
-            # Adding term labels
-            vlabel.append(term.name())
-
-            # Pulling out data corresponding to term
-            chunk = term_dict[term.name()]
-            v = vars.iloc[:, chunk].copy()
-
-            # Detecting variable type
-            if v.shape[1] != 1:
-                vtype = 'categorical'
-            elif np.all(v.dropna().isin([0, 1])):
-                vtype = 'binary'
-            else:
-                vtype = 'continuous'
-
-            # calculate the absolute standardized difference
-            dat = pd.concat([v, self.df[[self.treatment, ipw_type]]], axis=1)
-            wsmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=True, ipw_type=ipw_type)
-            w_diff.append(wsmd)
-            usmd = self._standardized_difference(variable=dat, var_type=vtype, weighted=False, ipw_type=ipw_type)
-            u_diff.append(usmd)
-
-        # Setting up DataFrame to return with calculated differences
-        s = pd.DataFrame()
-        s['labels'] = vlabel
-        s['smd_w'] = w_diff
-        s['smd_u'] = u_diff
-        return s
-
-    def _standardized_difference(self, variable, var_type, ipw_type, weighted=True):
-        """Background function to calculate the standardized mean difference between the treat and untreated for a
-        specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
-        by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
-
-        Parameters
-        ---------------
-        variable : str, list
-            Label for variable to calculate the standardized difference. If categorical variables, it should be a list
-            of variable labels
-        var_type : str
-            Variable type. Options are 'binary' 'continuous' or 'categorical'. For categorical variable should be a
-            list of columns labels
-        weighted : bool, optional
-            Whether to return the weighted standardized mean difference or the unweighted. Default is to return the
-            weighted.
-
-        Returns
-        --------------
-        float
-            Returns the calculated standardized mean differences
-        """
-        # Pulling out relevant data
-        dft = variable.loc[(variable[self.treatment] == 1) & (variable[ipw_type].notnull())].copy()
-        dfn = variable.loc[(variable[self.treatment] == 0) & (variable[ipw_type].notnull())].copy()
-        # removing self.ex and 'iptw' from vars to calculate for
-        vcols = list(variable.columns)
-        vcols.remove(self.treatment)
-        vcols.remove(ipw_type)
-
-        if var_type == 'binary':
-            if weighted:
-                dwt = DescrStatsW(dft[vcols], weights=dft[ipw_type])
-                wt = dwt.mean
-                dwn = DescrStatsW(dfn[vcols], weights=dfn[ipw_type])
-                wn = dwn.mean
-            else:
-                wt = np.mean(dft[vcols].dropna(), axis=0)
-                wn = np.mean(dfn[vcols].dropna(), axis=0)
-            return float((wt - wn) / np.sqrt((wt*(1 - wt) + wn*(1 - wn))/2))
-
-        elif var_type == 'continuous':
-            if weighted:
-                dwt = DescrStatsW(dft[vcols], weights=dft[ipw_type], ddof=1)
-                wmt = dwt.mean
-                wst = dwt.std
-                dwn = DescrStatsW(dfn[vcols], weights=dfn[ipw_type], ddof=1)
-                wmn = dwn.mean
-                wsn = dwn.std
-            else:
-                dwt = DescrStatsW(dft[vcols], ddof=1)
-                wmt = dwt.mean
-                wst = dwt.std
-                dwn = DescrStatsW(dfn[vcols], ddof=1)
-                wmn = dwn.mean
-                wsn = dwn.std
-            return float((wmt - wmn) / np.sqrt((wst**2 + wsn**2)/2))
-
-        elif var_type == 'categorical':
-            if weighted:
-                wt = np.average(dft[vcols], weights=dft[ipw_type], axis=0)
-                wn = np.average(dfn[vcols], weights=dfn[ipw_type], axis=0)
-            else:
-                wt = np.average(dft[vcols], axis=0)
-                wn = np.mean(dfn[vcols], axis=0)
-
-            t_c = wt - wn
-            s_inv = np.linalg.inv(self._categorical_cov(treated=wt, untreated=wn))
-            return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
-
-        else:
-            raise ValueError('Not supported')
+        ax = plot_love(df=self.df, treatment=self.treatment, weight=ipw_type, formula=self.__mdenom,
+                       color_unweighted=color_unweighted, color_weighted=color_weighted,
+                       shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
+        return ax
 
     def _weight_calculator(self, df, denominator, numerator):
         """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
@@ -686,33 +547,6 @@ class IPTW:
                 df['w'] = np.where(df[self.treatment] == 1, ((1 - df[denominator]) / df[denominator]), 1)
                 df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
         return df['w']
-
-    @staticmethod
-    def _categorical_cov(treated, untreated):
-        """Turns out, pandas and numpy don't have the correct covariance matrix I need for categorical variables.
-        The covariance matrix is defined as
-
-        S = [S_{kl}] = (P_{1k}*(1-P_{1k}) + P_{2k}*(1-P{2k})) / 2     if k == l
-                       (P_{1k}*P_{1l} + P_{2k}*P_{2l}) / 2            if k != l
-
-        Returns the calculate covariance matrix for categorical variables
-        """
-        cv2 = []
-        for i, v in enumerate(treated):
-            cv1 = []
-            if i == 0:
-                pass
-            else:
-                for j, w in enumerate(untreated):
-                    if j == 0:
-                        pass
-                    elif i == j:
-                        cv1.append((v * (1 - v) + w * (1 - w)) / 2)
-                    else:
-                        cv1.append((treated[i] * treated[j] + untreated[i] * untreated[j]) / -2)
-                cv2.append(cv1)
-
-        return np.array(cv2)
 
 
 class StochasticIPTW:
