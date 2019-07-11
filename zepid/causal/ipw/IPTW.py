@@ -448,7 +448,7 @@ class IPTW:
 
         self._pos_avg, self._pos_sd, self._pos_min, self._pos_max = positivity(df=self.df, weights=ipw_type)
         print('======================================================================')
-        print('          Inverse Probability of Treatment Weight Diagnostics')
+        print('                         Weight Diagnostics')
         print('======================================================================')
         print('If the mean of the weights is far from either the min or max, this may\n '
               'indicate the model is incorrect or positivity is violated')
