@@ -89,9 +89,9 @@ class TestIPTW:
         npt.assert_allclose(ipt._pos_max, 2)
 
     def test_match_sas_unstabilized(self, sdata):
-        sas_w_sum = 1038.051
-        sas_rd = -0.081519085
-        sas_rd_ci = -0.156199938, -0.006838231
+        sas_w_sum = 1027.220
+        sas_rd = -0.081664495
+        sas_rd_ci = -0.156351303, -0.006977688
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=False)
         ipt.treatment_model(model_denominator=model, print_results=False)
@@ -103,9 +103,9 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_stabilized(self, sdata):
-        sas_w_sum = 515.6177
-        sas_rd = -0.081519085
-        sas_rd_ci = -0.156199938, -0.006838231
+        sas_w_sum = 516.1869428
+        sas_rd = -0.081664495
+        sas_rd_ci = -0.156351303, -0.006977688
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
         ipt.treatment_model(model_denominator=model, print_results=False)
@@ -117,9 +117,9 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_e(self, sdata):
-        sas_w_sum = 151.2335
-        sas_rd = -0.090875986
-        sas_rd_ci = -0.180169444, -0.001582527
+        sas_w_sum = 154.281149
+        sas_rd = -0.089709341
+        sas_rd_ci = -0.179090584, -0.000328099
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed', stabilized=False)
         ipt.treatment_model(model_denominator=model, print_results=False)
@@ -131,9 +131,9 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_u(self, sdata):
-        sas_w_sum = 886.8178
-        sas_rd = -0.080048197
-        sas_rd_ci = -0.153567335, -0.006529058
+        sas_w_sum = 872.9343353
+        sas_rd = -0.080317741
+        sas_rd_ci = -0.153815681, -0.006819802
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed', stabilized=False)
         ipt.treatment_model(model_denominator=model, print_results=False)
@@ -145,8 +145,8 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_e_stabilized(self, sdata):
-        sas_rd = -0.090875986
-        sas_rd_ci = -0.180169444, -0.001582527
+        sas_rd = -0.089709341
+        sas_rd_ci = -0.179090584, -0.000328099
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed', stabilized=True)
         ipt.treatment_model(model_denominator=model, print_results=False)
@@ -157,8 +157,8 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_match_sas_smr_u_stabilized(self, sdata):
-        sas_rd = -0.080048197
-        sas_rd_ci = -0.153567335, -0.006529058
+        sas_rd = -0.080317741
+        sas_rd_ci = -0.153815681, -0.006819802
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
         ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed', stabilized=True)
         ipt.treatment_model(model_denominator=model, print_results=False)
@@ -176,11 +176,11 @@ class TestIPTW:
         smd = ipt.standardized_mean_differences()
 
         npt.assert_allclose(np.array(smd['smd_u']),
-                            np.array([-0.015684, 0.022311, -0.4867, -0.015729]),
+                            np.array([-0.027344,  0.014169, -0.491828, -0.010167]),
                             rtol=1e-4)  # for unweighted
         # TODO find R package to test these weighted SMD's
         npt.assert_allclose(np.array(smd['smd_w']),
-                            np.array([-0.097789, -0.012395, -0.018591, 0.050719]),
+                            np.array([-0.095284, -0.009463, -0.015481,  0.047655]),
                             rtol=1e-4)  # for weighted
 
     def test_match_r_stddiff(self):
@@ -200,12 +200,12 @@ class TestIPTW:
         smd = ipt.standardized_mean_differences()
 
         npt.assert_allclose(np.array(smd['smd_u']),
-                            np.array([0.342997, 0.0, 0.06668, -0.513553]),
+                            np.array([0.340997, 0.0, 0.06668, -0.513553]),
                             rtol=1e-4)  # for unweighted
         # TODO need to find an R package or something that calculates weighted SMD
         # currently compares to my own calculations
         npt.assert_allclose(np.array(smd['smd_w']),
-                            np.array([0.206072, -0.148404,  0.035752, 0.085844]),
+                            np.array([0.203126, -0.148404,  0.035683,  0.085775]),
                             rtol=1e-4)  # for weighted
 
 
