@@ -4,7 +4,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-# from lifelines import KaplanMeierFitter
+from lifelines import KaplanMeierFitter
 
 from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, IncidenceRateDifference, IncidenceRateRatio,
                    spline)
@@ -142,7 +142,6 @@ def causal_check():
     # Check TimeFixedGFormula diagnostics
     g = TimeFixedGFormula(data, exposure='art', outcome='dead')
     g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    print(g._predicted_y_.isna().sum())
     g.run_diagnostics(decimal=3)
 
     # Check IPTW plots
@@ -250,5 +249,5 @@ def mc_gformula_check():
 # graphics_check()
 # senstivity_check()
 # measures_check()
-causal_check()
+# causal_check()
 # mc_gformula_check()
