@@ -340,26 +340,23 @@ class AIPTW:
         if self._predicted_y_ is None:
             raise ValueError("The outcome_model function must be ran before any diagnostics")
 
-        df = self.df.copy()
-        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
-
         # Weight diagnostics
         print('\tInverse Probability Weight Diagnostics')
-
         self.positivity(decimal=decimal)
 
-        sdiff = standardized_mean_differences(df=df, treatment=self.exposure,
-                                              weight='_ipw_', formula=self.__mweight)
-        print('======================================================================')
+        print('\n======================================================================')
         print('                  Standardized Mean Differences')
         print('======================================================================')
-        print(sdiff.set_index(keys='labels'))
+        print(self.standardized_mean_differences().set_index(keys='labels'))
         print('======================================================================\n')
 
         # Outcome accuracy diagnostics
         print('\tOutcome Model Diagnostics')
         v = self._predicted_y_ - self.df[self.outcome]
-        outcome_accuracy(true=df[self.outcome], predicted=self._predicted_y_, decimal=decimal)
+        outcome_accuracy(true=self.df[self.outcome], predicted=self._predicted_y_, decimal=decimal)
+
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
 
         plt.figure(figsize=[8, 6])
         plt.subplot(221)
@@ -375,6 +372,49 @@ class AIPTW:
         plt.title("Kernel Density of Accuracy")
         plt.tight_layout()
         plt.show()
+
+    def positivity(self, decimal=3):
+        """Use this to assess whether positivity is a valid assumption for inverse probability weights. If there are
+        extreme outliers, this may indicate problems with the calculated weights
+
+        Parameters
+        --------------
+        decimal : int, optional
+            Number of decimal places to display. Default is three
+
+        Returns
+        --------------
+        None
+            Prints the positivity results to the console but does not return any objects
+        """
+        pos = positivity(df=self.df, weights='_g1_')
+        print('======================================================================')
+        print('                      Weight Positivity Diagnostics')
+        print('======================================================================')
+        print('If the mean of the weights is far from either the min or max, this may\n '
+              'indicate the model is incorrect or positivity is violated')
+        print('Average weight should be 2')
+        print('----------------------------------------------------------------------')
+        print('Mean weight:           ', round(pos[0], decimal))
+        print('Standard Deviation:    ', round(pos[1], decimal))
+        print('Minimum weight:        ', round(pos[2], decimal))
+        print('Maximum weight:        ', round(pos[3], decimal))
+        print('======================================================================\n')
+
+    def standardized_mean_differences(self):
+        """Calculates the standardized mean differences for all variables based on the inverse probability weights.
+
+        Returns
+        -------
+        DataFrame
+            Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
+            smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
+        """
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
+        s = standardized_mean_differences(df=df, treatment=self.exposure,
+                                          weight='_ipw_', formula=self.__mweight)
+        return s
 
     def plot_kde(self, to_plot, bw_method='scott', fill=True,
                  color='g', color_e='b', color_u='r'):
@@ -417,34 +457,6 @@ class AIPTW:
             raise ValueError("Please use one of the following options for `to_plot`; 'treatment', 'outcome'")
 
         return ax
-
-    def positivity(self, decimal=3):
-        """Use this to assess whether positivity is a valid assumption for inverse probability weights. If there are
-        extreme outliers, this may indicate problems with the calculated weights
-
-        Parameters
-        --------------
-        decimal : int, optional
-            Number of decimal places to display. Default is three
-
-        Returns
-        --------------
-        None
-            Prints the positivity results to the console but does not return any objects
-        """
-        pos = positivity(df=self.df, weights='_g1_')
-        print('======================================================================')
-        print('                      Weight Positivity Diagnostics')
-        print('======================================================================')
-        print('If the mean of the weights is far from either the min or max, this may\n '
-              'indicate the model is incorrect or positivity is violated')
-        print('Average weight should be 2')
-        print('----------------------------------------------------------------------')
-        print('Mean weight:           ', round(pos[0], decimal))
-        print('Standard Deviation:    ', round(pos[1], decimal))
-        print('Minimum weight:        ', round(pos[2], decimal))
-        print('Maximum weight:        ', round(pos[3], decimal))
-        print('======================================================================\n')
 
     def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
         """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of

@@ -466,13 +466,16 @@ class IPTW:
         """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
         difference for all variables included in the IPTW denominator
 
+        Parameters
+        ----------
+        iptw_only : bool, optional
+            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+
         Returns
         -------
         DataFrame
             Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
             smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
-        iptw_only : bool, optional
-            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
         """
         if iptw_only:
             ipw_type = '_iptw_'
