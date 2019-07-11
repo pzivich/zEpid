@@ -11,7 +11,7 @@ from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, Incid
 from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot, spaghetti_plot,
                             roc, dynamic_risk_plot, labbe_plot)
 from zepid.causal.ipw import IPTW
-from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula
+from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula, TimeFixedGFormula
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 
@@ -135,10 +135,17 @@ def senstivity_check():
 
 
 def causal_check():
-    # Check IPTW plots
     data = load_sample_data(False)
     data[['cd4_rs1', 'cd4_rs2']] = spline(data, 'cd40', n_knots=3, term=2, restricted=True)
     data[['age_rs1', 'age_rs2']] = spline(data, 'age0', n_knots=3, term=2, restricted=True)
+
+    # Check TimeFixedGFormula diagnostics
+    g = TimeFixedGFormula(data, exposure='art', outcome='dead')
+    g.outcome_model(model='art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    print(g._predicted_y_.isna().sum())
+    g.run_diagnostics(decimal=3)
+
+    # Check IPTW plots
     ipt = IPTW(data, treatment='art', outcome='dead', stabilized=True)
     ipt.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     ipt.marginal_structural_model('art')
@@ -243,5 +250,5 @@ def mc_gformula_check():
 # graphics_check()
 # senstivity_check()
 # measures_check()
-# causal_check()
+causal_check()
 # mc_gformula_check()

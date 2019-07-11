@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
+from zepid.causal.utils import outcome_accuracy, plot_kde_accuracy
+
 
 class TimeFixedGFormula:
     r"""G-formula for time-fixed exposure and single endpoint, also referred to as the g-computation algorithm formula.
@@ -157,6 +159,7 @@ class TimeFixedGFormula:
 
         self._weights = weights
         self._outcome_model = None
+        self._predicted_y_ = None
         self.marginal_outcome = np.nan
         self.predicted_df = None
 
@@ -188,6 +191,9 @@ class TimeFixedGFormula:
             m = smf.glm(self.outcome + ' ~ ' + model, self.gf, family=linkdist,
                         freq_weights=self.gf[self._weights])
             self._outcome_model = m.fit()
+
+        # Creating predicted Y variable
+        self._predicted_y_ = self._outcome_model.predict(self.gf)
 
         # Printing results of the model and if any observations were dropped
         if print_results:
@@ -337,6 +343,44 @@ class TimeFixedGFormula:
                 marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
 
         self.marginal_outcome = np.mean(marginals)
+
+    def run_diagnostics(self, decimal=3):
+        """Runs diagnostics for the g-formula regression model used. Diagnostics include summary statistics and a
+        Kernel Density plot for the predictive accuracy of the model. The model compares the model predicted value to
+        the observed outcome value.
+        """
+        # Summary statistics of prediction accuracy
+        outcome_accuracy(true=self.gf[self.outcome], predicted=self._predicted_y_, decimal=decimal)
+
+        # Distribution plot of accuracy
+        self.plot_kde()
+        plt.title("Kernel Density of Accuracy")
+        plt.tight_layout()
+        plt.show()
+
+    def plot_kde(self, bw_method='scott', fill=True, color='b'):
+        """Generates a Kernel Density plot of the accuracy of the model predicted outcomes. The plot compares the
+        model predicted outcome to the observed outcome. This can be used as a diagnostic for the g-formula.
+
+        Parameters
+        ----------
+        bw_method : str, optional
+            Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+        fill : bool, optional
+            Whether to color the area under the density curves. Default is true
+        color : str, optional
+            Color of the line/area. Default is blue
+
+        Returns
+        -------
+        matplotlib axes
+        """
+        if self._predicted_y_ is None:
+            raise ValueError("The outcome_model function must be ran before any diagnostics")
+
+        v = self._predicted_y_ - self.gf[self.outcome]
+        return plot_kde_accuracy(values=v.dropna(),
+                                 bw_method=bw_method, fill=fill, color=color)
 
     def _check_conditional(self, conditional):
         """Check that conditionals are exclusive for the stochastic fit process

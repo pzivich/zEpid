@@ -488,5 +488,61 @@ def plot_love(df, treatment, weight, formula,
     ax.legend()
     return ax
 
-# TODO add diagnostics for outcome-model
 
+def outcome_accuracy(true, predicted, decimal=3):
+    """Diagnostic for Q-models. Compares the observed outcome to the predicted.
+
+    Parameters
+    ----------
+    true:
+        True (observed) values
+    predicted:
+        Predicted values
+    decimal : int, optional
+        Number of decimal places to display. Default is three
+    """
+    value = predicted - true
+
+    print('======================================================================')
+    print('                     Outcome Model Diagnostics')
+    print('======================================================================')
+    print('Outcome model accuracy summary statistics. Defined as the predicted\n'
+          'outcome value minus the observed outcome value')
+    print('----------------------------------------------------------------------')
+    print('Mean value:           ', np.round(np.mean(value), decimal))
+    print('Standard Deviation:    ', np.round(np.std(value, ddof=1), decimal))
+    print('Minimum value:        ', np.round(np.min(value), decimal))
+    print('Maximum value:        ', np.round(np.max(value), decimal))
+    print('======================================================================')
+
+
+def plot_kde_accuracy(values, bw_method='scott', fill=True, color='b'):
+    """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
+    kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+    Alternative option to the boxplot of probabilities
+
+    Parameters
+    ----------
+    values : str, optional
+        Difference between predicted value and observed value
+    bw_method : str, optional
+        Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+    fill : bool, optional
+        Whether to color the area under the density curves. Default is true
+    color : str, optional
+        Color of the line/area. Default is blue
+
+    Returns
+    -------
+    matplotlib axes
+    """
+    x = np.linspace(np.min(values) - 0.5, np.max(values) + 0.5, 10000)
+    density = gaussian_kde(values, bw_method=bw_method)
+
+    ax = plt.gca()
+    if fill:
+        ax.fill_between(x, density(x), color=color, alpha=0.2, label=None)
+    ax.plot(x, density(x), color=color)
+    ax.set_xlabel(r'$Y_{pred} - Y$')
+    ax.set_ylabel('Density')
+    return ax
