@@ -208,6 +208,45 @@ class TestIPTW:
                             np.array([0.203126, -0.148404,  0.035683,  0.085775]),
                             rtol=1e-4)  # for weighted
 
+    def test_match_sas_gbound(self, sdata):
+        sas_rd = -0.075415972
+        sas_rd_ci = -0.151818462, 0.000986519
+        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt.treatment_model(model_denominator=model, print_results=False, bound=0.1)
+        ipt.marginal_structural_model('art')
+        ipt.fit()
+
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci,
+                            atol=1e-4, rtol=1e-4)
+
+    def test_match_sas_gbound2(self, sdata):
+        sas_rd = -0.051394140
+        sas_rd_ci = -0.133800939, 0.031012659
+        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt.treatment_model(model_denominator=model, print_results=False, bound=[0.2, 0.9])
+        ipt.marginal_structural_model('art')
+        ipt.fit()
+
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci,
+                            atol=1e-4, rtol=1e-4)
+
+    def test_match_sas_gbound3(self, sdata):
+        sas_rd = -0.045129870
+        sas_rd_ci = -0.128184899, 0.037925158
+        model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt.treatment_model(model_denominator=model, print_results=False, bound=0.5)
+        ipt.marginal_structural_model('art')
+        ipt.fit()
+
+        npt.assert_allclose(ipt.risk_difference['RD'][1], sas_rd, rtol=1e-5)
+        npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci,
+                            atol=1e-4, rtol=1e-4)
+
 
 class TestStochasticIPTW:
 

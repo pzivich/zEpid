@@ -453,3 +453,25 @@ class TestAIPTW:
         aipw.fit()
         npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
         assert aipw.average_treatment_effect_ci is None
+
+    def test_bounds(self, df):
+        aipw = AIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            bound=0.1, print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        aipw.fit()
+
+        npt.assert_allclose(aipw.risk_difference, -0.0819506956)
+        npt.assert_allclose(aipw.risk_difference_ci, (-0.1498808287, -0.0140205625))
+
+    def test_bounds2(self, df):
+        aipw = AIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            bound=[0.2, 0.9], print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        aipw.fit()
+
+        npt.assert_allclose(aipw.risk_difference, -0.0700780176)
+        npt.assert_allclose(aipw.risk_difference_ci, (-0.1277925885, -0.0123634468))
