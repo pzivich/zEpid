@@ -364,8 +364,8 @@ class IPTW:
         self.positivity(iptw_only=iptw_only)
 
         print('\n======================================================================')
-        print('Standardized Mean Differences')
-        print('----------------------------------------------------------------------')
+        print('                Standardized Mean Differences')
+        print('======================================================================')
         print(self.standardized_mean_differences(iptw_only=iptw_only).set_index(keys='labels'))
         print('======================================================================')
 
@@ -448,7 +448,7 @@ class IPTW:
 
         self._pos_avg, self._pos_sd, self._pos_min, self._pos_max = positivity(df=self.df, weights=ipw_type)
         print('======================================================================')
-        print('                         Weight Diagnostics')
+        print('                     Weight Positivity Diagnostics')
         print('======================================================================')
         print('If the mean of the weights is far from either the min or max, this may\n '
               'indicate the model is incorrect or positivity is violated')

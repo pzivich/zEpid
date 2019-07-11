@@ -1,12 +1,15 @@
 import warnings
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
-from zepid.causal.utils import propensity_score
-from zepid.causal.utils import _bounding_
+from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
+                                standardized_mean_differences, positivity, _bounding_,
+                                plot_kde_accuracy, outcome_accuracy)
 
 
 class AIPTW:
@@ -147,6 +150,7 @@ class AIPTW:
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
+        self.__mweight = model
         self._exp_model = self.exposure + ' ~ ' + model
         fitmodel = propensity_score(self.df, self._exp_model, weights=self._weight_, print_results=print_results)
         ps = fitmodel.predict(self.df)
@@ -201,6 +205,10 @@ class AIPTW:
             print('-----------------------------------------------------------------')
             print(log.summary())
 
+        # Generating predictions for observed variables
+        self._predicted_y_ = log.predict(self.df)
+
+        # Predicting under treatment strategies
         dfx = self.df.copy()
         dfx[self.exposure] = 1
         self.df['_pY1_'] = log.predict(dfx)
@@ -317,3 +325,155 @@ class AIPTW:
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
 
         print('======================================================================')
+
+    def run_diagnostics(self, decimal=3):
+        """Run all currently implemented diagnostics for inverse probability of treatment weights available. Each
+        diagnostic can be called individually for further optional specifications. `run_weight_diagnostics` will
+        provide results for all implemented diagnostics for ease of the user. For presentation of results, I recommend
+        calling each function individually and utilizing the optional parameters
+
+        Note
+        ----
+        The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
+        functions return an axes object
+        """
+        if self._predicted_y_ is None:
+            raise ValueError("The outcome_model function must be ran before any diagnostics")
+
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
+
+        # Weight diagnostics
+        print('\tInverse Probability Weight Diagnostics')
+
+        self.positivity(decimal=decimal)
+
+        sdiff = standardized_mean_differences(df=df, treatment=self.exposure,
+                                              weight='_ipw_', formula=self.__mweight)
+        print('======================================================================')
+        print('                  Standardized Mean Differences')
+        print('======================================================================')
+        print(sdiff.set_index(keys='labels'))
+        print('======================================================================\n')
+
+        # Outcome accuracy diagnostics
+        print('\tOutcome Model Diagnostics')
+        v = self._predicted_y_ - self.df[self.outcome]
+        outcome_accuracy(true=df[self.outcome], predicted=self._predicted_y_, decimal=decimal)
+
+        plt.figure(figsize=[8, 6])
+        plt.subplot(221)
+        plot_love(df=df, treatment=self.exposure, weight='_ipw_', formula=self.__mweight)
+        plt.title("Love Plot")
+
+        plt.subplot(223)
+        plot_kde(df=df, treatment=self.exposure, probability='_g1_')
+        plt.title("Kernel Density of Propensity Scores")
+
+        plt.subplot(222)
+        plot_kde_accuracy(values=v.dropna(), color='green')
+        plt.title("Kernel Density of Accuracy")
+        plt.tight_layout()
+        plt.show()
+
+    def plot_kde(self, to_plot, bw_method='scott', fill=True,
+                 color='g', color_e='b', color_u='r'):
+        """Generates density plots that can be used to check whether positivity may be violated qualitatively, and
+        accuracy of the outcome model
+
+        The kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+
+        Parameters
+        ------------
+        to_plot : str, optional
+            The plot to generate. Specifying 'exposure' returns only the density plot for treatment probabilities,
+            and 'outcome' returns only the density plot for the outcome accuracy
+        bw_method : str, optional
+            Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+        fill : bool, optional
+            Whether to color the area under the density curves. Default is true
+        color : str, optional
+            Color of the line/area for predicted outcomes minus observed outcomes. Default is Green
+        color_e : str, optional
+            Color of the line/area for the treated group. Default is Blue
+        color_u : str, optional
+            Color of the line/area for the treated group. Default is Red
+
+        Returns
+        ---------------
+        matplotlib axes
+        """
+        if to_plot == 'exposure':
+            ax = plot_kde(df=self.df, treatment=self.exposure, probability='_g1_',
+                          bw_method=bw_method, fill=fill, color_e=color_e, color_u=color_u)
+            ax.set_title("Kernel Density of Propensity Scores")
+
+        elif to_plot == 'outcome':
+            v = self._predicted_y_ - self.df[self.outcome]
+            ax = plot_kde_accuracy(values=v.dropna(), bw_method=bw_method, fill=fill, color=color)
+            ax.set_title("Kernel Density of Accuracy")
+
+        else:
+            raise ValueError("Please use one of the following options for `to_plot`; 'treatment', 'outcome'")
+
+        return ax
+
+    def positivity(self, decimal=3):
+        """Use this to assess whether positivity is a valid assumption for inverse probability weights. If there are
+        extreme outliers, this may indicate problems with the calculated weights
+
+        Parameters
+        --------------
+        decimal : int, optional
+            Number of decimal places to display. Default is three
+
+        Returns
+        --------------
+        None
+            Prints the positivity results to the console but does not return any objects
+        """
+        pos = positivity(df=self.df, weights='_g1_')
+        print('======================================================================')
+        print('                      Weight Positivity Diagnostics')
+        print('======================================================================')
+        print('If the mean of the weights is far from either the min or max, this may\n '
+              'indicate the model is incorrect or positivity is violated')
+        print('Average weight should be 2')
+        print('----------------------------------------------------------------------')
+        print('Mean weight:           ', round(pos[0], decimal))
+        print('Standard Deviation:    ', round(pos[1], decimal))
+        print('Minimum weight:        ', round(pos[2], decimal))
+        print('Maximum weight:        ', round(pos[3], decimal))
+        print('======================================================================\n')
+
+    def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
+        """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
+        this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
+
+        The Love plot generates a dashed line at standardized mean difference of 0.10. Ideally, weighted SMD are below
+        this level. Below 0.20 may also be sufficient. Variables above this level may be unbalanced despite the
+        weighting procedure. Different functional forms (or approaches like machine learning) may be worth considering
+
+        Parameters
+        ----------
+        color_unweighted : str, optional
+            Color for the unweighted standardized mean differences. Default is red
+        color_weighted : str, optional
+            Color for the weighted standardized mean differences. Default is blue
+        shape_unweighted : str, optional
+            Shape of points for the unweighted standardized mean differences. Default is circles
+        shape_weighted:
+            Shape of points for the weighted standardized mean differences. Default is circles
+
+        Returns
+        -------
+        axes
+            Matplotlib axes of the Love plot
+        """
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
+
+        ax = plot_love(df=df, treatment=self.exposure, weight='_ipw_', formula=self.__mweight,
+                       color_unweighted=color_unweighted, color_weighted=color_weighted,
+                       shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
+        return ax
