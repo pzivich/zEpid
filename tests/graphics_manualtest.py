@@ -12,6 +12,7 @@ from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot
                             roc, dynamic_risk_plot, labbe_plot)
 from zepid.causal.ipw import IPTW
 from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula, TimeFixedGFormula
+from zepid.causal.doublyrobust import AIPTW
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 
@@ -135,7 +136,7 @@ def senstivity_check():
 
 
 def causal_check():
-    data = load_sample_data(False)
+    data = load_sample_data(False).drop(columns=['cd4_wk45'])
     data[['cd4_rs1', 'cd4_rs2']] = spline(data, 'cd40', n_knots=3, term=2, restricted=True)
     data[['age_rs1', 'age_rs2']] = spline(data, 'age0', n_knots=3, term=2, restricted=True)
 
@@ -161,6 +162,20 @@ def causal_check():
     ipt.plot_boxplot(measure='logit')
     plt.show()
     ipt.run_diagnostics()
+
+    # Check AIPTW Diagnostics
+    aipw = AIPTW(data, exposure='art', outcome='dead')
+    aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    aipw.fit()
+    aipw.summary()
+    aipw.run_diagnostics()
+    aipw.plot_kde(to_plot='exposure')
+    plt.show()
+    aipw.plot_kde(to_plot='outcome')
+    plt.show()
+    aipw.plot_love()
+    plt.show()
 
     # Check SurvivalGFormula plots
     df = load_sample_data(False).drop(columns=['cd4_wk45'])
