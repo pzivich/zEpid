@@ -25,10 +25,9 @@ def df_c():
 def df_iptw(df_c):
     dfs = df_c.loc[df_c['S'] == 1].copy()
 
-    ipt = IPTW(dfs, treatment='A')
-    ipt.regression_models('L', print_results=False)
-    ipt.fit()
-    dfs['iptw'] = ipt.Weight
+    ipt = IPTW(dfs, treatment='A', outcome='Y', stabilized=True)
+    ipt.treatment_model('L', print_results=False)
+    dfs['iptw'] = ipt.iptw
     return pd.concat([dfs, df_c.loc[df_c['S'] == 0]], ignore_index=True, sort=False)
 
 
