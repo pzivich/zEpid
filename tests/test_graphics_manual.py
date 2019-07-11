@@ -4,7 +4,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from lifelines import KaplanMeierFitter
+# from lifelines import KaplanMeierFitter
 
 from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, IncidenceRateDifference, IncidenceRateRatio,
                    spline)
@@ -139,8 +139,9 @@ def causal_check():
     data = load_sample_data(False)
     data[['cd4_rs1', 'cd4_rs2']] = spline(data, 'cd40', n_knots=3, term=2, restricted=True)
     data[['age_rs1', 'age_rs2']] = spline(data, 'age0', n_knots=3, term=2, restricted=True)
-    ipt = IPTW(data, treatment='art', stabilized=True)
-    ipt.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    ipt = IPTW(data, treatment='art', outcome='dead', stabilized=True)
+    ipt.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    ipt.marginal_structural_model('art')
     ipt.fit()
     ipt.plot_love()
     plt.tight_layout()
@@ -153,6 +154,7 @@ def causal_check():
     plt.show()
     ipt.plot_boxplot(measure='logit')
     plt.show()
+    ipt.run_diagnostics()
 
     # Check SurvivalGFormula plots
     df = load_sample_data(False).drop(columns=['cd4_wk45'])
