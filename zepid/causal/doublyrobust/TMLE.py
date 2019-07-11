@@ -8,7 +8,7 @@ from scipy.stats import logistic, norm
 
 from zepid.causal.utils import propensity_score
 from zepid.calc import probability_to_odds
-from zepid.causal.utils import exposure_machine_learner, outcome_machine_learner, missing_machine_learner
+from zepid.causal.utils import exposure_machine_learner, outcome_machine_learner, missing_machine_learner, _bounding_
 
 
 class TMLE:
@@ -235,8 +235,8 @@ class TMLE:
 
         self.g0W = 1 - self.g1W
         if bound:  # Bounding predicted probabilities if requested
-            self.g1W = self._bounding(self.g1W, bounds=bound)
-            self.g0W = self._bounding(self.g0W, bounds=bound)
+            self.g1W = _bounding_(self.g1W, bounds=bound)
+            self.g0W = _bounding_(self.g0W, bounds=bound)
 
         self._fit_exposure_model = True
 
@@ -334,9 +334,6 @@ class TMLE:
 
         # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Logistic Regression model for predictions
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with machine "
-                          "learning algorithms. TMLE will no longer support custom machine learning models in "
-                          "v0.9.0", DeprecationWarning)
             self._continuous_type = continuous_distribution
             if self._continuous_outcome:
                 if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
@@ -366,6 +363,9 @@ class TMLE:
 
         # User-specified model
         else:
+            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with machine "
+                          "learning algorithms. TMLE will no longer support custom machine learning models in "
+                          "v0.9.0", DeprecationWarning)
             self._out_model_custom =True
             data = patsy.dmatrix(model + ' - 1', cc)
 
@@ -387,8 +387,8 @@ class TMLE:
             bound = self._cb
 
         # This bounding step prevents continuous outcomes from being outside the range
-        self.QA1W = self._bounding(self.QA1W, bounds=bound)
-        self.QA0W = self._bounding(self.QA0W, bounds=bound)
+        self.QA1W = _bounding_(self.QA1W, bounds=bound)
+        self.QA0W = _bounding_(self.QA0W, bounds=bound)
         self.QAW = self.QA1W * self.df[self.exposure] + self.QA0W * (1 - self.df[self.exposure])
         self._fit_outcome_model = True
 
@@ -563,39 +563,6 @@ class TMLE:
                   str(round(self.odds_ratio_ci[0], decimal)), ',',
                   str(round(self.odds_ratio_ci[1], decimal)) + ')')
         print('======================================================================')
-
-    @staticmethod
-    def _bounding(v, bounds):
-        """Background function to perform bounding feature. Not intended for users to access
-
-        v:
-            -Values to be bounded
-        bounds:
-            -Percentile thresholds for bounds
-        """
-        if type(bounds) is float:  # Symmetric bounding
-            if bounds < 0 or bounds > 1:
-                raise ValueError('Bound value must be between (0, 1)')
-            v = np.where(v < bounds, bounds, v)
-            v = np.where(v > 1-bounds, 1-bounds, v)
-        elif type(bounds) is str:  # Catching string inputs
-            raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
-        elif type(bounds) is int:  # Catching string inputs
-            raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
-        else:  # Asymmetric bounds
-            if bounds[0] > bounds[1]:
-                raise ValueError('Bound thresholds must be listed in ascending order')
-            if len(bounds) > 2:
-                warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
-                              'specified bounds are used by the bound statement. So only ' +
-                              str(bounds[0:2]) + ' will be used', UserWarning)
-            if type(bounds[0]) is str or type(bounds[1]) is str:
-                raise ValueError('Bounds must be floats between (0, 1)')
-            if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
-                raise ValueError('Both bound values must be between (0, 1)')
-            v = np.where(v < bounds[0], bounds[0], v)
-            v = np.where(v > bounds[1], bounds[1], v)
-        return v
 
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):

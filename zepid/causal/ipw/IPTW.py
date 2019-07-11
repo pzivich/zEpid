@@ -10,7 +10,7 @@ from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
 
 from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
-                                standardized_mean_differences, positivity)
+                                standardized_mean_differences, positivity, _bounding_)
 from zepid.calc import probability_to_odds
 
 
@@ -179,7 +179,7 @@ class IPTW:
         self._pos_sd = None
         self._continuous_y_type = None
 
-    def treatment_model(self, model_denominator, model_numerator='1', print_results=True):
+    def treatment_model(self, model_denominator, model_numerator='1', bound=False, print_results=True):
         """Logistic regression model(s) for propensity score models. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
@@ -195,6 +195,12 @@ class IPTW:
             confounding variables are included in the numerator, they would later need to be adjusted for in the faux
             marginal structural argument. Additionally, used for assessment of effect measure modification. Argument is
             also only used when calculating stabilized weights
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
         print_results : bool, optional
             Whether to print the model results from the regression models. Default is True
 
@@ -228,6 +234,11 @@ class IPTW:
                 raise ValueError('Argument for model_numerator is only used for stabilized=True')
             n = 1
         self.df['__numer__'] = n
+
+        # Bounding predicted probabilities if requested
+        if bound:
+            self.df['__denom__'] = _bounding_(self.df['__denom__'], bounds=bound)
+            self.df['__numer__'] = _bounding_(self.df['__numer__'], bounds=bound)
 
         # Calculating weights
         self.ProbabilityDenominator = self.df['__denom__']

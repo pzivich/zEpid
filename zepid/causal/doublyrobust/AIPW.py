@@ -125,7 +125,7 @@ class AIPTW:
         self._exp_model = None
         self._out_model = None
 
-    def exposure_model(self, model, print_results=True):
+    def exposure_model(self, model, bound=False, print_results=True):
         r"""Specify the propensity score / inverse probability weight model. Model used to predict the exposure via a
         logistic regression model. This model estimates
 
@@ -137,12 +137,26 @@ class AIPTW:
         ----------
         model : str
             Independent variables to predict the exposure. For example, 'var1 + var2 + var3'
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self.exposure + ' ~ ' + model
         fitmodel = propensity_score(self.df, self._exp_model, weights=self._weight_, print_results=print_results)
-        self.df['_ps_'] = fitmodel.predict(self.df)
+        ps = fitmodel.predict(self.df)
+        self.df['_g1_'] = ps
+        self.df['_g0_'] = 1 - ps
+
+        # If bounds are requested
+        if bound:
+            self.df['_g1_'] = _bounding_(self.df['_g1_'], bounds=bound)
+            self.df['_g0_'] = _bounding_(self.df['_g0_'], bounds=bound)
+
         self._fit_exposure_ = True
 
     def outcome_model(self, model, continuous_distribution='gaussian', print_results=True):
@@ -208,17 +222,18 @@ class AIPTW:
         # Doubly robust estimator under all treated
         a_obs = self.df[self.exposure]
         y_obs = self.df[self.outcome]
-        ps = self.df['_ps_']
+        ps_g1 = self.df['_g1_']
+        ps_g0 = self.df['_g0_']
         py_a1 = self.df['_pY1_']
         py_a0 = self.df['_pY0_']
         dr_a1 = np.where(a_obs == 1,
-                         (y_obs / ps) - ((py_a1 * (1 - ps)) / ps),
+                         (y_obs / ps_g1) - ((py_a1 * ps_g0) / ps_g1),
                          py_a1)
 
         # Doubly robust estimator under all untreated
         dr_a0 = np.where(a_obs == 1,
                          py_a0,
-                         (y_obs / (1 - ps) - ((py_a0 * ps) / (1 - ps))))
+                         (y_obs / ps_g0 - ((py_a0 * ps_g1) / ps_g0)))
 
         # Generating estimates for the risk difference and risk ratio
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)

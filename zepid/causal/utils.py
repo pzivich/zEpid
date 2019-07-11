@@ -1,3 +1,4 @@
+import warnings
 import patsy
 import numpy as np
 import pandas as pd
@@ -141,6 +142,41 @@ def missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results
         raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
 
+def _bounding_(v, bounds):
+    """Creates bounding for g-bounds in models
+
+    Parameters
+    ----------
+    v:
+        -Values to be bounded
+    bounds:
+        -Percentile thresholds for bounds
+    """
+    if type(bounds) is float:  # Symmetric bounding
+        if bounds < 0 or bounds > 1:
+            raise ValueError('Bound value must be between (0, 1)')
+        v = np.where(v < bounds, bounds, v)
+        v = np.where(v > 1-bounds, 1-bounds, v)
+    elif type(bounds) is str:  # Catching string inputs
+        raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+    elif type(bounds) is int:  # Catching string inputs
+        raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+    else:  # Asymmetric bounds
+        if bounds[0] > bounds[1]:
+            raise ValueError('Bound thresholds must be listed in ascending order')
+        if len(bounds) > 2:
+            warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
+                          'specified bounds are used by the bound statement. So only ' +
+                          str(bounds[0:2]) + ' will be used', UserWarning)
+        if type(bounds[0]) is str or type(bounds[1]) is str:
+            raise ValueError('Bounds must be floats between (0, 1)')
+        if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
+            raise ValueError('Both bound values must be between (0, 1)')
+        v = np.where(v < bounds[0], bounds[0], v)
+        v = np.where(v > bounds[1], bounds[1], v)
+    return v
+
+
 def plot_kde(df, treatment, probability,
              measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
     """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The
@@ -226,9 +262,9 @@ def plot_boxplot(df, treatment, probability, measure='probability'):
     meanpointprops = dict(marker='D', markeredgecolor='black', markerfacecolor='black')
     ax = plt.gca()
     ax.boxplot(boxes, labels=labs, meanprops=meanpointprops, showmeans=True)
-    ax.set_ylim([0, 1])
     if measure == 'probability':
         ax.set_ylabel('Probability')
+        ax.set_ylim([0, 1])
     else:
         ax.set_ylabel('Log-Odds')
     return ax
@@ -451,3 +487,6 @@ def plot_love(df, treatment, weight, formula,
     ax.set_yticklabels(to_plot['labels'])
     ax.legend()
     return ax
+
+# TODO add diagnostics for outcome-model
+
