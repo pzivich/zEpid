@@ -12,7 +12,7 @@ from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot
                             roc, dynamic_risk_plot, labbe_plot)
 from zepid.causal.ipw import IPTW
 from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula, TimeFixedGFormula
-from zepid.causal.doublyrobust import AIPTW
+from zepid.causal.doublyrobust import AIPTW, TMLE
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
 
 
@@ -168,13 +168,25 @@ def causal_check():
     aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     aipw.fit()
-    aipw.summary()
     aipw.run_diagnostics()
     aipw.plot_kde(to_plot='exposure')
     plt.show()
     aipw.plot_kde(to_plot='outcome')
     plt.show()
     aipw.plot_love()
+    plt.show()
+
+    # Check TMLE diagnostics
+    tmle = TMLE(data, exposure='art', outcome='dead')
+    tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    tmle.fit()
+    tmle.run_diagnostics()
+    tmle.plot_kde(to_plot='exposure')
+    plt.show()
+    tmle.plot_kde(to_plot='outcome')
+    plt.show()
+    tmle.plot_love()
     plt.show()
 
     # Check SurvivalGFormula plots

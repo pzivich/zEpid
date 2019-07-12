@@ -670,6 +670,96 @@ class TMLE:
                                           weight='_ipw_', formula=self.__mweight)
         return s
 
+    def plot_kde(self, to_plot, bw_method='scott', fill=True,
+                 color='g', color_e='b', color_u='r'):
+        """Generates density plots that can be used to check whether positivity may be violated qualitatively, and
+        accuracy of the outcome model
+
+        The kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+
+        Parameters
+        ------------
+        to_plot : str, optional
+            The plot to generate. Specifying 'exposure' returns only the density plot for treatment probabilities,
+            and 'outcome' returns only the density plot for the outcome accuracy
+        bw_method : str, optional
+            Method used to estimate the bandwidth. Following SciPy, either 'scott' or 'silverman' are valid options
+        fill : bool, optional
+            Whether to color the area under the density curves. Default is true
+        color : str, optional
+            Color of the line/area for predicted outcomes minus observed outcomes. Default is Green
+        color_e : str, optional
+            Color of the line/area for the treated group. Default is Blue
+        color_u : str, optional
+            Color of the line/area for the treated group. Default is Red
+
+        Returns
+        ---------------
+        matplotlib axes
+        """
+        if not self._fit_outcome_model or not self._fit_exposure_model:
+            raise ValueError("The exposure_model and outcome_model function must be ran before any diagnostics")
+
+        if to_plot == 'exposure':
+            if self._fit_missing_model:
+                ps = self.g1W * np.where(self.df[self.exposure] == 1, self.m1W, self.m0W)
+            else:
+                ps = self.g1W
+            df = self.df.copy()
+            df['_g1_'] = ps
+            ax = plot_kde(df=df, treatment=self.exposure, probability='_g1_',
+                          bw_method=bw_method, fill=fill, color_e=color_e, color_u=color_u)
+            ax.set_title("Kernel Density of Propensity Scores")
+
+        elif to_plot == 'outcome':
+            v = self.QAW - self.df[self.outcome]
+            ax = plot_kde_accuracy(values=v.dropna(), bw_method=bw_method, fill=fill, color=color)
+            ax.set_title("Kernel Density of Accuracy")
+
+        else:
+            raise ValueError("Please use one of the following options for `to_plot`; 'treatment', 'outcome'")
+
+        return ax
+
+    def plot_love(self, color_unweighted='r', color_weighted='b', shape_unweighted='o', shape_weighted='o'):
+        """Generates a Love-plot to detail covariate balance based on the IPTW weights. Further details on the usage of
+        this plot are available in Austin PC & Stuart EA 2015 https://onlinelibrary.wiley.com/doi/full/10.1002/sim.6607
+
+        The Love plot generates a dashed line at standardized mean difference of 0.10. Ideally, weighted SMD are below
+        this level. Below 0.20 may also be sufficient. Variables above this level may be unbalanced despite the
+        weighting procedure. Different functional forms (or approaches like machine learning) may be worth considering
+
+        Parameters
+        ----------
+        color_unweighted : str, optional
+            Color for the unweighted standardized mean differences. Default is red
+        color_weighted : str, optional
+            Color for the weighted standardized mean differences. Default is blue
+        shape_unweighted : str, optional
+            Shape of points for the unweighted standardized mean differences. Default is circles
+        shape_weighted:
+            Shape of points for the weighted standardized mean differences. Default is circles
+
+        Returns
+        -------
+        axes
+            Matplotlib axes of the Love plot
+        """
+        if not self._fit_outcome_model or not self._fit_exposure_model:
+            raise ValueError("The exposure_model and outcome_model function must be ran before any diagnostics")
+
+        if self._fit_missing_model:
+            ps = self.g1W * np.where(self.df[self.exposure] == 1, self.m1W, self.m0W)
+        else:
+            ps = self.g1W
+        df = self.df.copy()
+        df['_g1_'] = ps
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
+        ax = plot_love(df=df, treatment=self.exposure, weight='_ipw_', formula=self.__mweight,
+                       color_unweighted=color_unweighted, color_weighted=color_weighted,
+                       shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
+        return ax
+
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
         v = (y - mini) / (maxi - mini)
