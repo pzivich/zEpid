@@ -504,7 +504,7 @@ def outcome_accuracy(true, predicted, decimal=3):
     value = predicted - true
 
     print('======================================================================')
-    print('                     Outcome Model Diagnostics')
+    print('                 Natural Course Prediction Accuracy')
     print('======================================================================')
     print('Outcome model accuracy summary statistics. Defined as the predicted\n'
           'outcome value minus the observed outcome value')

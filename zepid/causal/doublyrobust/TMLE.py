@@ -4,11 +4,14 @@ import patsy
 import numpy as np
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+import matplotlib.pyplot as plt
 from scipy.stats import logistic, norm
 
 from zepid.causal.utils import propensity_score
 from zepid.calc import probability_to_odds
-from zepid.causal.utils import exposure_machine_learner, outcome_machine_learner, missing_machine_learner, _bounding_
+from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, missing_machine_learner, _bounding_,
+                                plot_kde, plot_love, standardized_mean_differences, positivity,
+                                plot_kde_accuracy, outcome_accuracy)
 
 
 class TMLE:
@@ -217,6 +220,7 @@ class TMLE:
             Whether to print the fitted model results. Default is True (prints results)
         """
         self._exp_model = self.exposure + ' ~ ' + model
+        self.__mweight = model
 
         # Step 3) Estimation of g-model (exposure model)
         if custom_model is None:
@@ -563,6 +567,108 @@ class TMLE:
                   str(round(self.odds_ratio_ci[0], decimal)), ',',
                   str(round(self.odds_ratio_ci[1], decimal)) + ')')
         print('======================================================================')
+
+    def run_diagnostics(self, decimal=3):
+        """Diagnostics for TMLE
+
+        :return:
+        """
+        if not self._fit_outcome_model or not self._fit_exposure_model:
+            raise ValueError("The exposure_model and outcome_model function must be ran before any diagnostics")
+
+        if self._fit_missing_model:
+            ps = self.g1W * np.where(self.df[self.exposure] == 1, self.m1W, self.m0W)
+        else:
+            ps = self.g1W
+
+        # Weight diagnostics
+        print('\tExposure Model Diagnostics')
+        self.positivity(decimal=decimal)
+
+        print('======================================================================')
+        print('                  Standardized Mean Differences')
+        print('======================================================================')
+        print(self.standardized_mean_differences().set_index(keys='labels'))
+        print('======================================================================\n')
+
+        # Outcome accuracy diagnostics
+        print('\tOutcome Model Diagnostics')
+        v = self.QAW - self.df[self.outcome]
+        outcome_accuracy(true=self.df[self.outcome], predicted=self.QAW, decimal=decimal)
+
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / ps, 1 / (1 - ps))
+        df['_g1_'] = ps
+
+        plt.figure(figsize=[8, 6])
+        plt.subplot(221)
+        plot_love(df=df, treatment=self.exposure, weight='_ipw_', formula=self.__mweight)
+        plt.title("Love Plot")
+
+        plt.subplot(223)
+        plot_kde(df=df, treatment=self.exposure, probability='_g1_')
+        plt.title("Kernel Density of Propensity Scores")
+
+        plt.subplot(222)
+        plot_kde_accuracy(values=v.dropna(), color='green')
+        plt.title("Kernel Density of Accuracy")
+        plt.tight_layout()
+        plt.show()
+
+    def positivity(self, decimal=3):
+        """Use this to assess whether positivity is a valid assumption for inverse probability weights. If there are
+        extreme outliers, this may indicate problems with the calculated weights
+
+        Parameters
+        --------------
+        decimal : int, optional
+            Number of decimal places to display. Default is three
+
+        Returns
+        --------------
+        None
+            Prints the positivity results to the console but does not return any objects
+        """
+        if self._fit_missing_model:
+            ps = self.g1W * np.where(self.df[self.exposure] == 1, self.m1W, self.m0W)
+        else:
+            ps = self.g1W
+
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / ps, 1 / (1 - ps))
+        pos = positivity(df=df, weights='_ipw_')
+        print('======================================================================')
+        print('                   Weight Positivity Diagnostics')
+        print('======================================================================')
+        print('If the mean of the weights is far from either the min or max, this may\n '
+              'indicate the model is incorrect or positivity is violated')
+        print('Average weight should be 2')
+        print('----------------------------------------------------------------------')
+        print('Mean weight:           ', round(pos[0], decimal))
+        print('Standard Deviation:    ', round(pos[1], decimal))
+        print('Minimum weight:        ', round(pos[2], decimal))
+        print('Maximum weight:        ', round(pos[3], decimal))
+        print('======================================================================\n')
+
+    def standardized_mean_differences(self):
+        """Calculates the standardized mean differences for all variables based on the inverse probability weights.
+
+        Returns
+        -------
+        DataFrame
+            Returns pandas DataFrame of calculated standardized mean differences. Columns are labels (variables labels),
+            smd_u (unweighted standardized difference), and smd_w (weighted standardized difference)
+        """
+        if self._fit_missing_model:
+            ps = self.g1W * np.where(self.df[self.exposure] == 1, self.m1W, self.m0W)
+        else:
+            ps = self.g1W
+
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / ps, 1 / (1 - ps))
+        s = standardized_mean_differences(df=df, treatment=self.exposure,
+                                          weight='_ipw_', formula=self.__mweight)
+        return s
 
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
