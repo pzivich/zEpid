@@ -48,3 +48,4 @@ Others
   counternull_pvalue
   semibayes
   rubins_rules
+  s_value
