@@ -339,7 +339,7 @@ class IPTW:
                 warnings.simplefilter('ignore', DomainWarning)
 
                 # Estimating Risk Difference
-                f = sm.families.family.Binomial(sm.families.links.identity)
+                f = sm.families.family.Binomial(sm.families.links.identity())
                 fm = smf.gee(full_msm, df.index, df,
                              cov_struct=ind, family=f, weights=df['_ipfw_']).fit()
                 self.risk_difference = pd.DataFrame()
@@ -351,7 +351,7 @@ class IPTW:
                 self.risk_difference['95%UCL'] = np.asarray(fm.conf_int()[1])
 
                 # Estimating Risk Ratio
-                f = sm.families.family.Binomial(sm.families.links.log)
+                f = sm.families.family.Binomial(sm.families.links.log())
                 fm = smf.gee(full_msm, df.index, df,
                              cov_struct=ind, family=f, weights=df['_ipfw_']).fit()
                 self.risk_ratio = pd.DataFrame()
