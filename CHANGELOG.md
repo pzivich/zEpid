@@ -1,5 +1,38 @@
 ## Change logs
 
+### v0.8.0
+`IPTW` had a massive overhaul. It now follows a similar structure to `AIPTW` and other causal inference methods. 
+One *major* change is that missing data is dropped before any calculations. Therefore, if missing data was present for
+certain types of data, the weights may no longer match with previous versions. While users can still call the weights 
+attribute, all the calculations of the ATE are now contained within the `IPTW` class. Future updates with be other 
+instances of the IPTW calculations for other methods, like `LongitudinalIPTW` and `SurvivalIPTW`. The major advantage
+of this new structure is it removes some of the burden from users on how to apply IPTW to different data structures.
+
+Diagnostic functions have been added to `TimeFixedGFormula`, `AIPTW`, and `TMLE`. The diagnostics have been restructured
+for functions contained within a different file rather than function instances within specific classes. This is 
+due to diagnostics commonly being shared across functions.
+
+How missing data is handled by`AIPTW` and `IPTW` has been updated. Rather than dropping all missing data, they only drop
+missing data for non-outcome variables. This behavior mimics `TMLE`. Additionally, both have gained the `missing_model`
+function. This new function calculates inverse probability of censoring weights.
+
+`bound` argument is now available to `IPTW` and `AIPTW` to truncate the predicted probabilities of the g-model. The 
+behavior is the same as `TMLE`. `bound` is also available for `missing_model()`.
+
+`IPCW` no longer supports late-entries into the data. The pooled logistic regression model will not correctly accrue 
+weights when late entries occur. This is not a problem I have seen reported in the literature, but I have seen it in 
+my own simulations. While you can correctly estimate IPCW with time-fixed variables, this is difficult for me to 
+detect. Instead, I have `IPCW` not allow late-entries. If users would like to allow late-entries, they would need to 
+"extend backwards" observations or they would need to drop the late-entries. I have update the documentation to note
+this change.
+
+S-value calculator function has been added. `s_value` returns the correspond transformed p-value into an s-value. See
+documentation for details on s-values and how to interpret them.
+
+I have also been moving around background functions. Most notably, the IPTW diagnostics have migrated to the 
+`causal/utils.py` branch since these diagnostics are to be used by other causal inference methods. These reformats 
+should have no change for users. This is merely maintenance on my end.
+
 ### v0.7.2
 Labeling fix for `RiskDifference` summary
 
