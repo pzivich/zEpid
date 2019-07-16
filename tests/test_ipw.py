@@ -38,21 +38,21 @@ class TestIPTW:
         return df
 
     def test_unstabilized_weights(self, data):
-        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=False)
-        ipt.treatment_model(model_denominator='L', print_results=False)
+        ipt = IPTW(data, treatment='A', outcome='Y')
+        ipt.treatment_model(model_denominator='L', stabilized=False, print_results=False)
         ipt.marginal_structural_model('A')
         ipt.fit()
         npt.assert_allclose(ipt.iptw, [3, 3, 4/3, 4/3, 4/3, 1.5, 1.5, 1.5, 1.5, 4])
 
     def test_stabilized_weights(self, data):
-        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=True)
+        ipt = IPTW(data, treatment='A', outcome='Y')
         ipt.treatment_model(model_denominator='L', print_results=False)
         ipt.marginal_structural_model('A')
         ipt.fit()
         npt.assert_allclose(ipt.iptw, [1.5, 1.5, 2/3, 2/3, 2/3, 3/4, 3/4, 3/4, 3/4, 2])
 
     def test_positivity_calculator(self, data):
-        ipt = IPTW(data, treatment='A', outcome='Y', stabilized=True)
+        ipt = IPTW(data, treatment='A', outcome='Y')
         ipt.treatment_model(model_denominator='L', print_results=False)
         ipt.marginal_structural_model('A')
         ipt.fit()
@@ -67,8 +67,8 @@ class TestIPTW:
         sas_rd = -0.081519085
         sas_rd_ci = -0.156199938, -0.006838231
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=False)
-        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
+        ipt.treatment_model(model_denominator=model, stabilized=False, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
 
@@ -81,7 +81,7 @@ class TestIPTW:
         sas_rd = -0.081519085
         sas_rd_ci = -0.156199938, -0.006838231
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
         ipt.treatment_model(model_denominator=model, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -95,8 +95,8 @@ class TestIPTW:
         sas_rd = -0.090875986
         sas_rd_ci = -0.180169444, -0.001582527
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed', stabilized=False)
-        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed')
+        ipt.treatment_model(model_denominator=model, stabilized=False, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
 
@@ -109,8 +109,8 @@ class TestIPTW:
         sas_rd = -0.080048197
         sas_rd_ci = -0.153567335, -0.006529058
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed', stabilized=False)
-        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed')
+        ipt.treatment_model(model_denominator=model, stabilized=False, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
 
@@ -122,7 +122,7 @@ class TestIPTW:
         sas_rd = -0.090875986
         sas_rd_ci = -0.180169444, -0.001582527
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='exposed')
         ipt.treatment_model(model_denominator=model, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -134,7 +134,7 @@ class TestIPTW:
         sas_rd = -0.080048197
         sas_rd_ci = -0.153567335, -0.006529058
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead', standardize='unexposed')
         ipt.treatment_model(model_denominator=model, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -143,7 +143,7 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci, rtol=1e-4)
 
     def test_standardized_differences(self, sdata):
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
         ipt.treatment_model(model_denominator='male + age0 + cd40 + dvl0', print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -167,7 +167,7 @@ class TestIPTW:
         df['dis'] = [0, 1, 3, 2, 1, 0, 0, 0, 0, 0, 1, 3, 2, 2, 1]
         df['cat'] = [1, 2, 3, 1, 1, 2, 3, 1, 3, 2, 1, 2, 3, 2, 1]
 
-        ipt = IPTW(df, treatment='treat', outcome='y', stabilized=True)
+        ipt = IPTW(df, treatment='treat', outcome='y')
         ipt.treatment_model(model_denominator='bin + con + dis + C(cat)', print_results=False)
         ipt.marginal_structural_model('treat')
         ipt.fit()
@@ -186,7 +186,7 @@ class TestIPTW:
         sas_rd = -0.075562451
         sas_rd_ci = -0.151482078, 0.000357175
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
         ipt.treatment_model(model_denominator=model, print_results=False, bound=0.1)
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -199,7 +199,7 @@ class TestIPTW:
         sas_rd = -0.050924398
         sas_rd_ci = -0.133182382, 0.031333585
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
         ipt.treatment_model(model_denominator=model, print_results=False, bound=[0.2, 0.9])
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -212,7 +212,7 @@ class TestIPTW:
         sas_rd = -0.045129870
         sas_rd_ci = -0.128184899, 0.037925158
         model = 'male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=True)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
         ipt.treatment_model(model_denominator=model, print_results=False, bound=0.5)
         ipt.marginal_structural_model('art')
         ipt.fit()
@@ -317,8 +317,8 @@ class TestStochasticIPTW:
         sdata = sdata.dropna().copy()
 
         # Estimating Marginal Structural Model
-        ipt = IPTW(sdata, treatment='art', outcome='dead', stabilized=False)
-        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt = IPTW(sdata, treatment='art', outcome='dead')
+        ipt.treatment_model(model_denominator=model, stabilized=False, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
 
@@ -337,8 +337,8 @@ class TestStochasticIPTW:
         cdata = cdata.dropna().copy()
 
         # Estimating Marginal Structural Model
-        ipt = IPTW(cdata, treatment='art', outcome='cd4_wk45', stabilized=False)
-        ipt.treatment_model(model_denominator=model, print_results=False)
+        ipt = IPTW(cdata, treatment='art', outcome='cd4_wk45')
+        ipt.treatment_model(model_denominator=model, stabilized=False, print_results=False)
         ipt.marginal_structural_model('art')
         ipt.fit()
 
