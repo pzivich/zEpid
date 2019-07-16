@@ -490,9 +490,7 @@ class SurvivalGFormula:
                           "data. SurvivalGFormula will fit " + str(df.dropna().shape[0]) + ' of ' +
                           str(df.shape[0]) + ' observations', UserWarning)
 
-        self.gf = df.copy().dropna()
-        self.gf.sort_values(by=[idvar, time], inplace=True)
-        self.gf = self.gf.reset_index(drop=True)
+        self.gf = df.copy().dropna().sort_values(by=[idvar, time]).reset_index(drop=True)
 
         if not df[exposure].dropna().value_counts().index.isin([0, 1]).all():
             raise ValueError("Only binary exposures are supported")
