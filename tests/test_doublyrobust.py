@@ -342,7 +342,7 @@ class TestAIPTW:
     def test_drop_missing_data(self):
         df = ze.load_sample_data(False)
         aipw = AIPTW(df, exposure='art', outcome='dead')
-        assert df.dropna().shape[0] == aipw.df.shape[0]
+        assert df.dropna(subset=['cd4_wk45']).shape[0] == aipw.df.shape[0]
 
     def test_error_when_no_models_specified1(self, df):
         aipw = AIPTW(df, exposure='art', outcome='dead')
