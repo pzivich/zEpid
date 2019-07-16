@@ -185,7 +185,7 @@ class IPTW:
         self.ipmw = None
         self.ms_model = None
         self.__mdenom = None
-        self._fit_missing_model = False
+        self._fit_missing_ = False
         self._miss_model = None
         self._continuous_y_type = None
         self._pos_avg = None
@@ -252,7 +252,7 @@ class IPTW:
         # Calculating weights
         self.iptw = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
 
-    def missing_model(self, model, stabilized=True):
+    def missing_model(self, model, stabilized=True, print_results=True):
         """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
         probabilities are used to account for informative censoring by observed variables.
 
@@ -263,6 +263,7 @@ class IPTW:
             'var1 + var2 + var3'. This is for the predicted probabilities of the denominator
         stabilized : bool, optional
             Whether to use stabilized inverse probability of censoring weights
+        print_results: bool, optional
         """
         # Error if no missing outcome data
         if not self._miss_flag:
@@ -273,15 +274,25 @@ class IPTW:
             warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
                           "model", UserWarning)
 
+        # Warning if exposure is not included in the missingness of outcome model
+        if self.treatment not in model:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
         self._miss_model = self._missing_indicator + ' ~ ' + model
         fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
 
         if stabilized:
-            self.ipmw = np.mean(self.df[self._missing_indicator]) / fitmodel.predict(self.df)
+            numerator_model = propensity_score(self.df, self._missing_indicator + ' ~ ' + self.treatment,
+                                               weights=self._weight_,
+                                               print_results=print_results)
+            self.ipmw = np.where(self.df[self._missing_indicator] == 1,
+                                 numerator_model.predict(self.df) / fitmodel.predict(self.df), np.nan)
         else:
-            self.ipmw = 1 / fitmodel.predict(self.df)
+            self.ipmw = np.where(self.df[self._missing_indicator] == 1,
+                                 1 / fitmodel.predict(self.df), np.nan)
 
-        self._fit_missing_model = True
+        self._fit_missing_ = True
 
     def marginal_structural_model(self, model):
         """Specify the marginal structural model to estimate using the inverse probability of treatment weights
@@ -298,6 +309,10 @@ class IPTW:
         """
         if self.__mdenom is None:
             raise ValueError('No model has been fit to generated predicted probabilities')
+
+        if self._miss_flag and not self._fit_missing_:
+            warnings.warn("There is missing outcome data, but `missing_model()` has not been used. Therefore, IPTW "
+                          "will assume that missing outcome data is non-informative.", UserWarning)
 
         ind = sm.cov_struct.Independence()
         full_msm = self.outcome + ' ~ ' + self.ms_model
@@ -418,7 +433,6 @@ class IPTW:
         The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
         functions return an axes object
         """
-        # TODO update this iptw_only bit
         self.positivity(iptw_only=iptw_only)
 
         print('\n======================================================================')

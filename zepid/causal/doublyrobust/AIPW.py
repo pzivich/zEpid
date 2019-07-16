@@ -114,7 +114,6 @@ class AIPTW:
         else:
             self._miss_flag = False
             self.df[self._missing_indicator] = 1
-            # TODO add missing model
 
         self.exposure = exposure
         self.outcome = outcome
@@ -139,6 +138,7 @@ class AIPTW:
 
         self._fit_exposure_ = False
         self._fit_outcome_ = False
+        self._fit_missing_ = False
         self._exp_model = None
         self._out_model = None
 
@@ -230,6 +230,52 @@ class AIPTW:
         self.df['_pY0_'] = log.predict(dfx)
         self._fit_outcome_ = True
 
+    def missing_model(self, model, custom_model=None, print_results=True):
+        """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
+        probabilities are used to update the clever covariates for estimation of Qn.
+
+        The initial estimate of Q is still based on complete observations only
+
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'. The treatment must be
+            included for the missing data model
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results)
+        """
+        # Error if no missing outcome data
+        if not self._miss_flag:
+            raise ValueError("No missing outcome data is present in the data set")
+
+        # Warning if exposure is not included in the missingness of outcome model
+        if self.exposure not in model:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
+        # Warning if exposure is not included in the missingness of outcome model
+        if self.exposure not in model:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
+        self._miss_model = self._missing_indicator + ' ~ ' + model
+        fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
+
+        dfx = self.df.copy()
+        dfx[self.exposure] = 1
+        self.df['_ipmw_a1_'] = np.where(self.df[self._missing_indicator] == 1,
+                                        fitmodel.predict(dfx), np.nan)
+        dfx = self.df.copy()
+        dfx[self.exposure] = 0
+        self.df['_ipmw_a0_'] = np.where(self.df[self._missing_indicator] == 1,
+                                        fitmodel.predict(dfx), np.nan)
+
+        self._fit_missing_ = True
+
     def fit(self):
         """Once the exposure and outcome models are specified, we can estimate the risk ratio and risk difference.
 
@@ -244,10 +290,17 @@ class AIPTW:
         # Doubly robust estimator under all treated
         a_obs = self.df[self.exposure]
         y_obs = self.df[self.outcome]
-        ps_g1 = self.df['_g1_']
-        ps_g0 = self.df['_g0_']
         py_a1 = self.df['_pY1_']
         py_a0 = self.df['_pY0_']
+
+        if self._fit_missing_:
+            ps_g1 = self.df['_g1_'] * self.df['_ipmw_a1_']
+            ps_g0 = self.df['_g0_'] * self.df['_ipmw_a0_']
+        else:
+            ps_g1 = self.df['_g1_']
+            ps_g0 = self.df['_g0_']
+
+        # Doubly robust estimator under all treated
         dr_a1 = np.where(a_obs == 1,
                          (y_obs / ps_g1) - ((py_a1 * ps_g0) / ps_g1),
                          py_a1)
@@ -262,16 +315,16 @@ class AIPTW:
 
         if self._weight_ is None:
             if self._continuous_outcome:
-                self.average_treatment_effect = np.mean(dr_a1) - np.mean(dr_a0)
-                var_ic = np.var((dr_a1 - dr_a0) - self.average_treatment_effect, ddof=1) / self.df.shape[0]
+                self.average_treatment_effect = np.nanmean(dr_a1) - np.nanmean(dr_a0)
+                var_ic = np.nanvar((dr_a1 - dr_a0) - self.average_treatment_effect, ddof=1) / self.df.shape[0]
                 self.average_treatment_effect_se = np.sqrt(var_ic)
                 self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * np.sqrt(var_ic),
                                                     self.average_treatment_effect + zalpha * np.sqrt(var_ic)]
 
             else:
-                self.risk_difference = np.mean(dr_a1) - np.mean(dr_a0)
-                self.risk_ratio = np.mean(dr_a1) / np.mean(dr_a0)
-                var_ic = np.var((dr_a1 - dr_a0) - self.risk_difference, ddof=1) / self.df.shape[0]
+                self.risk_difference = np.nanmean(dr_a1) - np.nanmean(dr_a0)
+                self.risk_ratio = np.nanmean(dr_a1) / np.nanmean(dr_a0)
+                var_ic = np.nanvar((dr_a1 - dr_a0) - self.risk_difference, ddof=1) / self.df.shape[0]
                 self.risk_difference_se = np.sqrt(var_ic)
                 self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(var_ic),
                                            self.risk_difference + zalpha * np.sqrt(var_ic)]
@@ -304,8 +357,8 @@ class AIPTW:
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
         print(fmt.format(self.exposure, self.df.shape[0]))
 
-        fmt = 'Outcome:          {:<15}'
-        print(fmt.format(self.outcome))
+        fmt = 'Outcome:          {:<15} No. Missing Outcome:  {:<20}'
+        print(fmt.format(self.outcome, np.sum(self.df[self.outcome].isnull())))
 
         fmt = 'g-Model:          {:<15} Q-model:              {:<20}'
         e = 'Logistic'
