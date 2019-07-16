@@ -292,106 +292,6 @@ def positivity(df, weights):
     return pos_avg, pos_sd, pos_min, pos_max
 
 
-def _categorical_cov_(a, b):
-    """Turns out, pandas and numpy don't have the correct covariance matrix I need for categorical variables.
-    The covariance matrix is defined as
-
-    S = [S_{kl}] = (P_{1k}*(1-P_{1k}) + P_{2k}*(1-P{2k})) / 2     if k == l
-                   (P_{1k}*P_{1l} + P_{2k}*P_{2l}) / 2            if k != l
-
-    Returns the calculate covariance matrix for categorical variables
-    """
-    cv2 = []
-    for i, v in enumerate(a):
-        cv1 = []
-        if i == 0:
-            pass
-        else:
-            for j, w in enumerate(b):
-                if j == 0:
-                    pass
-                elif i == j:
-                    cv1.append((v * (1 - v) + w * (1 - w)) / 2)
-                else:
-                    cv1.append((a[i] * b[j] + a[i] * b[j]) / -2)
-            cv2.append(cv1)
-
-    return np.array(cv2)
-
-
-def _standardized_difference_(df, treatment, var_type, weight, weighted=True):
-    """Background function to calculate the standardized mean difference between the treat and untreated for a
-    specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
-    by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
-
-    Parameters
-    ---------------
-    variable : str, list
-        Label for variable to calculate the standardized difference. If categorical variables, it should be a list
-        of variable labels
-    var_type : str
-        Variable type. Options are 'binary' 'continuous' or 'categorical'. For categorical variable should be a
-        list of columns labels
-    weighted : bool, optional
-        Whether to return the weighted standardized mean difference or the unweighted. Default is to return the
-        weighted.
-
-    Returns
-    --------------
-    float
-        Returns the calculated standardized mean differences
-    """
-    # Pulling out relevant data
-    dft = df.loc[(df[treatment] == 1) & (df[weight].notnull())].copy()
-    dfn = df.loc[(df[treatment] == 0) & (df[weight].notnull())].copy()
-    vcols = list(df.columns)
-    vcols.remove(treatment)
-    vcols.remove(weight)
-
-    if var_type == 'binary':
-        if weighted:
-            dwt = DescrStatsW(dft[vcols], weights=dft[weight])
-            wt = dwt.mean
-            dwn = DescrStatsW(dfn[vcols], weights=dfn[weight])
-            wn = dwn.mean
-        else:
-            wt = np.mean(dft[vcols].dropna(), axis=0)
-            wn = np.mean(dfn[vcols].dropna(), axis=0)
-        return float((wt - wn) / np.sqrt((wt*(1 - wt) + wn*(1 - wn))/2))
-
-    elif var_type == 'continuous':
-        if weighted:
-            dwt = DescrStatsW(dft[vcols], weights=dft[weight], ddof=1)
-            wmt = dwt.mean
-            wst = dwt.std
-            dwn = DescrStatsW(dfn[vcols], weights=dfn[weight], ddof=1)
-            wmn = dwn.mean
-            wsn = dwn.std
-        else:
-            dwt = DescrStatsW(dft[vcols], ddof=1)
-            wmt = dwt.mean
-            wst = dwt.std
-            dwn = DescrStatsW(dfn[vcols], ddof=1)
-            wmn = dwn.mean
-            wsn = dwn.std
-        return float((wmt - wmn) / np.sqrt((wst**2 + wsn**2)/2))
-
-    elif var_type == 'categorical':
-        if weighted:
-            wt = np.average(dft[vcols], weights=dft[weight], axis=0)
-            wn = np.average(dfn[vcols], weights=dfn[weight], axis=0)
-        else:
-            wt = np.average(dft[vcols], axis=0)
-            wn = np.mean(dfn[vcols], axis=0)
-
-        t_c = wt - wn
-        s_inv = np.linalg.inv(_categorical_cov_(a=wt, b=wn))
-        return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
-
-    else:
-        raise ValueError('Not supported')
-
-
 def standardized_mean_differences(df, treatment, weight, formula):
     """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
     difference for all variables included in the IPTW denominator
@@ -404,6 +304,85 @@ def standardized_mean_differences(df, treatment, weight, formula):
     iptw_only : bool, optional
         Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
     """
+    def _standardized_difference_(df, treatment, var_type, weight, weighted=True):
+        """Background function to calculate the standardized mean difference between the treat and untreated for a
+        specified variable. Useful for checking whether a confounder was balanced between the two treatment groups
+        by the specified IPTW model SMD based on: Austin PC 2011; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/
+        """
+        def _categorical_cov_(a, b):
+            """Turns out, pandas and numpy don't have the correct covariance matrix I need for categorical variables.
+            The covariance matrix is defined as
+
+            S = [S_{kl}] = (P_{1k}*(1-P_{1k}) + P_{2k}*(1-P{2k})) / 2     if k == l
+                           (P_{1k}*P_{1l} + P_{2k}*P_{2l}) / 2            if k != l
+            """
+            cv2 = []
+            for i, v in enumerate(a):
+                cv1 = []
+                if i == 0:
+                    pass
+                else:
+                    for j, w in enumerate(b):
+                        if j == 0:
+                            pass
+                        elif i == j:
+                            cv1.append((v * (1 - v) + w * (1 - w)) / 2)
+                        else:
+                            cv1.append((a[i] * a[j] + b[i] * b[j]) / -2)
+                    cv2.append(cv1)
+
+            return np.array(cv2)
+
+        # Pulling out relevant data
+        dft = df.loc[(df[treatment] == 1) & (df[weight].notnull())].copy()
+        dfn = df.loc[(df[treatment] == 0) & (df[weight].notnull())].copy()
+        vcols = list(df.columns)
+        vcols.remove(treatment)
+        vcols.remove(weight)
+
+        if var_type == 'binary':
+            if weighted:
+                dwt = DescrStatsW(dft[vcols], weights=dft[weight])
+                wt = dwt.mean
+                dwn = DescrStatsW(dfn[vcols], weights=dfn[weight])
+                wn = dwn.mean
+            else:
+                wt = np.mean(dft[vcols].dropna(), axis=0)
+                wn = np.mean(dfn[vcols].dropna(), axis=0)
+            return float((wt - wn) / np.sqrt((wt * (1 - wt) + wn * (1 - wn)) / 2))
+
+        elif var_type == 'continuous':
+            if weighted:
+                dwt = DescrStatsW(dft[vcols], weights=dft[weight], ddof=1)
+                wmt = dwt.mean
+                wst = dwt.std
+                dwn = DescrStatsW(dfn[vcols], weights=dfn[weight], ddof=1)
+                wmn = dwn.mean
+                wsn = dwn.std
+            else:
+                dwt = DescrStatsW(dft[vcols], ddof=1)
+                wmt = dwt.mean
+                wst = dwt.std
+                dwn = DescrStatsW(dfn[vcols], ddof=1)
+                wmn = dwn.mean
+                wsn = dwn.std
+            return float((wmt - wmn) / np.sqrt((wst ** 2 + wsn ** 2) / 2))
+
+        elif var_type == 'categorical':
+            if weighted:
+                wt = np.average(dft[vcols], weights=dft[weight], axis=0)
+                wn = np.average(dfn[vcols], weights=dfn[weight], axis=0)
+            else:
+                wt = np.mean(dft[vcols], axis=0)
+                wn = np.mean(dfn[vcols], axis=0)
+
+            t_c = wt - wn
+            s_inv = np.linalg.inv(_categorical_cov_(a=wt, b=wn))
+            return float(np.sqrt(np.dot(np.transpose(t_c[1:]), np.dot(s_inv, t_c[1:]))))
+
+        else:
+            raise ValueError('Not supported')
+
     variables = patsy.dmatrix(formula + ' - 1', df, return_type='dataframe')
     w_diff = []
     u_diff = []
@@ -455,6 +434,14 @@ def plot_love(df, treatment, weight, formula,
 
     Parameters
     ----------
+    df : dataframe
+        Pandas DataFrame object containing variables of interest
+    treatment : str
+        Treatment/exposure variable column label
+    weight : str
+        Column label for the weights
+    formula : str
+        Right-hand side of the equation for the weights
     color_unweighted : str, optional
         Color for the unweighted standardized mean differences. Default is red
     color_weighted : str, optional
