@@ -213,9 +213,10 @@ class TMLE:
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
-            inference becomes limited to the restricted population. Default is False, meaning no truncation of
-            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
-            floats can be provided for asymmetric trunctation
+            truncating weights leads to additional confounding. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation, where values below
+            or above the threshold are set to the threshold value. Alternatively a list of floats can be provided for
+            asymmetric trunctation, with the first value being the lower bound and the second being the upper bound
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
@@ -244,7 +245,7 @@ class TMLE:
 
         self._fit_exposure_model = True
 
-    def missing_model(self, model, custom_model=None, print_results=True):
+    def missing_model(self, model, custom_model=None, bound=False, print_results=True):
         """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
         probabilities are used to update the clever covariates for estimation of Qn.
 
@@ -259,6 +260,13 @@ class TMLE:
             Input for a custom model that is used in place of the logit model (default). The model must have the
             "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
             background, TMLE will fit the custom model and generate the predicted probablities
+        bound: float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            truncating weights leads to additional confounding. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation, where values below
+            or above the threshold are set to the threshold value. Alternatively a list of floats can be provided for
+            asymmetric trunctation, with the first value being the lower bound and the second being the upper bound
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
@@ -303,6 +311,10 @@ class TMLE:
                                                          all_a=adata, none_a=ndata,
                                                          ml_model=custom_model, print_results=print_results)
 
+        if bound:  # Bounding predicted probabilities if requested
+            self.m1W = _bounding_(self.m1W, bounds=bound)
+            self.m0W = _bounding_(self.m0W, bounds=bound)
+
         self._fit_missing_model = True
 
     def outcome_model(self, model, custom_model=None, bound=False, print_results=True,
@@ -319,10 +331,10 @@ class TMLE:
             "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
             background, TMLE will fit the custom model and generate the predicted probablities
         bound : bool, optional
-            Value between 0,1 to truncate predicted outcomes. Helps to avoid near positivity violations. Default is
-            `False`, meaning no truncation of predicted outcomes occurs (unless a predicted outcome is outside the
-            bounded continuous outcome). Providing a single float assumes symmetric trunctation. A collection of
-            floats can be provided for asymmetric trunctation
+            This argument should ONLY be used if the outcome is continuous. Value between 0,1 to truncate the bounded
+            predicted outcomes. Default is `False`, meaning no truncation of predicted outcomes occurs (unless a
+            predicted outcome is outside the bounded continuous outcome). Providing a single float assumes symmetric
+            trunctation. A list of floats can be provided for asymmetric trunctation.
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         continuous_distribution : str, optional

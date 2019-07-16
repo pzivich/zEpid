@@ -229,7 +229,6 @@ class IPTW:
                                              weights=self._weight_,
                                              print_results=print_results)
         d = denominator_model.predict(self.df)
-        print(np.sum(d.isna()))
         self.df['__denom__'] = d
 
         # Calculating numerator probabilities (if stabilized)
@@ -252,7 +251,7 @@ class IPTW:
         # Calculating weights
         self.iptw = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
 
-    def missing_model(self, model, stabilized=True, print_results=True):
+    def missing_model(self, model, stabilized=True, bound=False, print_results=True):
         """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
         probabilities are used to account for informative censoring by observed variables.
 
@@ -286,12 +285,16 @@ class IPTW:
             numerator_model = propensity_score(self.df, self._missing_indicator + ' ~ ' + self.treatment,
                                                weights=self._weight_,
                                                print_results=print_results)
-            self.ipmw = np.where(self.df[self._missing_indicator] == 1,
-                                 numerator_model.predict(self.df) / fitmodel.predict(self.df), np.nan)
+            n = numerator_model.predict(self.df)
         else:
-            self.ipmw = np.where(self.df[self._missing_indicator] == 1,
-                                 1 / fitmodel.predict(self.df), np.nan)
+            n = 1
 
+        if bound:  # Bounding predicted probabilities if requested
+            d = _bounding_(fitmodel.predict(self.df), bounds=bound)
+        else:
+            d = fitmodel.predict(self.df)
+
+        self.ipmw = np.where(self.df[self._missing_indicator] == 1, n / d, np.nan)
         self._fit_missing_ = True
 
     def marginal_structural_model(self, model):

@@ -157,9 +157,10 @@ class AIPTW:
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
-            inference becomes limited to the restricted population. Default is False, meaning no truncation of
-            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
-            floats can be provided for asymmetric trunctation
+            truncating weights leads to additional confounding. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation, where values below
+            or above the threshold are set to the threshold value. Alternatively a list of floats can be provided for
+            asymmetric trunctation, with the first value being the lower bound and the second being the upper bound
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
@@ -176,6 +177,60 @@ class AIPTW:
             self.df['_g0_'] = _bounding_(self.df['_g0_'], bounds=bound)
 
         self._fit_exposure_ = True
+
+    def missing_model(self, model, bound=False, print_results=True):
+        """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
+        probabilities are used to update the clever covariates for estimation of Qn.
+
+        The initial estimate of Q is still based on complete observations only
+
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'. The treatment must be
+            included for the missing data model
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            truncating weights leads to additional confounding. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation, where values below
+            or above the threshold are set to the threshold value. Alternatively a list of floats can be provided for
+            asymmetric trunctation, with the first value being the lower bound and the second being the upper bound
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results)
+        """
+        # Error if no missing outcome data
+        if not self._miss_flag:
+            raise ValueError("No missing outcome data is present in the data set")
+
+        # Warning if exposure is not included in the missingness of outcome model
+        if self.exposure not in model:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
+        # Warning if exposure is not included in the missingness of outcome model
+        if self.exposure not in model:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
+        self._miss_model = self._missing_indicator + ' ~ ' + model
+        fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
+
+        dfx = self.df.copy()
+        dfx[self.exposure] = 1
+        self.df['_ipmw_a1_'] = np.where(self.df[self._missing_indicator] == 1,
+                                        fitmodel.predict(dfx), np.nan)
+        dfx = self.df.copy()
+        dfx[self.exposure] = 0
+        self.df['_ipmw_a0_'] = np.where(self.df[self._missing_indicator] == 1,
+                                        fitmodel.predict(dfx), np.nan)
+
+        # If bounds are requested
+        if bound:
+            self.df['_ipmw_a1_'] = _bounding_(self.df['_ipmw_a1_'], bounds=bound)
+            self.df['_ipmw_a0_'] = _bounding_(self.df['_ipmw_a0_'], bounds=bound)
+
+        self._fit_missing_ = True
 
     def outcome_model(self, model, continuous_distribution='gaussian', print_results=True):
         r"""Specify the outcome model. Model used to predict the outcome via a logistic regression model
@@ -229,52 +284,6 @@ class AIPTW:
         dfx[self.exposure] = 0
         self.df['_pY0_'] = log.predict(dfx)
         self._fit_outcome_ = True
-
-    def missing_model(self, model, custom_model=None, print_results=True):
-        """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
-        probabilities are used to update the clever covariates for estimation of Qn.
-
-        The initial estimate of Q is still based on complete observations only
-
-        Parameters
-        ----------
-        model : str
-            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'. The treatment must be
-            included for the missing data model
-        custom_model : optional
-            Input for a custom model that is used in place of the logit model (default). The model must have the
-            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
-            background, TMLE will fit the custom model and generate the predicted probablities
-        print_results : bool, optional
-            Whether to print the fitted model results. Default is True (prints results)
-        """
-        # Error if no missing outcome data
-        if not self._miss_flag:
-            raise ValueError("No missing outcome data is present in the data set")
-
-        # Warning if exposure is not included in the missingness of outcome model
-        if self.exposure not in model:
-            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
-                          "model", UserWarning)
-
-        # Warning if exposure is not included in the missingness of outcome model
-        if self.exposure not in model:
-            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
-                          "model", UserWarning)
-
-        self._miss_model = self._missing_indicator + ' ~ ' + model
-        fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
-
-        dfx = self.df.copy()
-        dfx[self.exposure] = 1
-        self.df['_ipmw_a1_'] = np.where(self.df[self._missing_indicator] == 1,
-                                        fitmodel.predict(dfx), np.nan)
-        dfx = self.df.copy()
-        dfx[self.exposure] = 0
-        self.df['_ipmw_a0_'] = np.where(self.df[self._missing_indicator] == 1,
-                                        fitmodel.predict(dfx), np.nan)
-
-        self._fit_missing_ = True
 
     def fit(self):
         """Once the exposure and outcome models are specified, we can estimate the risk ratio and risk difference.

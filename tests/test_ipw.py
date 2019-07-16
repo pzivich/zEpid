@@ -221,6 +221,30 @@ class TestIPTW:
         npt.assert_allclose((ipt.risk_difference['95%LCL'][1], ipt.risk_difference['95%UCL'][1]), sas_rd_ci,
                             atol=1e-4, rtol=1e-4)
 
+    def test_iptw_w_censor(self, sdata):
+        iptw = IPTW(sdata, treatment='art', outcome='dead')
+        iptw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        iptw.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        iptw.marginal_structural_model('art')
+        iptw.fit()
+
+        npt.assert_allclose(iptw.risk_difference['RD'][1], -0.08092, rtol=1e-5)
+        npt.assert_allclose((iptw.risk_difference['95%LCL'][1], iptw.risk_difference['95%UCL'][1]),
+                            (-0.15641, -0.00543), atol=1e-4, rtol=1e-4)
+
+    def test_iptw_w_censor2(self, cdata):
+        iptw = IPTW(cdata, treatment='art', outcome='cd4_wk45')
+        iptw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        iptw.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        iptw.marginal_structural_model('art')
+        iptw.fit()
+
+        npt.assert_allclose(iptw.average_treatment_effect['ATE'][1], 205.11238, rtol=1e-5)
+        npt.assert_allclose((iptw.average_treatment_effect['95%LCL'][1], iptw.average_treatment_effect['95%UCL'][1]),
+                            (96.88535, 313.33941), atol=1e-4, rtol=1e-4)
+
 
 class TestStochasticIPTW:
 
