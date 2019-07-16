@@ -7,7 +7,7 @@ import statsmodels.formula.api as smf
 from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
-from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
+from zepid.causal.utils import (propensity_score, plot_kde, plot_love,
                                 standardized_mean_differences, positivity, _bounding_,
                                 plot_kde_accuracy, outcome_accuracy)
 
@@ -97,20 +97,33 @@ class AIPTW:
     treatment effects: a comparative study. Statistics in medicine, 23(19), 2937-2960.
     """
     def __init__(self, df, exposure, outcome, weights=None, alpha=0.05):
-        self.df = df.copy()
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, AIPTW will drop all missing data. AIPTW "
-                          "will fit " + str(df.dropna().shape[0]) + ' of '+str(df.shape[0])+' observations',
-                          UserWarning)
-        self.df = df.copy().dropna().reset_index()
+        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
+            warnings.warn("There is missing data that is not the outcome in the data set. AIPTW will drop "
+                          "all missing data that is not missing outcome data. AIPTW will fit "
+                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
+                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
+            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
+        else:
+            self.df = df.copy().reset_index()
+
+        # Checking to see if missing outcome data occurs
+        self._missing_indicator = '__missing_indicator__'
+        if self.df.dropna(subset=[outcome]).shape[0] != self.df.shape[0]:
+            self._miss_flag = True
+            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
+        else:
+            self._miss_flag = False
+            self.df[self._missing_indicator] = 1
+            # TODO add missing model
+
+        self.exposure = exposure
+        self.outcome = outcome
 
         if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
             self._continuous_outcome = False
         else:
             self._continuous_outcome = True
 
-        self.exposure = exposure
-        self.outcome = outcome
         self._weight_ = weights
         self.alpha = alpha
 
@@ -337,11 +350,11 @@ class AIPTW:
         The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
         functions return an axes object
         """
-        if self._predicted_y_ is None:
-            raise ValueError("The outcome_model function must be ran before any diagnostics")
+        if not self._fit_outcome_ or not self._fit_exposure_:
+            raise ValueError("The exposure_model and outcome_model function must be ran before any diagnostics")
 
         # Weight diagnostics
-        print('\tInverse Probability Weight Diagnostics')
+        print('\tExposure Model Diagnostics')
         self.positivity(decimal=decimal)
 
         print('\n======================================================================')
