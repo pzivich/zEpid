@@ -87,14 +87,22 @@ class IPCW:
         if np.max(f[time]) == 1:
             raise ValueError('The maximum observation time is 1. For IPCW to function properly, it needs to be greater'
                              'than 1. The more categories, the better the weight estimation')
+
         if flat_df:
             self.df = self._dataprep(f, idvar, time, event, enter=enter)
         else:
+            late_check = f.drop_duplicates(subset=idvar, keep='first')
+            if not np.all(late_check[time] <= 1):
+                raise ValueError("IPCW no longer supports late-entries. IPCW cannot be correctly estimated using "
+                                 "pooled logistic regression with late-entries. A future update will allow for weights "
+                                 "with both late-entry and censoring")
+
             self.df = f
             self.df['__uncensored__'] = np.where((self.df[idvar] != self.df[idvar].shift(-1)) &
                                                  (self.df[event] == 0),
                                                  0, 1)  # generating indicator for uncensored
             self.df['__uncensored__'] = np.where(self.df[time] == np.max(df[time]), 1, self.df['__uncensored__'])
+
         self.idvar = idvar
         self.time = time
         self.event = event
@@ -151,6 +159,11 @@ class IPCW:
             -entry time for the participant. Default is None, which means all participants are assumed
              to enter at time zero. Input should be column name of entrance time
         """
+        if enter is not None:
+            raise ValueError("IPCW no longer supports late-entries. IPCW cannot be correctly estimated using pooled "
+                             "logistic regression with late-entries. A future update will allow for weights with "
+                             "both late-entry and censoring")
+
         # Copying observations over times
         cf['t_int_zepid'] = cf[time].astype(int)
         lf = pd.DataFrame(np.repeat(cf.values, cf['t_int_zepid'] + 1, axis=0), columns=cf.columns)
@@ -167,30 +180,18 @@ class IPCW:
         lf['uncensored_zepid'] = np.where((lf[idvar] != lf[idvar].shift(-1)) & (lf['delta_indicator_zepid'] == 0), 0, 1)
         lf['uncensored_zepid'] = np.where(lf['t_out_zepid'] == np.max(lf['t_out_zepid']), 1, lf['uncensored_zepid'])
 
-        # Removing blocks of observations that would have occurred before entrance into the sample
-        if enter is not None:
-            lf = lf.loc[lf['t_enter_zepid'] >= lf[enter]].copy()
-
         # Cleaning up the edited dataframe to return to user
-        if enter is None:
-            lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event], axis=1, inplace=True)
-        else:
-            lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event, enter], axis=1, inplace=True)
+        lf.drop(['tdiff_zepid', 'tpoint_zepid', 't_int_zepid', time, event], axis=1, inplace=True)
         lf.rename(columns={"delta_indicator_zepid": event, 'uncensored_zepid': '__uncensored__',
                            't_enter_zepid': 't_enter', 't_out_zepid': 't_out'}, inplace=True)
+
         warnings.warn('Please verify the long dataframe was generated correctly', UserWarning)
         print('Check for dataframe')
         print('\tEvents in input:', np.sum(cf[event]))
         print('\tEvents in output:', np.sum(lf[event]))
         print('\tCensor in input:', cf.dropna(subset=[event]).shape[0] - np.sum(cf[event]))
         print('\tCensor in output:', lf.shape[0] - np.sum(lf['__uncensored__']))
-        if enter is None:
-            print('\tTotal t input:', np.sum(cf[time]))
-            print('\tTotal t output:', np.sum(lf.loc[(lf[idvar] != lf[idvar].shift(-1))]['t_out']))
-        else:
-            print('\tLate in input:', np.sum(cf[enter] != 0))
-            print('\tLate in output:', np.sum(np.where((lf['t_enter'] != 0) & (lf[idvar] != lf[idvar].shift(1)), 1, 0)))
-            print('\tTotal t input:', np.sum(cf[time] - cf[enter]))
-            print('\tTotal t output:', np.sum(lf['t_out'] - lf['t_enter']))
+        print('\tTotal t input:', np.sum(cf[time]))
+        print('\tTotal t output:', np.sum(lf.loc[(lf[idvar] != lf[idvar].shift(-1))]['t_out']))
         return lf.reset_index(drop=True)
 

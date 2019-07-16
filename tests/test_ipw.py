@@ -553,27 +553,17 @@ class TestIPCW:
                                check_dtype=False, check_index_type=False, check_like=True)
 
     def test_data_conversion_late_entry(self, flat_data2):
-        ipc = IPCW(flat_data2, idvar='id', time='t', event='Y', enter='enter', flat_df=True)
-        expected_data = pd.DataFrame.from_records([{'id': 1, 't_enter': 0, 't_out': 1, 'A': 1, 'Y': 0.0,
-                                                    '__uncensored__': 0},
-                                                   {'id': 2, 't_enter': 0, 't_out': 1, 'A': 1, 'Y': 0.0,
-                                                    '__uncensored__': 1},
-                                                   {'id': 2, 't_enter': 1, 't_out': 2, 'A': 1, 'Y': 0.0,
-                                                    '__uncensored__': 0},
-                                                   {'id': 3, 't_enter': 2, 't_out': 3, 'A': 0, 'Y': 1.0,
-                                                    '__uncensored__': 1},
-                                                   {'id': 4, 't_enter': 0, 't_out': 1, 'A': 0, 'Y': 0.0,
-                                                    '__uncensored__': 1},
-                                                   {'id': 4, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 0.0,
-                                                    '__uncensored__': 1},
-                                                   {'id': 4, 't_enter': 2, 't_out': 3, 'A': 0, 'Y': 0.0,
-                                                    '__uncensored__': 1},
-                                                   {'id': 5, 't_enter': 1, 't_out': 2, 'A': 0, 'Y': 1.0,
-                                                    '__uncensored__': 1}]
-                                                  )
-        pdt.assert_frame_equal(ipc.df[['id', 'A', 'Y', 't_enter', 't_out', '__uncensored__']],
-                               expected_data[['id', 'A', 'Y', 't_enter', 't_out', '__uncensored__']],
-                               check_dtype=False, check_index_type=False, check_like=True)
+        with pytest.raises(ValueError):
+            IPCW(flat_data2, idvar='id', time='t', event='Y', enter='enter', flat_df=True)
+
+    def test_data_late_entry_error(self):
+        df = pd.DataFrame()
+        df['id'] = [1, 1, 2, 2, 3, 4, 4, 5, 5]
+        df['t'] = [1, 2, 1, 2, 2, 1, 2, 1, 2]
+        df['Y'] = [0, 0, 0, 1, 0, 0, 1, 0, 1]
+
+        with pytest.raises(ValueError):
+            IPCW(df, idvar='id', time='t', event='Y', flat_df=False)
 
     def test_match_sas_weights(self):
         sas_w_mean = 0.9993069
