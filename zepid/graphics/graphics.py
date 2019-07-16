@@ -309,9 +309,10 @@ def functional_form_plot(df, outcome, var, f_form=None, outcome_type='binary', d
     # Copying out the dataframe to a new object we will manipulate a bit
     rf = df.copy()
     rf = rf.dropna(subset=[var, outcome]).sort_values(by=[var, outcome]).reset_index()
-    warnings.warn('Warning: missing observations of model variables are dropped. ' +
-                  str(int(df.shape[0] - rf.shape[0])) +
-                  ' observations were dropped from the functional form assessment')
+    if rf.shape[0] != df.shape[0]:
+        warnings.warn('Warning: missing observations of model variables are dropped. ' +
+                      str(int(df.shape[0] - rf.shape[0])) +
+                      ' observations were dropped from the functional form assessment')
 
     # Functional form for the model
     if f_form is None:

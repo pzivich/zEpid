@@ -1571,7 +1571,7 @@ def interaction_contrast(df, exposure, outcome, modifier, adjust=None, decimal=3
         eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + ' + exposure + ':' + modifier
     else:
         eq = outcome + ' ~ ' + exposure + ' + ' + modifier + ' + ' + exposure + ':' + modifier + ' + ' + adjust
-    f = sm.families.family.Binomial(sm.families.links.identity)
+    f = sm.families.family.Binomial(sm.families.links.identity())
     model = smf.glm(eq, df, family=f).fit()
     ic = model.params[exposure + ':' + modifier]
     lcl = model.conf_int().loc[exposure + ':' + modifier][0]
@@ -1660,7 +1660,7 @@ def interaction_contrast_ratio(df, exposure, outcome, modifier, adjust=None, reg
         warnings.warn('Using the Odds Ratio to calculate the ICR is only valid when the OR approximates the RR',
                       UserWarning)
     elif regression == 'log':
-        f = sm.families.family.Binomial(sm.families.links.log)
+        f = sm.families.family.Binomial(sm.families.links.log())
     else:
         raise ValueError("Either 'logit' or 'log' must be specified for the regression parameter")
 
