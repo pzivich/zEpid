@@ -10,15 +10,13 @@ zepid.causal.ipw.IPTW.IPTW
 
    .. autosummary::
 
-      ~IPTW.regression_models
+      ~IPTW.treatment_model
+      ~IPTW.marginal_structural_model
+      ~IPTW.missing_model
       ~IPTW.fit
+      ~IPTW.run_diagnostics
       ~IPTW.positivity
       ~IPTW.standardized_mean_differences
       ~IPTW.plot_boxplot
       ~IPTW.plot_kde
       ~IPTW.plot_love
-
-
-
-
-

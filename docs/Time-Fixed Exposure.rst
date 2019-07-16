@@ -13,9 +13,6 @@ along with the tutorial, run the following code to set up the data
     import numpy as np
     import pandas as pd
     from lifelines import KaplanMeierFitter
-    import statsmodels.api as sm
-    import statsmodels.formula.api as smf
-    from statsmodels.genmod.families import family
 
     from zepid import load_sample_data, spline, RiskDifference
     from zepid.causal.gformula import TimeFixedGFormula, SurvivalGFormula
@@ -42,16 +39,18 @@ within defined strata, then g-estimation would be a good choice. Your causal que
 the list of potential estimators
 
 Second, does your question of interest require something not available for all methods? This can also narrow down
-estimators, at least ones currently available. For example, currently only `TimeFixedGFormula` allows for stochastic
-treatments. See the tutorials on `Python for Epidemiologists <https://github.com/pzivich/Python-for-Epidemiologists/>`_
-for further details on what each estimator can do.
+estimators, at least ones currently available. For example, only `TimeFixedGFormula` and `StochasticIPTW` allow for
+stochastic treatments. See the tutorials
+on `Python for Epidemiologists <https://github.com/pzivich/Python-for-Epidemiologists/>`_ for further details on what
+each estimator can do.
 
 Lastly, if there are multiple estimators to use, then use them all. Each has different advantages/disadvantages that
-don't necessarily make one better than the other. If all the estimators provide similar answers, that can generally be
-taken as a good sign. It builds some additional confidence in your results. If there are distinctly different results
-across the estimators, that means that at least one assumption is being substantively broken somewhere. In these
-situations, I would recommend the doubly robust estimators because they make less restrictive parametric modeling
-assumptions. However, you should note the lack of agreement between estimators.
+don't necessarily make one unilaterally better than the other. If all the estimators provide similar answers, that can
+generally be taken as a good sign. It builds some additional confidence in your results. If there are distinctly
+different results across the estimators, that means that at least one assumption is being substantively broken
+somewhere. In these situations, I would recommend the doubly robust estimators because they make less restrictive
+parametric modeling assumptions. Alternatively, machine learning promises to make less restrictive assumptions regarding
+functional forms. However, the lack of agreement between estimators should be noted in your paper.
 
 Binary Outcome
 ==============================================
@@ -99,8 +98,8 @@ The first option is the unadjusted risk difference. We can calculate this by
 By using this measure as our average causal effect, we are assuming that there is no confounding variables. However,
 this is an unreasonable assumption for our observational data. However, the `RiskDifference` gives us some useful
 information. In the summary, we find `LowerBound` and `UpperBound`. These bounds are the Frechet probability bounds.
-Without needing the assumption of exchangeability. This is a good check. All methods below should produce values
-that are within these bounds.
+The true causal effect must be contained within these bounds, without requiring exchangeability. This is a good check.
+All methods below should produce values that are within these bounds.
 
 Therefore, the Frechet bounds allow for partial identification of the causal effect. We narrowed the range of possible
 values from two unit width (-1 to 1) to unit width (-0.87 to 0.13). However, we don't have point identification. The
@@ -156,9 +155,9 @@ procedure. Below is an example that uses bootstrapped confidence limits.
     print('95% LCL', riskd - 1.96*se)
     print('95% UCL', riskd + 1.96*se)
 
-In my run (your results may differ), the estimate 95% confidence limits were -0.142, -0.010. We could interpret our
+In my run (your results may differ), the estimate 95% confidence limits were -0.148, -0.004. We could interpret our
 results as; the 45-week risk of death when everyone was treated with ART at enrollment was 7.6% points
-(95% CL: -0.142, -0.010) lower than if no one had been treated with ART at enrollment. For further details and
+(95% CL: -0.148, -0.004) lower than if no one had been treated with ART at enrollment. For further details and
 examples of other usage of this estimator see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/1_g-formula.ipynb>`_
 
@@ -173,43 +172,50 @@ Below is some code to calculate our stabilized inverse probability of treatment 
 .. code::
 
     iptw = IPTW(df, treatment='art')
-    iptw.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           print_results=False)
-    iptw.fit()
+    iptw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                         print_results=False)
 
-After calculating the weights, there are a variety of diagnostics available to check the calculated weights. See the
-below referenced tutorial for further details and examples. After calculating the weights, we can
-estimate a marginal structural model. For this analysis, our marginal structural model looks like the following
+A variety of diagnostics available to check the calculated weights. See the below referenced tutorial for further
+details and examples. For our analysis, we use the following marginal structural model
 
 .. math::
 
     \Pr(Y | A) = \alpha_0 + \alpha_1 A
 
 While this model looks like a crude regression model, we are fitting it with the weighted data. The weights make it
-such that there is no confounding in our pseudo-population. We will use `statsmodels` GEE to fit our marginal structural
-model. The reason we use GEE is to correctly estimate the standard error. By weighting our population, we build in some
-correlation between our observations. We need to account for this. While GEE does account for this, our confidence
-intervals will be somewhat overly conservative.
+such that there is no confounding in our pseudo-population. As of v0.8.0, `IPTW` now estimates the marginal structural
+model for you. GEE is used to estimate the standard error. Robust standard errors are required since weighting our
+population builds in some correlation between our observations. We need to account for this. While GEE does account
+for this, our confidence intervals will be somewhat conservative. Below is code to estimate the marginal structural
+model and print the results
 
 .. code::
 
-    ind = sm.cov_struct.Independence()
-    f = sm.families.family.Binomial(sm.families.links.identity)
-    linrisk = smf.gee('dead ~ art', df['id'], df,
-                      cov_struct=ind, family=f, weights=iptw.Weight).fit()
-
-    print('RD = ', np.round(linrisk.params[1], 3))
-    print('95% CL:', np.round(linrisk.conf_int().iloc[1][0], 3),
-          np.round(linrisk.conf_int().iloc[1][1], 3))
+    iptw.marginal_structural_model('art')
+    iptw.fit()
+    iptw.summary()
 
 My results were fairly similar to the g-formula (RD = -0.082; 95% CL: -0.156, -0.007). We would interpret this in a
 similar way: the 45-week risk of death when everyone was treated with ART at enrollment was 8.2% points
 (95% CL: -0.156, -0.007) lower than if no one had been treated with ART at enrollment.
 
-Both of the above formulas drop missing data. We have some missing outcome data. To account for data that is missing
-at random, inverse probability of missing weights can be stacked together with IPTW. For further details and examples
-see this
-`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/3_IPTW_intro.ipynb>`_
+To account for data that is missing at random, inverse probability of missing weights can be stacked together with
+IPTW. As of v0.8.0, this is built into the `IPTW` class. Below is an example with accounting for informative censoring
+(missing outcome data)
+
+.. code::
+    iptw = IPTW(df, treatment='art')
+    iptw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                         print_results=False)
+    iptw.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                       print_results=False)
+    iptw.marginal_structural_model('art')
+    iptw.fit()
+    iptw.summary()
+
+When accounting for censoring by the above variables, a similar is obtained (RD = -0.081, 95% CL: -0.156, -0.005). For
+further details and examples of other usage of this estimator see this
+`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/>`_
 
 Augmented inverse probability weights
 ----------------------------------------
@@ -243,6 +249,17 @@ need to bootstrap the confidence intervals currently. Our results can be interpr
 when everyone was treated with ART at enrollment was 8.5% points (95% CL: -0.155, -0.015) lower than if no one
 had been treated with ART at enrollment.
 
+Similarly, we can also account for missing outcome data using inverse probability weights. Below is an example
+
+.. code::
+
+    aipw = AIPTW(df, exposure='art', outcome='dead')
+    aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    aipw.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    aipw.fit()
+    aipw.summary()
+
 For further details and examples see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/5_AIPTW_intro.ipynb>`_
 
@@ -253,35 +270,29 @@ this procedure. TMLE uses a targeting step to update the estimate of the average
 doubly robust but keeps some of the nice properties of plug-in estimators (like the g-formula). In general, TMLE will
 likely have narrower confidence intervals than AIPTW.
 
-Below is code to generate the average causal effect of ART on death using TMLE. We specify an additional model compared
-to AIPTW. TMLE has a baked in missing outcome procedure. We will take advantage of that to instead assume that
-data is missing completely at random, conditional on ART, gender, age, CD4 T-cell count, and diagnosed viral load
+Below is code to generate the average causal effect of ART on death using TMLE. Additionally, we will specify a missing
+outcome data model (like `AIPTW` and `IPTW`).
 
 .. code::
 
     tmle = TMLE(df, exposure='art', outcome='dead')
-
-    # Specify treatment model
     tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-    # Specifying missing outcome data model
     tmle.missing_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-    # Specifying outcome model
     tmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-    # TMLE estimation procedure
     tmle.fit()
     tmle.summary()
 
-Using TMLE, we estimate a risk difference of -0.080 (95% CL: -0.153, -0.008). We can interpret this as: the 45-week
-risk of death when everyone was treated with ART at enrollment was 8.0% points (95% CL: -0.153, -0.008) lower than if
+Using TMLE, we estimate a risk difference of -0.082 (95% CL: -0.152, -0.012). We can interpret this as: the 45-week
+risk of death when everyone was treated with ART at enrollment was 8.2% points (95% CL: -0.152, -0.012) lower than if
 no one had been treated with ART at enrollment.
 
 TMLE can also be paired with machine learning algorithms, particularly super-learner. The use of machine learning with
 TMLE means we are making less restrictive parametric assumptions than all the model described above. For further
 details, using super-learner / sklearn with TMLE, and examples see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/7_TMLE_intro.ipynb>`_
+
+**WARNING**: In v0.9.0, `TMLE` will be losing support of machine learning algorithms due to poor confidence interval
+coverage. Instead machine learning algorithms will only be able to be used with crossfit estimators.
 
 G-estimation of SNM
 ----------------------------------------
@@ -450,19 +461,10 @@ weights
 .. code::
 
     ipw = IPTW(df, treatment='art')
-    ipw.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    ipw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    ipw.marginal_structural_model('art')
     ipw.fit()
-    df['iptw'] = ipw.Weight
-
-After we calculate the weights, we can then fit the marginal structural model
-
-.. code::
-
-    m = smf.gee('cd4_wk45 ~ art', df.index, df,
-                cov_struct=sm.cov_struct.Independence(),
-                family=sm.families.family.Gaussian(),
-                weights=df['iptw']).fit()
-    print(m.summary())
+    ipw.summary()
 
 Our marginal structural model estimates 222.56 (95% CL: 114.67, 330.46). We can interpret this estimate as: the mean
 45-week CD4 T-cell count if everyone had been given ART at enrollment was 222.56 (95% CL: 114.67, 330.46) higher than
@@ -620,54 +622,7 @@ We see that ART reduces mortality throughout follow-up
 
 Inverse probability of treatment weights
 ----------------------------------------
-For time-to-event analyses, IPTW is the same. This is because we are estimating the treatment model. The baseline
-treatment model is the same for the time-fixed and time-to-event data. Below is code that reloads the data and
-estimates the IPTW
-
-.. code::
-
-    df = load_sample_data(False).drop(columns=['cd4_wk45'])
-    df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
-    df[['age_rs1', 'age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
-    df.fillna(0, inplace=True)
-
-    # Calculating IPTW
-    iptw = IPTW(df, treatment='art')
-    iptw.regression_models('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           print_results=False)
-    iptw.fit()
-    df['sw'] = iptw.Weight
-
-After the weights are estimated, we divide our data into the treated and untreated groups. We then use a weighted
-Kaplan-Meier to estimate the probability of death. Below is code to calculate the cumulative incidence functions and
-generate a plot of the cumulative incidence functions.
-
-.. code::
-
-    # Estimating CIF in treated
-    dft = df.loc[df['art'] == 1].copy()
-    km_t = KaplanMeierFitter()
-    km_t.fit(durations=dft['t'], event_observed=dft['dead'], weights=dft['sw'])
-
-    # Estimating CIF in untreated
-    dfu = df.loc[df['art'] == 0].copy()
-    km_u = KaplanMeierFitter()
-    km_u.fit(durations=dfu['t'], event_observed=dfu['dead'], weights=dfu['sw'])
-
-    # Generating CIF plot
-    plt.step(km_t.event_table.index, 1 - km_t.survival_function_, c='b', where='post')
-    plt.step(km_u.event_table.index, 1 - km_u.survival_function_, c='r', where='post')
-    plt.xlabel('t')
-    plt.ylabel('Probability of death')
-    plt.show()
-
-Below is a plot of the results
-
-.. image:: images/iptw_cif.png
-
-This plot has some substantial differences. This is because the two methods use very different approaches. Among the
-treated, there are rather large jump sizes in the cumulative incidence function. This is because there are few observed
-individuals with treatment at baseline. IPTW uses the observed events
+A new estimator, `SurvivalIPTW` will soon be implemented and available to estimate IPTW-adjusted survival curves.
 
 Summary
 ----------------------------------------

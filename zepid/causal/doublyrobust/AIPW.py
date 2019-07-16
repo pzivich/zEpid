@@ -13,14 +13,16 @@ from zepid.causal.utils import (propensity_score, plot_kde, plot_love,
 
 
 class AIPTW:
-    r"""Augmented inverse probablity weight estimator. This is a simple implementation of AIPW for a time-fixed exposure
-    and a single time-point outcome. `AIPTW` does not account for missing data.
+    r"""Augmented inverse probability of treatment weight estimator. This implementation calculates AIPTW for a
+    time-fixed exposure and a single time-point outcome. `AIPTW` supports correcting for informative censoring (missing
+    outcome data) through inverse probability of censoring/missingness weights.
 
-    AIPTW have a desirable property compared to either the g-formula or IPTW. Both of the prior estimators require that
-    we specify our parametric regression models correctly. AIPTW allows us to have two 'chances' at getting the model
-    correct. If either our outcome-model or treatment-model is correctly specified, then our estimate will be unbiased
+    AIPTW is a doubly robust estimator, with a desirable property. Both of the the g-formula and IPTW require that
+    our parametric regression models are correctly specified. Instead, AIPTW allows us to have two 'chances' at getting
+    the model correct. If either our outcome-model or treatment-model is correctly specified, then our estimate
+    will be unbiased. This property does not hold for the variance (i.e. the variance will not be doubly robust)
 
-    The augment-inverse probability weights are calculated from the following formula
+    The augment-inverse probability weight estimator is calculated from the following formula
 
     .. math::
 
@@ -38,7 +40,7 @@ class AIPTW:
         \widehat{RR} = \frac{\widehat{DR}(a=1)}{\widehat{DR}(a=0)}
 
     Confidence intervals for the risk difference come from the influence curve. Confidence intervals for the risk ratio
-    are less straight-forward. To get confidence intervals for the risk ratio, a bootstrap procedure should be used
+    are less straight-forward. To get confidence intervals for the risk ratio, a bootstrap procedure should be used.
 
     Parameters
     ----------
@@ -63,30 +65,43 @@ class AIPTW:
     >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
     >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
 
-    Initialize the AIPTW model
+    Estimate the base AIPTW model
 
     >>> aipw = AIPTW(df, exposure='art', outcome='dead')
-
-    Specify the exposure/treatment model
-
     >>> aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-    Specify the outcome model
-
     >>> aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-
-    Estimate the risk difference and risk ratio
-
     >>> aipw.fit()
-
-    Displaying the results
-
     >>> aipw.summary()
 
-    Extracting risk difference and risk ratio respectively
+    Estimate AIPTW accounting for missing outcome data
 
-    >>> aipw.risk_difference
-    >>> aipw.risk_ratio
+    >>> aipw = AIPTW(df, exposure='art', outcome='dead')
+    >>> aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.fit()
+    >>> aipw.summary()
+
+    AIPTW for continuous outcomes
+
+    >>> df = load_sample_data(timevary=False).drop(columns=['dead'])
+    >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
+    >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
+
+    >>> aipw = AIPTW(df, exposure='art', outcome='cd4_wk45')
+    >>> aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.missing_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.fit()
+    >>> aipw.summary()
+
+    >>> aipw = AIPTW(df, exposure='art', outcome='cd4_wk45')
+    >>> ymodel = 'art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0'
+    >>> aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> aipw.missing_model(ymodel)
+    >>> aipw.outcome_model(ymodel, continuous_distribution='poisson')
+    >>> aipw.fit()
+    >>> aipw.summary()
 
     References
     ----------
@@ -179,10 +194,12 @@ class AIPTW:
         self._fit_exposure_ = True
 
     def missing_model(self, model, bound=False, print_results=True):
-        """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
-        probabilities are used to update the clever covariates for estimation of Qn.
+        """Estimation of Pr(M=0|A,L), which is the missing data mechanism for the outcome. Predicted probabilities are
+        used to create inverse probability of censoring weights to account for informative missing data on the outcome.
 
-        The initial estimate of Q is still based on complete observations only
+        Note
+        ----
+        The treatment variable should be included in the model
 
         Parameters
         ----------
@@ -233,7 +250,9 @@ class AIPTW:
         self._fit_missing_ = True
 
     def outcome_model(self, model, continuous_distribution='gaussian', print_results=True):
-        r"""Specify the outcome model. Model used to predict the outcome via a logistic regression model
+        r"""Specify the outcome model. Model used to predict the outcome via a regression model. For binary outcome
+        data, a logistic regression model is used. For continuous outcomes, either linear or Poisson regression are
+        available.
 
         .. math::
 
@@ -249,6 +268,9 @@ class AIPTW:
         print_results : bool, optional
             Whether to print the fitted model results. Default is True (prints results)
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like the exposure variable is missing from the outcome model", UserWarning)
+
         self._out_model = self.outcome + ' ~ ' + model
 
         if self._continuous_outcome:
@@ -286,15 +308,26 @@ class AIPTW:
         self._fit_outcome_ = True
 
     def fit(self):
-        """Once the exposure and outcome models are specified, we can estimate the risk ratio and risk difference.
+        """Calculate the augmented inverse probability weights and effect measures from the predicted exposure
+        probabilities and predicted outcome values.
+
+        Note
+        ----
+        Exposure and outcome models must be specified prior to `fit()`
 
         Returns
         -------
-        Gains `risk_difference`, `risk_difference_ci`, and `risk_ratio` values
+        For binary outcomes, gains `risk_difference`, `risk_difference_ci`, and `risk_ratio` attributes. For continuous
+        outcomes, gains `average_treatment_effect` and `average_treatment_effect_ci` attributes
         """
         if (self._fit_exposure_ is False) or (self._fit_outcome_ is False):
             raise ValueError('The exposure and outcome models must be specified before the doubly robust estimate can '
                              'be generated')
+
+        if self._miss_flag and not self._fit_missing_:
+            warnings.warn("All missing outcome data is assumed to be missing completely at random. To relax this "
+                          "assumption to outcome data is missing at random please use the `missing_model()` "
+                          "function", UserWarning)
 
         # Doubly robust estimator under all treated
         a_obs = self.df[self.exposure]
@@ -349,7 +382,8 @@ class AIPTW:
 
     def summary(self, decimal=3):
         """Prints a summary of the results for the doubly robust estimator. Confidence intervals are only available for
-        the risk difference currently
+        the risk difference currently. For risk ratio confidence intervals, the user will need to manually conduct a
+        boostrapping procedure.
 
         Parameters
         ----------
@@ -402,15 +436,24 @@ class AIPTW:
         print('======================================================================')
 
     def run_diagnostics(self, decimal=3):
-        """Run all currently implemented diagnostics for inverse probability of treatment weights available. Each
-        diagnostic can be called individually for further optional specifications. `run_weight_diagnostics` will
-        provide results for all implemented diagnostics for ease of the user. For presentation of results, I recommend
-        calling each function individually and utilizing the optional parameters
+        """Run all currently implemented diagnostics for the exposure and outcome models. Each
+        `run_diagnostics` provides results for all implemented diagnostics for ease of the user. For publication
+        quality presentations, I recommend calling each diagnostic function individually and utilizing the optional
+        parameters
 
         Note
         ----
         The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
         functions return an axes object
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
+
+        Returns
+        -------
+        None
         """
         if not self._fit_outcome_ or not self._fit_exposure_:
             raise ValueError("The exposure_model and outcome_model function must be ran before any diagnostics")
@@ -449,16 +492,17 @@ class AIPTW:
         plt.show()
 
     def positivity(self, decimal=3):
-        """Use this to assess whether positivity is a valid assumption for inverse probability weights. If there are
-        extreme outliers, this may indicate problems with the calculated weights
+        """Use this to assess whether positivity is a valid assumption for the exposure model / calculated IPTW. If
+        there are extreme outliers, this may indicate problems with the calculated weights. To reduce extreme weights,
+        the `bound` argument can be specified in `exposure_model()`
 
         Parameters
-        --------------
+        ----------
         decimal : int, optional
             Number of decimal places to display. Default is three
 
         Returns
-        --------------
+        -------
         None
             Prints the positivity results to the console but does not return any objects
         """
@@ -491,12 +535,11 @@ class AIPTW:
                                           weight='_ipw_', formula=self.__mweight)
         return s
 
-    def plot_kde(self, to_plot, bw_method='scott', fill=True,
-                 color='g', color_e='b', color_u='r'):
-        """Generates density plots that can be used to check whether positivity may be violated qualitatively, and
-        accuracy of the outcome model
-
-        The kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+    def plot_kde(self, to_plot, bw_method='scott', fill=True, color='g', color_e='b', color_u='r'):
+        """Generates density plots that can be used to check predictions qualitatively. Density plots can be generated
+        for assess either positivity violations of the exposure model or the accuracy in predicting the outcome for
+        the outcome model. The kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or
+        Silverman's Rule can be implemented.
 
         Parameters
         ------------

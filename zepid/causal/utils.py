@@ -185,6 +185,12 @@ def plot_kde(df, treatment, probability,
 
     Parameters
     ------------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    treatment : str
+        Column name of the treatment variable
+    probability : str
+        Column name of the predicted probability of treatment
     measure : str, optional
         Measure to plot. Options include either the probabilities or log-odds stratified by treatment received.
         Default is probabilities (measure='probability'). Log-odds can be requested via measure='logit'
@@ -239,6 +245,13 @@ def plot_boxplot(df, treatment, probability, measure='probability'):
 
     Parameters
     ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    treatment : str
+        Column name of the treatment variable
+    probability : str
+        Column name of the predicted probability of treatment
+
     measure : str, optional
         Measure to plot. Options include either the probabilities or log-odds stratified by treatment received.
         Default is probabilities (measure='probability'). Log-odds can be requested via measure='logit'
@@ -277,8 +290,10 @@ def positivity(df, weights):
 
     Parameters
     --------------
-    decimal : int, optional
-        Number of decimal places to display. Default is three
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    weights : str
+        Column name of the inverse probability of treatment weights
 
     Returns
     --------------
@@ -295,6 +310,17 @@ def positivity(df, weights):
 def standardized_mean_differences(df, treatment, weight, formula):
     """Calculates the standardized mean differences for all variables. Default calculates the standardized mean
     difference for all variables included in the IPTW denominator
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    treatment : str
+        Column name of the treatment variable
+    weight : str
+        Column name of the inverse probability of treatment weights
+    formula : str
+        Formula for weights model following patsy syntax
 
     Returns
     -------
@@ -450,8 +476,6 @@ def plot_love(df, treatment, weight, formula,
         Shape of points for the unweighted standardized mean differences. Default is circles
     shape_weighted:
         Shape of points for the weighted standardized mean differences. Default is circles
-    iptw_only : bool, optional
-        Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
 
     Returns
     -------

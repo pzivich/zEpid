@@ -15,6 +15,11 @@ zepid.causal.doublyrobust.TMLE.TMLE
       ~TMLE.missing_model
       ~TMLE.fit
       ~TMLE.summary
+      ~TMLE.run_diagnostics
+      ~TMLE.positivity
+      ~TMLE.standardized_mean_differences
+      ~TMLE.plot_kde
+      ~TMLE.plot_love
 
 
 

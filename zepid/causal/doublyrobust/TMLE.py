@@ -15,9 +15,14 @@ from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learne
 
 
 class TMLE:
-    r"""Implementation of a single time-point target maximum likelihood estimator. It uses standard
-    regression models to calculate the estimate of interest. The TMLE estimator allows users are able to directly
-    input predicted outcomes from other methods (like machine learning algorithms from sklearn).
+    r"""Implementation of target maximum likelihood estimator. This implementation calculates TMLE for a
+    time-fixed exposure and a single time-point outcome.It uses standard regression models to calculate the estimate
+    of interest. The TMLE estimator allows users to instead use machine learning algorithms from sklearn.
+
+    Note
+    ----
+    Support for machine learning will be dropped in v0.9.0 due to poor confidence interval coverage. There will be
+    new cross-fitting procedures and classes for causal inference with machine learning.
 
     Parameters
     ----------
@@ -34,8 +39,8 @@ class TMLE:
         in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
         0,1 respectively. Default value is 0.0005
 
-    Notes
-    -----
+    Note
+    ----
     TMLE is a doubly-robust substitution estimator. TMLE obtains the target estimate in a single step. The
     single-step TMLE is described further by van der Laan. For further details, see the listed references.
 
@@ -409,12 +414,16 @@ class TMLE:
         self._fit_outcome_model = True
 
     def fit(self):
-        """Estimates risk difference, risk ratio, and odds ratio based on the gAW and QAW. If a continuous outcome,
-        then the average treatment effect is returned. Confidence intervals come from influence curves
+        """Calculate the effect measures from the predicted exposure probabilities and predicted outcome values using
+        the TMLE procedure. Confidence intervals are calculated using influence curves.
+
+        Note
+        ----
+        Exposure and outcome models must be specified prior to `fit()`
 
         Returns
         -------
-        `TMLE` gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
+        TMLE gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
         `average _treatment_effect` for continuous outcomes
         """
         if (self._fit_exposure_model is False) or (self._fit_outcome_model is False):
@@ -513,7 +522,7 @@ class TMLE:
                                   np.exp(np.log(self.odds_ratio) + zalpha * seIC)]
 
     def summary(self, decimal=3):
-        """Prints summary of model results
+        """Prints summary of the estimated average causal effects
 
         Parameters
         ----------
@@ -581,9 +590,24 @@ class TMLE:
         print('======================================================================')
 
     def run_diagnostics(self, decimal=3):
-        """Diagnostics for TMLE
+        """Run all currently implemented diagnostics for the exposure and outcome models. Each
+        `run_diagnostics` provides results for all implemented diagnostics for ease of the user. For publication
+        quality presentations, I recommend calling each diagnostic function individually and utilizing the optional
+        parameters
 
-        :return:
+        Note
+        ----
+        The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
+        functions return an axes object
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
+
+        Returns
+        -------
+        None
         """
         if not self._fit_outcome_model or not self._fit_exposure_model:
             raise ValueError("The exposure_model and outcome_model function must be ran before any diagnostics")
@@ -628,8 +652,9 @@ class TMLE:
         plt.show()
 
     def positivity(self, decimal=3):
-        """Use this to assess whether positivity is a valid assumption for inverse probability weights. If there are
-        extreme outliers, this may indicate problems with the calculated weights
+        """Use this to assess whether positivity is a valid assumption for the exposure model / calculated IPTW. If
+        there are extreme outliers, this may indicate problems with the calculated weights. To reduce extreme weights,
+        the `bound` argument can be specified in `exposure_model()`
 
         Parameters
         --------------
@@ -684,10 +709,10 @@ class TMLE:
 
     def plot_kde(self, to_plot, bw_method='scott', fill=True,
                  color='g', color_e='b', color_u='r'):
-        """Generates density plots that can be used to check whether positivity may be violated qualitatively, and
-        accuracy of the outcome model
-
-        The kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or Silverman's Rule can be implemented.
+        """Generates density plots that can be used to check predictions qualitatively. Density plots can be generated
+        for assess either positivity violations of the exposure model or the accuracy in predicting the outcome for
+        the outcome model. The kernel density used is SciPy's Gaussian kernel. Either Scott's Rule or
+        Silverman's Rule can be implemented.
 
         Parameters
         ------------
@@ -774,6 +799,7 @@ class TMLE:
 
     @staticmethod
     def _unit_bounds(y, mini, maxi, bound):
+        # bounding for continuous outcomes
         v = (y - mini) / (maxi - mini)
         v = np.where(np.less(v, bound), bound, v)
         v = np.where(np.greater(v, 1-bound), 1-bound, v)
@@ -781,4 +807,5 @@ class TMLE:
 
     @staticmethod
     def _unit_unbound(ystar, mini, maxi):
+        # unbounding of bounded continuous outcomes
         return ystar*(maxi - mini) + mini

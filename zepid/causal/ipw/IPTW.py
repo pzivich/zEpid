@@ -2,24 +2,20 @@ import warnings
 import patsy
 import numpy as np
 import pandas as pd
-from scipy.stats.kde import gaussian_kde
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.tools.sm_exceptions import DomainWarning
-from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
 
 from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
                                 standardized_mean_differences, positivity, _bounding_)
-from zepid.calc import probability_to_odds
 
 
 class IPTW:
     r"""Calculates inverse probability of treatment weights. Both stabilized or unstabilized weights are implemented.
     By default, stabilized weights are stabilized by the prevalence of the treatment in the population. `IPTW` will
-    return an array of weights, which can be used to estimate a marginal structural model. For correct (but
-    conservative) confidence interval coverage, generalized estimation equations should be used. This can be done
-    by using `statsmodels` `GEE`
+    also now fit the marginal structural model and estimate inverse probability of censoring weights if requested.
+    Confidence intervals are calculated using robust standard errors.
 
     The formula for stabilized IPTW is
 
@@ -58,8 +54,6 @@ class IPTW:
         Variable name of treatment of interest. Must be coded as binary
     outcome : str
         Variable name of outcome of interest. Can be either binary or continuous
-    stabilized : bool, optional
-        Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
     standardize : str, optional
         Who to standardize the estimate to. Options are the entire population, the exposed, or the unexposed. See
         Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the
@@ -81,40 +75,51 @@ class IPTW:
     >>> from zepid import load_sample_data, spline
     >>> from zepid.causal.ipw import IPTW
     >>> df = load_sample_data(timevary=False).drop(columns=['cd4_wk45'])
-    >>> df[['cd4_rs1','cd4_rs2']] = spline(df,'cd40',n_knots=3,term=2,restricted=True)
-    >>> df[['age_rs1','age_rs2']] = spline(df,'age0',n_knots=3,term=2,restricted=True)
+    >>> df[['cd4_rs1','cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+    >>> df[['age_rs1','age_rs2']] = spline(df, 'age0', n_knots=3, term=2, restricted=True)
 
     Calculate stabilized IPTW
 
-    >>> ipt = IPTW(df, treatment='art', stabilized=True)
-    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt = IPTW(df, treatment='art', outcome='dead')
+    >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.marginal_structural_model('art')
     >>> ipt.fit()
-
-    Calculate unstabilized IPTW weights
-
-    >>> ipt = IPTW(df, treatment='art', stabilized=False)
-    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> ipt.fit()
-
-    SMR weight to the exposed population
-
-    >>> ipt = IPTW(df, treatment='art', stabilized=False, standardize='exposed')
-    >>> ipt.regression_models('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> ipt.fit()
+    >>> ipt.summary()
 
     Diagnostics:
 
-    >>> ipt.positivity()
-    >>> print(ipt.standardized_mean_differences())
+    >>> ipt.run_diagnostics()
 
-    >>> ipt.plot_boxplot()
-    >>> plt.show()
+    Calculate unstabilized IPTW weights
 
-    >>> ipt.plot_kde()
-    >>> plt.show()
+    >>> ipt = IPTW(df, treatment='art', outcome='dead')
+    >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', stabilized=False)
+    >>> ipt.marginal_structural_model('art')
+    >>> ipt.fit()
+    >>> ipt.summary()
 
-    >>> ipt.plot_love()
-    >>> plt.show()
+    Calculate SMR weight to the exposed population
+
+    >>> ipt = IPTW(df, treatment='art', outcome='dead', standardize='exposed')
+    >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.marginal_structural_model('art')
+    >>> ipt.fit()
+    >>> ipt.summary()
+
+    Stabilized IPTW with IPCW
+    >>> ipt = IPTW(df, treatment='art', outcome='dead')
+    >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.missing_model('art + male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> ipt.marginal_structural_model('art')
+    >>> ipt.fit()
+    >>> ipt.summary()
+
+    Stabilized IPTW with effect measure modifier
+    >>> ipt = IPTW(df, treatment='art', outcome='dead')
+    >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', model_numerator='male')
+    >>> ipt.marginal_structural_model('art + male + art:male')
+    >>> ipt.fit()
+    >>> ipt.summary()
 
     References
     ----------
@@ -139,7 +144,7 @@ class IPTW:
     Love T. (2004). Graphical Display of Covariate Balance. Presentation,
     See http://chrp.org/love/JSM2004RoundTableHandout. pdf, 1364.
     """
-    def __init__(self, df, treatment, outcome, weights=None, stabilized=True, standardize='population'):
+    def __init__(self, df, treatment, outcome, weights=None, standardize='population'):
         if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
             warnings.warn("There is missing data that is not the outcome in the data set. IPTW will drop "
                           "all missing data that is not missing outcome data. IPTW will fit "
@@ -173,7 +178,6 @@ class IPTW:
         self.risk_ratio = None
         self.odds_ratio = None
 
-        self.stabilized = stabilized
         if standardize in ['population', 'exposed', 'unexposed']:
             self.standardize = standardize
         else:
@@ -193,7 +197,7 @@ class IPTW:
         self._pos_max = None
         self._pos_sd = None
 
-    def treatment_model(self, model_denominator, model_numerator='1', bound=False, print_results=True):
+    def treatment_model(self, model_denominator, model_numerator='1', stabilized=True, bound=False, print_results=True):
         """Logistic regression model(s) for propensity score models. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
@@ -209,6 +213,8 @@ class IPTW:
             confounding variables are included in the numerator, they would later need to be adjusted for in the faux
             marginal structural argument. Additionally, used for assessment of effect measure modification. Argument is
             also only used when calculating stabilized weights
+        stabilized : bool, optional
+            Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
@@ -217,11 +223,6 @@ class IPTW:
             floats can be provided for asymmetric trunctation
         print_results : bool, optional
             Whether to print the model results from the regression models. Default is True
-
-        Note
-        ----
-        If custom models are used, it is important that GEE is used to obtain the variance. Bootstrapped confidence
-        intervals are incorrect with the usage of some machine learning models
         """
         # Calculating denominator probabilities
         self.__mdenom = model_denominator
@@ -232,7 +233,7 @@ class IPTW:
         self.df['__denom__'] = d
 
         # Calculating numerator probabilities (if stabilized)
-        if self.stabilized is True:
+        if stabilized is True:
             numerator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_numerator,
                                                weights=self._weight_,
                                                print_results=print_results)
@@ -249,11 +250,21 @@ class IPTW:
             self.df['__numer__'] = _bounding_(self.df['__numer__'], bounds=bound)
 
         # Calculating weights
-        self.iptw = self._weight_calculator(self.df, denominator='__denom__', numerator='__numer__')
+        self.iptw = self._weight_calculator(self.df, denominator='__denom__',
+                                            numerator='__numer__', stabilized=stabilized)
 
     def missing_model(self, model, stabilized=True, bound=False, print_results=True):
-        """Estimation of Pr(M=1|A,L), which is the missing data mechanism for the outcome. The corresponding observation
-        probabilities are used to account for informative censoring by observed variables.
+        """Estimation of Pr(M=0|A=a,L), which is the missing data mechanism for the outcome. The corresponding
+        observation probabilities are used to account for informative censoring by observed variables. The missing_model
+        only accounts for missing outcome data.
+
+        The inverse probability weights calculated by this function account for informative censoring (missing data on
+        the outcome) by observed variables. The parametric model should be sufficiently flexible to capture any
+        interaction terms and functional forms of continuous variables
+
+        Note
+        ----
+        The treatment variable should be included in the model
 
         Parameters
         ----------
@@ -262,6 +273,12 @@ class IPTW:
             'var1 + var2 + var3'. This is for the predicted probabilities of the denominator
         stabilized : bool, optional
             Whether to use stabilized inverse probability of censoring weights
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
         print_results: bool, optional
         """
         # Error if no missing outcome data
@@ -298,13 +315,23 @@ class IPTW:
         self._fit_missing_ = True
 
     def marginal_structural_model(self, model):
-        """Specify the marginal structural model to estimate using the inverse probability of treatment weights
+        """Specify the marginal structural model to estimate using the inverse probability of treatment weights. The
+        treatment variable should always be included in the marginal structural model. In addition to the treatment,
+        effect measure modification by variables can be assessed. See the main documentation for an example of how
+        to specify a effect measure modifier.
+
+        Note
+        ----
+        If assessing modification, be sure to use stabilized IPTW and include the modifier in the `model_numerator`
 
         Parameters
         ----------
         model : str
             The specified marginal structural model to fit.
         """
+        if self.treatment not in model:
+            raise ValueError("The treatment variable must be specified in the marginal structural model")
+
         self.ms_model = model
 
     def fit(self, continuous_distribution='gaussian'):
@@ -313,9 +340,13 @@ class IPTW:
         if self.__mdenom is None:
             raise ValueError('No model has been fit to generated predicted probabilities')
 
+        if self.ms_model is None:
+            raise ValueError('No marginal structural model has been specified')
+
         if self._miss_flag and not self._fit_missing_:
-            warnings.warn("There is missing outcome data, but `missing_model()` has not been used. Therefore, IPTW "
-                          "will assume that missing outcome data is non-informative.", UserWarning)
+            warnings.warn("All missing outcome data is assumed to be missing completely at random. To relax this "
+                          "assumption to outcome data is missing at random please use the `missing_model()` "
+                          "function", UserWarning)
 
         ind = sm.cov_struct.Independence()
         full_msm = self.outcome + ' ~ ' + self.ms_model
@@ -393,7 +424,12 @@ class IPTW:
                 self.odds_ratio['95%UCL'] = np.exp(np.asarray(fm.conf_int()[1]))
 
     def summary(self, decimal=3):
-        """Print results
+        """Prints a summary of the results for the IPTW estimator.
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display in the result. Default is 3
         """
         print('======================================================================')
         print('              Inverse Probability of Treatment Weights                ')
@@ -435,6 +471,16 @@ class IPTW:
         ----
         The plot presented cannot be edited. To edit the plots, call `plot_kde` or `plot_love` directly. Those
         functions return an axes object
+
+        Parameters
+        ----------
+        iptw_only : bool, optional
+            Whether to include weights generated from missing_model in the diagnostics. Default is True, which runs the
+            diagnostics for IPTW only
+
+        Returns
+        -------
+        None
         """
         self.positivity(iptw_only=iptw_only)
 
@@ -509,12 +555,12 @@ class IPTW:
         decimal : int, optional
             Number of decimal places to display. Default is three
         iptw_only : bool, optional
-            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+            Whether the diagnostic should be run on IPTW only or include weights from the missing_model. Default is
+            True, which returns IPTW only
 
         Returns
         --------------
         None
-            Prints the positivity results to the console but does not return any objects
         """
         if iptw_only:
             df = self.df
@@ -546,7 +592,8 @@ class IPTW:
         Parameters
         ----------
         iptw_only : bool, optional
-            Whether the diagnostic should be run on IPTW only or the weights multiplied together. Default is IPTW only
+            Whether the diagnostic should be run on IPTW only or include weights from the missing_model. Default is
+            True, which returns IPTW only
 
         Returns
         -------
@@ -588,8 +635,7 @@ class IPTW:
 
         Returns
         -------
-        axes
-            Matplotlib axes of the Love plot
+        matplotlib axes
         """
         if iptw_only:
             ipw_type = '_iptw_'
@@ -601,14 +647,14 @@ class IPTW:
                        shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
         return ax
 
-    def _weight_calculator(self, df, denominator, numerator):
+    def _weight_calculator(self, df, denominator, numerator, stabilized):
         """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
         background for the fit() function. Not intended to be used by users
 
         df is the dataframe, denominator is the string indicating the column of Pr, numerator is the string indicating
         the column of Pr
         """
-        if self.stabilized:  # Stabilized weights
+        if stabilized:  # Stabilized weights
             if self.standardize == 'population':
                 df['w'] = np.where(df[self.treatment] == 1, (df[numerator] / df[denominator]),
                                    ((1 - df[numerator]) / (1 - df[denominator])))
