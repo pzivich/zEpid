@@ -27,6 +27,14 @@ class IPCW:
 
         \pi_i(t) = \prod_{R_k \le t} \frac{\Pr(C_i > R_k)}{\Pr(C_i > R_k | \bar{L} = \bar{l}, C_i > R_{k-1})}
 
+    Note
+    ----
+    IPCW no longer support late-entry. The reason is that the pooled logistic regression model approach does not
+    correctly accumulate the weights. As such, either all occurrences of late-entries need to be dropped (called the
+    new-user design) or rows need to be back-propagated (unobserved rows are filled in). The second approach requires
+    filling in the missing observed covariates and for time-varying variables will require imputation. The new-user
+    design is a safer bet and generally what I will currently recommend
+
     Parameters
     ---------------
     df : DataFrame
@@ -41,7 +49,8 @@ class IPCW:
         Whether the input dataframe only contains a single row per participant. If so, the flat dataframe is
         converted to a long dataframe. Default is False (for multiple rows per person)
     enter : str, optional
-        Time participant began being observed. Default is None. This option is only needed when flat_df=True
+        Time participant began being observed. Default is None. This option is only needed when flat_df=True.
+        Late-entries are no longer supported and specifying this will lead to a ValueError
 
     Example
     ------------
