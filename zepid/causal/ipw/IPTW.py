@@ -439,14 +439,17 @@ class IPTW:
         print('              Inverse Probability of Treatment Weights                ')
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
-        print(fmt.format(self.treatment, self.df.dropna().shape[0]))
+        print(fmt.format(self.treatment, self.df.shape[0]))
 
-        fmt = 'Outcome:          {:<15} g-model:              {:<20}'
-        if self._continuous_outcome:
-            y = self._continuous_y_type
+        fmt = 'Outcome:          {:<15} No. Missing Outcome:  {:<20}'
+        print(fmt.format(self.outcome, np.sum(self.df[self.outcome].isnull())))
+
+        fmt = 'g-Model:          {:<15} Missing Model:        {:<20}'
+        if self._fit_missing_:
+            m = 'Logistic'
         else:
-            y = 'Logistic'
-        print(fmt.format(self.outcome, y))
+            m = 'None'
+        print(fmt.format('Logistic', m))
         print('======================================================================')
 
         if self._continuous_outcome:

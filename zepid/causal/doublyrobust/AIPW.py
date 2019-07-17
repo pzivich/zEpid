@@ -194,8 +194,15 @@ class AIPTW:
         self._fit_exposure_ = True
 
     def missing_model(self, model, bound=False, print_results=True):
-        """Estimation of Pr(M=0|A,L), which is the missing data mechanism for the outcome. Predicted probabilities are
+        r"""Estimation of Pr(M=0|A,L), which is the missing data mechanism for the outcome. Predicted probabilities are
         used to create inverse probability of censoring weights to account for informative missing data on the outcome.
+
+        Missing weights take the following form
+
+        .. math::
+            \frac{1}{\Pr(C=0|A=a, L)}
+
+        Weights are calculated for both A=1 and A=0
 
         Note
         ----
@@ -411,6 +418,15 @@ class AIPTW:
             y = 'Logistic'
 
         print(fmt.format(e, y))
+
+        fmt = 'Missing model:    {:<15}'
+        if self._fit_missing_:
+            m = 'Logistic'
+        else:
+            m = 'None'
+
+        print(fmt.format(m))
+
         print('======================================================================')
 
         if self._continuous_outcome:
@@ -506,7 +522,10 @@ class AIPTW:
         None
             Prints the positivity results to the console but does not return any objects
         """
-        pos = positivity(df=self.df, weights='_g1_')
+        df = self.df.copy()
+        df['_ipw_'] = np.where(df[self.exposure] == 1, 1 / df['_g1_'], 1 / (1 - df['_g1_']))
+
+        pos = positivity(df=df, weights='_ipw_')
         print('======================================================================')
         print('                      Weight Positivity Diagnostics')
         print('======================================================================')

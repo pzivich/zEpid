@@ -1,4 +1,3 @@
-import math
 import warnings
 import patsy
 import numpy as np
@@ -235,9 +234,9 @@ class TMLE:
 
         # User-specified prediction model
         else:
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with machine "
-                          "learning algorithms. TMLE will no longer support custom machine learning models in "
-                          "v0.9.0", DeprecationWarning)
+            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
+                          "machine learning algorithms. TMLE will no longer support custom machine learning "
+                          "models in v0.9.0")
             self._exp_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
             self.g1W = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.exposure]),
@@ -298,9 +297,10 @@ class TMLE:
 
         # User-specified model
         else:
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with machine "
-                          "learning algorithms. TMLE will no longer support custom machine learning models in "
-                          "v0.9.0", DeprecationWarning)
+            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
+                          "machine learning algorithms. TMLE will no longer support custom machine learning "
+                          "models in v0.9.0")
+
             self._miss_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
 
@@ -384,10 +384,10 @@ class TMLE:
 
         # User-specified model
         else:
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with machine "
-                          "learning algorithms. TMLE will no longer support custom machine learning models in "
-                          "v0.9.0", DeprecationWarning)
-            self._out_model_custom =True
+            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
+                          "machine learning algorithms. TMLE will no longer support custom machine learning "
+                          "models in v0.9.0")
+            self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', cc)
 
             dfx = self.df.copy()
