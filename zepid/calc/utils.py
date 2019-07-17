@@ -1323,10 +1323,10 @@ def s_value(pvalue):
     hypothesis. For an example, a S-value of 5.1 is no more surprising than seeing heads for 5 fair coin tosses. The
     S-value should be rounded down in the interpretation
 
-    Notes
-    -----
+    Note
+    ----
     S-values do NOT have a significant cut-point. Rather this transformation is to help build intuition what information
-    a p-values is providing and the corresponding 'surprisal'
+    a p-values is providing and the corresponding 'surprisal' of a result
 
     Parameters
     ----------

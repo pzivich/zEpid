@@ -107,6 +107,7 @@ class IPTW:
     >>> ipt.summary()
 
     Stabilized IPTW with IPCW
+
     >>> ipt = IPTW(df, treatment='art', outcome='dead')
     >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> ipt.missing_model('art + male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
@@ -115,6 +116,7 @@ class IPTW:
     >>> ipt.summary()
 
     Stabilized IPTW with effect measure modifier
+
     >>> ipt = IPTW(df, treatment='art', outcome='dead')
     >>> ipt.treatment_model('male + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', model_numerator='male')
     >>> ipt.marginal_structural_model('art + male + art:male')
@@ -706,7 +708,7 @@ class StochasticIPTW:
 
     .. math::
 
-        \pi_i = \frac{\bar{\Pr}(A=a|L)}{\Pr(A=a|L)}
+        \pi_i = \frac{\overline{\Pr}(A=a|L)}{\Pr(A=a|L)}
 
     where :math:`\bar{\Pr}` is the new probability of treatment under the proposed stochastic treatment. This
     probability can be unconditional (everyone treated at some constant percent) or it can be conditional on observed
