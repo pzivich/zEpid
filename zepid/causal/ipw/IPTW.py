@@ -253,7 +253,7 @@ class IPTW:
         self.iptw = self._weight_calculator(self.df, denominator='__denom__',
                                             numerator='__numer__', stabilized=stabilized)
 
-    def missing_model(self, model, stabilized=True, bound=False, print_results=True):
+    def missing_model(self, model_denominator, model_numerator=None, stabilized=True, bound=False, print_results=True):
         """Estimation of Pr(M=0|A=a,L), which is the missing data mechanism for the outcome. The corresponding
         observation probabilities are used to account for informative censoring by observed variables. The missing_model
         only accounts for missing outcome data.
@@ -268,9 +268,14 @@ class IPTW:
 
         Parameters
         ----------
-        model: str
+        model_denominator: str
             String listing variables predicting missingness of outcomes via `patsy` syntax. For example, `
             'var1 + var2 + var3'. This is for the predicted probabilities of the denominator
+        model_numerator : str, optional
+            Optional string listing variables to predict the exposure, separated by +. Only used to calculate the
+            numerator. Default (None) calculates the probability of censoring by treatment only. In general this is
+            recommended. If assessing effect modifcation, this variable should be included in the numerator as well.
+            Argument is only used when calculating stabilized weights
         stabilized : bool, optional
             Whether to use stabilized inverse probability of censoring weights
         bound : float, list, optional
@@ -286,20 +291,19 @@ class IPTW:
             raise ValueError("No missing outcome data is present in the data set")
 
         # Warning if exposure is not included in the missingness of outcome model
-        if self.treatment not in model:
+        if self.treatment not in model_denominator:
             warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
                           "model", UserWarning)
 
-        # Warning if exposure is not included in the missingness of outcome model
-        if self.treatment not in model:
-            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
-                          "model", UserWarning)
-
-        self._miss_model = self._missing_indicator + ' ~ ' + model
+        self._miss_model = self._missing_indicator + ' ~ ' + model_denominator
         fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
 
         if stabilized:
-            numerator_model = propensity_score(self.df, self._missing_indicator + ' ~ ' + self.treatment,
+            if model_numerator is None:
+                mnum = self.treatment
+            else:
+                mnum = model_numerator
+            numerator_model = propensity_score(self.df, self._missing_indicator + ' ~ ' + mnum,
                                                weights=self._weight_,
                                                print_results=print_results)
             n = numerator_model.predict(self.df)
@@ -638,11 +642,13 @@ class IPTW:
         matplotlib axes
         """
         if iptw_only:
-            ipw_type = '_iptw_'
+            df = self.df
+            df['_ipfw_'] = self.iptw
         else:
-            ipw_type = '_ipfw_'
+            df = self.df
+            df['_ipfw_'] = self.iptw * self.ipmw
 
-        ax = plot_love(df=self.df, treatment=self.treatment, weight=ipw_type, formula=self.__mdenom,
+        ax = plot_love(df=self.df, treatment=self.treatment, weight='_ipfw_', formula=self.__mdenom,
                        color_unweighted=color_unweighted, color_weighted=color_weighted,
                        shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
         return ax
