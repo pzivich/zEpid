@@ -157,6 +157,57 @@ class TestGEstimationSNM:
 
         npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
 
+    def test_missing_model(self):
+        df = load_sample_data(False).drop(columns=['dead'])
+        df['age_sq'] = df['age0'] ** 2
+        df['age_cu'] = df['age0'] ** 3
+        df['cd4_sq'] = df['cd40'] ** 2
+        df['cd4_cu'] = df['cd40'] ** 3
+
+        snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+        snm.exposure_model('male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0', print_results=False)
+        snm.missing_model('art + male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0',
+                          stabilized=False, print_results=False)
+        snm.structural_nested_model('art')
+        snm.fit()
+
+        npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
+
+        snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+        snm.exposure_model('male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0', print_results=False)
+        snm.missing_model('art + male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0',
+                          stabilized=False, print_results=False)
+        snm.structural_nested_model('art')
+        snm.fit(solver='search')
+
+        npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
+
+    def test_missing_w_weights(self):
+        df = load_sample_data(False).drop(columns=['dead'])
+        df['age_sq'] = df['age0'] ** 2
+        df['age_cu'] = df['age0'] ** 3
+        df['cd4_sq'] = df['cd40'] ** 2
+        df['cd4_cu'] = df['cd40'] ** 3
+        df['weight'] = 2
+
+        snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45', weights='weight')
+        snm.exposure_model('male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0', print_results=False)
+        snm.missing_model('art + male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0',
+                          stabilized=False, print_results=False)
+        snm.structural_nested_model('art')
+        snm.fit()
+
+        npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
+
+        snm = GEstimationSNM(df, exposure='art', outcome='cd4_wk45')
+        snm.exposure_model('male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0', print_results=False)
+        snm.missing_model('art + male + age0 + age_sq + age_cu + cd40 + cd4_sq + cd4_cu + dvl0',
+                          stabilized=False, print_results=False)
+        snm.structural_nested_model('art')
+        snm.fit(solver='search')
+
+        npt.assert_allclose(snm.psi, [244.379181], atol=1e-5)
+
     def test_match_r_continuous(self, data_c):
         # Comparing to R's DTRreg
         r_1param = [251.4032]

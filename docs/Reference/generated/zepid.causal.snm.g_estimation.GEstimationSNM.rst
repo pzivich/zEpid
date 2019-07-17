@@ -12,5 +12,6 @@ zepid.causal.snm.g\_estimation.GEstimationSNM
 
       ~GEstimationSNM.exposure_model
       ~GEstimationSNM.structural_nested_model
+      ~GEstimationSNM.missing_model
       ~GEstimationSNM.fit
       ~GEstimationSNM.summary

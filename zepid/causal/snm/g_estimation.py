@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy.optimize
 
-from zepid.causal.utils import propensity_score
+from zepid.causal.utils import propensity_score, _bounding_
 
 
 class GEstimationSNM:
@@ -140,12 +140,26 @@ class GEstimationSNM:
     nonresponse models. Journal of the American Statistical Association, 94(448), 1096-1120.
     """
     def __init__(self, df, exposure, outcome, weights=None):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, GEstimationSNM will drop all missing "
-                          "data. GEstimationSNM will fit " + str(df.dropna().shape[0]) + ' of ' + str(df.shape[0]) +
-                          " observations", UserWarning)
-        self.df = df.copy().dropna().reset_index()
+        # Checking for missing data that is non-outcome
+        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
+            warnings.warn("There is missing data that is not the outcome in the data set. IPTW will drop "
+                          "all missing data that is not missing outcome data. IPTW will fit "
+                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
+                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
+            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
+        else:
+            self.df = df.copy().reset_index()
 
+        # Checking to see if missing outcome data occurs
+        self._missing_indicator = '__missing_indicator__'
+        if self.df.dropna(subset=[outcome]).shape[0] != self.df.shape[0]:
+            self._miss_flag = True
+            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
+        else:
+            self._miss_flag = False
+            self.df[self._missing_indicator] = 1
+
+        # Checking binary exposure only
         if not self.df[exposure].value_counts().index.isin([0, 1]).all():
             raise ValueError("GEstimationSNM only supports binary exposures currently")
 
@@ -155,9 +169,11 @@ class GEstimationSNM:
         self.psi = None
         self.psi_labels = None
 
-        self._weights = weights
+        self._weight_ = weights
+        self.ipmw = None
         self._alphas = None
         self._treatment_model = None
+        self._fit_missing_ = False
         self._predicted_A = None
         self._snm_ = None
         self._print_results = True
@@ -211,6 +227,70 @@ class GEstimationSNM:
         """
         self._snm_ = model
 
+    def missing_model(self, model_denominator, model_numerator=None, stabilized=True, bound=False, print_results=True):
+        """Estimation of Pr(M=0|A=a,L), which is the missing data mechanism for the outcome. The corresponding
+        observation probabilities are used to account for informative censoring by observed variables. The missing_model
+        only accounts for missing outcome data.
+
+        The inverse probability weights calculated by this function account for informative censoring (missing data on
+        the outcome) by observed variables.
+
+        Note
+        ----
+        The treatment variable should be included in the model
+
+        Parameters
+        ----------
+        model_denominator: str
+            String listing variables predicting missingness of outcomes via `patsy` syntax. For example, `
+            'var1 + var2 + var3'. This is for the predicted probabilities of the denominator
+        model_numerator : str, optional
+            Optional string listing variables to predict the exposure, separated by +. Only used to calculate the
+            numerator. Default (None) calculates the probability of censoring by treatment only. In general this is
+            recommended. If assessing effect modifcation, this variable should be included in the numerator as well.
+            Argument is only used when calculating stabilized weights
+        stabilized : bool, optional
+            Whether to use stabilized inverse probability of censoring weights
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
+        print_results: bool, optional
+        """
+        # Error if no missing outcome data
+        if not self._miss_flag:
+            raise ValueError("No missing outcome data is present in the data set")
+
+        # Warning if exposure is not included in the missingness of outcome model
+        if self.exposure not in model_denominator:
+            warnings.warn("For the specified missing outcome model, the exposure variable should be included in the "
+                          "model", UserWarning)
+
+        miss_model = self._missing_indicator + ' ~ ' + model_denominator
+        fitmodel = propensity_score(self.df, miss_model, print_results=print_results)
+
+        if stabilized:
+            if model_numerator is None:
+                mnum = self.exposure
+            else:
+                mnum = model_numerator
+            numerator_model = propensity_score(self.df, self._missing_indicator + ' ~ ' + mnum,
+                                               weights=self._weight_,
+                                               print_results=print_results)
+            n = numerator_model.predict(self.df)
+        else:
+            n = 1
+
+        if bound:  # Bounding predicted probabilities if requested
+            d = _bounding_(fitmodel.predict(self.df), bounds=bound)
+        else:
+            d = fitmodel.predict(self.df)
+
+        self.ipmw = np.where(self.df[self._missing_indicator] == 1, n / d, np.nan)
+        self._fit_missing_ = True
+
     def fit(self, solver='closed', starting_value=None, alpha_value=0, tolerance=1e-7, verbose_solver=False,
             maxiter=500):
         """Using the treatment model and the format of the structural nested mean model, the solutions for psi are
@@ -244,26 +324,47 @@ class GEstimationSNM:
             raise ValueError("The exposure_model() and structural_nested_model() must be specified before the fit "
                              "procedure")
 
+        if self._miss_flag and not self._fit_missing_:
+            warnings.warn("All missing outcome data is assumed to be missing completely at random. To relax this "
+                          "assumption to outcome data is missing at random please use the `missing_model()` "
+                          "function", UserWarning)
+
+        # Assigning label for weights
+        df = self.df.copy()
+        if self.ipmw is None:
+            if self._weight_ is None:
+                weight_col = None
+            else:
+                weight_col = self._weight_
+        else:
+            weight_col = '_w_'
+            if self._weight_ is None:
+                df['_w_'] = self.ipmw
+            else:
+                df['_w_'] = self.ipmw * df[self._weight_]
+
         # Pulling out data set up for SNM via patsy
-        snm = patsy.dmatrix(self._snm_ + ' - 1', self.df, return_type='dataframe')
+        df = df.dropna()
+        snm = patsy.dmatrix(self._snm_ + ' - 1', df, return_type='dataframe')
         self.psi_labels = snm.columns.values.tolist()  # Grabs labels for the solved psi values
 
         if solver == 'closed':
             # Pulling array of outcomes with the interaction terms (copy and rename column to get right interactions)
-            yf = self.df.copy().drop(columns=[self.exposure])
+            yf = df.copy().drop(columns=[self.exposure])
             yf = yf.rename(columns={self.outcome: self.exposure})
             y_vals = patsy.dmatrix(self._snm_ + ' - 1', yf, return_type='dataframe')
 
             # Solving for the array of Psi values
+            print(df.columns)
             self.psi = self._closed_form_solver_(treat=self.exposure,
                                                  model=self.exposure + ' ~ ' + self._treatment_model,
-                                                 df=self.df,
+                                                 df=df,
                                                  snm_matrix=snm, y_matrix=y_vals,
-                                                 weights=self._weights, print_results=self._print_results)
+                                                 weights=weight_col, print_results=self._print_results)
 
         elif solver == 'search':
             # Adding other potential SNM variables to the input data
-            sf = pd.concat([self.df, snm.drop(columns=[self.exposure])], axis=1)
+            sf = pd.concat([df, snm.drop(columns=[self.exposure])], axis=1)
 
             # Resolving if not initial parameters
             if starting_value is None:
@@ -272,7 +373,7 @@ class GEstimationSNM:
             # Passing to optimization procedure
             self._scipy_solver_obj = self._grid_search_(data_set=sf,
                                                         treatment=self.exposure, outcome=self.outcome,
-                                                        weights=self._weights,
+                                                        weights=weight_col,
                                                         model=self._treatment_model, snm_terms=self.psi_labels,
                                                         start_vals=starting_value, alpha_shift=np.array(alpha_value),
                                                         tolerance=tolerance, verbose_solver=verbose_solver,
@@ -298,9 +399,18 @@ class GEstimationSNM:
         print('======================================================================')
         print('           G-estimation of Structural Nested Mean Model               ')
         print('======================================================================')
-        fmt = 'Treatment:        {:<24} No. Observations: {:<10}'
+        fmt = 'Treatment:        {:<22} No. Observations:     {:<10}'
         print(fmt.format(self.exposure, self.df.shape[0]))
-        print('Outcome:         ', self.outcome)
+        fmt = 'Outcome:          {:<22} No. Missing Outcome:  {:<10}'
+        print(fmt.format(self.outcome, np.sum(self.df[self.outcome].isnull())))
+
+        fmt = 'Missing model:    {:<15}'
+        if self._fit_missing_:
+            m = 'Logistic'
+        else:
+            m = 'None'
+
+        print(fmt.format(m))
 
         # Printing scipy optimization if possible
         if self._scipy_solver_obj is not None:
@@ -308,6 +418,7 @@ class GEstimationSNM:
         else:
             self._print_closed_results()
 
+        print('----------------------------------------------------------------------')
         print('SNM:     ' + snm_form)
         print('----------------------------------------------------------------------')
 
@@ -391,7 +502,6 @@ class GEstimationSNM:
         fmt = 'Method:           {:<24} No. Iterations:   {:<10}'
         print(fmt.format('Nelder-Mead', optimized_function.nit))
         fmt = 'Alpha values:     {:<24} Optimized:        {:<10}'
-        print(optimized_function.success)
         print(fmt.format(np.str(alpha_values), str(optimized_function.success)))
 
     @staticmethod
