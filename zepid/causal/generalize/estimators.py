@@ -3,7 +3,7 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from zepid.causal.utils import propensity_score
+from zepid.causal.utils import propensity_score, iptw_calculator, _bounding_
 
 
 class IPSW:
@@ -44,8 +44,6 @@ class IPSW:
     generalize : bool, optional
         Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
         for further details on the difference between the two estimation methods
-    stabilized : bool, optional
-        Whether to return stabilized or unstabilized weights. Default is stabilized weights (True)
     weights : None, str, optional
         For conditionally randomized trials, or observational research, inverse probability of treatment weights
         can be used to adjust for confounding. Before estimating the effect measures, this weight vector and the
@@ -107,27 +105,26 @@ class IPSW:
     randomized trial to a new target population. arXiv preprint arXiv:1805.00550.
     """
 
-    def __init__(self, df, exposure, outcome, selection, generalize=True, stabilized=True, weights=None):
+    def __init__(self, df, exposure, outcome, selection, generalize=True, weights=None):
         self.df = df.copy()
         self.sample = df.loc[df[selection] == 1].copy()
         self.target = df.loc[df[selection] == 0].copy()
 
         self.generalize = generalize  # determines whether IPSW or IOSW are calculated
-        self.stabilized = stabilized
-
         self.exposure = exposure
         self.outcome = outcome
         self.selection = selection
         self.weight = weights
 
+        self.ipsw = None
+        self.iptw = None
         self.risk_difference = None
         self.risk_ratio = None
-        self.Weight = None
         self._denominator_model = False
 
-    def regression_models(self, model_denominator, model_numerator='1', print_results=True):
-        """Logistic regression model(s) for estimating weights. The model denominator must be specified for both
-        stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
+    def weight_model(self, model_denominator, model_numerator='1', bound=None, stabilized=True, print_results=True):
+        """Logistic regression model(s) for estimating sampling weights. The model denominator must be specified for
+        both stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
 
         Parameters
@@ -140,10 +137,18 @@ class IPSW:
             numerator. Default ('1') calculates the overall probability of selection. In general, this is recommended.
             Adding in other variables means they are no longer accounted for in estimation of IPSW. Argument is also
             only used when calculating stabilized weights
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
+        stabilized : bool, optional
+            Whether to generated stabilized IPSW. Default is True, which returns the stabilized IPSW
         print_results : bool, optional
             Whether to print the model results from the regression models. Default is True
         """
-        if not self.stabilized:
+        if not stabilized:
             if model_numerator != '1':
                 raise ValueError('Argument for model_numerator is only used for stabilized=True')
 
@@ -153,11 +158,15 @@ class IPSW:
         self._denominator_model = True
 
         # Stabilization factor if valid
-        if self.stabilized:
+        if stabilized:
             nmodel = propensity_score(self.df, self.selection + ' ~ ' + model_numerator, print_results=print_results)
             self.sample['__numer__'] = nmodel.predict(self.sample)
         else:
             self.sample['__numer__'] = 1
+
+        if bound:
+            self.sample['__denom__'] = _bounding_(self.sample['__denom__'], bounds=bound)
+            self.sample['__numer__'] = _bounding_(self.sample['__numer__'], bounds=bound)
 
         # Calculate IPSW (generalizability)
         if self.generalize:
@@ -165,13 +174,47 @@ class IPSW:
 
         # Calculate IOSW (transportability)
         else:
-            if self.stabilized:
+            if stabilized:
                 self.sample['__ipsw__'] = (((1 - self.sample['__denom__']) / self.sample['__denom__']) *
                                            (self.sample['__numer__'] / (1 - self.sample['__numer__'])))
             else:
                 self.sample['__ipsw__'] = (1 - self.sample['__denom__']) / self.sample['__denom__']
 
-        self.Weight = self.sample['__ipsw__']
+        self.ipsw = self.sample['__ipsw__']
+
+    def treatment_model(self, model_denominator, model_numerator='1', bound=None, stabilized=True, print_results=True):
+        """Logistic regression model(s) for estimating inverse probability of treatment weights (IPTW). The model
+        denominator must be specified for both stabilized and unstabilized weights. The optional argument
+        'model_numerator' allows specification of the stabilization factor for the weight numerator. By default model
+        results are returned
+
+        Parameters
+        ----------
+        model_denominator : str
+            String listing variables to predict the exposure, separated by +. For example, 'var1 + var2 + var3'. This
+            is for the predicted probabilities of the denominator
+        model_numerator : str, optional
+            Optional string listing variables to predict the selection separated by +. Only used to calculate the
+            numerator. Default ('1') calculates the overall probability of selection. In general, this is recommended.
+            Adding in other variables means they are no longer accounted for in estimation of IPSW. Argument is also
+            only used when calculating stabilized weights
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
+        stabilized : bool, optional
+            Whether to generated stabilized IPSW. Default is True, which returns the stabilized IPSW
+        print_results : bool, optional
+            Whether to print the model results from the regression models. Default is True
+        """
+        d, n, self.iptw = iptw_calculator(df=self.sample,
+                                          treatment=self.exposure,
+                                          model_denom=model_denominator, model_numer=model_numerator,
+                                          weight=self.weight, stabilized=stabilized,
+                                          standardize='population',
+                                          bound=bound, print_results=print_results)
 
     def fit(self):
         """Uses the calculated IPSW to obtain the risk difference and risk ratio from the sample. If weights are
@@ -186,10 +229,17 @@ class IPSW:
         """
         if not self._denominator_model:
             raise ValueError('The regression_models() function must be specified before effect measure estimation')
+
         if self.weight is not None:
-            self.sample['__ipw__'] = self.Weight * self.sample[self.weight]
+            if self.iptw is None:
+                self.sample['__ipw__'] = self.ipsw * self.sample[self.weight]
+            else:
+                self.sample['__ipw__'] = self.ipsw * self.iptw * self.sample[self.weight]
         else:
-            self.sample['__ipw__'] = self.Weight
+            if self.iptw is None:
+                self.sample['__ipw__'] = self.ipsw
+            else:
+                self.sample['__ipw__'] = self.ipsw * self.iptw
 
         exp = self.sample[self.sample[self.exposure] == 1].copy()
         uxp = self.sample[self.sample[self.exposure] == 0].copy()
@@ -218,11 +268,16 @@ class IPSW:
         print(fmt.format(self.exposure, self.sample.shape[0]))
         fmt = 'Outcome:          {:<15} Target Observations:  {:<20}'
         print(fmt.format(self.outcome, self.target.shape[0]))
-        fmt = 'Target estimate:  {:<15}'
+        fmt = 'Target estimate:  {:<15} IP Treatment Weights: {:<20}'
         if self.generalize:
-            print(fmt.format('Generalize'))
+            g = 'Generalize'
         else:
-            print(fmt.format('Transport'))
+            g = 'Transport'
+        if self.iptw is None:
+            w = 'No'
+        else:
+            w = 'Yes'
+        print(fmt.format(g, w))
 
         print('----------------------------------------------------------------------')
         print('Risk Difference: ', round(float(self.risk_difference), decimal))
@@ -542,7 +597,8 @@ class AIPSW:
         self.selection = selection
         self.weight = weights
 
-        self.Weight = None
+        self.ipsw = None
+        self.iptw = None
         self._denominator_model = False
         self._outcome_model = False
         self._YA1 = None
@@ -572,7 +628,6 @@ class AIPSW:
             Whether to print the model results from the regression models. Default is True
         """
         dmodel = propensity_score(self.df, self.selection + ' ~ ' + model_denominator, print_results=print_results)
-
         self.df['__denom__'] = dmodel.predict(self.df)
         self._denominator_model = True
 
@@ -595,10 +650,41 @@ class AIPSW:
             else:
                 self.df['__ipsw__'] = (1 - self.df['__denom__']) / self.df['__denom__']
 
-        if self.weight is not None:
-            self.Weight = self.df['__ipsw__'] * self.df[self.weight]
-        else:
-            self.Weight = self.df['__ipsw__']
+        self.ipsw = self.df['__ipsw__']
+
+    def treatment_model(self, model_denominator, model_numerator='1', bound=None, stabilized=True, print_results=False):
+        """Logistic regression model(s) for estimating inverse probability of treatment weights (IPTW). The model
+        denominator must be specified for both stabilized and unstabilized weights. The optional argument
+        'model_numerator' allows specification of the stabilization factor for the weight numerator. By default model
+        results are returned
+
+        Parameters
+        ----------
+        model_denominator : str
+            String listing variables to predict the exposure, separated by +. For example, 'var1 + var2 + var3'. This
+            is for the predicted probabilities of the denominator
+        model_numerator : str, optional
+            Optional string listing variables to predict the selection separated by +. Only used to calculate the
+            numerator. Default ('1') calculates the overall probability of selection. In general, this is recommended.
+            Adding in other variables means they are no longer accounted for in estimation of IPSW. Argument is also
+            only used when calculating stabilized weights
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            inference becomes limited to the restricted population. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation. A collection of
+            floats can be provided for asymmetric trunctation
+        stabilized : bool, optional
+            Whether to generated stabilized IPTW. Default is True, which returns the stabilized IPTW
+        print_results : bool, optional
+            Whether to print the model results from the regression models. Default is True
+        """
+        d, n, self.iptw = iptw_calculator(df=self.df,
+                                          treatment=self.exposure,
+                                          model_denom=model_denominator, model_numer=model_numerator,
+                                          weight=self.weight, stabilized=stabilized,
+                                          standardize='population',
+                                          bound=bound, print_results=print_results)
 
     def outcome_model(self, model, outcome_type='binary', print_results=True):
         """Build the g-transport model for the outcome. This is also referred to at the Q-model.
@@ -652,27 +738,38 @@ class AIPSW:
         if not self._outcome_model:
             raise ValueError('The outcome_model() function must be specified before effect measure estimation')
 
+        if self.weight is not None:
+            if self.iptw is None:
+                self.df['__ipw__'] = self.ipsw * self.sample[self.weight]
+            else:
+                self.df['__ipw__'] = self.ipsw * self.iptw * self.sample[self.weight]
+        else:
+            if self.iptw is None:
+                self.df['__ipw__'] = self.ipsw
+            else:
+                self.df['__ipw__'] = self.ipsw * self.iptw
+
         # Generalizability problem
         if self.generalize:
             part1 = self._YA1
             part2 = np.where(self.sample & (self.df[self.exposure] == 1),
-                             self.Weight * (self.df[self.outcome] - self._YA1), 0)
+                             self.df['__ipw__'] * (self.df[self.outcome] - self._YA1), 0)
             r1 = np.mean(part1 + part2)
 
             part1 = self._YA0
             part2 = np.where(self.sample & (self.df[self.exposure] == 0),
-                             self.Weight * (self.df[self.outcome] - self._YA0), 0)
+                             self.df['__ipw__'] * (self.df[self.outcome] - self._YA0), 0)
             r0 = np.mean(part1 + part2)
 
         # Transportability problem
         else:
             part1 = np.where(self.sample & (self.df[self.exposure] == 1),
-                             self.Weight * (self.df[self.outcome] - self._YA1), 0)
+                             self.df['__ipw__'] * (self.df[self.outcome] - self._YA1), 0)
             part2 = (1 - self.df[self.selection]) * self._YA1
             r1 = np.sum(part1 + part2) / np.sum(1 - self.df[self.selection])
 
             part1 = np.where(self.sample & (self.df[self.exposure] == 0),
-                             self.Weight * (self.df[self.outcome] - self._YA0), 0)
+                             self.df['__ipw__'] * (self.df[self.outcome] - self._YA0), 0)
             part2 = (1 - self.df[self.selection]) * self._YA0
             r0 = np.sum(part1 + part2) / np.sum(1 - self.df[self.selection])
 
