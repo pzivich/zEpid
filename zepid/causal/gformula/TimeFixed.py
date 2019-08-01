@@ -56,6 +56,13 @@ class TimeFixedGFormula:
         Column name for outcome variable
     outcome_type : str, optional
         Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
+    standardize : str, optional
+        Who the estimate corresponds to. Options are the entire population, the exposed, or the unexposed. See
+        Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the
+        exposed or unexposed is also referred to as SMR weighting. Options for standardization are:
+        * 'population'    :   weight to entire population
+        * 'exposed'       :   weight to exposed individuals
+        * 'unexposed'     :   weight to unexposed individuals
     weights : str, optional
         Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
 
@@ -140,7 +147,8 @@ class TimeFixedGFormula:
     population disease burden: a step-by-step illustration of causal inference methods. American Journal of
     Epidemiology, 169(9), 1140-1147.
     """
-    def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', weights=None):
+    def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', standardize='population',
+                 weights=None):
         self.gf = df.copy()
         self.exposure = exposure
         self.outcome = outcome
@@ -156,6 +164,12 @@ class TimeFixedGFormula:
         else:
             raise ValueError('Only binary or continuous exposures are currently supported. Please specify "binary", '
                              '"categorical", or "continuous".')
+
+        if standardize in ['population', 'exposed', 'unexposed']:
+            self.standardize = standardize
+        else:
+            raise ValueError('Please specify one of the currently supported standardizations: ' +
+                             'population, exposed, unexposed')
 
         self._weights = weights
         self._outcome_model = None
@@ -263,10 +277,24 @@ class TimeFixedGFormula:
         # Getting predictions
         g[self.outcome] = np.nan
         g[self.outcome] = self._outcome_model.predict(g)
+
         if self._weights is None:  # unweighted marginal estimate
-            self.marginal_outcome = np.mean(g[self.outcome])
+            if self.standardize == 'population':
+                self.marginal_outcome = np.mean(g[self.outcome])
+            elif self.standardize == 'exposed':
+                self.marginal_outcome = np.mean(g.loc[self.gf[self.exposure] == 1, self.outcome])
+            else:
+                self.marginal_outcome = np.mean(g.loc[self.gf[self.exposure] == 0, self.outcome])
         else:  # weighted marginal estimate
-            self.marginal_outcome = np.average(g[self.outcome], weights=self.gf[self._weights])
+            if self.standardize == 'population':
+                self.marginal_outcome = np.average(g[self.outcome], weights=self.gf[self._weights])
+            elif self.standardize == 'exposed':
+                self.marginal_outcome = np.average(g.loc[self.gf[self.exposure] == 1, self.outcome],
+                                                   weights=self.gf[self._weights])
+            else:
+                self.marginal_outcome = np.average(g.loc[self.gf[self.exposure] == 0, self.outcome],
+                                                   weights=self.gf[self._weights])
+
         self.predicted_df = g
 
     def fit_stochastic(self, p, conditional=None, samples=100, seed=None):
@@ -338,9 +366,21 @@ class TimeFixedGFormula:
             g[self.outcome] = np.nan
             g[self.outcome] = self._outcome_model.predict(g)
             if self._weights is None:  # unweighted marginal estimate
-                marginals.append(np.mean(g[self.outcome]))
+                if self.standardize == 'population':
+                    marginals.append(np.mean(g[self.outcome]))
+                elif self.standardize == 'exposed':
+                    marginals.append(np.mean(g.loc[self.gf[self.exposure] == 1, self.outcome]))
+                else:
+                    marginals.append(np.mean(g.loc[self.gf[self.exposure] == 0, self.outcome]))
             else:  # weighted marginal estimate
-                marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
+                if self.standardize == 'population':
+                    marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
+                elif self.standardize == 'exposed':
+                    marginals.append(np.average(g.loc[self.gf[self.exposure] == 1, self.outcome],
+                                                weights=g[self._weights]))
+                else:
+                    marginals.append(np.average(g.loc[self.gf[self.exposure] == 0, self.outcome],
+                                                weights=g[self._weights]))
 
         self.marginal_outcome = np.mean(marginals)
 
