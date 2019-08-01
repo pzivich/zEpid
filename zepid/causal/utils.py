@@ -178,7 +178,8 @@ def _bounding_(v, bounds):
 
 
 def iptw_calculator(df, treatment, model_denom, model_numer, weight, stabilized, standardize, bound, print_results):
-    """Background function to calculate inverse probability of treatment weights. Used by `IPTW`, `IPSW`, `AIPSW`
+    """Background function to calculate inverse probability of treatment weights. Used by `IPTW`, `AIPTW`, `IPSW`,
+    `AIPSW`
     """
     denominator_model = propensity_score(df, treatment + ' ~ ' + model_denom,
                                          weights=weight, print_results=print_results)
