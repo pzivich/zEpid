@@ -177,6 +177,57 @@ def _bounding_(v, bounds):
     return v
 
 
+def iptw_calculator(df, treatment, model_denom, model_numer, weight, stabilized, standardize, bound, print_results):
+    """Background function to calculate inverse probability of treatment weights. Used by `IPTW`, `IPSW`, `AIPSW`
+    """
+    denominator_model = propensity_score(df, treatment + ' ~ ' + model_denom,
+                                         weights=weight, print_results=print_results)
+    d = denominator_model.predict(df)
+
+    # Calculating numerator probabilities (if stabilized)
+    if stabilized is True:
+        numerator_model = propensity_score(df, treatment + ' ~ ' + model_numer,
+                                           weights=weight, print_results=print_results)
+        n = numerator_model.predict(df)
+    else:
+        if model_numer != '1':
+            raise ValueError('Argument for model_numerator is only used for stabilized=True')
+        n = 1
+
+    # Bounding predicted probabilities if requested
+    if bound:
+        d = _bounding_(d, bounds=bound)
+        n = _bounding_(n, bounds=bound)
+
+    # Calculating weights
+    if stabilized:  # Stabilized weights
+        if standardize == 'population':
+            iptw = np.where(df[treatment] == 1, (n / d), ((1 - n) / (1 - d)))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            iptw = np.where(df[treatment] == 1, 1, (d / (1 - d)) * ((1 - n) / n))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        else:
+            iptw = np.where(df[treatment] == 1, (((1 - d) / d) * (n / (1 - n))), 1)
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+
+    else:  # Unstabilized weights
+        if standardize == 'population':
+            iptw = np.where(df[treatment] == 1, 1 / d, 1 / (1 - d))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            iptw = np.where(df[treatment] == 1, 1, (d / (1 - d)))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        else:
+            iptw = np.where(df[treatment] == 1, ((1 - d) / d), 1)
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+    return d, n, iptw
+
+
 def plot_kde(df, treatment, probability,
              measure='probability', bw_method='scott', fill=True, color_e='b', color_u='r'):
     """Generates a density plot that can be used to check whether positivity may be violated qualitatively. The

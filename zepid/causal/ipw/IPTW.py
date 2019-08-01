@@ -8,7 +8,7 @@ from statsmodels.tools.sm_exceptions import DomainWarning
 import matplotlib.pyplot as plt
 
 from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
-                                standardized_mean_differences, positivity, _bounding_)
+                                standardized_mean_differences, positivity, _bounding_, iptw_calculator)
 
 
 class IPTW:
@@ -226,32 +226,15 @@ class IPTW:
         """
         # Calculating denominator probabilities
         self.__mdenom = model_denominator
-        denominator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_denominator,
-                                             weights=self._weight_,
-                                             print_results=print_results)
-        d = denominator_model.predict(self.df)
-        self.df['__denom__'] = d
-
-        # Calculating numerator probabilities (if stabilized)
-        if stabilized is True:
-            numerator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_numerator,
-                                               weights=self._weight_,
-                                               print_results=print_results)
-            n = numerator_model.predict(self.df)
-        else:
-            if model_numerator != '1':
-                raise ValueError('Argument for model_numerator is only used for stabilized=True')
-            n = 1
-        self.df['__numer__'] = n
-
-        # Bounding predicted probabilities if requested
-        if bound:
-            self.df['__denom__'] = _bounding_(self.df['__denom__'], bounds=bound)
-            self.df['__numer__'] = _bounding_(self.df['__numer__'], bounds=bound)
-
-        # Calculating weights
-        self.iptw = self._weight_calculator(self.df, denominator='__denom__',
-                                            numerator='__numer__', stabilized=stabilized)
+        self.df['__denom__'], self.df['__numer__'], self.iptw = iptw_calculator(df=self.df,
+                                                                                treatment=self.treatment,
+                                                                                model_denom=model_denominator,
+                                                                                model_numer=model_numerator,
+                                                                                weight=self._weight_,
+                                                                                stabilized=stabilized,
+                                                                                standardize=self.standardize,
+                                                                                bound=bound,
+                                                                                print_results=print_results)
 
     def missing_model(self, model_denominator, model_numerator=None, stabilized=True, bound=False, print_results=True):
         """Estimation of Pr(M=0|A=a,L), which is the missing data mechanism for the outcome. The corresponding
@@ -655,46 +638,6 @@ class IPTW:
                        color_unweighted=color_unweighted, color_weighted=color_weighted,
                        shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
         return ax
-
-    def _weight_calculator(self, df, denominator, numerator, stabilized):
-        """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
-        background for the fit() function. Not intended to be used by users
-
-        df is the dataframe, denominator is the string indicating the column of Pr, numerator is the string indicating
-        the column of Pr
-        """
-        if stabilized:  # Stabilized weights
-            if self.standardize == 'population':
-                df['w'] = np.where(df[self.treatment] == 1, (df[numerator] / df[denominator]),
-                                   ((1 - df[numerator]) / (1 - df[denominator])))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.treatment] == 1, 1,
-                                   ((df[denominator] / (1 - df[denominator])) * ((1 - df[numerator]) /
-                                                                                 df[numerator])))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            else:
-                df['w'] = np.where(df[self.treatment] == 1,
-                                   (((1 - df[denominator]) / df[denominator]) * (df[numerator] /
-                                                                                 (1 - df[numerator]))),
-                                   1)
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-
-        else:  # Unstabilized weights
-            if self.standardize == 'population':
-                df['w'] = np.where(df[self.treatment] == 1, 1 / df[denominator], 1 / (1 - df[denominator]))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.treatment] == 1, 1, (df[denominator] / (1 - df[denominator])))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            else:
-                df['w'] = np.where(df[self.treatment] == 1, ((1 - df[denominator]) / df[denominator]), 1)
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-        return df['w']
 
 
 class StochasticIPTW:
