@@ -343,12 +343,12 @@ class IPTW:
             if self._weight_ is None:
                 df['_ipfw_'] = self.iptw
             else:
-                df['_ipfw_'] = self.iptw * self._weight_
+                df['_ipfw_'] = self.iptw * self.df[self._weight_]
         else:
             if self._weight_ is None:
                 df['_ipfw_'] = self.iptw * self.ipmw
             else:
-                df['_ipfw_'] = self.iptw * self.ipmw * self._weight_
+                df['_ipfw_'] = self.iptw * self.ipmw * self.df[self._weight_]
         df = df.dropna()
 
         if self._continuous_outcome:
