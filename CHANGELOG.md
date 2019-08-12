@@ -1,5 +1,18 @@
 ## Change logs
 
+### v0.8.1
+`IPSW` and `AIPSW` now natively support adjusting for confounding. Both now have the `treatment_model()` function, 
+which calculates the inverse probability of treatment weights. How weights are handled in `AIPSW` are updated. They 
+are used in both the weight and the outcome models.
+
+`IPSW` and `AIPSW` both add censoring...
+
+`TimeFixedGFormula` has added support for the average treatment effect in the treated (ATT), and average treatment 
+effect in the untreated (ATU). 
+
+Background refactoring for IPTW. `utils.py` now contains a function to calculate inverse probability of treatment 
+weights. The function `iptw_calculator` is used by `IPTW`, `AIPTW`, `IPSW`, and `AIPSW` to calculate the weights now
+
 ### v0.8.0
 `IPTW` had a massive overhaul. It now follows a similar structure to `AIPTW` and other causal inference methods. 
 One *major* change is that missing data is dropped before any calculations. Therefore, if missing data was present for
