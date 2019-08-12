@@ -18,6 +18,7 @@ def df_r():
 def df_c():
     df = ze.load_generalize_data(True)
     df['W_sq'] = df['W'] ** 2
+    df['weight'] = 3
     return df
 
 
@@ -77,6 +78,22 @@ class TestIPSW:
         npt.assert_allclose(ipsw.risk_difference, 0.047296, atol=1e-5)
         npt.assert_allclose(ipsw.risk_ratio, 1.1372, atol=1e-4)
 
+    def test_generalize_weight(self, df_c):
+        ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True, weights='weight')
+        ipsw.weight_model('L + W + W_sq', print_results=False)
+        ipsw.treatment_model('L', print_results=False)
+        ipsw.fit()
+        npt.assert_allclose(ipsw.risk_difference, 0.055034, atol=1e-5)
+        npt.assert_allclose(ipsw.risk_ratio, 1.167213, atol=1e-4)
+
+    def test_transport_weight(self, df_c):
+        ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False, weights='weight')
+        ipsw.weight_model('L + W + W_sq', print_results=False)
+        ipsw.treatment_model('L', print_results=False)
+        ipsw.fit()
+        npt.assert_allclose(ipsw.risk_difference, 0.047296, atol=1e-5)
+        npt.assert_allclose(ipsw.risk_ratio, 1.1372, atol=1e-4)
+
 
 class TestGTransport:
 
@@ -108,6 +125,20 @@ class TestGTransport:
 
     def test_transport_conf(self, df_c):
         gtf = GTransportFormula(df_c, exposure='A', outcome='Y', selection='S', generalize=False)
+        gtf.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
+        gtf.fit()
+        npt.assert_allclose(gtf.risk_difference, 0.042574, atol=1e-5)
+        npt.assert_allclose(gtf.risk_ratio, 1.124257, atol=1e-4)
+
+    def test_generalize_weight(self, df_c):
+        gtf = GTransportFormula(df_c, exposure='A', outcome='Y', selection='S', generalize=True, weights='weight')
+        gtf.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
+        gtf.fit()
+        npt.assert_allclose(gtf.risk_difference, 0.048949, atol=1e-5)
+        npt.assert_allclose(gtf.risk_ratio, 1.149556, atol=1e-4)
+
+    def test_transport_weight(self, df_c):
+        gtf = GTransportFormula(df_c, exposure='A', outcome='Y', selection='S', generalize=False, weights='weight')
         gtf.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         gtf.fit()
         npt.assert_allclose(gtf.risk_difference, 0.042574, atol=1e-5)
@@ -157,6 +188,24 @@ class TestAIPSW:
 
     def test_transport_conf(self, df_c):
         aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False)
+        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.treatment_model('L', print_results=False)
+        aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.risk_difference, 0.041407, atol=1e-5)
+        npt.assert_allclose(aipw.risk_ratio, 1.120556, atol=1e-4)
+
+    def test_generalize_weight(self, df_c):
+        aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True, weights='weight')
+        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.treatment_model('L', print_results=False)
+        aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.risk_difference, 0.048129, atol=1e-5)
+        npt.assert_allclose(aipw.risk_ratio, 1.146787, atol=1e-4)
+
+    def test_transport_weight(self, df_c):
+        aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False, weights='weight')
         aipw.weight_model('L + W_sq', print_results=False)
         aipw.treatment_model('L', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)

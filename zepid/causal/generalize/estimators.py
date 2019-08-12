@@ -322,9 +322,7 @@ class GTransportFormula:
         Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
         for further details on the difference between the two estimation methods
     weights : None, str, optional
-        If there are associated sampling (or other types of) weights, these can be included in this statement.
-        Sampling weights may be used for a transportability problem? Either way, I would like to keep this as an
-        option (to mirror TimeFixedGFormula)
+        Optional argument for weights. Can be used to input inverse probability of missing weights
 
     Note
     ----
@@ -538,10 +536,7 @@ class AIPSW:
         Whether the problem is a generalizability (True) problem or a transportability (False) problem. See notes
         for further details on the difference between the two estimation methods
     weights : None, str, optional
-        For conditionally randomized trials, or observational research, inverse probability of treatment weights
-        can be used to adjust for confounding in IPSW. Before estimating the effect measures, this weight vector
-        and the IPSW are multiplied to calculate new weights
-        When weights is None, the data is assumed to come from a randomized trial, and does not need to be adjusted
+        Optional argument for weights. Can be used to input inverse probability of missing weights
 
     Note
     ----
@@ -710,8 +705,13 @@ class AIPSW:
 
         # Modeling the outcome
         df = self.df[self.sample].copy()
-        m = smf.glm(self.outcome+' ~ '+model, df, family=linkdist)
-        self._outcome_model = m.fit()
+
+        if self.weight is None:
+            m = smf.glm(self.outcome+' ~ '+model, df, family=linkdist)
+            self._outcome_model = m.fit()
+        else:
+            m = smf.glm(self.outcome+' ~ '+model, df, family=linkdist, freq_weights=df[self.weight])
+            self._outcome_model = m.fit()
 
         # Printing results of the model and if any observations were dropped
         if print_results:
@@ -740,9 +740,10 @@ class AIPSW:
 
         if self.weight is not None:
             if self.iptw is None:
-                self.df['__ipw__'] = self.ipsw * self.sample[self.weight]
+                self.df['__ipw__'] = self.ipsw * self.df[self.weight]
             else:
-                self.df['__ipw__'] = self.ipsw * self.iptw * self.sample[self.weight]
+                self.df['__ipw__'] = self.ipsw * self.iptw * self.df[self.weight]
+                print(self.ipsw * self.iptw * self.df[self.weight])
         else:
             if self.iptw is None:
                 self.df['__ipw__'] = self.ipsw
