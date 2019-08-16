@@ -197,8 +197,9 @@ class TimeFixedGFormula:
         print_results : bool, optional
             Whether to print the logistic regression results to the terminal. Default is True
         """
-        if self.exposure not in model:
-            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
+        if type(self.exposure) is not list:
+            if self.exposure not in model:
+                warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
 
         if self.outcome_type == 'binary':
             linkdist = sm.families.family.Binomial()
