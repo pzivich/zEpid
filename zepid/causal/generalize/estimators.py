@@ -70,27 +70,22 @@ class IPSW:
     Generalizability for RCT results
 
     >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
-    >>> ipsw.regression_models('L + W + L:W', print_results=False)
+    >>> ipsw.sampling_model('L + W + L:W', print_results=False)
     >>> ipsw.fit()
     >>> ipsw.summary()
 
     Transportability for RCT results
 
     >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
-    >>> ipsw.regression_models('L + W + L:W', print_results=False)
+    >>> ipsw.sampling_model('L + W + L:W', print_results=False)
     >>> ipsw.fit()
     >>> ipsw.summary()
 
-    For observational studies, IPTW can be used to account for confounders
+    For observational studies, IPTW can be used to account for confounders via the `treatment_model()` function
 
-    >>> from zepid.causal.ipw import IPTW
-    >>> iptw = IPTW(df, treatment='A')
-    >>> iptw.regression_models('L')
-    >>> iptw.fit()
-    >>> df['iptw'] = iptw.Weight
-
-    >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S', weights='iptw', generalize=False)
-    >>> ipsw.regression_models('L + W + L:W', print_results=False)
+    >>> ipsw = IPSW(df, exposure='A', outcome='Y', selection='S')
+    >>> ipsw.sampling_model('L + W + L:W', print_results=False)
+    >>> ipsw.treatment_model('L', print_results=False)
     >>> ipsw.fit()
     >>> ipsw.summary()
 
@@ -123,7 +118,7 @@ class IPSW:
         self.risk_ratio = None
         self._denominator_model = False
 
-    def weight_model(self, model_denominator, model_numerator='1', bound=None, stabilized=True, print_results=True):
+    def sampling_model(self, model_denominator, model_numerator='1', bound=None, stabilized=True, print_results=True):
         """Logistic regression model(s) for estimating sampling weights. The model denominator must be specified for
         both stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned
@@ -558,18 +553,28 @@ class AIPSW:
     >>> from zepid.causal.generalize import AIPSW
     >>> df = load_generalize_data(False)
 
-    Generalizability
+    Generalizability for RCT
 
     >>> aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=True)
-    >>> aipw.weight_model('L + W_sq', print_results=False)
+    >>> aipw.sampling_model('L + W_sq', print_results=False)
     >>> aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
     >>> aipw.fit()
     >>> aipw.summary()
 
-    Transportability
+    Transportability for RCT
 
     >>> aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
-    >>> aipw.weight_model('L + W_sq', print_results=False)
+    >>> aipw.sampling_model('L + W_sq', print_results=False)
+    >>> aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
+    >>> aipw.fit()
+    >>> aipw.summary()
+
+    Transportability for Observational study
+
+    >>> df = load_generalize_data(True)
+    >>> aipw = AIPSW(df, exposure='A', outcome='Y', selection='S', generalize=False)
+    >>> aipw.sampling_model('L + W_sq', print_results=False)
+    >>> aipw.treatment_model('L', print_results=False)
     >>> aipw.outcome_model('A + L + L:A + W + W:A + W:A:L', print_results=False)
     >>> aipw.fit()
     >>> aipw.summary()
@@ -606,7 +611,7 @@ class AIPSW:
         self.risk_difference = None
         self.risk_ratio = None
 
-    def weight_model(self, model_denominator, model_numerator='1', stabilized=True, print_results=True):
+    def sampling_model(self, model_denominator, model_numerator='1', stabilized=True, print_results=True):
         """Logistic regression model(s) for estimating IPSW. The model denominator must be specified for both
         stabilized and unstabilized weights. The optional argument 'model_numerator' allows specification of the
         stabilization factor for the weight numerator. By default model results are returned

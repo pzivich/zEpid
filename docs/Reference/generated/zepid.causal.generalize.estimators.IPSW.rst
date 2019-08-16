@@ -10,6 +10,7 @@ zepid.causal.generalize.estimators.IPSW
 
    .. autosummary::
 
-      ~IPSW.regression_models
+      ~IPSW.sampling_model
+      ~IPSW.treatment_model
       ~IPSW.fit
       ~IPSW.summary
