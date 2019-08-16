@@ -277,7 +277,7 @@ class AIPTW:
             Whether to print the fitted model results. Default is True (prints results)
         """
         if self.exposure not in model:
-            warnings.warn("It looks like the exposure variable is missing from the outcome model", UserWarning)
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
 
         self._out_model = self.outcome + ' ~ ' + model
 

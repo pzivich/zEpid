@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -395,6 +396,9 @@ class GTransportFormula:
         print_results : bool, optional
             Whether to print the logistic regression results to the terminal. Default is True
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
+
         if self.outcome_type == 'binary':
             linkdist = sm.families.family.Binomial()
         elif self.outcome_type == 'normal':
@@ -694,6 +698,9 @@ class AIPSW:
         print_results : bool, optional
             Whether to print the logistic regression results to the terminal. Default is True
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
+
         if outcome_type == 'binary':
             linkdist = sm.families.family.Binomial()
         elif outcome_type == 'normal':

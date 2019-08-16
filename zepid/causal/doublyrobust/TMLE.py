@@ -346,6 +346,9 @@ class TMLE:
             Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
             for Poisson distributions
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
+
         self._out_model = self.outcome + ' ~ ' + model
 
         if self._miss_flag:

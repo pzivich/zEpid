@@ -225,6 +225,9 @@ class GEstimationSNM:
             interaction terms as needed. Interactions should be indicated via patsy magic.
             For example, 'A + A:V + A:C'
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the structural nested model.")
+
         self._snm_ = model
 
     def missing_model(self, model_denominator, model_numerator=None, stabilized=True, bound=False, print_results=True):
