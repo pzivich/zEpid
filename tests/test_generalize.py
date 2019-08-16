@@ -27,7 +27,7 @@ class TestIPSW:
     def test_stabilize_error(self, df_c):
         ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S')
         with pytest.raises(ValueError):
-            ipsw.weight_model('L + W_sq', model_numerator='W', stabilized=False, print_results=False)
+            ipsw.sampling_model('L + W_sq', model_numerator='W', stabilized=False, print_results=False)
 
     def test_no_model_error(self, df_c):
         ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True)
@@ -36,35 +36,35 @@ class TestIPSW:
 
     def test_generalize_unstabilized(self, df_r):
         ipsw = IPSW(df_r, exposure='A', outcome='Y', selection='S')
-        ipsw.weight_model('L + W_sq', stabilized=False, print_results=False)
+        ipsw.sampling_model('L + W_sq', stabilized=False, print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.046809, atol=1e-5)
         npt.assert_allclose(ipsw.risk_ratio, 1.13905, atol=1e-4)
 
     def test_generalize_stabilized(self, df_r):
         ipsw = IPSW(df_r, exposure='A', outcome='Y', selection='S')
-        ipsw.weight_model('L + W_sq', stabilized=True, print_results=False)
+        ipsw.sampling_model('L + W_sq', stabilized=True, print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.046809, atol=1e-5)
         npt.assert_allclose(ipsw.risk_ratio, 1.13905, atol=1e-4)
 
     def test_transport_unstabilized(self, df_r):
         ipsw = IPSW(df_r, exposure='A', outcome='Y', selection='S', generalize=False)
-        ipsw.weight_model('L + W_sq', stabilized=False, print_results=False)
+        ipsw.sampling_model('L + W_sq', stabilized=False, print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.034896, atol=1e-5)
         npt.assert_allclose(ipsw.risk_ratio, 1.097139, atol=1e-4)
 
     def test_transport_stabilized(self, df_r):
         ipsw = IPSW(df_r, exposure='A', outcome='Y', selection='S', generalize=False)
-        ipsw.weight_model('L + W_sq', print_results=False)
+        ipsw.sampling_model('L + W_sq', print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.034896, atol=1e-5)
         npt.assert_allclose(ipsw.risk_ratio, 1.097139, atol=1e-4)
 
     def test_generalize_iptw(self, df_c):
         ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True)
-        ipsw.weight_model('L + W + W_sq', print_results=False)
+        ipsw.sampling_model('L + W + W_sq', print_results=False)
         ipsw.treatment_model('L', print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.055034, atol=1e-5)
@@ -72,7 +72,7 @@ class TestIPSW:
 
     def test_transport_iptw(self, df_c):
         ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False)
-        ipsw.weight_model('L + W + W_sq', print_results=False)
+        ipsw.sampling_model('L + W + W_sq', print_results=False)
         ipsw.treatment_model('L', print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.047296, atol=1e-5)
@@ -80,7 +80,7 @@ class TestIPSW:
 
     def test_generalize_weight(self, df_c):
         ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True, weights='weight')
-        ipsw.weight_model('L + W + W_sq', print_results=False)
+        ipsw.sampling_model('L + W + W_sq', print_results=False)
         ipsw.treatment_model('L', print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.055034, atol=1e-5)
@@ -88,7 +88,7 @@ class TestIPSW:
 
     def test_transport_weight(self, df_c):
         ipsw = IPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False, weights='weight')
-        ipsw.weight_model('L + W + W_sq', print_results=False)
+        ipsw.sampling_model('L + W + W_sq', print_results=False)
         ipsw.treatment_model('L', print_results=False)
         ipsw.fit()
         npt.assert_allclose(ipsw.risk_difference, 0.047296, atol=1e-5)
@@ -152,7 +152,7 @@ class TestAIPSW:
         with pytest.raises(ValueError):
             aipw.fit()
 
-        aipw.weight_model('L', print_results=False)
+        aipw.sampling_model('L', print_results=False)
         with pytest.raises(ValueError):
             aipw.fit()
 
@@ -163,7 +163,7 @@ class TestAIPSW:
 
     def test_generalize(self, df_r):
         aipw = AIPSW(df_r, exposure='A', outcome='Y', selection='S', generalize=True)
-        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.sampling_model('L + W_sq', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
         npt.assert_allclose(aipw.risk_difference, 0.061382, atol=1e-5)
@@ -171,7 +171,7 @@ class TestAIPSW:
 
     def test_transport(self, df_r):
         aipw = AIPSW(df_r, exposure='A', outcome='Y', selection='S', generalize=False)
-        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.sampling_model('L + W_sq', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
         npt.assert_allclose(aipw.risk_difference, 0.05479, atol=1e-5)
@@ -179,7 +179,7 @@ class TestAIPSW:
 
     def test_generalize_conf(self, df_c):
         aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True)
-        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.sampling_model('L + W_sq', print_results=False)
         aipw.treatment_model('L', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
@@ -188,7 +188,7 @@ class TestAIPSW:
 
     def test_transport_conf(self, df_c):
         aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False)
-        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.sampling_model('L + W_sq', print_results=False)
         aipw.treatment_model('L', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
@@ -197,7 +197,7 @@ class TestAIPSW:
 
     def test_generalize_weight(self, df_c):
         aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=True, weights='weight')
-        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.sampling_model('L + W_sq', print_results=False)
         aipw.treatment_model('L', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
@@ -206,7 +206,7 @@ class TestAIPSW:
 
     def test_transport_weight(self, df_c):
         aipw = AIPSW(df_c, exposure='A', outcome='Y', selection='S', generalize=False, weights='weight')
-        aipw.weight_model('L + W_sq', print_results=False)
+        aipw.sampling_model('L + W_sq', print_results=False)
         aipw.treatment_model('L', print_results=False)
         aipw.outcome_model('A + L + L:A + W_sq + W_sq:A + W_sq:A:L', print_results=False)
         aipw.fit()
