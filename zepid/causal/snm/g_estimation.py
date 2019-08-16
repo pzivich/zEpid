@@ -355,7 +355,6 @@ class GEstimationSNM:
             y_vals = patsy.dmatrix(self._snm_ + ' - 1', yf, return_type='dataframe')
 
             # Solving for the array of Psi values
-            print(df.columns)
             self.psi = self._closed_form_solver_(treat=self.exposure,
                                                  model=self.exposure + ' ~ ' + self._treatment_model,
                                                  df=df,
