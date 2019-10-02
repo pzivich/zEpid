@@ -68,8 +68,12 @@ def exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
 
     # Generating predictions
     if hasattr(fm, 'predict_proba'):
-        g = fm.predict_proba(xdata)[:, 1]
-        return g
+        g = fm.predict_proba(xdata)
+        # this allows support for pygam LogisticGAM, which only returns only 1 probability
+        if g.ndim == 1:
+            return g
+        else:
+            return g[:, 1]
     elif hasattr(fm, 'predict'):
         g = fm.predict(xdata)
         return g
