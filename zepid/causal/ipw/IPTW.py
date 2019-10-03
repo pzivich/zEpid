@@ -338,7 +338,7 @@ class IPTW:
         ind = sm.cov_struct.Independence()
         full_msm = self.outcome + ' ~ ' + self.ms_model
 
-        df = self.df
+        df = self.df.copy()
         if self.ipmw is None:
             if self._weight_ is None:
                 df['_ipfw_'] = self.iptw
