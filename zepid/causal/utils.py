@@ -107,9 +107,12 @@ def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, p
 
     else:
         if hasattr(fm, 'predict_proba'):
-            qa1 = fm.predict_proba(all_a)[:, 1]
-            qa0 = fm.predict_proba(none_a)[:, 1]
-            return qa1, qa0
+            qa1 = fm.predict_proba(all_a)
+            qa0 = fm.predict_proba(none_a)
+            if (qa1.ndim == 1) and (qa0.ndim == 1):
+                return qa1, qa0
+            else:
+                return qa1[:,1], qa0[:,1]
         elif hasattr(fm, 'predict'):
             qa1 = fm.predict(all_a)
             qa0 = fm.predict(none_a)
@@ -135,9 +138,12 @@ def missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results
 
     # Generating predictions
     if hasattr(fm, 'predict_proba'):
-        ma1 = fm.predict_proba(all_a)[:, 1]
-        ma0 = fm.predict_proba(none_a)[:, 1]
-        return ma1, ma0
+        ma1 = fm.predict_proba(all_a)
+        ma0 = fm.predict_proba(none_a)
+        if (ma1.ndim == 1) and (ma0.ndim == 1):
+            return ma1, ma0
+        else:
+            return ma1[:, 1], ma0[:, 1]
     elif hasattr(fm, 'predict'):
         ma1 = fm.predict(all_a)
         ma0 = fm.predict(none_a)
