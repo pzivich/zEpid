@@ -10,6 +10,9 @@ are used in both the weight and the outcome models.
 `TimeFixedGFormula` has added support for the average treatment effect in the treated (ATT), and average treatment 
 effect in the untreated (ATU). 
 
+Improved warnings when the treatment/exposure variable is not included in models that it should be in (such as the 
+outcome model or in structural nested models).
+
 Background refactoring for IPTW. `utils.py` now contains a function to calculate inverse probability of treatment 
 weights. The function `iptw_calculator` is used by `IPTW`, `AIPTW`, `IPSW`, and `AIPSW` to calculate the weights now
 
