@@ -234,9 +234,9 @@ class TMLE:
 
         # User-specified prediction model
         else:
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
-                          "machine learning algorithms. TMLE will no longer support custom machine learning "
-                          "models in v0.9.0")
+            # TODO need to create smart warning system
+            # warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
+            #              "certain machine learning algorithms")
             self._exp_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
             self.g1W = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.exposure]),
@@ -297,9 +297,9 @@ class TMLE:
 
         # User-specified model
         else:
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
-                          "machine learning algorithms. TMLE will no longer support custom machine learning "
-                          "models in v0.9.0")
+            # TODO need to create smart warning system
+            # warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
+            #              "certain machine learning algorithms")
 
             self._miss_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
@@ -384,9 +384,9 @@ class TMLE:
 
         # User-specified model
         else:
-            warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
-                          "machine learning algorithms. TMLE will no longer support custom machine learning "
-                          "models in v0.9.0")
+            # TODO need to create smart warning system
+            # warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
+            #              "certain machine learning algorithms")
             self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', cc)
 
