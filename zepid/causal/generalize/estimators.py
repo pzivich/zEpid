@@ -212,6 +212,8 @@ class IPSW:
                                           standardize='population',
                                           bound=bound, print_results=print_results)
 
+    # TODO add missing_model
+
     def fit(self):
         """Uses the calculated IPSW to obtain the risk difference and risk ratio from the sample. If weights are
         provided in the initial step, those weights are multiplied with IPSW to obtain the overall weights.
@@ -455,8 +457,8 @@ class GTransportFormula:
             yn = self._outcome_model.predict(dfn)
 
             if self.weight is not None:
-                r1 = np.average(ya, weights=self.df[self.weight])
-                r0 = np.average(yn, weights=self.df[self.weight])
+                r1 = np.average(ya, weights=self.target[self.weight])
+                r0 = np.average(yn, weights=self.target[self.weight])
             else:
                 r1 = np.mean(ya)
                 r0 = np.mean(yn)
@@ -755,7 +757,6 @@ class AIPSW:
                 self.df['__ipw__'] = self.ipsw * self.df[self.weight]
             else:
                 self.df['__ipw__'] = self.ipsw * self.iptw * self.df[self.weight]
-                print(self.ipsw * self.iptw * self.df[self.weight])
         else:
             if self.iptw is None:
                 self.df['__ipw__'] = self.ipsw
