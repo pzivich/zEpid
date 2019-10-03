@@ -1,5 +1,12 @@
 ## Change logs
 
+### v0.8.1
+Added support for `pygam`'s `LogisticGAM` for TMLE with custom models (Thanks darrenreger!)
+
+Removed warning for TMLE with custom models following updates to Issue #109 I plan on creating a smarter warning
+system that flags non-Donsker class machine learning algorithms and warns the user. I still need to think through 
+how to do this.
+
 ### v0.8.0
 `IPTW` had a massive overhaul. It now follows a similar structure to `AIPTW` and other causal inference methods. 
 One *major* change is that missing data is dropped before any calculations. Therefore, if missing data was present for
