@@ -1,6 +1,6 @@
 ## Change logs
 
-### v0.8.1
+### v0.8.2
 `IPSW` and `AIPSW` now natively support adjusting for confounding. Both now have the `treatment_model()` function, 
 which calculates the inverse probability of treatment weights. How weights are handled in `AIPSW` are updated. They 
 are used in both the weight and the outcome models.
