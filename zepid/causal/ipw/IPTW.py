@@ -771,8 +771,8 @@ class StochasticIPTW:
 
         if self._pdenom_ is None:
             raise ValueError("The treatment_model() function must be specified before the fit() function")
-        if np.any(p > 1):
-            raise ValueError("All specified treatment probabilities must be less than 1")
+        if np.any(p > 1) or np.any(p < 0):
+            raise ValueError("All specified treatment probabilities must be between 0 and 1")
         if conditional is not None:
             if len(p) != len(conditional):
                 raise ValueError("'p' and 'conditional' must be the same length")
