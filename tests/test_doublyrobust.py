@@ -489,6 +489,24 @@ class TestStochasticTMLE:
 
         npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
 
+    def test_compare_tmle(self, df):
+        stmle = StochasticTMLE(df, exposure='art', outcome='dead')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.fit(p=1.0, samples=1)
+        all_treat = stmle.marginal_outcome
+        stmle.fit(p=0.0, samples=1)
+        non_treat = stmle.marginal_outcome
+
+        tmle = TMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        expected = tmle.risk_difference
+
+        npt.assert_allclose(expected, all_treat - non_treat, atol=1e-4)
+
     # TODO check bounding
 
     # TODO compare to R in several versions

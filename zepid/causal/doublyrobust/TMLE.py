@@ -1090,7 +1090,7 @@ class StochasticTMLE:
             q_star_list.append(np.mean(q_star))  # E[Y^*]
 
         if self._continuous_outcome:
-            self.marginals_vector = _tmle_unit_unbound_(q_star_list,
+            self.marginals_vector = _tmle_unit_unbound_(np.array(q_star_list),
                                                         mini=self._continuous_min, maxi=self._continuous_max)
             y_ = np.array(_tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min,
                                               maxi=self._continuous_max))
