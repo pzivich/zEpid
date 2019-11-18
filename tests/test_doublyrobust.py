@@ -2,10 +2,11 @@ import pytest
 import numpy as np
 import pandas as pd
 import numpy.testing as npt
+import pandas.testing as pdt
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
 import zepid as ze
-from zepid.causal.doublyrobust import TMLE, AIPTW
+from zepid.causal.doublyrobust import TMLE, AIPTW, StochasticTMLE
 
 
 class TestTMLE:
@@ -43,23 +44,42 @@ class TestTMLE:
         tmle = TMLE(df, exposure='art', outcome='dead')
         assert df.dropna(subset=['cd4_wk45']).shape[0] == tmle.df.shape[0]
 
-    def test_error_when_no_models_specified1(self, df):
+    def test_error_when_no_models_specified(self, df):
         tmle = TMLE(df, exposure='art', outcome='dead')
         with pytest.raises(ValueError):
             tmle.fit()
 
-    def test_error_when_no_models_specified2(self, df):
         tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
         with pytest.raises(ValueError):
             tmle.fit()
 
-    def test_error_when_no_models_specified3(self, df):
         tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
         with pytest.raises(ValueError):
             tmle.fit()
+
+    def test_continuous_processing(self):
+        a_list = [0, 1, 1, 0, 1, 1, 0, 0]
+        y_list = [1, -1, 5, 0, 0, 0, 10, -5]
+        df = pd.DataFrame()
+        df['A'] = a_list
+        df['Y'] = y_list
+
+        tmle = TMLE(df=df, exposure='A', outcome='Y', continuous_bound=0.0001)
+
+        # Checking all flagged parts are correct
+        assert tmle._continuous_outcome is True
+        assert tmle._continuous_min == -5
+        assert tmle._continuous_max == 10
+        assert tmle._cb == 0.0001
+
+        # Checking that TMLE bounding works as intended
+        y_bound = [2 / 5, 4 / 15, 2 / 3, 1 / 3, 1 / 3, 1 / 3, 0.9999, 0.0001]
+        pdt.assert_series_equal(pd.Series(y_bound),
+                                tmle.df['Y'],
+                                check_dtype=False, check_names=False)
 
     def test_match_r_epsilons(self, df):
         r_epsilons = [-0.016214091, 0.003304079]
@@ -313,6 +333,165 @@ class TestTMLE:
         # Testing OR match
         npt.assert_allclose(tmle.odds_ratio, 0.457541, rtol=1e-5)
         npt.assert_allclose(tmle.odds_ratio_ci, [0.213980, 0.978331], rtol=1e-4)
+
+
+class TestStochasticTMLE:
+
+    @pytest.fixture
+    def df(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
+
+    @pytest.fixture
+    def simple_df(self):
+        expected = pd.DataFrame([[1, 1, 1, 1, 1],
+                                 [0, 0, 0, -1, 2],
+                                 [0, 1, 0, 5, 1],
+                                 [0, 0, 1, 0, 0],
+                                 [1, 0, 0, 0, 1],
+                                 [1, 0, 1, 0, 0],
+                                 [0, 1, 0, 10, 1],
+                                 [0, 0, 0, -5, 0],
+                                 [1, 1, 0, -5, 2]],
+                                columns=["W", "A", "Y", "C", "S"],
+                                index=[1, 2, 3, 4, 5, 6, 7, 8, 9])
+        return expected
+
+    def test_error_continuous_exp(self, df):
+        with pytest.raises(ValueError):
+            StochasticTMLE(df=df, exposure='cd40', outcome='dead')
+
+    def test_error_fit(self, df):
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        with pytest.raises(ValueError):
+            stmle.fit(p=0.5)
+
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        with pytest.raises(ValueError):
+            stmle.fit(p=0.5)
+
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        stmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        with pytest.raises(ValueError):
+            stmle.fit(p=0.5)
+
+    def test_error_p_oob(self, df):
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        with pytest.raises(ValueError):
+            stmle.fit(p=1.1)
+
+        with pytest.raises(ValueError):
+            stmle.fit(p=-0.1)
+
+    def test_error_p_cond_len(self, df):
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        with pytest.raises(ValueError):
+            stmle.fit(p=[0.1], conditional=["df['male']==1", "df['male']==0"])
+
+        with pytest.raises(ValueError):
+            stmle.fit(p=[0.1, 0.3], conditional=["df['male']==1"])
+
+    def test_error_summary(self, df):
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        with pytest.raises(ValueError):
+            stmle.summary()
+
+    def test_continuous_processing(self):
+        a_list = [0, 1, 1, 0, 1, 1, 0, 0]
+        y_list = [1, -1, 5, 0, 0, 0, 10, -5]
+        df = pd.DataFrame()
+        df['A'] = a_list
+        df['Y'] = y_list
+
+        stmle = StochasticTMLE(df=df, exposure='A', outcome='Y', continuous_bound=0.0001)
+
+        # Checking all flagged parts are correct
+        assert stmle._continuous_outcome is True
+        assert stmle._continuous_min == -5
+        assert stmle._continuous_max == 10
+        assert stmle._cb == 0.0001
+
+        # Checking that TMLE bounding works as intended
+        y_bound = [2 / 5, 4 / 15, 2 / 3, 1 / 3, 1 / 3, 1 / 3, 0.9999, 0.0001]
+        pdt.assert_series_equal(pd.Series(y_bound),
+                                stmle.df['Y'],
+                                check_dtype=False, check_names=False)
+
+    def test_marginal_vector_length_stoch(self, df):
+        stmle = StochasticTMLE(df=df, exposure='art', outcome='dead')
+        stmle.exposure_model('male')
+        stmle.outcome_model('art + male + age0')
+        stmle.fit(p=0.4, samples=7)
+        assert len(stmle.marginals_vector) == 7
+
+    def test_qmodel_params(self, simple_df):
+        # Comparing to SAS logit model
+        sas_params = [-1.0699, -0.9525, 1.5462]
+        sas_preds = [0.3831332, 0.2554221, 0.1168668, 0.2554221, 0.6168668, 0.6168668, 0.1168668, 0.2554221, 0.3831332]
+
+        stmle = StochasticTMLE(df=simple_df, exposure='A', outcome='Y')
+        stmle.outcome_model('A + W')
+        est_params = stmle._outcome_model.params
+        est_preds = stmle._Qinit_
+
+        npt.assert_allclose(sas_params, est_params, atol=1e-4)
+        npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
+
+    def test_qmodel_params2(self, simple_df):
+        # Comparing to SAS linear model
+        sas_params = [0.3876, 0.3409, -0.2030, -0.0883]
+        sas_preds = [0.437265, 0.210957, 0.6402345, 0.3876202, 0.0963188, 0.1846502, 0.6402345, 0.38762016, 0.34893314]
+
+        stmle = StochasticTMLE(df=simple_df, exposure='A', outcome='C')
+        stmle.outcome_model('A + W + S', continuous_distribution='normal')
+        est_params = stmle._outcome_model.params
+        est_preds = stmle._Qinit_
+
+        npt.assert_allclose(sas_params, est_params, atol=1e-4)
+        npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
+
+    def test_qmodel_params3(self, simple_df):
+        # Comparing to SAS Poisson model
+        sas_params = [-1.0478, 0.9371, -0.5321, -0.2733]
+        sas_preds = [0.4000579, 0.2030253, 0.6811115, 0.3507092, 0.1567304, 0.20599265, 0.6811115, 0.3507092, 0.3043857]
+
+        stmle = StochasticTMLE(df=simple_df, exposure='A', outcome='C')
+        stmle.outcome_model('A + W + S', continuous_distribution='Poisson')
+        est_params = stmle._outcome_model.params
+        est_preds = stmle._Qinit_
+
+        npt.assert_allclose(sas_params, est_params, atol=1e-4)
+        npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
+
+    def test_gmodel_params(self, simple_df):
+        # Comparing to SAS Poisson model
+        sas_preds = [2.0, 1.6666666667, 2.5, 1.6666666667, 2, 2, 2.5, 1.6666666667, 2]
+
+        stmle = StochasticTMLE(df=simple_df, exposure='A', outcome='C')
+        stmle.exposure_model('W')
+        est_preds = 1 / stmle._denominator_
+
+        npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
+
+    # TODO check bounding
+
+    # TODO compare to R in several versions
 
 
 class TestAIPTW:

@@ -1001,11 +1001,11 @@ class StochasticTMLE:
                 else:
                     raise ValueError("Only 'gaussian' and 'poisson' distributions are supported for continuous "
                                      "outcomes")
-                log = smf.glm(self._q_model, self.df, family=f).fit()
+                self._outcome_model = smf.glm(self._q_model, self.df, family=f).fit()
 
             else:
                 f = sm.families.family.Binomial()
-                log = smf.glm(self._q_model, self.df, family=f).fit()
+                self._outcome_model = smf.glm(self._q_model, self.df, family=f).fit()
 
             if self._verbose_:
                 print('==============================================================================')
@@ -1013,7 +1013,7 @@ class StochasticTMLE:
                 print(self._outcome_model.summary())
 
             # Step 2) Estimation under the scenarios
-            self._Qinit_ = log.predict(self.df)
+            self._Qinit_ = self._outcome_model.predict(self.df)
 
         else:  # User-specified model
             # TODO need to create smart warning system
@@ -1041,6 +1041,7 @@ class StochasticTMLE:
         TMLE gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
         `average _treatment_effect` for continuous outcomes
         """
+        # TODO add a seed
         # Error checking
         if self._denominator_ is None:
             raise ValueError("The exposure_model() function must be specified before the fit() function")
@@ -1048,8 +1049,8 @@ class StochasticTMLE:
             raise ValueError("The outcome_model() function must be specified before the fit() function")
 
         p = np.array(p)
-        if np.any(p > 1):
-            raise ValueError("All specified treatment probabilities must be less than 1")
+        if np.any(p > 1) or np.any(p < 0):
+            raise ValueError("All specified treatment probabilities must be between 0 and 1")
         if conditional is not None:
             if len(p) != len(conditional):
                 raise ValueError("'p' and 'conditional' must be the same length")
@@ -1086,7 +1087,7 @@ class StochasticTMLE:
             # Targeted Estimate
             logit_qstar = np.log(probability_to_odds(y_star)) + epsilon  # logit(Y^*) + e
             q_star = odds_to_probability(np.exp(logit_qstar))  # Y^*
-            q_star_list.append(q_star)
+            q_star_list.append(np.mean(q_star))  # E[Y^*]
 
         if self._continuous_outcome:
             self.marginals_vector = _tmle_unit_unbound_(q_star_list,
@@ -1102,7 +1103,7 @@ class StochasticTMLE:
         self.marginal_outcome = np.mean(self.marginals_vector)
 
         # Step 7) Estimating Var(psi)
-        if self.alpha == 0.05:  # Without this, won't match R exactly. R relies on 1.96, while I use SciPy
+        if self.alpha == 0.05:  # Without this, won't match R exactly. R relies on 1.96, while I use SciPy usually
             zalpha = 1.96
         else:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
