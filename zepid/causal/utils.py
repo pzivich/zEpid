@@ -609,3 +609,15 @@ def plot_kde_accuracy(values, bw_method='scott', fill=True, color='b'):
     ax.set_xlabel(r'$Y_{pred} - Y$')
     ax.set_ylabel('Density')
     return ax
+
+
+def stochastic_check_conditional(df, conditional):
+    """Check that conditionals are exclusive for the stochastic fit process. Generates a warning if not true
+    """
+    a = np.array([0] * df.shape[0])
+    for c in conditional:
+        a = np.add(a, np.where(eval(c), 1, 0))
+
+    if np.sum(np.where(a > 1, 1, 0)):
+        warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
+                      "the conditions that designate each category should be exclusive", UserWarning)

@@ -7,7 +7,7 @@ import statsmodels.formula.api as smf
 from statsmodels.tools.sm_exceptions import DomainWarning
 import matplotlib.pyplot as plt
 
-from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
+from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love, stochastic_check_conditional,
                                 standardized_mean_differences, positivity, _bounding_, iptw_calculator)
 
 
@@ -782,7 +782,7 @@ class StochasticIPTW:
         if conditional is None:
             df['_numer_'] = np.where(df[self.treatment] == 1, p, 1 - p)
         else:
-            self._check_conditional(conditional=conditional)
+            stochastic_check_conditional(df=df, conditional=conditional)
             df['_numer_'] = np.nan
             for c, prop in zip(conditional, p):
                 df['_numer_'] = np.where(eval(c),
@@ -809,7 +809,7 @@ class StochasticIPTW:
             raise ValueError('The fit() function must be specified before summary()')
 
         print('======================================================================')
-        print('                       Stochastic IPTW')
+        print('                       Stochastic IPTW                                ')
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
         print(fmt.format(self.treatment, self.df.shape[0]))
@@ -818,15 +818,3 @@ class StochasticIPTW:
         print('======================================================================')
         print('Risk:  ', round(self.marginal_outcome, decimal))
         print('======================================================================')
-
-    def _check_conditional(self, conditional):
-        """Check that conditionals are exclusive for the stochastic fit process. Generates a warning if not true
-        """
-        df = self.df.copy()
-        a = np.array([0] * df.shape[0])
-        for c in conditional:
-            a = np.add(a, np.where(eval(c), 1, 0))
-
-        if np.sum(np.where(a > 1, 1, 0)):
-            warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
-                          "the conditions that designate each category should be exclusive", UserWarning)
