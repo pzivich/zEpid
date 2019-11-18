@@ -6,7 +6,7 @@ import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 from scipy.stats import logistic, norm
 
-from zepid.causal.utils import propensity_score
+from zepid.causal.utils import propensity_score, stochastic_check_conditional
 from zepid.calc import probability_to_odds, odds_to_probability
 from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, missing_machine_learner, _bounding_,
                                 plot_kde, plot_love, standardized_mean_differences, positivity,
@@ -984,8 +984,6 @@ class StochasticTMLE:
             predicted outcomes. Default is `False`, meaning no truncation of predicted outcomes occurs (unless a
             predicted outcome is outside the bounded continuous outcome). Providing a single float assumes symmetric
             trunctation. A list of floats can be provided for asymmetric trunctation.
-        print_results : bool, optional
-            Whether to print the fitted model results. Default is True (prints results)
         continuous_distribution : str, optional
             Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
             for Poisson distributions
@@ -1004,6 +1002,7 @@ class StochasticTMLE:
                     raise ValueError("Only 'gaussian' and 'poisson' distributions are supported for continuous "
                                      "outcomes")
                 log = smf.glm(self._q_model, self.df, family=f).fit()
+
             else:
                 f = sm.families.family.Binomial()
                 log = smf.glm(self._q_model, self.df, family=f).fit()
@@ -1019,7 +1018,7 @@ class StochasticTMLE:
         else:  # User-specified model
             # TODO need to create smart warning system
             self._out_model_custom = True
-            data = patsy.dmatrix(model + ' - 1', df)
+            data = patsy.dmatrix(model + ' - 1', self.df)
             self._Qinit_
             self._outcome_model
 
@@ -1029,7 +1028,7 @@ class StochasticTMLE:
         # This bounding step prevents continuous outcomes from being outside the range
         self._Qinit_ = _bounding_(self._Qinit_, bounds=bound)
 
-    def fit(self, p, condition=None, samples=100):
+    def fit(self, p, conditional=None, samples=100):
         """Calculate the effect from the predicted exposure probabilities and predicted outcome values using the TMLE
         procedure. Confidence intervals are calculated using influence curves.
 
@@ -1042,9 +1041,29 @@ class StochasticTMLE:
         TMLE gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
         `average _treatment_effect` for continuous outcomes
         """
+        # Error checking
+        if self._denominator_ is None:
+            raise ValueError("The exposure_model() function must be specified before the fit() function")
+        if self._Qinit_ is None:
+            raise ValueError("The outcome_model() function must be specified before the fit() function")
+
+        p = np.array(p)
+        if np.any(p > 1):
+            raise ValueError("All specified treatment probabilities must be less than 1")
+        if conditional is not None:
+            if len(p) != len(conditional):
+                raise ValueError("'p' and 'conditional' must be the same length")
+
         # Step 4) Calculating clever covariate (HAW)
-        # TODO need to apply p properly
-        haw = p / self._denominator_
+        if conditional is None:
+            numerator = np.where(self.df[self.exposure] == 1, p, 1 - p)
+        else:
+            stochastic_check_conditional(df=self.df, conditional=conditional)
+            numerator = np.array([np.nan] for i in range(self.df.shape[0]))
+            for c, prop in zip(conditional, p):
+                numerator = np.where(eval(c), np.where(self.df[self.exposure] == 1, prop, 1 - prop), numerator)
+
+        haw = numerator / self._denominator_
 
         # Step 5) Estimating TMLE
         epsilon = self.targeting_step(y=self.df[self.outcome], q_init=self._Qinit_, iptw=haw, verbose=self._verbose_)
@@ -1054,26 +1073,26 @@ class StochasticTMLE:
         for i in range(samples):
             # Applying treatment plan
             df = self.df.copy()
-            if condition is None:
+            if conditional is None:
                 df[self.exposure] = np.random.binomial(n=1, p=p, size=df.shape[0])
             else:
                 df[self.exposure] = np.nan
-                for c, prop in zip(condition, p):
+                for c, prop in zip(conditional, p):
                     df[self.exposure] = np.random.binomial(n=1, p=prop, size=df.shape[0])
 
             # Outcome model under treatment plan
             y_star = self._outcome_model.predict(df)
 
             # Targeted Estimate
-            logit_qstar = np.log(probability_to_odds(y_star)) + epsilon  # NOTE: log(Y^*) + e
-            q_star = odds_to_probability(np.exp(logit_qstar))
+            logit_qstar = np.log(probability_to_odds(y_star)) + epsilon  # logit(Y^*) + e
+            q_star = odds_to_probability(np.exp(logit_qstar))  # Y^*
             q_star_list.append(q_star)
 
         if self._continuous_outcome:
             self.marginals_vector = _tmle_unit_unbound_(q_star_list,
-                                                      mini=self._continuous_min, maxi=self._continuous_max)
+                                                        mini=self._continuous_min, maxi=self._continuous_max)
             y_ = np.array(_tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min,
-                                            maxi=self._continuous_max))
+                                              maxi=self._continuous_max))
             yq0_ = _tmle_unit_unbound_(self._Qinit_, mini=self._continuous_min, maxi=self._continuous_max)
         else:
             self.marginals_vector = q_star_list
@@ -1088,7 +1107,7 @@ class StochasticTMLE:
         else:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
         # TODO add remainder of variance calculations
-    
+
     def summary(self, decimal=3):
         if self.marginal_outcome is None:
             raise ValueError('The fit() statement must be ran before summary()')
