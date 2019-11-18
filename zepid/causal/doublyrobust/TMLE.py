@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import logistic, norm
 
 from zepid.causal.utils import propensity_score
-from zepid.calc import probability_to_odds
+from zepid.calc import probability_to_odds, odds_to_probability
 from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, missing_machine_learner, _bounding_,
                                 plot_kde, plot_love, standardized_mean_differences, positivity,
                                 plot_kde_accuracy, outcome_accuracy)
@@ -15,13 +15,14 @@ from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learne
 
 class TMLE:
     r"""Implementation of target maximum likelihood estimator. This implementation calculates TMLE for a
-    time-fixed exposure and a single time-point outcome.It uses standard regression models to calculate the estimate
-    of interest. The TMLE estimator allows users to instead use machine learning algorithms from sklearn.
+    time-fixed exposure and a single time-point outcome. By default standard parametric regression models are used to
+    calculate the estimate of interest. The TMLE estimator allows users to instead use machine learning algorithms
+    from sklearn and PyGAM.
 
     Note
     ----
-    Support for machine learning will be dropped in v0.9.0 due to poor confidence interval coverage. There will be
-    new cross-fitting procedures and classes for causal inference with machine learning.
+    Valid confidence intervals are only attainable with certain machine learning algorithms. These algorithms must be
+    Donsker class for valid confidence intervals. GAM and LASSO are examples of alogorithms that are Donsker class
 
     Parameters
     ----------
@@ -167,8 +168,8 @@ class TMLE:
             self._continuous_min = np.min(df[outcome])
             self._continuous_max = np.max(df[outcome])
             self._cb = continuous_bound
-            self.df[outcome] = self._unit_bounds(y=df[outcome], mini=self._continuous_min,
-                                                 maxi=self._continuous_max, bound=self._cb)
+            self.df[outcome] = _tmle_unit_bounds_(y=df[outcome], mini=self._continuous_min,
+                                                  maxi=self._continuous_max, bound=self._cb)
 
         self._out_model = None
         self._exp_model = None
@@ -468,13 +469,13 @@ class TMLE:
         delta = np.where(self.df[self._missing_indicator] == 1, 1, 0)
         if self._continuous_outcome:
             # Calculating Average Treatment Effect
-            Qstar = self._unit_unbound(Qstar, mini=self._continuous_min, maxi=self._continuous_max)
-            Qstar1 = self._unit_unbound(Qstar1, mini=self._continuous_min, maxi=self._continuous_max)
-            Qstar0 = self._unit_unbound(Qstar0, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar = _tmle_unit_unbound_(Qstar, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar1 = _tmle_unit_unbound_(Qstar1, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar0 = _tmle_unit_unbound_(Qstar0, mini=self._continuous_min, maxi=self._continuous_max)
 
             self.average_treatment_effect = np.nanmean(Qstar1 - Qstar0)
             # Influence Curve for CL
-            y_unbound = self._unit_unbound(self.df[self.outcome], mini=self._continuous_min, maxi=self._continuous_max)
+            y_unbound = _tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min, maxi=self._continuous_max)
             ic = np.where(delta == 1,
                           HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect,
                           Qstar1 - Qstar0 - self.average_treatment_effect)
@@ -800,15 +801,348 @@ class TMLE:
                        shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
         return ax
 
-    @staticmethod
-    def _unit_bounds(y, mini, maxi, bound):
-        # bounding for continuous outcomes
-        v = (y - mini) / (maxi - mini)
-        v = np.where(np.less(v, bound), bound, v)
-        v = np.where(np.greater(v, 1-bound), 1-bound, v)
-        return v
+
+class StochasticTMLE:
+    r"""Implementation of target maximum likelihood estimator for stochastic treatment plans. This implementation
+    calculates TMLE for a time-fixed exposure and a single time-point outcome under a stochastic treatment plan of
+    interest. By default, standard parametric regression models are used to calculate the estimate of interest. The
+    StochasticTMLE estimator allows users to instead use machine learning algorithms from sklearn and PyGAM.
+
+    Note
+    ----
+    Valid confidence intervals are only attainable with certain machine learning algorithms. These algorithms must be
+    Donsker class for valid confidence intervals. GAM and LASSO are examples of alogorithms that are Donsker class
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str
+        Column label for the exposure of interest
+    outcome : str
+        Column label for the outcome of interest
+    alpha : float, optional
+        Alpha for confidence interval level. Default is 0.05
+    continuous_bound : float, optional
+        Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
+        in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
+        0,1 respectively. Default value is 0.0005
+    verbose : bool, optional
+        Optional argument for verbose estimation. With verbose estimation, the model fits for each result are printed
+        to the console. It is highly recommended to turn this parameter to True when conducting model diagnostics
+
+    Note
+    ----
+    TMLE is a doubly-robust substitution estimator. TMLE obtains the target estimate in a single step. The
+    single-step TMLE is described further by van der Laan. For further details, see the listed references.
+
+    Continuous outcomes must be bounded between 0 and 1. TMLE does this automatically for the user. Additionally,
+    the average treatment effect is estimate is back converted to the original scale of Y. When scaling Y as Y*,
+    some values may take the value of 0 or 1, which breaks a logit(Y*) transformation. To avoid this issue, Y* is
+    bounded by the `continuous_bound` argument. The default is 0.0005, the same as R's tmle
+
+    Examples
+    --------
+    Setting up environment
+
+    >>> from zepid import load_sample_data, spline
+    >>> from zepid.causal.doublyrobust import StochasticTMLE
+    >>> df = load_sample_data(False).dropna()
+    >>> df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+
+    Estimating TMLE using logistic regression
+
+    >>> tmle = TMLE(df, exposure='art', outcome='dead')
+    >>> # Specifying exposure/treatment model
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> # Specifying outcome model
+    >>> tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> # TMLE estimation procedure
+    >>> tmle.fit()
+    >>> # Printing main results
+    >>> tmle.summary()
+    >>> # Extracting risk difference and confidence intervals, respectively
+    >>> tmle.risk_difference
+    >>> tmle.risk_difference_ci
+
+    Estimating TMLE with machine learning algorithm from sklearn
+
+    >>> from sklearn.linear_model import LogisticRegression
+    >>> log1 = LogisticRegression(penalty='l1', random_state=201)
+    >>> tmle = TMLE(df, 'art', 'dead')
+    >>> # custom_model allows specification of machine learning algorithms
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
+    >>> tmle.outcome_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
+    >>> tmle.fit()
+
+    References
+    ----------
+    Muñoz ID, and Van Der Laan MJ. Population intervention causal effects based on stochastic interventions.
+    Biometrics 68.2 (2012): 541-549.
+
+    Van der Laan MJ, and Sherri R. Targeted learning in data science: causal inference for complex longitudinal
+    studies. Springer Science & Business Media, 2011.
+    """
+    def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005, verbose=False):
+        # Going through missing data
+        if df.dropna().shape[0] != df.shape[0]:
+            warnings.warn("There is missing data that is not the outcome in the data set. StochasticTMLE will drop all "
+                          "missing data. StochasticTMLE will fit "
+                          + str(df.dropna().shape[0]) +
+                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
+            self.df = df.copy().dropna().reset_index()
+        else:
+            self.df = df.copy().reset_index()
+
+        if not df[exposure].value_counts().index.isin([0, 1]).all():
+            raise ValueError("StochasticTMLE only supports binary exposures currently")
+
+        # Manage outcomes
+        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+            self._continuous_outcome = False
+            self._cb = 0.0
+        else:
+            self._continuous_outcome = True
+            self._continuous_min = np.min(df[outcome])
+            self._continuous_max = np.max(df[outcome])
+            self._cb = continuous_bound
+            self.df[outcome] = _tmle_unit_bounds_(y=df[outcome], mini=self._continuous_min,
+                                                  maxi=self._continuous_max, bound=self._cb)
+
+        self.exposure = exposure
+        self.outcome = outcome
+
+        # Output attributes
+        self.marginals_vector = None
+        self.marginal_outcome = None
+        self.alpha = alpha
+        self.marginal_ci = None
+        self.conditional_ci = None
+
+        # Storage for items I need later
+        self._outcome_model = None
+        self._q_model = None
+        self._Qinit_ = None
+        self._treatment_model = None
+        self._g_model = None
+        self._denominator_ = None
+        self._verbose_ = verbose
+
+        # Custom model / machine learner storage
+        self._g_custom_ = None
+        self._q_custom_ = None
+
+    def exposure_model(self, model, custom_model=None, bound=False):
+        """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
+
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
+        bound : float, list, optional
+            Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
+            Specifying this argument can improve finite sample performance for random positivity violations. However,
+            truncating weights leads to additional confounding. Default is False, meaning no truncation of
+            predicted probabilities occurs. Providing a single float assumes symmetric trunctation, where values below
+            or above the threshold are set to the threshold value. Alternatively a list of floats can be provided for
+            asymmetric trunctation, with the first value being the lower bound and the second being the upper bound
+        """
+        self._g_model = self.exposure + ' ~ ' + model
+
+        if custom_model is None:  # Standard parametric regression model
+            fitmodel = propensity_score(self.df, self._g_model, print_results=self._verbose_)
+            pred = fitmodel.predict(self.df)
+        else:  # User-specified prediction model
+            # TODO need to create smart warning system
+            self._exp_model_custom = True
+            data = patsy.dmatrix(model + ' - 1', self.df)
+            pred = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.exposure]),
+                                            ml_model=custom_model, print_results=self._verbose_)
+
+        if bound:  # Bounding predicted probabilities if requested
+            self._denominator_ = _bounding_(self._denominator_, bounds=bound)
+
+        self._denominator_ = np.where(self.df[self.exposure] == 1, pred, 1 - pred)
+
+    def outcome_model(self, model, custom_model=None, bound=False, continuous_distribution='gaussian'):
+        """Estimation of E(Y|A,L), which is also written sometimes as Q(A,W) or Pr(Y=1|A,W).
+
+        Parameters
+        ----------
+        model : str
+            Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted probablities
+        bound : bool, optional
+            This argument should ONLY be used if the outcome is continuous. Value between 0,1 to truncate the bounded
+            predicted outcomes. Default is `False`, meaning no truncation of predicted outcomes occurs (unless a
+            predicted outcome is outside the bounded continuous outcome). Providing a single float assumes symmetric
+            trunctation. A list of floats can be provided for asymmetric trunctation.
+        print_results : bool, optional
+            Whether to print the fitted model results. Default is True (prints results)
+        continuous_distribution : str, optional
+            Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
+            for Poisson distributions
+        """
+        self._q_model = self.outcome + ' ~ ' + model
+
+        # Step 1) Prediction for Q (estimation of Q-model)
+        if custom_model is None:  # Standard parametric regression
+            self._continuous_type = continuous_distribution
+            if self._continuous_outcome:
+                if (continuous_distribution.lower() == 'gaussian') or (continuous_distribution.lower() == 'normal'):
+                    f = sm.families.family.Gaussian()
+                elif continuous_distribution.lower() == 'poisson':
+                    f = sm.families.family.Poisson()
+                else:
+                    raise ValueError("Only 'gaussian' and 'poisson' distributions are supported for continuous "
+                                     "outcomes")
+                log = smf.glm(self._q_model, self.df, family=f).fit()
+            else:
+                f = sm.families.family.Binomial()
+                log = smf.glm(self._q_model, self.df, family=f).fit()
+
+            if self._verbose_:
+                print('==============================================================================')
+                print('Q-model')
+                print(self._outcome_model.summary())
+
+            # Step 2) Estimation under the scenarios
+            self._Qinit_ = log.predict(self.df)
+
+        else:  # User-specified model
+            # TODO need to create smart warning system
+            self._out_model_custom = True
+            data = patsy.dmatrix(model + ' - 1', df)
+            self._Qinit_
+            self._outcome_model
+
+        if not bound:  # Bounding predicted probabilities if requested
+            bound = self._cb
+
+        # This bounding step prevents continuous outcomes from being outside the range
+        self._Qinit_ = _bounding_(self._Qinit_, bounds=bound)
+
+    def fit(self, p, condition=None, samples=100):
+        """Calculate the effect from the predicted exposure probabilities and predicted outcome values using the TMLE
+        procedure. Confidence intervals are calculated using influence curves.
+
+        Note
+        ----
+        Exposure and outcome models must be specified prior to `fit()`
+
+        Returns
+        -------
+        TMLE gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
+        `average _treatment_effect` for continuous outcomes
+        """
+        # Step 4) Calculating clever covariate (HAW)
+        # TODO need to apply p properly
+        haw = p / self._denominator_
+
+        # Step 5) Estimating TMLE
+        epsilon = self.targeting_step(y=self.df[self.outcome], q_init=self._Qinit_, iptw=haw, verbose=self._verbose_)
+
+        # Step 6) Estimating psi
+        q_star_list = []
+        for i in range(samples):
+            # Applying treatment plan
+            df = self.df.copy()
+            if condition is None:
+                df[self.exposure] = np.random.binomial(n=1, p=p, size=df.shape[0])
+            else:
+                df[self.exposure] = np.nan
+                for c, prop in zip(condition, p):
+                    df[self.exposure] = np.random.binomial(n=1, p=prop, size=df.shape[0])
+
+            # Outcome model under treatment plan
+            y_star = self._outcome_model.predict(df)
+
+            # Targeted Estimate
+            logit_qstar = np.log(probability_to_odds(y_star)) + epsilon  # NOTE: log(Y^*) + e
+            q_star = odds_to_probability(np.exp(logit_qstar))
+            q_star_list.append(q_star)
+
+        if self._continuous_outcome:
+            self.marginals_vector = _tmle_unit_unbound_(q_star_list,
+                                                      mini=self._continuous_min, maxi=self._continuous_max)
+            y_ = np.array(_tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min,
+                                            maxi=self._continuous_max))
+            yq0_ = _tmle_unit_unbound_(self._Qinit_, mini=self._continuous_min, maxi=self._continuous_max)
+        else:
+            self.marginals_vector = q_star_list
+            y_ = np.array(self.df[self.outcome])
+            yq0_ = self._Qinit_
+
+        self.marginal_outcome = np.mean(self.marginals_vector)
+
+        # Step 7) Estimating Var(psi)
+        if self.alpha == 0.05:  # Without this, won't match R exactly. R relies on 1.96, while I use SciPy
+            zalpha = 1.96
+        else:
+            zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
+        # TODO add remainder of variance calculations
+    
+    def summary(self, decimal=3):
+        if self.marginal_outcome is None:
+            raise ValueError('The fit() statement must be ran before summary()')
+
+        print('======================================================================')
+        print('          Stochastic Targeted Maximum Likelihood Estimator            ')
+        print('======================================================================')
+        fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
+        print(fmt.format(self.exposure, self.df.shape[0]))
+        fmt = 'Outcome:          {:<15}'
+        print(fmt.format(self.outcome))
+        fmt = 'Q-Model:          {:<15}'
+        print(fmt.format('Logistic'))
+        # TODO add custom model check
+        fmt = 'g-Model:          {:<15}'
+        print(fmt.format('Logistic'))
+
+        # TODO add treatment plan information
+        # TODO add information on m (number of re-samples)
+
+        print('======================================================================')
+        print('Overall incidence:      ', np.round(self.marginal_outcome, decimals=decimal))
+        # print('Var(Overall incidence): ', np.round(np.var(self.marginals_vector, ddof=1), decimals=decimal))
+        print('======================================================================')
+        print('Conditional')
+        # print('95% CL:    ', np.round(self.ci_cond, decimals=decimal))
+        print('======================================================================')
 
     @staticmethod
-    def _unit_unbound(ystar, mini, maxi):
-        # unbounding of bounded continuous outcomes
-        return ystar*(maxi - mini) + mini
+    def targeting_step(y, q_init, iptw, verbose):
+        f = sm.families.family.Binomial()
+        log = sm.GLM(y,  # Outcome / dependent variable
+                     np.repeat(1, y.shape[0]),  # Generating intercept only model
+                     offset=np.log(probability_to_odds(q_init)),  # Offset by g-formula predictions
+                     freq_weights=iptw,  # Weighted by calculated IPW
+                     family=f).fit()
+
+        if verbose:  # Optional argument to print each intermediary result
+            print('==============================================================================')
+            print('Targeting Model')
+            print(log.summary())
+
+        return log.params[0]  # Returns single-step estimated Epsilon term
+
+
+# Functions that all TMLEs can call are below
+def _tmle_unit_bounds_(y, mini, maxi, bound):
+    # bounding for continuous outcomes
+    v = (y - mini) / (maxi - mini)
+    v = np.where(np.less(v, bound), bound, v)
+    v = np.where(np.greater(v, 1-bound), 1-bound, v)
+    return v
+
+
+def _tmle_unit_unbound_(ystar, mini, maxi):
+    # unbounding of bounded continuous outcomes
+    return ystar*(maxi - mini) + mini
