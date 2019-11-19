@@ -1146,13 +1146,13 @@ class StochasticTMLE:
         # Marginal variance estimator
         # variance_marginal = self.est_marginal_variance(haw=haw, y_obs=y_, y_pred=yq0_,
         #                                                 y_pred_targeted=, psi=self.marginal_outcome)
-        # self.marginal_se = np.sqrt(variance_marginal)
+        # self.marginal_se = np.sqrt(variance_marginal) / np.sqrt(self.df.shape[0])
         # self.marginal_ci = [self.marginal_outcome - zalpha * self.marginal_se,
         #                     self.marginal_outcome + zalpha * self.marginal_se]
 
         # Conditional on W variance estimator
         variance_conditional = self.est_conditional_variance(haw=haw, y_obs=y_, y_pred=yq0_)
-        self.conditional_se = np.sqrt(variance_conditional)
+        self.conditional_se = np.sqrt(variance_conditional) / np.sqrt(self.df.shape[0])
         self.conditional_ci = [self.marginal_outcome - zalpha * self.conditional_se,
                                self.marginal_outcome + zalpha * self.conditional_se]
 
@@ -1181,7 +1181,7 @@ class StochasticTMLE:
         # print('Var(Overall incidence): ', np.round(np.var(self.marginals_vector, ddof=1), decimals=decimal))
         print('======================================================================')
         print('Conditional')
-        # print('95% CL:    ', np.round(self.ci_cond, decimals=decimal))
+        print('95% CL:    ', np.round(self.conditional_ci, decimals=decimal))
         print('======================================================================')
 
     @staticmethod
