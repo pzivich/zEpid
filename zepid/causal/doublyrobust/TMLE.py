@@ -1106,6 +1106,7 @@ class StochasticTMLE:
 
         # Step 6) Estimating psi
         q_star_list = []
+        q_i_star_list = []
         for i in range(samples):
             # Applying treatment plan
             df = self.df.copy()
@@ -1122,7 +1123,8 @@ class StochasticTMLE:
             # Targeted Estimate
             logit_qstar = np.log(probability_to_odds(y_star)) + epsilon  # logit(Y^*) + e
             q_star = odds_to_probability(np.exp(logit_qstar))  # Y^*
-            q_star_list.append(np.mean(q_star))  # E[Y^*]
+            q_i_star_list.append(q_star)  # Saving Y_i^* for marginal variance
+            q_star_list.append(np.mean(q_star))  # Saving E[Y^*]
 
         if self._continuous_outcome:
             self.marginals_vector = _tmle_unit_unbound_(np.array(q_star_list),
@@ -1130,10 +1132,13 @@ class StochasticTMLE:
             y_ = np.array(_tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min,
                                               maxi=self._continuous_max))
             yq0_ = _tmle_unit_unbound_(self._Qinit_, mini=self._continuous_min, maxi=self._continuous_max)
+            yqstar_ = _tmle_unit_unbound_(np.array(q_i_star_list), mini=self._continuous_min, maxi=self._continuous_max)
+
         else:
             self.marginals_vector = q_star_list
             y_ = np.array(self.df[self.outcome])
             yq0_ = self._Qinit_
+            yqstar_ = np.array(q_i_star_list)
 
         self.marginal_outcome = np.mean(self.marginals_vector)
 
@@ -1144,11 +1149,12 @@ class StochasticTMLE:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
         # Marginal variance estimator
-        # variance_marginal = self.est_marginal_variance(haw=haw, y_obs=y_, y_pred=yq0_,
-        #                                                 y_pred_targeted=, psi=self.marginal_outcome)
-        # self.marginal_se = np.sqrt(variance_marginal) / np.sqrt(self.df.shape[0])
-        # self.marginal_ci = [self.marginal_outcome - zalpha * self.marginal_se,
-        #                     self.marginal_outcome + zalpha * self.marginal_se]
+        variance_marginal = self.est_marginal_variance(haw=haw, y_obs=y_, y_pred=yq0_,
+                                                       y_pred_targeted=np.mean(yqstar_, axis=0),
+                                                       psi=self.marginal_outcome)
+        self.marginal_se = np.sqrt(variance_marginal) / np.sqrt(self.df.shape[0])
+        self.marginal_ci = [self.marginal_outcome - zalpha * self.marginal_se,
+                            self.marginal_outcome + zalpha * self.marginal_se]
 
         # Conditional on W variance estimator
         variance_conditional = self.est_conditional_variance(haw=haw, y_obs=y_, y_pred=yq0_)
@@ -1180,6 +1186,8 @@ class StochasticTMLE:
         print('Overall incidence:      ', np.round(self.marginal_outcome, decimals=decimal))
         # print('Var(Overall incidence): ', np.round(np.var(self.marginals_vector, ddof=1), decimals=decimal))
         print('======================================================================')
+        print('Marginal')
+        print('95% CL:    ', np.round(self.marginal_ci, decimals=decimal))
         print('Conditional')
         print('95% CL:    ', np.round(self.conditional_ci, decimals=decimal))
         print('======================================================================')
