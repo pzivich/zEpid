@@ -948,7 +948,9 @@ class StochasticTMLE:
         self.marginals_vector = None
         self.marginal_outcome = None
         self.alpha = alpha
+        self.marginal_se = None
         self.marginal_ci = None
+        self.conditional_se = None
         self.conditional_ci = None
 
         # Storage for items I need later
@@ -1140,7 +1142,19 @@ class StochasticTMLE:
             zalpha = 1.96
         else:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
-        # TODO add remainder of variance calculations
+
+        # Marginal variance estimator
+        # variance_marginal = self.est_marginal_variance(haw=haw, y_obs=y_, y_pred=yq0_,
+        #                                                 y_pred_targeted=, psi=self.marginal_outcome)
+        # self.marginal_se = np.sqrt(variance_marginal)
+        # self.marginal_ci = [self.marginal_outcome - zalpha * self.marginal_se,
+        #                     self.marginal_outcome + zalpha * self.marginal_se]
+
+        # Conditional on W variance estimator
+        variance_conditional = self.est_conditional_variance(haw=haw, y_obs=y_, y_pred=yq0_)
+        self.conditional_se = np.sqrt(variance_conditional)
+        self.conditional_ci = [self.marginal_outcome - zalpha * self.conditional_se,
+                               self.marginal_outcome + zalpha * self.conditional_se]
 
     def summary(self, decimal=3):
         if self.marginal_outcome is None:
@@ -1185,6 +1199,18 @@ class StochasticTMLE:
             print(log.summary())
 
         return log.params[0]  # Returns single-step estimated Epsilon term
+
+    @staticmethod
+    def est_marginal_variance(haw, y_obs, y_pred, y_pred_targeted, psi):
+        doqg_psi_sq = (haw*(y_obs - y_pred) + y_pred_targeted - psi)**2
+        var_est = np.mean(doqg_psi_sq)
+        return var_est
+
+    @staticmethod
+    def est_conditional_variance(haw, y_obs, y_pred):
+        doqg_psi_sq = (haw*(y_obs - y_pred))**2
+        var_est = np.mean(doqg_psi_sq)
+        return var_est
 
 
 # Functions that all TMLEs can call are below
