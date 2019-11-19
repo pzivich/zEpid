@@ -841,6 +841,38 @@ class StochasticTMLE:
     some values may take the value of 0 or 1, which breaks a logit(Y*) transformation. To avoid this issue, Y* is
     bounded by the `continuous_bound` argument. The default is 0.0005, the same as R's tmle
 
+    Following is a general narrative of the estimation procedure for TMLE with stochastic treatments
+
+    1. Initial estimators for g-model (IPTW) and Q-model (g-formula) are fit. By default these estimators are based
+    on parametric regression models. Additionally, machine learning algorithms can be used to estimate the g-model and
+    Q-model.
+
+    2. The auxiliary covariate is calculated (i.e. IPTW).
+
+    .. math::
+
+        H(A=a, L) = \frac{I(A=a) p}{\widehat{\Pr}(A=a)}
+
+    where `p` is the probability of treatment `a` under the stochastic intervention of interest.
+
+    3. Targeting step occurs through estimation of `e` via a logistic regression model. Briefly a weighted logistic
+    regression model (weighted by the auxiliary covariates) with the dependent variable as the observed outcome and
+    an offset term of the Q-model predictions under the observed treatment (A).
+
+    .. math::
+
+        \text{logit}(Y) = \text{logit}(Q(A, W)) + \epsilon
+
+    4. Stochastic interventions are evaluated through Monte Carlo integration for binary treatments. The different
+    treatment plans are randomly applied and evaluated through the Q-model and then the targeting step via
+
+    .. math::
+
+        E[\text{logit}(Q(A=a, W)) + \hat{\epsilon}]
+
+    This process is repeated a large number of times and the point estimate is the average of those individual treatment
+    plans.
+
     Examples
     --------
     Setting up environment
@@ -850,30 +882,30 @@ class StochasticTMLE:
     >>> df = load_sample_data(False).dropna()
     >>> df[['cd4_rs1', 'cd4_rs2']] = spline(df, 'cd40', n_knots=3, term=2, restricted=True)
 
-    Estimating TMLE using logistic regression
+    Estimating TMLE for 0.2 being treated with ART
 
     >>> tmle = TMLE(df, exposure='art', outcome='dead')
-    >>> # Specifying exposure/treatment model
     >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> # Specifying outcome model
     >>> tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
-    >>> # TMLE estimation procedure
-    >>> tmle.fit()
-    >>> # Printing main results
+    >>> tmle.fit(p=0.2)
     >>> tmle.summary()
-    >>> # Extracting risk difference and confidence intervals, respectively
-    >>> tmle.risk_difference
-    >>> tmle.risk_difference_ci
+
+    Estimating TMLE for conditional plan
+
+    >>> tmle = TMLE(df, exposure='art', outcome='dead')
+    >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    >>> tmle.fit(p=[0.6, 0.4], conditional=["df['male']==1", "df['male']==0"])
+    >>> tmle.summary()
 
     Estimating TMLE with machine learning algorithm from sklearn
 
     >>> from sklearn.linear_model import LogisticRegression
     >>> log1 = LogisticRegression(penalty='l1', random_state=201)
     >>> tmle = TMLE(df, 'art', 'dead')
-    >>> # custom_model allows specification of machine learning algorithms
     >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
     >>> tmle.outcome_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
-    >>> tmle.fit()
+    >>> tmle.fit(p=0.75)
 
     References
     ----------
@@ -1059,12 +1091,13 @@ class StochasticTMLE:
         if conditional is None:
             numerator = np.where(self.df[self.exposure] == 1, p, 1 - p)
         else:
+            df = self.df.copy()
             stochastic_check_conditional(df=self.df, conditional=conditional)
             numerator = np.array([np.nan] for i in range(self.df.shape[0]))
             for c, prop in zip(conditional, p):
-                numerator = np.where(eval(c), np.where(self.df[self.exposure] == 1, prop, 1 - prop), numerator)
+                numerator = np.where(eval(c), np.where(df[self.exposure] == 1, prop, 1 - prop), numerator)
 
-        haw = numerator / self._denominator_
+        haw = np.array(numerator / self._denominator_).astype(float)
 
         # Step 5) Estimating TMLE
         epsilon = self.targeting_step(y=self.df[self.outcome], q_init=self._Qinit_, iptw=haw, verbose=self._verbose_)
