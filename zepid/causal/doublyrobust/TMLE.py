@@ -945,6 +945,7 @@ class StochasticTMLE:
         self.outcome = outcome
 
         # Output attributes
+        self.epsilon = None
         self.marginals_vector = None
         self.marginal_outcome = None
         self.alpha = alpha
@@ -959,6 +960,7 @@ class StochasticTMLE:
         self._Qinit_ = None
         self._treatment_model = None
         self._g_model = None
+        self._specified_bound_ = None
         self._denominator_ = None
         self._verbose_ = verbose
 
@@ -999,6 +1001,8 @@ class StochasticTMLE:
 
         if bound:  # Bounding predicted probabilities if requested
             self._denominator_ = _bounding_(self._denominator_, bounds=bound)
+            # self._specified_bound_ = np.sum(np.where(self._denominator_ == bound, 1, 0)
+            #                                ) + np.sum(np.where(self._denominator_ == 1 / bound, 1, 0))
 
         self._denominator_ = np.where(self.df[self.exposure] == 1, pred, 1 - pred)
 
@@ -1053,8 +1057,8 @@ class StochasticTMLE:
             # TODO need to create smart warning system
             self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
-            self._Qinit_
-            self._outcome_model
+            # self._Qinit_
+            # self._outcome_model
 
         if not bound:  # Bounding predicted probabilities if requested
             bound = self._cb
@@ -1102,7 +1106,8 @@ class StochasticTMLE:
         haw = np.array(numerator / self._denominator_).astype(float)
 
         # Step 5) Estimating TMLE
-        epsilon = self.targeting_step(y=self.df[self.outcome], q_init=self._Qinit_, iptw=haw, verbose=self._verbose_)
+        self.epsilon = self.targeting_step(y=self.df[self.outcome], q_init=self._Qinit_, iptw=haw,
+                                           verbose=self._verbose_)
 
         # Step 6) Estimating psi
         q_star_list = []
@@ -1121,7 +1126,7 @@ class StochasticTMLE:
             y_star = self._outcome_model.predict(df)
 
             # Targeted Estimate
-            logit_qstar = np.log(probability_to_odds(y_star)) + epsilon  # logit(Y^*) + e
+            logit_qstar = np.log(probability_to_odds(y_star)) + self.epsilon  # logit(Y^*) + e
             q_star = odds_to_probability(np.exp(logit_qstar))  # Y^*
             q_i_star_list.append(q_star)  # Saving Y_i^* for marginal variance
             q_star_list.append(np.mean(q_star))  # Saving E[Y^*]
@@ -1163,6 +1168,13 @@ class StochasticTMLE:
                                self.marginal_outcome + zalpha * self.conditional_se]
 
     def summary(self, decimal=3):
+        """Prints summary of the estimated incidence under the specified treatment plan
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
+        """
         if self.marginal_outcome is None:
             raise ValueError('The fit() statement must be ran before summary()')
 
@@ -1171,25 +1183,45 @@ class StochasticTMLE:
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
         print(fmt.format(self.exposure, self.df.shape[0]))
-        fmt = 'Outcome:          {:<15}'
-        print(fmt.format(self.outcome))
-        fmt = 'Q-Model:          {:<15}'
-        print(fmt.format('Logistic'))
-        # TODO add custom model check
-        fmt = 'g-Model:          {:<15}'
-        print(fmt.format('Logistic'))
+
+        fmt = 'Outcome:          {:<15} No. Truncated:        {:<20}'
+        if self._specified_bound_ is None:
+            b = 0
+        else:
+            b = self._specified_bound_
+        print(fmt.format(self.outcome, b))
+
+        fmt = 'Q-Model:          {:<15} g-model:              {:<20}'
+        print(fmt.format('Logistic', 'Logistic'))
 
         # TODO add treatment plan information
         # TODO add information on m (number of re-samples)
 
         print('======================================================================')
         print('Overall incidence:      ', np.round(self.marginal_outcome, decimals=decimal))
-        # print('Var(Overall incidence): ', np.round(np.var(self.marginals_vector, ddof=1), decimals=decimal))
         print('======================================================================')
-        print('Marginal')
-        print('95% CL:    ', np.round(self.marginal_ci, decimals=decimal))
-        print('Conditional')
-        print('95% CL:    ', np.round(self.conditional_ci, decimals=decimal))
+        print('Marginal 95% CL:        ', np.round(self.marginal_ci, decimals=decimal))
+        print('Conditional 95% CL:     ', np.round(self.conditional_ci, decimals=decimal))
+        print('======================================================================')
+
+    def run_diagnostics(self, decimal=3):
+        """Provides some summary diagnostics for `StochasticTMLE`. Diagnostics must be called are the fit() function is
+        called since weights are dependent on the specific treatment plan of interest
+
+        Parameters
+        ----------
+        decimal : int, optional
+            Number of decimal places to display. Default is 3
+        """
+        if self.marginal_outcome is None:
+            raise ValueError('The fit() statement must be ran before summary()')
+
+        print('======================================================================')
+        print('                         Diagnostics                                  ')
+        print('======================================================================')
+        # TODO print epsilon
+        # TODO print outcome model accuracy
+        # TODO print distribution of weights / IPW summary
         print('======================================================================')
 
     @staticmethod
@@ -1210,12 +1242,14 @@ class StochasticTMLE:
 
     @staticmethod
     def est_marginal_variance(haw, y_obs, y_pred, y_pred_targeted, psi):
+        # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4965321/
         doqg_psi_sq = (haw*(y_obs - y_pred) + y_pred_targeted - psi)**2
         var_est = np.mean(doqg_psi_sq)
         return var_est
 
     @staticmethod
     def est_conditional_variance(haw, y_obs, y_pred):
+        # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4965321/
         doqg_psi_sq = (haw*(y_obs - y_pred))**2
         var_est = np.mean(doqg_psi_sq)
         return var_est
