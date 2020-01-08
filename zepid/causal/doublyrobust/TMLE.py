@@ -884,7 +884,7 @@ class StochasticTMLE:
 
     Estimating TMLE for 0.2 being treated with ART
 
-    >>> tmle = TMLE(df, exposure='art', outcome='dead')
+    >>> tmle = StochasticTMLE(df, exposure='art', outcome='dead')
     >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> tmle.fit(p=0.2)
@@ -892,7 +892,7 @@ class StochasticTMLE:
 
     Estimating TMLE for conditional plan
 
-    >>> tmle = TMLE(df, exposure='art', outcome='dead')
+    >>> tmle = StochasticTMLE(df, exposure='art', outcome='dead')
     >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> tmle.outcome_model('art + male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
     >>> tmle.fit(p=[0.6, 0.4], conditional=["df['male']==1", "df['male']==0"])
@@ -902,7 +902,7 @@ class StochasticTMLE:
 
     >>> from sklearn.linear_model import LogisticRegression
     >>> log1 = LogisticRegression(penalty='l1', random_state=201)
-    >>> tmle = TMLE(df, 'art', 'dead')
+    >>> tmle = StochasticTMLE(df, 'art', 'dead')
     >>> tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
     >>> tmle.outcome_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', custom_model=log1)
     >>> tmle.fit(p=0.75)
@@ -916,10 +916,10 @@ class StochasticTMLE:
     studies. Springer Science & Business Media, 2011.
     """
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005, verbose=False):
-        # Going through missing data
+        # Dropping ALL missing data (currently doesn't allow for censored outcomes)
         if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data that is not the outcome in the data set. StochasticTMLE will drop all "
-                          "missing data. StochasticTMLE will fit "
+            warnings.warn("There is missing data in the data set. StochasticTMLE will drop all missing data. "
+                          "StochasticTMLE will fit "
                           + str(df.dropna().shape[0]) +
                           ' of ' + str(df.shape[0]) + ' observations', UserWarning)
             self.df = df.copy().dropna().reset_index()
@@ -960,6 +960,7 @@ class StochasticTMLE:
         self._Qinit_ = None
         self._treatment_model = None
         self._g_model = None
+        self._resamples_ = None
         self._specified_bound_ = None
         self._denominator_ = None
         self._verbose_ = verbose
@@ -1001,8 +1002,8 @@ class StochasticTMLE:
 
         if bound:  # Bounding predicted probabilities if requested
             self._denominator_ = _bounding_(self._denominator_, bounds=bound)
-            # self._specified_bound_ = np.sum(np.where(self._denominator_ == bound, 1, 0)
-            #                                ) + np.sum(np.where(self._denominator_ == 1 / bound, 1, 0))
+            self._specified_bound_ = np.sum(np.where(self._denominator_ == bound, 1, 0)
+                                            ) + np.sum(np.where(self._denominator_ == 1 / bound, 1, 0))
 
         self._denominator_ = np.where(self.df[self.exposure] == 1, pred, 1 - pred)
 
@@ -1028,7 +1029,6 @@ class StochasticTMLE:
         """
         self._q_model = self.outcome + ' ~ ' + model
 
-        # Step 1) Prediction for Q (estimation of Q-model)
         if custom_model is None:  # Standard parametric regression
             self._continuous_type = continuous_distribution
             if self._continuous_outcome:
@@ -1057,6 +1057,7 @@ class StochasticTMLE:
             # TODO need to create smart warning system
             self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
+            # TODO machine learning predictions
             # self._Qinit_
             # self._outcome_model
 
@@ -1080,7 +1081,7 @@ class StochasticTMLE:
         `average _treatment_effect` for continuous outcomes
         """
         # TODO add a seed
-        # Error checking
+
         if self._denominator_ is None:
             raise ValueError("The exposure_model() function must be specified before the fit() function")
         if self._Qinit_ is None:
@@ -1093,7 +1094,7 @@ class StochasticTMLE:
             if len(p) != len(conditional):
                 raise ValueError("'p' and 'conditional' must be the same length")
 
-        # Step 4) Calculating clever covariate (HAW)
+        # Step 1) Calculating clever covariate (HAW)
         if conditional is None:
             numerator = np.where(self.df[self.exposure] == 1, p, 1 - p)
         else:
@@ -1105,13 +1106,17 @@ class StochasticTMLE:
 
         haw = np.array(numerator / self._denominator_).astype(float)
 
-        # Step 5) Estimating TMLE
+        # Step 2) Estimate from Q-model
+        # process completed in outcome_model() function and stored in self._Qinit_
+
+        # Step 3) Target parameter TMLE
         self.epsilon = self.targeting_step(y=self.df[self.outcome], q_init=self._Qinit_, iptw=haw,
                                            verbose=self._verbose_)
 
-        # Step 6) Estimating psi
+        # Step 4) Monte-Carlo Integration procedure
         q_star_list = []
         q_i_star_list = []
+        self._resamples_ = samples
         for i in range(samples):
             # Applying treatment plan
             df = self.df.copy()
@@ -1147,11 +1152,8 @@ class StochasticTMLE:
 
         self.marginal_outcome = np.mean(self.marginals_vector)
 
-        # Step 7) Estimating Var(psi)
-        if self.alpha == 0.05:  # Without this, won't match R exactly. R relies on 1.96, while I use SciPy usually
-            zalpha = 1.96
-        else:
-            zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
+        # Step 5) Estimating Var(psi)
+        zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
         # Marginal variance estimator
         variance_marginal = self.est_marginal_variance(haw=haw, y_obs=y_, y_pred=yq0_,
@@ -1161,7 +1163,7 @@ class StochasticTMLE:
         self.marginal_ci = [self.marginal_outcome - zalpha * self.marginal_se,
                             self.marginal_outcome + zalpha * self.marginal_se]
 
-        # Conditional on W variance estimator
+        # Conditional on W variance estimator (not generally recommended but I need it for other work)
         variance_conditional = self.est_conditional_variance(haw=haw, y_obs=y_, y_pred=yq0_)
         self.conditional_se = np.sqrt(variance_conditional) / np.sqrt(self.df.shape[0])
         self.conditional_ci = [self.marginal_outcome - zalpha * self.conditional_se,
@@ -1183,19 +1185,18 @@ class StochasticTMLE:
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
         print(fmt.format(self.exposure, self.df.shape[0]))
-
         fmt = 'Outcome:          {:<15} No. Truncated:        {:<20}'
         if self._specified_bound_ is None:
             b = 0
         else:
             b = self._specified_bound_
         print(fmt.format(self.outcome, b))
-
         fmt = 'Q-Model:          {:<15} g-model:              {:<20}'
         print(fmt.format('Logistic', 'Logistic'))
+        fmt = 'No. Resamples:    {:<15}'
+        print(fmt.format(self._resamples_))
 
         # TODO add treatment plan information
-        # TODO add information on m (number of re-samples)
 
         print('======================================================================')
         print('Overall incidence:      ', np.round(self.marginal_outcome, decimals=decimal))

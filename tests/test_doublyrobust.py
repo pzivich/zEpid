@@ -412,6 +412,20 @@ class TestStochasticTMLE:
         with pytest.raises(ValueError):
             stmle.summary()
 
+    def test_warn_missing_data(self):
+        df = pd.DataFrame()
+        df['A'] = [1, 1, 0, 0, np.nan]
+        df['Y'] = [np.nan, 0, 1, 0, 1]
+        with pytest.warns(UserWarning):
+            StochasticTMLE(df=df, exposure='A', outcome='Y')
+
+    def test_drop_missing_data(self):
+        df = pd.DataFrame()
+        df['A'] = [1, 1, 0, 0, np.nan]
+        df['Y'] = [np.nan, 0, 1, 0, 1]
+        stmle = StochasticTMLE(df=df, exposure='A', outcome='Y')
+        assert stmle.df.shape[0] == 3
+
     def test_continuous_processing(self):
         a_list = [0, 1, 1, 0, 1, 1, 0, 0]
         y_list = [1, -1, 5, 0, 0, 0, 10, -5]
