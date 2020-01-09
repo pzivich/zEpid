@@ -851,7 +851,7 @@ class StochasticTMLE:
 
     .. math::
 
-        H(A=a, L) = \frac{I(A=a) p}{\widehat{\Pr}(A=a)}
+        H = \frac{p}{\widehat{\Pr}(A=a)}
 
     where `p` is the probability of treatment `a` under the stochastic intervention of interest.
 
@@ -912,7 +912,7 @@ class StochasticTMLE:
     Muñoz ID, and Van Der Laan MJ. Population intervention causal effects based on stochastic interventions.
     Biometrics 68.2 (2012): 541-549.
 
-    Van der Laan MJ, and Sherri R. Targeted learning in data science: causal inference for complex longitudinal
+    van der Laan MJ, and Sherri R. Targeted learning in data science: causal inference for complex longitudinal
     studies. Springer Science & Business Media, 2011.
     """
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005, verbose=False):
@@ -973,7 +973,8 @@ class StochasticTMLE:
         self._q_custom_ = None
 
     def exposure_model(self, model, custom_model=None, bound=False):
-        """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature
+        """Estimation of Pr(A=1|L), which is termed as g(A=1|L) in the literature. This value is used as the denominator
+        for the inverse probability weights.
 
         Parameters
         ----------
@@ -997,7 +998,7 @@ class StochasticTMLE:
             fitmodel = propensity_score(self.df, self._g_model, print_results=self._verbose_)
             pred = fitmodel.predict(self.df)
         else:  # User-specified prediction model
-            # TODO need to create smart warning system
+            # TODO need to create smart warning system  -- Issue #124
             self._exp_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
             pred = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.exposure]),
@@ -1043,11 +1044,9 @@ class StochasticTMLE:
                     raise ValueError("Only 'gaussian' and 'poisson' distributions are supported for continuous "
                                      "outcomes")
                 self._outcome_model = smf.glm(self._q_model, self.df, family=f).fit()
-
             else:
                 f = sm.families.family.Binomial()
                 self._outcome_model = smf.glm(self._q_model, self.df, family=f).fit()
-
             if self._verbose_:
                 print('==============================================================================')
                 print('Q-model')
@@ -1057,7 +1056,7 @@ class StochasticTMLE:
             self._Qinit_ = self._outcome_model.predict(self.df)
 
         else:  # User-specified model
-            # TODO need to create smart warning system
+            # TODO need to create smart warning system -- Issue #124
             self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
             output = stochastic_outcome_machine_learner(xdata=np.asarray(data),
@@ -1073,9 +1072,21 @@ class StochasticTMLE:
         # This bounding step prevents continuous outcomes from being outside the range
         self._Qinit_ = _bounding_(self._Qinit_, bounds=bound)
 
-    def fit(self, p, conditional=None, samples=100):
+    def fit(self, p, conditional=None, samples=100, seed=None):
         """Calculate the effect from the predicted exposure probabilities and predicted outcome values using the TMLE
         procedure. Confidence intervals are calculated using influence curves.
+
+        Parameters
+        ----------
+        p : float, list, tuple
+            Proportion that correspond to the number of persons treated (all values must be between 0.0 and 1.0). If
+            conditional is specified, p must be a list/tuple of floats of the same length
+        conditional : None, list, tuple, optional
+            A
+        samples : int, optional
+            Number of samples to use for the Monte Carlo integration procedure
+        seed : None, int, optional
+            Seed for the Monte Carlo integration procedure
 
         Note
         ----
@@ -1083,15 +1094,17 @@ class StochasticTMLE:
 
         Returns
         -------
-        TMLE gains `risk_difference`, `risk_ratio`, and `odds_ratio` for binary outcomes and
-        `average _treatment_effect` for continuous outcomes
+        `StochasticTMLE` gains `marginal_vector` and `marginal_outcome` along with `marginal_ci`
         """
-        # TODO add a seed
-
         if self._denominator_ is None:
             raise ValueError("The exposure_model() function must be specified before the fit() function")
         if self._Qinit_ is None:
             raise ValueError("The outcome_model() function must be specified before the fit() function")
+
+        if seed is None:
+            pass
+        else:
+            np.random.seed(seed)
 
         p = np.array(p)
         if np.any(p > 1) or np.any(p < 0):
@@ -1195,6 +1208,7 @@ class StochasticTMLE:
         print('======================================================================')
         print('          Stochastic Targeted Maximum Likelihood Estimator            ')
         print('======================================================================')
+
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
         print(fmt.format(self.exposure, self.df.shape[0]))
         fmt = 'Outcome:          {:<15} No. Truncated:        {:<20}'
@@ -1207,8 +1221,6 @@ class StochasticTMLE:
         print(fmt.format('Logistic', 'Logistic'))
         fmt = 'No. Resamples:    {:<15}'
         print(fmt.format(self._resamples_))
-
-        # TODO add treatment plan information
 
         print('======================================================================')
         print('Overall incidence:      ', np.round(self.marginal_outcome, decimals=decimal))
