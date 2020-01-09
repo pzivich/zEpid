@@ -1001,9 +1001,9 @@ class StochasticTMLE:
                                             ml_model=custom_model, print_results=self._verbose_)
 
         if bound:  # Bounding predicted probabilities if requested
-            self._denominator_ = _bounding_(self._denominator_, bounds=bound)
-            self._specified_bound_ = np.sum(np.where(self._denominator_ == bound, 1, 0)
-                                            ) + np.sum(np.where(self._denominator_ == 1 / bound, 1, 0))
+            pred = _bounding_(pred, bounds=bound)
+            self._specified_bound_ = np.sum(np.where(pred == bound, 1, 0)
+                                            ) + np.sum(np.where(pred == 1 / bound, 1, 0))
 
         self._denominator_ = np.where(self.df[self.exposure] == 1, pred, 1 - pred)
 
@@ -1220,10 +1220,52 @@ class StochasticTMLE:
         print('======================================================================')
         print('                         Diagnostics                                  ')
         print('======================================================================')
-        # TODO print epsilon
-        # TODO print outcome model accuracy
-        # TODO print distribution of weights / IPW summary
+        print('                 Natural Course Prediction Accuracy                   ')
+        value = self.df[self.outcome] - self._Qinit_
+        fmt = 'Mean:                    {:<20}'
+        print(fmt.format(np.round(np.mean(value), decimals=decimal)))
+        fmt = 'Standard Deviation:      {:<20}'
+        print(fmt.format(np.round(np.std(value, ddof=1), decimals=decimal)))
+        fmt = 'Median:                  {:<20}'
+        print(fmt.format(np.round(np.median(value), decimals=decimal)))
+        fmt = 'Minimum value:           {:<20}'
+        print(fmt.format(np.round(np.min(value), decimals=decimal)))
+        fmt = 'Maximum value:           {:<20}'
+        print(fmt.format(np.round(np.max(value), decimals=decimal)))
+
+        print('----------------------------------------------------------------------')
+        print('               Inverse Probability Weight Denominator                 ')
+        w = 1 / self._denominator_
+        fmt = 'Mean (expected=2):       {:<20}'
+        print(fmt.format(np.round(np.mean(w), decimals=decimal)))
+        fmt = 'Standard Deviation:      {:<20}'
+        print(fmt.format(np.round(np.std(w, ddof=1), decimals=decimal)))
+        fmt = 'Minimum value:           {:<20}'
+        print(fmt.format(np.round(np.min(w), decimals=decimal)))
+        fmt = 'Maximum value:           {:<20}'
+        print(fmt.format(np.round(np.max(w), decimals=decimal)))
+
+        print('----------------------------------------------------------------------')
+        print('                        Targeting Step                                ')
+        fmt = 'Epsilon:                 {:<20}'
+        print(fmt.format(np.round(self.epsilon, decimals=decimal)))
+
         print('======================================================================')
+
+        # Generating plots
+        df = self.df.copy()
+        df['_g1_'] = np.where(df[self.exposure] == 1, self._denominator_, 1 - self._denominator_)
+
+        plt.figure(figsize=[8, 4])
+        plt.subplot(121)
+        plot_kde(df=df, treatment=self.exposure, probability='_g1_')
+        plt.title("Kernel Density of Propensity Scores")
+
+        plt.subplot(122)
+        plot_kde_accuracy(values=value, color='green')
+        plt.title("Kernel Density of Accuracy")
+        plt.tight_layout()
+        plt.show()
 
     @staticmethod
     def targeting_step(y, q_init, iptw, verbose):
