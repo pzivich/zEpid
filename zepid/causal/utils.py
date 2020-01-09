@@ -79,7 +79,7 @@ def exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
 
 def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, print_results=True):
     """Function to fit machine learning predictions. Used by TMLE to generate predicted probabilities of outcome
-    (i.e. Pr(Y=1 | A=1, L) and Pr(Y=1 | A=0, L)). Future update will include continuous Y functionality (i.e. E(Y))
+    (i.e. Pr(Y=1 | A=1, L) and Pr(Y=1 | A=0, L)).
     """
     # Trying to fit Machine Learning model
     try:
@@ -110,6 +110,68 @@ def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, p
             qa1 = fm.predict(all_a)
             qa0 = fm.predict(none_a)
             return qa1, qa0
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
+def stochastic_outcome_machine_learner(xdata, ydata, ml_model, continuous, print_results=True):
+    """Function to fit machine learning predictions. Used by StochasticTMLE to generate predicted probabilities of
+    outcome (i.e. Pr(Y=1 | A, L)
+    """
+    # Trying to fit Machine Learning model
+    try:
+        fm = ml_model.fit(X=xdata, y=ydata)
+    except TypeError:
+        raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                        "covers both sklearn and supylearner. If there is a predictive model you would "
+                        "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                        "can work on adding support")
+    if print_results and hasattr(fm, 'summarize'):  # Nice summarize option from SuPyLearner
+        fm.summarize()
+
+    # Generating predictions
+    if continuous:
+        if hasattr(fm, 'predict'):
+            qa = fm.predict(xdata)
+            return qa, fm
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+    else:
+        if hasattr(fm, 'predict_proba'):
+            qa = fm.predict_proba(xdata)
+            if qa.ndim == 1:  # Allows for PyGAM
+                return qa, fm
+            else:
+                return qa[:, 1], fm
+        elif hasattr(fm, 'predict'):
+            qa = fm.predict(xdata)
+            return qa, fm
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
+def stochastic_outcome_predict(xdata, fit_ml_model, continuous):
+    """Function to generate predictions machine learning predictions. Used by StochasticTMLE to generate predicted
+    probabilities of outcome (i.e. Pr(Y=1 | A=a*, L) in the Monte-Carlo integration procedure
+    """
+    # Generating predictions
+    if continuous:
+        if hasattr(fit_ml_model, 'predict'):
+            qa_star = fit_ml_model.predict(xdata)
+            return qa_star
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+    else:
+        if hasattr(fit_ml_model, 'predict_proba'):
+            qa_star = fit_ml_model.predict_proba(xdata)
+            if qa_star.ndim == 1:  # Allows for PyGAM
+                return qa_star
+            else:
+                return qa_star[:, 1]
+        elif hasattr(fit_ml_model, 'predict'):
+            qa_star = fit_ml_model.predict(xdata)
+            return qa_star
         else:
             raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 

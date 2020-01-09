@@ -8,9 +8,9 @@ from scipy.stats import logistic, norm
 
 from zepid.causal.utils import propensity_score, stochastic_check_conditional
 from zepid.calc import probability_to_odds, odds_to_probability
-from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, missing_machine_learner, _bounding_,
-                                plot_kde, plot_love, standardized_mean_differences, positivity,
-                                plot_kde_accuracy, outcome_accuracy)
+from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, stochastic_outcome_machine_learner,
+                                stochastic_outcome_predict, missing_machine_learner, _bounding_, plot_kde, plot_love,
+                                standardized_mean_differences, positivity, plot_kde_accuracy, outcome_accuracy)
 
 
 class TMLE:
@@ -1001,9 +1001,8 @@ class StochasticTMLE:
                                             ml_model=custom_model, print_results=self._verbose_)
 
         if bound:  # Bounding predicted probabilities if requested
-            pred = _bounding_(pred, bounds=bound)
-            self._specified_bound_ = np.sum(np.where(pred == bound, 1, 0)
-                                            ) + np.sum(np.where(pred == 1 / bound, 1, 0))
+            pred2 = _bounding_(pred, bounds=bound)
+            self._specified_bound_ = np.sum(np.where(pred2 == pred, 0, 1))
 
         self._denominator_ = np.where(self.df[self.exposure] == 1, pred, 1 - pred)
 
@@ -1057,9 +1056,12 @@ class StochasticTMLE:
             # TODO need to create smart warning system
             self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
-            # TODO machine learning predictions
-            # self._Qinit_
-            # self._outcome_model
+            output = stochastic_outcome_machine_learner(xdata=np.asarray(data),
+                                                        ydata=np.asarray(self.df[self.outcome]),
+                                                        ml_model=custom_model,
+                                                        continuous=self._continuous_outcome,
+                                                        print_results=self._verbose_)
+            self._Qinit_, self._outcome_model = output
 
         if not bound:  # Bounding predicted probabilities if requested
             bound = self._cb
@@ -1128,7 +1130,13 @@ class StochasticTMLE:
                     df[self.exposure] = np.random.binomial(n=1, p=prop, size=df.shape[0])
 
             # Outcome model under treatment plan
-            y_star = self._outcome_model.predict(df)
+            if self._out_model_custom :
+                data_star = patsy.dmatrix(self._q_model + ' - 1', self.df)
+                y_star = stochastic_outcome_predict(xdata=data_star,
+                                                    fit_ml_model=self._outcome_model,
+                                                    continuous=self._continuous_outcome)
+            else:
+                y_star = self._outcome_model.predict(df)
 
             # Targeted Estimate
             logit_qstar = np.log(probability_to_odds(y_star)) + self.epsilon  # logit(Y^*) + e
