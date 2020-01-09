@@ -964,6 +964,9 @@ class StochasticTMLE:
         self._specified_bound_ = None
         self._denominator_ = None
         self._verbose_ = verbose
+        self._out_model_custom = False
+        self._exp_model_custom = False
+        self._continuous_type = None
 
         # Custom model / machine learner storage
         self._g_custom_ = None
@@ -1029,6 +1032,7 @@ class StochasticTMLE:
         self._q_model = self.outcome + ' ~ ' + model
 
         if custom_model is None:  # Standard parametric regression
+            self._out_model_custom = False
             self._continuous_type = continuous_distribution
             if self._continuous_outcome:
                 if (continuous_distribution.lower() == 'gaussian') or (continuous_distribution.lower() == 'normal'):
@@ -1130,8 +1134,8 @@ class StochasticTMLE:
                     df[self.exposure] = np.random.binomial(n=1, p=prop, size=df.shape[0])
 
             # Outcome model under treatment plan
-            if self._out_model_custom :
-                data_star = patsy.dmatrix(self._q_model + ' - 1', self.df)
+            if self._out_model_custom:
+                _, data_star = patsy.dmatrices(self._q_model + ' - 1', self.df)
                 y_star = stochastic_outcome_predict(xdata=data_star,
                                                     fit_ml_model=self._outcome_model,
                                                     continuous=self._continuous_outcome)
