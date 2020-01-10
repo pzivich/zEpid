@@ -240,7 +240,7 @@ class TestTMLE:
         npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
     def test_sklearn_in_tmle(self, df):
-        log = LogisticRegression(C=1.0)
+        log = LogisticRegression(C=1.0, solver='liblinear')
         tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
         tmle.outcome_model('art + male + age0 + cd40 + dvl0', custom_model=log)
@@ -257,7 +257,7 @@ class TestTMLE:
         npt.assert_allclose(tmle.odds_ratio_ci, [0.2139277755, 0.944971255], rtol=1e-5)
 
     def test_sklearn_in_tmle2(self, cf):
-        log = LogisticRegression(C=1.0)
+        log = LogisticRegression(C=1.0, solver='liblinear')
         lin = LinearRegression()
         tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log)
@@ -317,7 +317,7 @@ class TestTMLE:
         npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
     def test_sklearn_in_tmle_missing(self, mf):
-        log = LogisticRegression(C=1.0)
+        log = LogisticRegression(C=1.0, solver='liblinear')
         tmle = TMLE(mf, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + cd40 + dvl0', custom_model=log, print_results=False)
         tmle.missing_model('male + age0 + cd40 + dvl0', custom_model=log, print_results=False)
@@ -524,6 +524,15 @@ class TestStochasticTMLE:
     # TODO check bounding
 
     # TODO compare to R in several versions
+
+    def test_machine_learning_runs(self, df):
+        # Only verifies that machine learning doesn't throw an error
+        log = LogisticRegression(penalty='l1', solver='liblinear', random_state=201)
+
+        tmle = StochasticTMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + cd40 + cd4_rs1 + cd4_rs2 + dvl0 + male:dvl0', custom_model=log)
+        tmle.outcome_model('art + male + age0 + dvl0  + cd40', custom_model=log)
+        tmle.fit(p=0.4, samples=20)
 
 
 class TestAIPTW:
