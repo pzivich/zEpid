@@ -503,7 +503,7 @@ class TestStochasticTMLE:
 
         npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
 
-    def test_compare_tmle(self, df):
+    def test_compare_tmle_binary(self, df):
         stmle = StochasticTMLE(df, exposure='art', outcome='dead')
         stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
         stmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
@@ -521,9 +521,69 @@ class TestStochasticTMLE:
 
         npt.assert_allclose(expected, all_treat - non_treat, atol=1e-4)
 
-    # TODO check bounding
+    def test_compare_tmle_continuous(self, cf):
+        cf['cd4_wk45'] = np.log(cf['cd4_wk45'])
+        stmle = StochasticTMLE(cf, exposure='art', outcome='cd4_wk45')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.fit(p=1.0, samples=1)
+        all_treat = stmle.marginal_outcome
+        stmle.fit(p=0.0, samples=1)
+        non_treat = stmle.marginal_outcome
 
-    # TODO compare to R in several versions
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           print_results=False)
+        tmle.fit()
+        expected = tmle.average_treatment_effect
+
+        npt.assert_allclose(expected, all_treat - non_treat, atol=1e-3)
+
+    def test_qmodel_bound(self, simple_df):
+        # Comparing to SAS logit model
+        sas_params = [-1.0699, -0.9525, 1.5462]
+        sas_preds = [0.3831332, 0.2554221, 0.2, 0.2554221, 0.6, 0.6, 0.2, 0.2554221, 0.3831332]
+
+        stmle = StochasticTMLE(df=simple_df, exposure='A', outcome='Y')
+        stmle.outcome_model('A + W', bound=[0.2, 0.6])
+        est_params = stmle._outcome_model.params
+        est_preds = stmle._Qinit_
+
+        npt.assert_allclose(sas_params, est_params, atol=1e-4)
+        npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
+
+    def test_gmodel_bound(self, simple_df):
+        # Comparing to SAS Poisson model
+        sas_preds = [2, 1/0.55, 1/0.45, 1/0.55, 2, 2, 1/0.45, 1/0.55, 2]
+
+        stmle = StochasticTMLE(df=simple_df, exposure='A', outcome='C')
+        stmle.exposure_model('W', bound=[0.45, 0.55])
+        est_preds = 1 / stmle._denominator_
+
+        npt.assert_allclose(sas_preds, est_preds, atol=1e-6)
+
+    def test_calculate_epsilon1(self, df):
+        stmle = StochasticTMLE(df, exposure='art', outcome='dead')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+
+        stmle.fit(p=0.15, samples=1)
+        npt.assert_allclose(-0.0157043107, stmle.epsilon, atol=1e-6)
+
+        stmle.fit(p=0.4, samples=1)
+        npt.assert_allclose(-0.0381559025, stmle.epsilon, atol=1e-6)
+
+    def test_calculate_epsilon2(self, cf):
+        stmle = StochasticTMLE(cf, exposure='art', outcome='cd4_wk45')
+        stmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+        stmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + dvl0  + cd40 + cd4_rs1 + cd4_rs2')
+
+        stmle.fit(p=0.15, samples=1)
+        npt.assert_allclose(-0.0059476590, stmle.epsilon, atol=1e-6)
+
+        stmle.fit(p=0.4, samples=1)
+        npt.assert_allclose(-0.0154923643, stmle.epsilon, atol=1e-6)
 
     def test_machine_learning_runs(self, df):
         # Only verifies that machine learning doesn't throw an error

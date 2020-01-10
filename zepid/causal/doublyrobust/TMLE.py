@@ -1007,6 +1007,7 @@ class StochasticTMLE:
         if bound:  # Bounding predicted probabilities if requested
             pred2 = _bounding_(pred, bounds=bound)
             self._specified_bound_ = np.sum(np.where(pred2 == pred, 0, 1))
+            pred = pred2
 
         self._denominator_ = np.where(self.df[self.exposure] == 1, pred, 1 - pred)
 
