@@ -1,6 +1,8 @@
 import pytest
+import networkx as nx
 
 from zepid.causal.causalgraph import DirectedAcyclicGraph
+from zepid.causal.causalgraph.dag import DAGError
 
 
 @pytest.fixture
@@ -38,6 +40,44 @@ def arrow_butterfly():
 
 
 class TestDirectedAcyclicGraph:
+
+    def test_error_add_cyclic_arrow(self):
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        dag.add_arrows(pairs=(("X", "Y"), ("Y", "C")))
+        with pytest.raises(DAGError):
+            dag.add_arrow("C", "X")
+
+    def test_error_add_from_cyclic_arrow(self):
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        with pytest.raises(DAGError):
+            dag.add_arrows(pairs=(("X", "Y"), ("Y", "C"), ("C", "X")))
+
+    def test_error_read_networkx(self):
+        G = nx.DiGraph()
+        G.add_edges_from((("X", "Y"), ("Y", "C"), ("C", "X")))
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        with pytest.raises(DAGError):
+            dag.add_from_networkx(G)
+
+    def test_error_networkx_noX(self):
+        G = nx.DiGraph()
+        G.add_edge("W", "Y")
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        with pytest.raises(DAGError):
+            dag.add_from_networkx(G)
+
+    def test_error_networkx_noY(self):
+        G = nx.DiGraph()
+        G.add_edge("X", "W")
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        with pytest.raises(DAGError):
+            dag.add_from_networkx(G)
+
+    def test_read_networkx(self):
+        G = nx.DiGraph()
+        G.add_edges_from((("X", "Y"), ("C", "Y"), ("C", "X")))
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        dag.add_from_networkx(G)
 
     def test_adjustment_set_1(self, arrow_list_1):
         correct_set = [{"W", "Z"}, {"V", "Z"}, {"W", "V", "Z"}]

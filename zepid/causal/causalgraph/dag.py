@@ -59,6 +59,7 @@ class DirectedAcyclicGraph:
 
         self.adjustment_sets = None
         self.minimal_adjustment_sets = None
+        self.arrow_misdirections = None
 
     def add_arrow(self, source, endpoint):
         """Add a single arrow to the current causal DAG
@@ -73,7 +74,7 @@ class DirectedAcyclicGraph:
         dag = self.dag.copy()
         dag.add_edge(source, endpoint)
         if not nx.is_directed_acyclic_graph(dag):
-            raise ValueError("Cyclic graph detected. Invalid addition for arrow.")
+            raise DAGError("Cyclic graph detected. Invalid addition for arrow.")
 
         self.dag = dag
 
@@ -89,21 +90,21 @@ class DirectedAcyclicGraph:
         dag = self.dag.copy()
         dag.add_edges_from(pairs)
         if not nx.is_directed_acyclic_graph(dag):
-            raise ValueError("Cyclic graph detected. Invalid addition for arrow(s).")
+            raise DAGError("Cyclic graph detected. Invalid addition for arrow(s).")
 
         self.dag = dag
 
     def add_from_networkx(self, network):
         # Checking that it is a directed acyclic graph
         if not nx.is_directed_acyclic_graph(network):
-            raise ValueError("Cyclic graph detected. Invalid networkx input.")
+            raise DAGError("Cyclic graph detected. Invalid networkx input.")
 
         # Checking that exposure and outcome are valid nodes
         nodes = list(network.nodes)
         if self.exposure not in nodes:
-            raise ValueError(str(self.exposure)+" is not a node in the DAG")
+            raise DAGError(str(self.exposure)+" is not a node in the DAG")
         if self.outcome not in nodes:
-            raise ValueError(str(self.outcome)+" is not a node in the DAG")
+            raise DAGError(str(self.outcome)+" is not a node in the DAG")
 
         self.dag = network.copy()
 
@@ -268,5 +269,12 @@ class DirectedAcyclicGraph:
                 alternative_adjustment_sets[v] = valid_sets
 
         # print(alternative_adjustment_sets)
-        print(len(alternative_adjustment_sets))
-        print("{" + "\n".join("{!r}: {!r},".format(k, v) for k, v in alternative_adjustment_sets.items()) + "}")
+        self.arrow_misdirections = alternative_adjustment_sets
+
+
+class DAGError(Exception):
+    """Exception raised for errors in Directed Acyclic Graphs not being directed or acyclic
+    """
+
+    def __init__(self, message):
+        super().__init__(message)
