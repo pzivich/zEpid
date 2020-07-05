@@ -33,6 +33,8 @@ class DirectedAcyclicGraph:
         Determining adjustment sets
 
         >>> dag.calculate_adjustment_sets()
+        >>> dag.adjustment_sets
+        >>> dag.minimal_adjustment_sets
 
         Plot diagram
 
