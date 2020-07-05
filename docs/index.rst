@@ -46,6 +46,7 @@ Contents:
 .. toctree::
   :maxdepth: 3
 
+  Causal Graphs
   Time-Fixed Exposure
   Time-Varying Exposure
   Generalizability

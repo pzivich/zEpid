@@ -2,6 +2,17 @@ Causal
 ======
 Documentation for each of the causal inference methods implemented in zEpid
 
+Causal Diagrams
+---------------------------
+
+.. currentmodule:: zepid.causal.causalgraphs.dag
+
+.. autosummary::
+   :toctree: generated/
+
+   DirectedAcyclicGraph
+
+
 Inverse Probability Weights
 ---------------------------
 

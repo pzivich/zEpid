@@ -47,7 +47,7 @@ autosummary_generate = True
 # General information about the project.
 project = "zEpid"
 copyright = "2018, Paul Zivich"
-version = "0.5.1"
+version = "0.8.2"
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"

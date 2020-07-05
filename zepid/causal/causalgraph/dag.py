@@ -149,6 +149,9 @@ class DirectedAcyclicGraph:
         algorithm where we assess each possible combination that exists within the data
 
         # TODO in future should allow for adjustment sets to determine causal, censor, missing sets. default to all
+
+        Adjustment sets are added as `DirectedAcyclicGraph.adjustment_sets` and
+        `DirectedAcyclicGraph.minimal_adjustment_sets`
         """
         # Extracting list of all sets to check
         sets_to_check = self._define_all_adjustment_sets_(dag=self.dag)
