@@ -15,7 +15,7 @@ class DirectedAcyclicGraph:
         outcome : str
             Outcome of interest in the causal diagram
 
-        # TODO add mediator implementation in the future...
+        # TODO add other implementations in the future... have as self.mediator, self.censor, self.missing
 
         References
         ----------
@@ -65,7 +65,19 @@ class DirectedAcyclicGraph:
 
         self.dag = dag
 
-    # TODO add option to directly input full graph directly from networkx
+    def add_from_networkx(self, network):
+        # Checking that it is a directed acyclic graph
+        if not nx.is_directed_acyclic_graph(network):
+            raise ValueError("Cyclic graph detected. Invalid networkx input.")
+
+        # Checking that exposure and outcome are valid nodes
+        nodes = list(network.nodes)
+        if self.exposure not in nodes:
+            raise ValueError(str(self.exposure)+" is not a node in the DAG")
+        if self.outcome not in nodes:
+            raise ValueError(str(self.outcome)+" is not a node in the DAG")
+
+        self.dag = network.copy()
 
     def draw_dag(self, positions=None, invert=False, fig_size=(6, 5), node_size=1000):
         """Draws the current input causal DAG
@@ -106,6 +118,8 @@ class DirectedAcyclicGraph:
 
         All possible adjustment sets are enumerated and then assessed. We can briefly consider this as a backtracking
         algorithm where we assess each possible combination that exists within the data
+
+        # TODO in future should allow for adjustment sets to determine causal, censor, missing sets. default to all
         """
         # Extracting list of all sets to check
         sets_to_check = self._define_all_adjustment_sets_(dag=self.dag)
@@ -119,10 +133,11 @@ class DirectedAcyclicGraph:
         self.minimal_adjustment_sets = [x for x in valid_sets if len(x) == len(min(valid_sets, key=len))]
 
     def _define_all_adjustment_sets_(self, dag):
-        """Function to determine all possible adjustment set combinations to explore
+        """Background function to determine all possible adjustment set combinations to explore. Used to explore every
+        possible combinations of adjustment sets to assess whether they are valid for d-separation.
         """
         # List of all nodes valid for adjustment
-        all_nodes = list(dag.nodes())
+        all_nodes = list(dag.nodes)
         all_nodes.remove(self.exposure)
         all_nodes.remove(self.outcome)
         list_of_sets = []
@@ -132,12 +147,12 @@ class DirectedAcyclicGraph:
 
     def _check_valid_adjustment_set_(self, graph, adjustment_set):
         """Checks the adjustment set as valid using the following 6 steps
-        Step 1) check that no variables
-        Step 2)
-        Step 3)
-        Step 4)
-        Step 5)
-        Step 6)
+        Step 1) check no descendants of X are included in adjustment set
+        Step 2) delete variables that meet certain definitions
+        Step 3) delete all arrows that originate from exposure
+        Step 4) connect all source nodes (to assess for collider stratification)
+        Step 5) convert to undirected graph
+        Step 6) check whether a path exists between exposure & outcome
         """
         dag = graph.copy()
 
@@ -151,10 +166,8 @@ class DirectedAcyclicGraph:
         if desc_x & set(adjustment_set):
             return False
 
-        # Step 2) Delete all variables that:
-        #   (a) non-ancestors of X
-        #   (b) non-ancestors of Y
-        #   (c) non-ancestors of adjustment set
+        # Step 2) Delete all variables that: (a) non-ancestors of X, (b) non-ancestors of Y, (c) non-ancestors
+        #         of adjustment set
         set_check = set(adjustment_set).union([self.exposure, self.outcome])
         set_remove = set(dag.nodes)
         for n in set_check:
