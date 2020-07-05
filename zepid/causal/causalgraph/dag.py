@@ -17,6 +17,32 @@ class DirectedAcyclicGraph:
 
         # TODO add other implementations in the future... have as self.mediator, self.censor, self.missing
 
+        Examples
+        --------
+        Setting up environment
+
+        >>> from zepid.causal.causalgraph import DirectedAcyclicGraph
+
+        Creating directed acyclic graph
+
+        >>> dag = DirectedAcyclicGraph(exposure="X", outcome="Y")
+        >>> dag.add_arrow(source="X", endpoint="Y")
+        >>> dag.add_arrow(source="V", endpoint="Y")
+        >>> dag.add_arrows(pairs=(("W", "X"), ("W", "Y")))
+
+        Determining adjustment sets
+
+        >>> dag.calculate_adjustment_sets()
+
+        Plot diagram
+
+        >>> dag.draw_dag()
+        >>> plt.show()
+
+        Assess arrow misdirections that result in the chosen adjustment set being invalid
+
+        >>> dag.assess_misdirections(chosen_adjustment_set=set("W"))
+
         References
         ----------
         Shrier I, & Platt RW. (2008). Reducing bias through directed acyclic graphs.
