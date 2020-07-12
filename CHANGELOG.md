@@ -1,5 +1,10 @@
 ## Change logs
 
+### v0.9.0
+The 0.9.x series drops support of Python 3.5.x. Only Python 3.6+ are now supported. Support has also been added for
+Python 3.8
+
+
 ### v0.8.2
 `IPSW` and `AIPSW` now natively support adjusting for confounding. Both now have the `treatment_model()` function, 
 which calculates the inverse probability of treatment weights. How weights are handled in `AIPSW` are updated. They 
