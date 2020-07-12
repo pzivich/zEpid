@@ -29,6 +29,8 @@ Sensitivity Analyses:
 
 See http://zepid.readthedocs.io/en/latest/ for a full guide through all the package features
 """
+from .version import __version__
+
 from .base import (RiskRatio, RiskDifference, NNT, OddsRatio, IncidenceRateRatio, IncidenceRateDifference, Sensitivity,
                    Specificity, Diagnostics, interaction_contrast, interaction_contrast_ratio, spline, table1_generator,
                    create_spline_transform)
@@ -37,11 +39,17 @@ from .datasets import (load_sample_data, load_ewing_sarcoma_data, load_gvhd_data
                        load_monotone_missing_data, load_generalize_data)
 
 import zepid.calc
+
 import zepid.graphics
+
+import zepid.sensitivity_analysis
+
 import zepid.causal.gformula
 import zepid.causal.ipw
 import zepid.causal.doublyrobust
 import zepid.causal.generalize
-import zepid.sensitivity_analysis
-
-from .version import __version__
+dags_available = True
+try:
+    import zepid.causal.causalgraph
+except ImportError:
+    dags_available = False
