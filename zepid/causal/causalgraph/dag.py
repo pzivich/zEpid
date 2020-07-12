@@ -255,7 +255,7 @@ class DirectedAcyclicGraph:
                 g.remove_edges_from(s)  # Remove edge
                 # Reversing all edges in that set
                 for pair in s:
-                    g.add_edge(pair[1], pair[0])# Add reversed edge
+                    g.add_edge(pair[1], pair[0])  # Add reversed edge
                 # Check if DAG
                 if nx.is_directed_acyclic_graph(g):
                     valid_graphs.append(g)
