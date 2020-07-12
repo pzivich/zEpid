@@ -601,6 +601,8 @@ class AIPSW:
         self.exposure = exposure
         self.outcome = outcome
         self.selection = selection
+        if weights is not None:
+            raise ValueError("AIPSW is not stable with `weights`. This functionality is currently unavailable")
         self.weight = weights
 
         self.ipsw = None
@@ -732,11 +734,11 @@ class AIPSW:
             print(self._outcome_model.summary())
 
         dfa = self.df.copy()
-        dfn = self.df.copy()
         dfa[self.exposure] = 1
-        dfn[self.exposure] = 0
-
         self._YA1 = self._outcome_model.predict(dfa)
+
+        dfn = self.df.copy()
+        dfn[self.exposure] = 0
         self._YA0 = self._outcome_model.predict(dfn)
 
     def fit(self):
@@ -748,9 +750,9 @@ class AIPSW:
         the exposure-outcome relationship based on the data and IPSW model
         """
         if not self._denominator_model:
-            raise ValueError('The weight_model() function must be specified before effect measure estimation')
+            raise ValueError('sampling_model() function must be specified before effect measure estimation')
         if not self._outcome_model:
-            raise ValueError('The outcome_model() function must be specified before effect measure estimation')
+            raise ValueError('outcome_model() function must be specified before effect measure estimation')
 
         if self.weight is not None:
             if self.iptw is None:
