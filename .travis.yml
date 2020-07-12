@@ -8,12 +8,9 @@ python:
 notifications:
   email: false
 
-before_install:
-  - "pip install -U pip"
-  - "python setup.py install"
-
 install:
   - pip install -r travis-requirements.txt
+  - python setup.py install
 
 script:
   - pytest
