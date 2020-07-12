@@ -2,7 +2,7 @@ numpy<=1.18.5
 pandas>=0.18
 statsmodels>=0.7.0
 matplotlib>=2.1.0
-scipy
+scipy<=1.0.1
 tabulate
 patsy
 sklearn
