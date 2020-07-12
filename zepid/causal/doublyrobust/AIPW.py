@@ -7,7 +7,7 @@ import statsmodels.formula.api as smf
 from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
-from zepid.causal.utils import (propensity_score, plot_kde, plot_love,
+from zepid.causal.utils import (propensity_score, plot_kde, plot_love, iptw_calculator,
                                 standardized_mean_differences, positivity, _bounding_,
                                 plot_kde_accuracy, outcome_accuracy)
 
@@ -181,12 +181,13 @@ class AIPTW:
         """
         self.__mweight = model
         self._exp_model = self.exposure + ' ~ ' + model
-        fitmodel = propensity_score(self.df, self._exp_model, weights=self._weight_, print_results=print_results)
-        ps = fitmodel.predict(self.df)
-        self.df['_g1_'] = ps
-        self.df['_g0_'] = 1 - ps
+        d, n, iptw = iptw_calculator(df=self.df, treatment=self.exposure, model_denom=model, model_numer='1',
+                                     weight=self._weight_, stabilized=False, standardize='population',
+                                     bound=None, print_results=print_results)
 
-        # If bounds are requested
+        self.df['_g1_'] = d
+        self.df['_g0_'] = 1 - d
+        # Applying bounds AFTER extracting g1 and g0
         if bound:
             self.df['_g1_'] = _bounding_(self.df['_g1_'], bounds=bound)
             self.df['_g0_'] = _bounding_(self.df['_g0_'], bounds=bound)
@@ -276,7 +277,7 @@ class AIPTW:
             Whether to print the fitted model results. Default is True (prints results)
         """
         if self.exposure not in model:
-            warnings.warn("It looks like the exposure variable is missing from the outcome model", UserWarning)
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
 
         self._out_model = self.outcome + ' ~ ' + model
 

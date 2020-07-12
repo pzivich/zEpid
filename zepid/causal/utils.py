@@ -83,7 +83,7 @@ def exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
 
 def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, print_results=True):
     """Function to fit machine learning predictions. Used by TMLE to generate predicted probabilities of outcome
-    (i.e. Pr(Y=1 | A=1, L) and Pr(Y=1 | A=0, L)). Future update will include continuous Y functionality (i.e. E(Y))
+    (i.e. Pr(Y=1 | A=1, L) and Pr(Y=1 | A=0, L)).
     """
     # Trying to fit Machine Learning model
     try:
@@ -117,6 +117,68 @@ def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, p
             qa1 = fm.predict(all_a)
             qa0 = fm.predict(none_a)
             return qa1, qa0
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
+def stochastic_outcome_machine_learner(xdata, ydata, ml_model, continuous, print_results=True):
+    """Function to fit machine learning predictions. Used by StochasticTMLE to generate predicted probabilities of
+    outcome (i.e. Pr(Y=1 | A, L)
+    """
+    # Trying to fit Machine Learning model
+    try:
+        fm = ml_model.fit(X=xdata, y=ydata)
+    except TypeError:
+        raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
+                        "covers both sklearn and supylearner. If there is a predictive model you would "
+                        "like to use, please open an issue at https://github.com/pzivich/zepid and I "
+                        "can work on adding support")
+    if print_results and hasattr(fm, 'summarize'):  # Nice summarize option from SuPyLearner
+        fm.summarize()
+
+    # Generating predictions
+    if continuous:
+        if hasattr(fm, 'predict'):
+            qa = fm.predict(xdata)
+            return qa, fm
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+    else:
+        if hasattr(fm, 'predict_proba'):
+            qa = fm.predict_proba(xdata)
+            if qa.ndim == 1:  # Allows for PyGAM
+                return qa, fm
+            else:
+                return qa[:, 1], fm
+        elif hasattr(fm, 'predict'):
+            qa = fm.predict(xdata)
+            return qa, fm
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+
+
+def stochastic_outcome_predict(xdata, fit_ml_model, continuous):
+    """Function to generate predictions machine learning predictions. Used by StochasticTMLE to generate predicted
+    probabilities of outcome (i.e. Pr(Y=1 | A=a*, L) in the Monte-Carlo integration procedure
+    """
+    # Generating predictions
+    if continuous:
+        if hasattr(fit_ml_model, 'predict'):
+            qa_star = fit_ml_model.predict(xdata)
+            return qa_star
+        else:
+            raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
+    else:
+        if hasattr(fit_ml_model, 'predict_proba'):
+            qa_star = fit_ml_model.predict_proba(xdata)
+            if qa_star.ndim == 1:  # Allows for PyGAM
+                return qa_star
+            else:
+                return qa_star[:, 1]
+        elif hasattr(fit_ml_model, 'predict'):
+            qa_star = fit_ml_model.predict(xdata)
+            return qa_star
         else:
             raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
@@ -185,6 +247,58 @@ def _bounding_(v, bounds):
         v = np.where(v < bounds[0], bounds[0], v)
         v = np.where(v > bounds[1], bounds[1], v)
     return v
+
+
+def iptw_calculator(df, treatment, model_denom, model_numer, weight, stabilized, standardize, bound, print_results):
+    """Background function to calculate inverse probability of treatment weights. Used by `IPTW`, `AIPTW`, `IPSW`,
+    `AIPSW`
+    """
+    denominator_model = propensity_score(df, treatment + ' ~ ' + model_denom,
+                                         weights=weight, print_results=print_results)
+    d = denominator_model.predict(df)
+
+    # Calculating numerator probabilities (if stabilized)
+    if stabilized is True:
+        numerator_model = propensity_score(df, treatment + ' ~ ' + model_numer,
+                                           weights=weight, print_results=print_results)
+        n = numerator_model.predict(df)
+    else:
+        if model_numer != '1':
+            raise ValueError('Argument for model_numerator is only used for stabilized=True')
+        n = 1
+
+    # Bounding predicted probabilities if requested
+    if bound:
+        d = _bounding_(d, bounds=bound)
+        n = _bounding_(n, bounds=bound)
+
+    # Calculating weights
+    if stabilized:  # Stabilized weights
+        if standardize == 'population':
+            iptw = np.where(df[treatment] == 1, (n / d), ((1 - n) / (1 - d)))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            iptw = np.where(df[treatment] == 1, 1, (d / (1 - d)) * ((1 - n) / n))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        else:
+            iptw = np.where(df[treatment] == 1, (((1 - d) / d) * (n / (1 - n))), 1)
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+
+    else:  # Unstabilized weights
+        if standardize == 'population':
+            iptw = np.where(df[treatment] == 1, 1 / d, 1 / (1 - d))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
+        elif standardize == 'exposed':
+            iptw = np.where(df[treatment] == 1, 1, (d / (1 - d)))
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+        # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
+        else:
+            iptw = np.where(df[treatment] == 1, ((1 - d) / d), 1)
+            iptw = np.where(df[treatment].isna(), np.nan, iptw)
+    return d, n, iptw
 
 
 def plot_kde(df, treatment, probability,
@@ -567,3 +681,15 @@ def plot_kde_accuracy(values, bw_method='scott', fill=True, color='b'):
     ax.set_xlabel(r'$Y_{pred} - Y$')
     ax.set_ylabel('Density')
     return ax
+
+
+def stochastic_check_conditional(df, conditional):
+    """Check that conditionals are exclusive for the stochastic fit process. Generates a warning if not true
+    """
+    a = np.zeros(df.shape[0])
+    for c in conditional:
+        a = a + np.where(eval(c), 1, 0)
+
+    if np.any(a > 1):
+        warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
+                      "the conditions that designate each category should be exclusive", UserWarning)

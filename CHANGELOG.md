@@ -1,5 +1,21 @@
 ## Change logs
 
+### v0.8.2
+`IPSW` and `AIPSW` now natively support adjusting for confounding. Both now have the `treatment_model()` function, 
+which calculates the inverse probability of treatment weights. How weights are handled in `AIPSW` are updated. They 
+are used in both the weight and the outcome models.
+
+`IPSW` and `AIPSW` both add censoring...
+
+`TimeFixedGFormula` has added support for the average treatment effect in the treated (ATT), and average treatment 
+effect in the untreated (ATU). 
+
+Improved warnings when the treatment/exposure variable is not included in models that it should be in (such as the 
+outcome model or in structural nested models).
+
+Background refactoring for IPTW. `utils.py` now contains a function to calculate inverse probability of treatment 
+weights. The function `iptw_calculator` is used by `IPTW`, `AIPTW`, `IPSW`, and `AIPSW` to calculate the weights now
+
 ### v0.8.1
 Added support for `pygam`'s `LogisticGAM` for TMLE with custom models (Thanks darrenreger!)
 

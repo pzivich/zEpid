@@ -56,6 +56,13 @@ class TimeFixedGFormula:
         Column name for outcome variable
     outcome_type : str, optional
         Outcome variable type. Currently only 'binary', 'normal', and 'poisson variable types are supported
+    standardize : str, optional
+        Who the estimate corresponds to. Options are the entire population, the exposed, or the unexposed. See
+        Sato & Matsuyama Epidemiology (2003) for details on weighting to exposed/unexposed. Weighting to the
+        exposed or unexposed is also referred to as SMR weighting. Options for standardization are:
+        * 'population'    :   weight to entire population
+        * 'exposed'       :   weight to exposed individuals
+        * 'unexposed'     :   weight to unexposed individuals
     weights : str, optional
         Column name for weights. Default is None, which assumes every observations has the same weight (i.e. 1)
 
@@ -140,8 +147,16 @@ class TimeFixedGFormula:
     population disease burden: a step-by-step illustration of causal inference methods. American Journal of
     Epidemiology, 169(9), 1140-1147.
     """
-    def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', weights=None):
-        self.gf = df.copy()
+    def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', standardize='population',
+                 weights=None):
+        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
+            warnings.warn("There is missing data that is not the outcome in the data set. TimeFixedGFormula will drop "
+                          "all missing data that is not missing outcome data. TimeFixedGFormula will fit "
+                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
+                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
+            self.gf = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
+        else:
+            self.gf = df.copy().reset_index()
         self.exposure = exposure
         self.outcome = outcome
 
@@ -156,6 +171,12 @@ class TimeFixedGFormula:
         else:
             raise ValueError('Only binary or continuous exposures are currently supported. Please specify "binary", '
                              '"categorical", or "continuous".')
+
+        if standardize in ['population', 'exposed', 'unexposed']:
+            self.standardize = standardize
+        else:
+            raise ValueError('Please specify one of the currently supported standardizations: ' +
+                             'population, exposed, unexposed')
 
         self._weights = weights
         self._outcome_model = None
@@ -176,6 +197,10 @@ class TimeFixedGFormula:
         print_results : bool, optional
             Whether to print the logistic regression results to the terminal. Default is True
         """
+        if type(self.exposure) is not list:
+            if self.exposure not in model:
+                warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
+
         if self.outcome_type == 'binary':
             linkdist = sm.families.family.Binomial()
         elif self.outcome_type == 'normal':
@@ -199,7 +224,7 @@ class TimeFixedGFormula:
         if print_results:
             print(self._outcome_model.summary())
 
-    def fit(self, treatment):
+    def fit(self, treatment, predict_missing=True):
         """Fit the parametric g-formula as specified. Binary and multivariate treatments are available. This
         implementation has three options for the binary treatment courses. For multivariate treatments, the user must
         specify custom treatment plans.
@@ -215,6 +240,12 @@ class TimeFixedGFormula:
               * custom  -create a custom treatment. When specifying this, the dataframe must be referred to as 'g' The
                 following is an example that selects those whose age is 25 or older and are females;
                 ``treatment="((g['age0']>=25) & (g['male']==0))``
+        predict_missing : bool, optional
+            Whether missing outcome values should be predicted via the model fit to the data with observed outcomes.
+            Default is set to True, which assumes that outcome data is missing completely at random conditional on
+            the variables included in the outcome model. Note this is the less restrictive assumption regarding missing
+            outcome data. If set to False, missing outcome data is assumed to be missing completely at random
+            (also referred to as non-informative censoring)
 
         Returns
         -------
@@ -263,13 +294,31 @@ class TimeFixedGFormula:
         # Getting predictions
         g[self.outcome] = np.nan
         g[self.outcome] = self._outcome_model.predict(g)
-        if self._weights is None:  # unweighted marginal estimate
-            self.marginal_outcome = np.mean(g[self.outcome])
-        else:  # weighted marginal estimate
-            self.marginal_outcome = np.average(g[self.outcome], weights=self.gf[self._weights])
+        if not predict_missing:
+            g[self.outcome] = np.where(self.gf[self.outcome].isna(), np.nan, g[self.outcome])
+
         self.predicted_df = g
 
-    def fit_stochastic(self, p, conditional=None, samples=100, seed=None):
+        if self._weights is None:  # unweighted marginal estimate
+            g = g.dropna()
+            if self.standardize == 'population':
+                self.marginal_outcome = np.mean(g[self.outcome])
+            elif self.standardize == 'exposed':
+                self.marginal_outcome = np.mean(g.loc[self.gf[self.exposure] == 1, self.outcome])
+            else:
+                self.marginal_outcome = np.mean(g.loc[self.gf[self.exposure] == 0, self.outcome])
+        else:  # weighted marginal estimate
+            g = g.dropna()
+            if self.standardize == 'population':
+                self.marginal_outcome = np.average(g[self.outcome], weights=g[self._weights])
+            elif self.standardize == 'exposed':
+                self.marginal_outcome = np.average(g.loc[self.gf[self.exposure] == 1, self.outcome],
+                                                   weights=g[self._weights])
+            else:
+                self.marginal_outcome = np.average(g.loc[self.gf[self.exposure] == 0, self.outcome],
+                                                   weights=g[self._weights])
+
+    def fit_stochastic(self, p, conditional=None, samples=100, predict_missing=True, seed=None):
         """Fits the g-formula for a stochastic intervention. As currently implemented, `p` percent of the population
         is randomly treated. This process is repeated `n` times and the mean is the marginal stochastic outcome.
 
@@ -282,6 +331,12 @@ class TimeFixedGFormula:
             of the list of probabilities in 'p'
         samples: int, optional
             Number of resamples to calculate the marginal outcome. Default is 100
+        predict_missing : bool, optional
+            Whether missing outcome values should be predicted via the model fit to the data with observed outcomes.
+            Default is set to True, which assumes that outcome data is missing completely at random conditional on
+            the variables included in the outcome model. Note this is the less restrictive assumption regarding missing
+            outcome data. If set to False, missing outcome data is assumed to be missing completely at random
+            (also referred to as non-informative censoring)
         seed: int, optional
             Seed for the random process selection
 
@@ -337,10 +392,26 @@ class TimeFixedGFormula:
             # Getting predictions
             g[self.outcome] = np.nan
             g[self.outcome] = self._outcome_model.predict(g)
+            if not predict_missing:
+                g[self.outcome] = np.where(self.gf[self.outcome].isna(), np.nan, g[self.outcome])
+                g = g.dropna()
+
             if self._weights is None:  # unweighted marginal estimate
-                marginals.append(np.mean(g[self.outcome]))
+                if self.standardize == 'population':
+                    marginals.append(np.mean(g[self.outcome]))
+                elif self.standardize == 'exposed':
+                    marginals.append(np.mean(g.loc[self.gf[self.exposure] == 1, self.outcome]))
+                else:
+                    marginals.append(np.mean(g.loc[self.gf[self.exposure] == 0, self.outcome]))
             else:  # weighted marginal estimate
-                marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
+                if self.standardize == 'population':
+                    marginals.append(np.average(g[self.outcome], weights=g[self._weights]))
+                elif self.standardize == 'exposed':
+                    marginals.append(np.average(g.loc[self.gf[self.exposure] == 1, self.outcome],
+                                                weights=g[self._weights]))
+                else:
+                    marginals.append(np.average(g.loc[self.gf[self.exposure] == 0, self.outcome],
+                                                weights=g[self._weights]))
 
         self.marginal_outcome = np.mean(marginals)
 
@@ -517,6 +588,9 @@ class SurvivalGFormula:
         print_results : bool, optional
             Whether to print the logistic regression results to the terminal. Default is True
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
+
         # Modeling the outcome
         linkdist = sm.families.family.Binomial()
         if self._weights is None:

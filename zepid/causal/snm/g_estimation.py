@@ -225,6 +225,9 @@ class GEstimationSNM:
             interaction terms as needed. Interactions should be indicated via patsy magic.
             For example, 'A + A:V + A:C'
         """
+        if self.exposure not in model:
+            warnings.warn("It looks like '" + self.exposure + "' is not included in the structural nested model.")
+
         self._snm_ = model
 
     def missing_model(self, model_denominator, model_numerator=None, stabilized=True, bound=False, print_results=True):
@@ -355,7 +358,6 @@ class GEstimationSNM:
             y_vals = patsy.dmatrix(self._snm_ + ' - 1', yf, return_type='dataframe')
 
             # Solving for the array of Psi values
-            print(df.columns)
             self.psi = self._closed_form_solver_(treat=self.exposure,
                                                  model=self.exposure + ' ~ ' + self._treatment_model,
                                                  df=df,

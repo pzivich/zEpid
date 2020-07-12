@@ -253,10 +253,13 @@ class TestStochasticIPTW:
         with pytest.raises(ValueError):
             sipw.fit(p=0.8)
 
-    def test_error_prob_high(self, sdata):
+    def test_error_p_oob(self, sdata):
         sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
         with pytest.raises(ValueError):
             sipw.fit(p=1.8)
+
+        with pytest.raises(ValueError):
+            sipw.fit(p=-0.8)
 
     def test_error_summary(self, sdata):
         sipw = StochasticIPTW(sdata.dropna(), treatment='art', outcome='dead')
@@ -269,6 +272,9 @@ class TestStochasticIPTW:
                              print_results=False)
         with pytest.raises(ValueError):
             sipw.fit(p=[0.8, 0.1, 0.1], conditional=["df['male']==1", "df['male']==0"])
+
+        with pytest.raises(ValueError):
+            sipw.fit(p=[0.8], conditional=["df['male']==1", "df['male']==0"])
 
     def test_uncond_treatment(self, sdata):
         r_pred = 0.1165162207

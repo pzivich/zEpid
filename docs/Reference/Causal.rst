@@ -69,6 +69,7 @@ Targeted Maximum Likelihood Estimator
    :toctree: generated/
 
    TMLE
+   StochasticTMLE
 
 G-estimation of SNM
 -------------------

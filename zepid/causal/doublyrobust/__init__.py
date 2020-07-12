@@ -1,2 +1,2 @@
 from .AIPW import AIPTW
-from .TMLE import TMLE
+from .TMLE import TMLE, StochasticTMLE

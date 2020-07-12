@@ -10,7 +10,8 @@ zepid.causal.generalize.estimators.AIPSW
 
    .. autosummary::
 
-      ~AIPSW.weight_model
+      ~AIPSW.sampling_model
+      ~AIPSW.treatment_model
       ~AIPSW.outcome_model
       ~AIPSW.fit
       ~AIPSW.summary

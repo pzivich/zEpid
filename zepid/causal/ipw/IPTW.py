@@ -7,8 +7,8 @@ import statsmodels.formula.api as smf
 from statsmodels.tools.sm_exceptions import DomainWarning
 import matplotlib.pyplot as plt
 
-from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love,
-                                standardized_mean_differences, positivity, _bounding_)
+from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love, stochastic_check_conditional,
+                                standardized_mean_differences, positivity, _bounding_, iptw_calculator)
 
 
 class IPTW:
@@ -228,32 +228,15 @@ class IPTW:
         """
         # Calculating denominator probabilities
         self.__mdenom = model_denominator
-        denominator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_denominator,
-                                             weights=self._weight_,
-                                             print_results=print_results)
-        d = denominator_model.predict(self.df)
-        self.df['__denom__'] = d
-
-        # Calculating numerator probabilities (if stabilized)
-        if stabilized is True:
-            numerator_model = propensity_score(self.df, self.treatment + ' ~ ' + model_numerator,
-                                               weights=self._weight_,
-                                               print_results=print_results)
-            n = numerator_model.predict(self.df)
-        else:
-            if model_numerator != '1':
-                raise ValueError('Argument for model_numerator is only used for stabilized=True')
-            n = 1
-        self.df['__numer__'] = n
-
-        # Bounding predicted probabilities if requested
-        if bound:
-            self.df['__denom__'] = _bounding_(self.df['__denom__'], bounds=bound)
-            self.df['__numer__'] = _bounding_(self.df['__numer__'], bounds=bound)
-
-        # Calculating weights
-        self.iptw = self._weight_calculator(self.df, denominator='__denom__',
-                                            numerator='__numer__', stabilized=stabilized)
+        self.df['__denom__'], self.df['__numer__'], self.iptw = iptw_calculator(df=self.df,
+                                                                                treatment=self.treatment,
+                                                                                model_denom=model_denominator,
+                                                                                model_numer=model_numerator,
+                                                                                weight=self._weight_,
+                                                                                stabilized=stabilized,
+                                                                                standardize=self.standardize,
+                                                                                bound=bound,
+                                                                                print_results=print_results)
 
     def missing_model(self, model_denominator, model_numerator=None, stabilized=True, bound=False, print_results=True):
         """Estimation of Pr(M=0|A=a,L), which is the missing data mechanism for the outcome. The corresponding
@@ -357,17 +340,17 @@ class IPTW:
         ind = sm.cov_struct.Independence()
         full_msm = self.outcome + ' ~ ' + self.ms_model
 
-        df = self.df
+        df = self.df.copy()
         if self.ipmw is None:
             if self._weight_ is None:
                 df['_ipfw_'] = self.iptw
             else:
-                df['_ipfw_'] = self.iptw * self._weight_
+                df['_ipfw_'] = self.iptw * self.df[self._weight_]
         else:
             if self._weight_ is None:
                 df['_ipfw_'] = self.iptw * self.ipmw
             else:
-                df['_ipfw_'] = self.iptw * self.ipmw * self._weight_
+                df['_ipfw_'] = self.iptw * self.ipmw * self.df[self._weight_]
         df = df.dropna()
 
         if self._continuous_outcome:
@@ -658,46 +641,6 @@ class IPTW:
                        shape_unweighted=shape_unweighted, shape_weighted=shape_weighted)
         return ax
 
-    def _weight_calculator(self, df, denominator, numerator, stabilized):
-        """Calculates the IPTW based on the predicted probabilities and the specified group to standardize to in the
-        background for the fit() function. Not intended to be used by users
-
-        df is the dataframe, denominator is the string indicating the column of Pr, numerator is the string indicating
-        the column of Pr
-        """
-        if stabilized:  # Stabilized weights
-            if self.standardize == 'population':
-                df['w'] = np.where(df[self.treatment] == 1, (df[numerator] / df[denominator]),
-                                   ((1 - df[numerator]) / (1 - df[denominator])))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.treatment] == 1, 1,
-                                   ((df[denominator] / (1 - df[denominator])) * ((1 - df[numerator]) /
-                                                                                 df[numerator])))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            else:
-                df['w'] = np.where(df[self.treatment] == 1,
-                                   (((1 - df[denominator]) / df[denominator]) * (df[numerator] /
-                                                                                 (1 - df[numerator]))),
-                                   1)
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-
-        else:  # Unstabilized weights
-            if self.standardize == 'population':
-                df['w'] = np.where(df[self.treatment] == 1, 1 / df[denominator], 1 / (1 - df[denominator]))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to exposed (compares all exposed if they were exposed versus unexposed)
-            elif self.standardize == 'exposed':
-                df['w'] = np.where(df[self.treatment] == 1, 1, (df[denominator] / (1 - df[denominator])))
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-            # Stabilizing to unexposed (compares all unexposed if they were exposed versus unexposed)
-            else:
-                df['w'] = np.where(df[self.treatment] == 1, ((1 - df[denominator]) / df[denominator]), 1)
-                df['w'] = np.where(df[self.treatment].isna(), np.nan, df['w'])
-        return df['w']
-
 
 class StochasticIPTW:
     r"""Calculates the IPTW estimate for stochastic treatment plans. `StochasticIPTW` will returns the estimated
@@ -830,8 +773,8 @@ class StochasticIPTW:
 
         if self._pdenom_ is None:
             raise ValueError("The treatment_model() function must be specified before the fit() function")
-        if np.any(p > 1):
-            raise ValueError("All specified treatment probabilities must be less than 1")
+        if np.any(p > 1) or np.any(p < 0):
+            raise ValueError("All specified treatment probabilities must be between 0 and 1")
         if conditional is not None:
             if len(p) != len(conditional):
                 raise ValueError("'p' and 'conditional' must be the same length")
@@ -841,7 +784,7 @@ class StochasticIPTW:
         if conditional is None:
             df['_numer_'] = np.where(df[self.treatment] == 1, p, 1 - p)
         else:
-            self._check_conditional(conditional=conditional)
+            stochastic_check_conditional(df=df, conditional=conditional)
             df['_numer_'] = np.nan
             for c, prop in zip(conditional, p):
                 df['_numer_'] = np.where(eval(c),
@@ -868,7 +811,7 @@ class StochasticIPTW:
             raise ValueError('The fit() function must be specified before summary()')
 
         print('======================================================================')
-        print('                       Stochastic IPTW')
+        print('                       Stochastic IPTW                                ')
         print('======================================================================')
         fmt = 'Treatment:        {:<15} No. Observations:     {:<20}'
         print(fmt.format(self.treatment, self.df.shape[0]))
@@ -877,15 +820,3 @@ class StochasticIPTW:
         print('======================================================================')
         print('Risk:  ', round(self.marginal_outcome, decimal))
         print('======================================================================')
-
-    def _check_conditional(self, conditional):
-        """Check that conditionals are exclusive for the stochastic fit process. Generates a warning if not true
-        """
-        df = self.df.copy()
-        a = np.array([0] * df.shape[0])
-        for c in conditional:
-            a = np.add(a, np.where(eval(c), 1, 0))
-
-        if np.sum(np.where(a > 1, 1, 0)):
-            warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
-                          "the conditions that designate each category should be exclusive", UserWarning)

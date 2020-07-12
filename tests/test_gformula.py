@@ -268,6 +268,25 @@ class TestTimeFixedGFormula:
         with pytest.warns(UserWarning):
             g.fit_stochastic(p=[1.0, 1.0], conditional=["(g['L']==1) | (g['L']==0)", "g['L']==0"])
 
+    def test_exposed_standardized1(self, data):
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y', standardize='exposed')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+        g.fit(treatment='all')
+        rm = g.marginal_outcome
+        g.fit(treatment='none')
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm - rs, 0.16, rtol=1e-5)
+        npt.assert_allclose(rm / rs, 1.387097, rtol=1e-5)
+
+        g = TimeFixedGFormula(data, exposure='A', outcome='Y', standardize='unexposed')
+        g.outcome_model(model='A + L + A:L', print_results=False)
+        g.fit(treatment='all')
+        rm = g.marginal_outcome
+        g.fit(treatment='none')
+        rs = g.marginal_outcome
+        npt.assert_allclose(rm - rs, 0.16, rtol=1e-5)
+        npt.assert_allclose(rm / rs, 1.384615, rtol=1e-5)
+
 
 class TestSurvivalGFormula:
 
