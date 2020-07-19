@@ -189,3 +189,30 @@ class TestDirectedAcyclicGraph:
 
         for i in dag.minimal_adjustment_sets:
             assert set(i) in [{'U1', 'B'}, {'B', 'U2'}]
+
+    def test_no_mediator(self):
+        correct_set = [{'W', 'V'}]
+
+        dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
+        dag.add_arrows((("X", "Y"),
+                        ("W", "X"),
+                        ("W", "Y"),
+                        ("V", "X"),
+                        ("V", "Y"),
+                        ("X", "M"),
+                        ("M", "Y"),
+                        ))
+        dag.calculate_adjustment_sets()
+
+        # Making sure number of adjustment sets are equal to correct sets
+        assert len(dag.adjustment_sets) == len(correct_set)
+
+        # Checking no 'double' sets in adjustment sets
+        assert len(dag.adjustment_sets) == len(set(dag.adjustment_sets))
+
+        # Checking that all adjustment sets are in the correct
+        for i in dag.adjustment_sets:
+            assert set(i) in list(correct_set)
+
+        for i in dag.minimal_adjustment_sets:
+            assert set(i) in correct_set
