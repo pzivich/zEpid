@@ -9,7 +9,7 @@ from scipy.stats import norm
 
 from zepid.causal.utils import (propensity_score, plot_kde, plot_love, iptw_calculator,
                                 standardized_mean_differences, positivity, _bounding_,
-                                plot_kde_accuracy, outcome_accuracy)
+                                plot_kde_accuracy, outcome_accuracy, aipw_calculator)
 
 
 class AIPTW:
@@ -338,55 +338,49 @@ class AIPTW:
                           "function", UserWarning)
 
         # Doubly robust estimator under all treated
-        a_obs = self.df[self.exposure]
-        y_obs = self.df[self.outcome]
-        py_a1 = self.df['_pY1_']
-        py_a0 = self.df['_pY0_']
+        a_obs = np.asarray(self.df[self.exposure])
+        y_obs = np.asarray(self.df[self.outcome])
+        py_a1 = np.asarray(self.df['_pY1_'])
+        py_a0 = np.asarray(self.df['_pY0_'])
 
         if self._fit_missing_:
-            ps_g1 = self.df['_g1_'] * self.df['_ipmw_a1_']
-            ps_g0 = self.df['_g0_'] * self.df['_ipmw_a0_']
+            ps_g1 = np.asarray(self.df['_g1_'] * self.df['_ipmw_a1_'])
+            ps_g0 = np.asarray(self.df['_g0_'] * self.df['_ipmw_a0_'])
         else:
-            ps_g1 = self.df['_g1_']
-            ps_g0 = self.df['_g0_']
+            ps_g1 = np.asarray(self.df['_g1_'])
+            ps_g0 = np.asarray(self.df['_g0_'])
 
-        # Doubly robust estimator under all treated
-        dr_a1 = np.where(a_obs == 1,
-                         (y_obs / ps_g1) - ((py_a1 * ps_g0) / ps_g1),
-                         py_a1)
-
-        # Doubly robust estimator under all untreated
-        dr_a0 = np.where(a_obs == 1,
-                         py_a0,
-                         (y_obs / ps_g0 - ((py_a0 * ps_g1) / ps_g0)))
+        if self._weight_ is None:
+            w = None
+        else:
+            w = self.df[self._weight_]
+        diff_est, diff_var = aipw_calculator(y=y_obs, a=a_obs,
+                                             py_a=py_a1, py_n=py_a0,
+                                             pa1=ps_g1, pa0=ps_g0,
+                                             difference=True, weights=w,
+                                             splits=None)
 
         # Generating estimates for the risk difference and risk ratio
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
-        if self._weight_ is None:
-            if self._continuous_outcome:
-                self.average_treatment_effect = np.nanmean(dr_a1) - np.nanmean(dr_a0)
-                var_ic = np.nanvar((dr_a1 - dr_a0) - self.average_treatment_effect, ddof=1) / self.df.shape[0]
-                self.average_treatment_effect_se = np.sqrt(var_ic)
-                self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * np.sqrt(var_ic),
-                                                    self.average_treatment_effect + zalpha * np.sqrt(var_ic)]
+        if self._continuous_outcome:
+            self.average_treatment_effect = diff_est
+            self.average_treatment_effect_se = np.sqrt(diff_var)
+            self.average_treatment_effect_ci = [self.average_treatment_effect - zalpha * np.sqrt(diff_var),
+                                                self.average_treatment_effect + zalpha * np.sqrt(diff_var)]
 
-            else:
-                self.risk_difference = np.nanmean(dr_a1) - np.nanmean(dr_a0)
-                self.risk_ratio = np.nanmean(dr_a1) / np.nanmean(dr_a0)
-                var_ic = np.nanvar((dr_a1 - dr_a0) - self.risk_difference, ddof=1) / self.df.shape[0]
-                self.risk_difference_se = np.sqrt(var_ic)
-                self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(var_ic),
-                                           self.risk_difference + zalpha * np.sqrt(var_ic)]
         else:
-            dr_m1 = DescrStatsW(dr_a1, weights=self.df[self._weight_]).mean
-            dr_m0 = DescrStatsW(dr_a0, weights=self.df[self._weight_]).mean
+            self.risk_difference = diff_est
+            self.risk_difference_se = np.sqrt(diff_var)
+            self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(diff_var),
+                                       self.risk_difference + zalpha * np.sqrt(diff_var)]
 
-            if self._continuous_outcome:
-                self.average_treatment_effect = dr_m1 - dr_m0
-            else:
-                self.risk_difference = dr_m1 - dr_m0
-                self.risk_ratio = dr_m1 / dr_m0
+            ratio_est, ratio_var = aipw_calculator(y=y_obs, a=a_obs,
+                                                   py_a=py_a1, py_n=py_a0,
+                                                   pa1=ps_g1, pa0=ps_g0,
+                                                   difference=False, weights=w,
+                                                   splits=None)
+            self.risk_ratio = ratio_est
 
     def summary(self, decimal=3):
         """Prints a summary of the results for the doubly robust estimator. Confidence intervals are only available for

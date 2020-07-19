@@ -693,3 +693,40 @@ def stochastic_check_conditional(df, conditional):
     if np.any(a > 1):
         warnings.warn("It looks like your conditional categories are NOT exclusive. For appropriate estimation, "
                       "the conditions that designate each category should be exclusive", UserWarning)
+
+
+def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, splits=None):
+    """Function to calculate AIPW estimates. Called by AIPTW, SingleCrossfitAIPTW, and DoublyRobustAIPTW
+    """
+    # Point estimate calculation
+    y1 = np.where(a == 1, y/pa1 - py_a*((1 - pa1) / pa1), py_a)
+    y0 = np.where(a == 0, y/pa0 - py_n*((1 - pa0) / pa0), py_n)
+
+    # Calculating ACE as a difference
+    if difference:
+        if weights is None:
+            estimate = np.nanmean(y1 - y0)
+            if splits is None:
+                var = np.nanvar((y1 - y0) - estimate, ddof=1) / y.shape[0]
+            else:
+                var_rd = []
+                for i in set(splits):
+                    y1s = y1[splits == i]
+                    y0s = y0[splits == i]
+                    var_rd.append(np.var((y1s - y0s) - estimate, ddof=1))
+                var = np.mean(var_rd) / y.shape[0]
+        else:
+            estimate = DescrStatsW(y1, weights=weights).mean - DescrStatsW(y0, weights=weights).mean
+            var = np.nan
+
+    # Calculating ACE as a ratio
+    else:
+        if weights is None:
+            estimate = np.nanmean(y1) / np.nanmean(y0)
+            var = np.nan
+        else:
+            estimate = DescrStatsW(y1, weights=weights).mean / DescrStatsW(y0, weights=weights).mean
+            var = np.nan
+
+    return estimate, var
+

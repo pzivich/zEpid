@@ -7,7 +7,7 @@ from scipy.stats import logistic, norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from zepid.causal.utils import _bounding_
+from zepid.causal.utils import _bounding_, aipw_calculator
 
 
 class SingleCrossfitAIPTW:
@@ -282,9 +282,10 @@ class SingleCrossfitAIPTW:
             pred_a_array = _bounding_(pred_a_array, bounds=self._gbounds)
 
         # Calculating point estimates
-        riskdifference, var_rd = _aipw_calculator_(y=y_obs, a=a_obs,
-                                                   py_a=pred_y1_array, py_n=pred_y0_array,
-                                                   pa=pred_a_array, splits=np.asarray(split_index))
+        riskdifference, var_rd = aipw_calculator(y=y_obs, a=a_obs,
+                                                 py_a=pred_y1_array, py_n=pred_y0_array,
+                                                 pa1=pred_a_array, pa0=1-pred_a_array,
+                                                 splits=np.asarray(split_index))
         return riskdifference, var_rd
 
     def _generate_predictions_(self, sample, a_model_v, y_model_v):
@@ -589,9 +590,10 @@ class DoubleCrossfitAIPTW:
             pred_a_array = _bounding_(pred_a_array, bounds=self._gbounds)
 
         # Calculating point estimates
-        riskdifference, var_rd = _aipw_calculator_(y=y_obs, a=a_obs,
-                                                   py_a=pred_y1_array, py_n=pred_y0_array,
-                                                   pa=pred_a_array, splits=np.asarray(split_index))
+        riskdifference, var_rd = aipw_calculator(y=y_obs, a=a_obs,
+                                                 py_a=pred_y1_array, py_n=pred_y0_array,
+                                                 pa1=pred_a_array, pa0=1-pred_a_array,
+                                                 splits=np.asarray(split_index))
         return riskdifference, var_rd
 
     def _generate_predictions_(self, sample, a_model_v, y_model_v):
@@ -734,19 +736,3 @@ def _outcome_nuisance_(outcome, estimator, samples, covariates):
         outcome_fit_splits.append(fm)
 
     return outcome_fit_splits
-
-
-def _aipw_calculator_(y, a, py_a, py_n, pa, splits):
-    """Background calculator for AIPW and AIPW standard error
-    """
-    y1 = np.where(a == 1, y/pa - py_a*((1 - pa) / pa), py_a)
-    y0 = np.where(a == 0, y/(1 - pa) - py_n*(pa / (1 - pa)), py_n)
-    rd = np.mean(y1 - y0)
-    # Variance calculations
-    var_rd = []
-    for i in set(splits):
-        y1s = y1[splits == i]
-        y0s = y0[splits == i]
-        var_rd.append(np.var((y1s - y0s) - rd, ddof=1))
-
-    return rd, (np.mean(var_rd) / y.shape[0])

@@ -3,11 +3,13 @@ import numpy as np
 import pandas as pd
 import numpy.testing as npt
 import pandas.testing as pdt
+from scipy.stats import logistic
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
 import zepid as ze
 from zepid.causal.doublyrobust import (TMLE, AIPTW, StochasticTMLE,
                                        SingleCrossfitAIPTW, DoubleCrossfitAIPTW, calculate_joint_estimate)
+from zepid.causal.doublyrobust.crossfit import (_sample_split_, _treatment_nuisance_, _outcome_nuisance_)
 
 
 class TestTMLE:
@@ -733,7 +735,6 @@ class TestAIPTW:
                            print_results=False)
         aipw.fit()
         npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
-        assert aipw.average_treatment_effect_ci is None
 
     def test_bounds(self, df):
         aipw = AIPTW(df, exposure='art', outcome='dead')
@@ -753,12 +754,72 @@ class TestAIPTW:
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
         aipw.fit()
+        aipw.summary(decimal=10)
 
-        npt.assert_allclose(aipw.risk_difference, -0.0700780176)
-        npt.assert_allclose(aipw.risk_difference_ci, (-0.1277925885, -0.0123634468))
+        npt.assert_allclose(aipw.risk_difference, -0.075280886)
+        npt.assert_allclose(aipw.risk_difference_ci, (-0.1329296715, -0.0176321005))
+
+
+class TestCrossfitUtils:
+
+    @pytest.fixture
+    def data(self):
+        n = 100
+        data = pd.DataFrame()
+        data['W'] = np.random.normal(size=n)
+        data['A'] = np.random.binomial(n=1, p=logistic.cdf(-0.5 + 0.1 * data['W']), size=n)
+        data['Y'] = data['W'] + 5 * data['A'] + np.random.normal(size=n)
+        return data
+
+    def test_split_nonoverlap2(self, data):
+        splits = _sample_split_(data, n_splits=2)
+
+        split_id_list = []
+        id_count = 0
+        for s in splits:
+            id_count += s.shape[0]
+            split_id_list.extend(list(s.index))
+            assert len(set(split_id_list)) == id_count
+
+    def test_split_nonoverlap10(self, data):
+        splits = _sample_split_(data, n_splits=10)
+
+        split_id_list = []
+        id_count = 0
+        for s in splits:
+            id_count += s.shape[0]
+            split_id_list.extend(list(s.index))
+            assert len(set(split_id_list)) == id_count
+
+    def test_treatment_nuisance(self, data):
+        number_of_splits = 3
+        splits = _sample_split_(data, n_splits=number_of_splits)
+        fnm = _treatment_nuisance_(treatment="A", estimator=LogisticRegression(solver='lbfgs'),
+                                   samples=splits, covariates="W")
+        assert len(fnm) == number_of_splits
+        for nm in fnm:
+            assert type(nm) == LogisticRegression
+
+    def test_outcome_nuisance(self, data):
+        number_of_splits = 3
+        splits = _sample_split_(data, n_splits=number_of_splits)
+        fnm = _outcome_nuisance_(outcome="A", estimator=LogisticRegression(solver='lbfgs'),
+                                 samples=splits, covariates="A + W")
+        assert len(fnm) == number_of_splits
+        for nm in fnm:
+            assert type(nm) == LogisticRegression
 
 
 class TestSingleCrossfitAIPTW:
+
+    @pytest.fixture
+    def data(self):
+        n = 100000
+        data = pd.DataFrame()
+        data['W'] = np.random.normal(size=n)
+        data['A'] = np.random.binomial(n=1, p=logistic.cdf(-0.5 + 0.1 * data['W']), size=n)
+        data['Y'] = data['W'] + 5 * data['A'] + np.random.normal(size=n)
+        return data
 
     @pytest.fixture
     def df(self):
