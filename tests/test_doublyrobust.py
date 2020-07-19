@@ -6,7 +6,8 @@ import pandas.testing as pdt
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
 import zepid as ze
-from zepid.causal.doublyrobust import TMLE, AIPTW, StochasticTMLE
+from zepid.causal.doublyrobust import (TMLE, AIPTW, StochasticTMLE,
+                                       SingleCrossfitAIPTW, DoubleCrossfitAIPTW, calculate_joint_estimate)
 
 
 class TestTMLE:
@@ -755,3 +756,126 @@ class TestAIPTW:
 
         npt.assert_allclose(aipw.risk_difference, -0.0700780176)
         npt.assert_allclose(aipw.risk_difference_ci, (-0.1277925885, -0.0123634468))
+
+
+class TestSingleCrossfitAIPTW:
+
+    @pytest.fixture
+    def df(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
+
+    def test_drop_missing_data(self):
+        df = ze.load_sample_data(False)
+        aipw = SingleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        assert df.dropna().shape[0] == aipw.df.shape[0]
+
+    def test_error_when_no_models_specified1(self, df):
+        aipw = SingleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        with pytest.raises(ValueError):
+            aipw.fit()
+
+    def test_error_when_no_models_specified2(self, df):
+        aipw = SingleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            aipw.fit()
+
+    def test_error_when_no_models_specified3(self, df):
+        aipw = SingleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        aipw.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            aipw.fit()
+
+    def test_error_invalid_splits(self, df):
+        aipw = SingleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        aipw.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            aipw.fit(n_splits=1)
+
+    def test_continuous_flag(self, df, cf):
+        aipw = SingleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        assert aipw._continuous_outcome_ is False
+
+        aipw = SingleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
+        assert aipw._continuous_outcome_ is True
+
+
+class TestDoubleCrossfitAIPTW:
+
+    @pytest.fixture
+    def df(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
+
+    def test_drop_missing_data(self):
+        df = ze.load_sample_data(False)
+        aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        assert df.dropna().shape[0] == aipw.df.shape[0]
+
+    def test_error_when_no_models_specified1(self, df):
+        aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        with pytest.raises(ValueError):
+            aipw.fit()
+
+    def test_error_when_no_models_specified2(self, df):
+        aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            aipw.fit()
+
+    def test_error_when_no_models_specified3(self, df):
+        aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        aipw.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            aipw.fit()
+
+    def test_error_invalid_splits(self, df):
+        aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        aipw.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            aipw.fit(n_splits=2)
+
+    def test_continuous_flag(self, df, cf):
+        aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+        assert aipw._continuous_outcome_ is False
+
+        aipw = DoubleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
+        assert aipw._continuous_outcome_ is True
+
+
+class TestMergeEstimates:
+
+    def test_median_method(self):
+        truth = (0.5, 0.4183300132670378)
+        calc = calculate_joint_estimate(point_est=np.array([0.5, 0.5, 0.7, 0.9, 0.3, 0.2]),
+                                        var_est=np.array([0.1, 0.1, 0.15, 0.2, 0.12, 0.16]),
+                                        method="median")
+        npt.assert_allclose(truth, calc)
+
+    def test_mean_method(self):
+        truth = (0.5166666666666667, 0.43938087754880223)
+        calc = calculate_joint_estimate(point_est=np.array([0.5, 0.5, 0.7, 0.9, 0.3, 0.2]),
+                                        var_est=np.array([0.1, 0.1, 0.15, 0.2, 0.12, 0.16]),
+                                        method="mean")
+        npt.assert_allclose(truth, calc)

@@ -4,6 +4,13 @@
 The 0.9.x series drops support of Python 3.5.x. Only Python 3.6+ are now supported. Support has also been added for
 Python 3.8
 
+Cross-fit estimators have been implemented for better causal inference with machine learning. Cross-fit estimators 
+include `SingleCrossfitAIPTW`, `DoubleCrossfitAIPTW`, `SingleCrossfitTMLE`, and `DoubleCrossfitTMLE`. Currently 
+functionality is limited to treatment and outcome nuisance models only (i.e. no model for missing data). These 
+estimators also do not accept weighted data (since most of `sklearn` does not support weights)
+
+`TimeFixedGFormula` is being deprecated in favor of two estimators with different labels. This will more clearly 
+delineate ATE versus stochastic effects. The replacement estimators are ...
 
 ### v0.8.2
 `IPSW` and `AIPSW` now natively support adjusting for confounding. Both now have the `treatment_model()` function, 
