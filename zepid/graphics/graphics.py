@@ -834,3 +834,71 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
         raise ValueError("`scale` must be either 'additive', 'multplicative', or 'both'")
 
     return ax
+
+
+def zipper_plot(truth, lcl, ucl, colors=('blue', 'red'), point_est=None):
+    """Zipper plots are a way to present simulation data, particularly confidence intervals and their width. They are
+    also useful for showing the confidence interval coverage of the true parameter.
+
+    Parameters
+    ----------
+    truth : float
+        The true value with which to compare the confidence interval coverage to
+    lcl : list, array, Series, container
+        Container of lower confidence limits
+    ucl : list, array, Series, container
+        Container of upper confidence limits
+    colors : set, list, container
+        List of colors for confidence intervals. The first color is used to designate confidence intervals that cover
+        the true value, and the second indicates confidence intervals
+    point_est : list, array, Series, container, optional
+        Container of point estimates
+
+    Returns
+    -------
+    matplotlib axes
+
+    Examples
+    --------
+    Setting up environment
+
+    >>> import matplotlib.pyplot as plt
+    >>> from zepid.graphics import zipper_plot
+
+    Adding customized points to the plot
+
+    >>> labbe_plot(r1=[0.3, 0.5], r0=[0.2, 0.7], scale='additive', color='r', marker='D', markersize=10, linestyle='')
+    >>> plt.show()
+
+    """
+    # Formatting the input data
+    dat = pd.DataFrame()
+    dat['_lower_'] = lcl
+    dat['_upper_'] = ucl
+    if not np.all(dat['_lower_'] < dat['_upper_']):
+        raise ValueError("It looks like some LCL are bigger than the UCL")
+    dat['_cover_'] = np.where((dat['_lower_'] < truth) & (truth < dat['_upper_']), colors[0], colors[1])
+    coverage = np.where((dat['_lower_'] < truth) & (truth < dat['_upper_']), 1, 0)
+    dat = dat.sort_values(by=['_upper_', '_lower_']).reset_index(drop=True)
+
+    # Formatting so it looks like a "zipper"
+    spdat = np.split(dat, [int(dat.shape[0] / 2)], axis=0)
+    spdat[0] = spdat[0].sort_values(by=['_upper_', '_lower_'], ascending=False)
+    spdat[0]['_order_'] = list(range(0, dat.shape[0]-1, 2))
+    spdat[1]['_order_'] = list(range(1, dat.shape[0]+1, 2))
+    dat = pd.concat([spdat[0], spdat[1]]).sort_values(by='_order_')
+
+    # Creating plot
+    ax = plt.gca()
+    ax.hlines(dat['_order_'], dat['_lower_'], dat['_upper_'], colors=dat['_cover_'])
+    ax.vlines(truth, 0, dat.shape[0], colors='k')
+
+    # if point_est is given, then adding to plot
+    if point_est is not None:
+        ax.plot(point_est, dat.index, 'o', color=dat['_cover_'])
+
+    ax.set_ylim([0, dat.shape[0]])
+    ax.set_yticks([])
+    ax.set_xlabel("Confidence Intervals")
+    ax.set_title("Estimated coverage: "+str(np.round(100*np.mean(coverage), 1))+"%")
+    return ax
