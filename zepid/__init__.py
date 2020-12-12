@@ -44,10 +44,13 @@ import zepid.graphics
 
 import zepid.sensitivity_analysis
 
+import zepid.superlearner
+
 import zepid.causal.gformula
 import zepid.causal.ipw
 import zepid.causal.doublyrobust
 import zepid.causal.generalize
+
 dags_available = True
 try:
     import zepid.causal.causalgraph
