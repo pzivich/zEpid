@@ -90,7 +90,7 @@ class StepwiseSL(BaseEstimator):
     method : str, optional
         Method of step-wise selection to use. Options are `'forward'` and `'backward'`. Default is backward, which
         starts from the full model inclusion and removes terms one at a time.
-    interaction_order : int, optional
+    order_interaction : int, optional
         Order of interactions to explore. For example, `interaction_order=0` explores only the main effects.
     verbose : bool, optional
     """
@@ -98,11 +98,18 @@ class StepwiseSL(BaseEstimator):
         self._family_ = family
         self._verbose_ = verbose
 
+        method = method.lower()
+        if method not in ["forward", "backward"]:
+            raise ValueError("`method` must be one of the following: backward, forward")
         self._method_ = method
 
         if order_interaction < 0 or type(order_interaction) is not int:
             raise ValueError("interaction_order must be a non-negative integer")
         self._order_ = order_interaction
+
+        # Storage items
+        self.model_optim = None
+        self.cols = None
 
     def fit(self, X, y):
         """Estimate the optimal GLM
@@ -116,7 +123,7 @@ class StepwiseSL(BaseEstimator):
 
         Returns
         -------
-
+        None
         """
         # Checking X shape with order_interaction
         if X.shape[1] < self._order_:
@@ -138,25 +145,24 @@ class StepwiseSL(BaseEstimator):
                 print("Full-Model AIC:", best_aic)
 
             # Determining best AIC via backwards step-wise selection
-            all_inc_cols = list(range(Xu.shape[1]))
+            best_cols = list(range(Xu.shape[1]))
             best_alt_aic = best_aic
             best_alt_model = full_model
-            best_alt_cols = all_inc_cols.copy()
+            best_alt_cols = best_cols.copy()
 
-            while best_aic >= best_alt_aic and len(all_inc_cols) - 1 >= -1:
+            while best_aic >= best_alt_aic and len(best_cols) - 1 >= -1:
                 best_aic = best_alt_aic
                 best_model = best_alt_model
                 best_cols = best_alt_cols
                 if self._verbose_:
                     print("\nCurrent Optim:", best_cols)
-                    print("\nValid Combinations...")
 
-                if len(all_inc_cols) - 1 == -1:  # necessary break for intercept-only to be outpute correctly
+                if len(best_cols) - 1 == -1:  # necessary break for intercept-only to be outpute correctly
                     break
-                alt_models = list(combinations(all_inc_cols, len(all_inc_cols) - 1))
-                best_alt_model = None
-                best_alt_aic = np.inf
-                best_alt_cols = None
+                if self._verbose_:
+                    print("\nValid Combinations...")
+                alt_models = list(combinations(best_cols, len(best_cols) - 1))
+                best_alt_model, best_alt_cols, best_alt_aic = None, None, np.inf
                 for alt in alt_models:
                     alt_model = sm.GLM(y, np.hstack([np.zeros([X.shape[0], 1]) + 1, Xu[:, alt]]),  # Adds intercept
                                        family=self._family_).fit()
@@ -168,13 +174,64 @@ class StepwiseSL(BaseEstimator):
                         best_alt_aic = alt_model.aic
                         best_alt_cols = alt
 
-                all_inc_cols = alt
-
+        # Determining method of selection
+        if self._method_ == "forward":
+            # Estimating null model as starting point
+            null_model = sm.GLM(y, np.zeros([X.shape[0], 1]) + 1,  # intercept-only model
+                                family=self._family_).fit()
+            best_aic = null_model.aic
             if self._verbose_:
-                print(best_model.summary())
+                print(null_model.summary())
+                print("Full-Model AIC:", best_aic)
 
-            self.model_optim = best_model
-            self.cols = best_cols
+            # Determining best AIC via forwards step-wise selection
+            best_cols = ()
+            best_alt_aic = best_aic
+            best_alt_model = null_model
+            best_alt_cols = ()
+            vars_to_select = list(range(Xu.shape[1]))
+            best_alt_var = None
+
+            while best_aic >= best_alt_aic and len(best_cols) <= Xu.shape[1]:
+                best_aic = best_alt_aic
+                best_model = best_alt_model
+                best_cols = best_alt_cols
+
+                # Removing the previous best variable from those to add
+                vars_to_select = list(vars_to_select)
+                try:
+                    vars_to_select.remove(best_alt_var)
+                except ValueError:
+                    pass
+                vars_to_select = tuple(vars_to_select)
+
+                if self._verbose_:
+                    print("\nCurrent Optim:", best_cols)
+
+                if len(best_cols) == Xu.shape[1]:  # necessary break for saturated to be output correctly
+                    break
+                if self._verbose_:
+                    print("\nValid Combinations...")
+                best_alt_model, best_alt_cols, best_alt_aic = None, None, np.inf
+                for var in vars_to_select:
+                    alt = best_cols + (var, )
+                    alt_model = sm.GLM(y, np.hstack([np.zeros([X.shape[0], 1]) + 1, Xu[:, alt]]),
+                                       family=self._family_).fit()
+                    if self._verbose_:
+                        print("Columns:", alt)
+                        print("AIC:    ", alt_model.aic)
+                    if alt_model.aic < best_alt_aic and not np.isnan(alt_model.aic):
+                        best_alt_model = alt_model
+                        best_alt_aic = alt_model.aic
+                        best_alt_cols = alt
+                        best_alt_var = var
+
+        # Final results
+        self.model_optim = best_model
+        self.cols = best_cols
+        if self._verbose_:
+            print(self.model_optim.summary())
+
 
     def predict(self, X):
         """Predict using the optimal GLM, where optimal is defined as the lowest AIC for the step-wise selection
