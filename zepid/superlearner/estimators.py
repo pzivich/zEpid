@@ -59,6 +59,13 @@ class EmpiricalMeanSL(BaseEstimator):
         -------
         None
         """
+        # Error Checking
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y must have the same number of observations (rows).")
+        if np.any(np.isnan(X)) or np.any(np.isnan(y)):
+            raise ValueError("It looks like there is missing values in X or y. EmpiricalMeanSL does not support "
+                             "missing data.")
+
         self.empirical_mean = np.mean(y)
 
     def predict(self, X):
@@ -155,8 +162,13 @@ class StepwiseSL:
         -------
         None
         """
-        # Checking X shape with order_interaction
-        if X.shape[1] < self._order_:
+        # Error Checking
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y must have the same number of observations (rows).")
+        if np.any(np.isnan(X)) or np.any(np.isnan(y)):
+            raise ValueError("It looks like there is missing values in X or y. StepWiseSL does not support "
+                             "missing data.")
+        if X.shape[1] < self._order_:  # Checking X shape with order_interaction
             warnings.warn("order_interaction is greater than the number of columns. This is not possible to assess, "
                           "so order_interaction="+str(int(X.shape[1]))+" will be assessed instead.", UserWarning)
             self._order_ = X.shape[1]
@@ -169,6 +181,9 @@ class StepwiseSL:
             # Estimating full model as starting point
             full_model = sm.GLM(y, np.hstack([np.zeros([X.shape[0], 1]) + 1, Xu]),  # Adds intercept into model
                                 family=self._family_).fit()
+            if np.isnan(full_model.aic):
+                raise ValueError("Saturated model is having trouble converging. Reduce the number of covariates, the "
+                                 "order_interaction, or use selection=forward instead")
             best_aic = full_model.aic
             if self._verbose_:
                 print(full_model.summary())

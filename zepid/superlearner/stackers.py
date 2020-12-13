@@ -282,6 +282,8 @@ class SuperLearner:
         """
         if self.coefficients is None:
             raise ValueError("fit() must be called before predict()")
+        if np.any(np.isnan(X)):
+            raise ValueError("It looks like there is missing values in X. SuperLearner does not support missing data.")
 
         n_obs = X.shape[0]
         n_est = len(self.estimators)
