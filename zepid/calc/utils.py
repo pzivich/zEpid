@@ -749,6 +749,36 @@ def odds_to_probability(odds):
     return odds / (1 + odds)
 
 
+def logit(prob):
+    """Logit transformation of probabilities. Input can be a single probability of array of probabilities
+
+    Parameters
+    ----------
+    prob : float, array
+        A single probability or an array of probabilities
+
+    Returns
+    -------
+    logit-transformed probabilities
+    """
+    return np.log(prob / (1 - prob))
+
+
+def inverse_logit(logodds):
+    """Inverse logit transformation. Returns probabilities
+
+    Parameters
+    ----------
+    logodds : float, array
+        A single log-odd or an array of log-odds
+
+    Returns
+    -------
+    inverse-logit transformed results (i.e. probabilities for log-odds)
+    """
+    return 1 / (1 + np.exp(-logodds))
+
+
 def counternull_pvalue(estimate, lcl, ucl, sided='two', alpha=0.05, decimal=3):
     r"""Calculates the counternull p-value. It is useful to prevent over-interpretation of results
 
@@ -1352,3 +1382,48 @@ def s_value(pvalue):
     Replication Crisis if We Don’t Expect Replication. The American Statistician.
     """
     return -1 * np.log2(np.array(pvalue))
+
+
+def probability_bounds(v, bounds):
+    """Function to generate bounded values for probabilities. Specifically this function is used in multiple
+    estimators to generate bounded probabilities. This is available for both symmetric and asymmetric bounds.
+
+    Parameters
+    ----------
+    v : numpy.array
+        Array of values to bound
+    bounds : float, list, numpy.array
+        Bounds to apply to v. If only a single value is provided, then symmetric bounds are used.
+
+    Returns
+    -------
+    numpy.array of bounded values
+    """
+    v = np.asarray(v)
+    if type(bounds) is float:  # Symmetric Bounding
+        if bounds < 0 or bounds > 1:
+            raise ValueError('Bound value must be between (0, 1)')
+        v[v < bounds] = bounds
+        v[v > 1 - bounds] = 1 - bounds
+
+    elif type(bounds) is str:  # Catching string inputs
+        raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+
+    elif type(bounds) is int:  # Catching string inputs
+        raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
+
+    else:  # Asymmetric bounds
+        if bounds[0] > bounds[1]:
+            raise ValueError('Bound thresholds must be listed in ascending order')
+        if len(bounds) > 2:
+            warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
+                          'specified bounds are used by the bound statement. So only ' +
+                          str(bounds[0:2]) + ' will be used', UserWarning)
+        if type(bounds[0]) is str or type(bounds[1]) is str:
+            raise ValueError('Bounds must be floats between (0, 1)')
+        if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
+            raise ValueError('Both bound values must be between (0, 1)')
+        v[v < bounds[0]] = bounds[0]
+        v[v > bounds[1]] = 1 - bounds[1]
+
+    return v

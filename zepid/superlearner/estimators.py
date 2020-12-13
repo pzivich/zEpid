@@ -77,7 +77,7 @@ class EmpiricalMeanSL(BaseEstimator):
         return np.array([self.empirical_mean] * X.shape[0])
 
 
-class StepwiseSL(BaseEstimator):
+class StepwiseSL:
     """Step-wise model selection for Generalized Linear Model selection for use with SuperLearner. Briefly, each
     combination of models is compared by AIC with the best one selected. The model selection procedure continues until
     there are no improvments in the model by AIC. The optimal is the best model estimated by the step-wise selection
@@ -87,29 +87,28 @@ class StepwiseSL(BaseEstimator):
     ----------
     family: statsmodels.families.family
         Family to use for the model. All statsmodels supported families are also supported
-    method : str, optional
+    selection : str, optional
         Method of step-wise selection to use. Options are `'forward'` and `'backward'`. Default is backward, which
         starts from the full model inclusion and removes terms one at a time.
     order_interaction : int, optional
         Order of interactions to explore. For example, `interaction_order=0` explores only the main effects.
     verbose : bool, optional
     """
-    def __init__(self, family, method="backward", order_interaction=0, verbose=False):
-        self._family_ = family
-        self._verbose_ = verbose
-
-        method = method.lower()
-        if method not in ["forward", "backward"]:
+    def __init__(self, family, selection="backward", order_interaction=0, verbose=False):
+        # Error Checking
+        if selection.lower() not in ["forward", "backward"]:
             raise ValueError("`method` must be one of the following: backward, forward")
-        self._method_ = method
-
         if order_interaction < 0 or type(order_interaction) is not int:
             raise ValueError("interaction_order must be a non-negative integer")
+
+        self._family_ = family
+        self._verbose_ = verbose
+        self._selection_ = selection
         self._order_ = order_interaction
 
         # Storage items
         self.model_optim = None
-        self.cols = None
+        self.cols_optim = None
 
     def fit(self, X, y):
         """Estimate the optimal GLM
@@ -135,7 +134,7 @@ class StepwiseSL(BaseEstimator):
         Xu = self._all_order_interactions_(X, self._order_)
 
         # Determining method of selection
-        if self._method_ == "backward":
+        if self._selection_ == "backward":
             # Estimating full model as starting point
             full_model = sm.GLM(y, np.hstack([np.zeros([X.shape[0], 1]) + 1, Xu]),  # Adds intercept into model
                                 family=self._family_).fit()
@@ -175,7 +174,7 @@ class StepwiseSL(BaseEstimator):
                         best_alt_cols = alt
 
         # Determining method of selection
-        if self._method_ == "forward":
+        if self._selection_ == "forward":
             # Estimating null model as starting point
             null_model = sm.GLM(y, np.zeros([X.shape[0], 1]) + 1,  # intercept-only model
                                 family=self._family_).fit()
@@ -228,10 +227,9 @@ class StepwiseSL(BaseEstimator):
 
         # Final results
         self.model_optim = best_model
-        self.cols = best_cols
+        self.cols_optim = best_cols
         if self._verbose_:
             print(self.model_optim.summary())
-
 
     def predict(self, X):
         """Predict using the optimal GLM, where optimal is defined as the lowest AIC for the step-wise selection
@@ -250,8 +248,10 @@ class StepwiseSL(BaseEstimator):
         """
         # Creating all x-order interaction terms for assessment
         Xu = self._all_order_interactions_(X, self._order_)
+
         # Adding intercept
-        Xd = np.hstack([np.zeros([X.shape[0], 1]) + 1, Xu[:, self.cols]])
+        Xd = np.hstack([np.zeros([X.shape[0], 1]) + 1, Xu[:, self.cols_optim]])
+
         # Generating predictions to return
         return self.model_optim.predict(Xd)
 
@@ -284,3 +284,16 @@ class StepwiseSL(BaseEstimator):
                 Xu = np.hstack([Xu, interaction_term])
 
         return Xu
+
+    def get_params(self, deep=True):
+        """For sklearn.base.clone() compatibility"""
+        return {"family": self._family_,
+                "selection": self._selection_,
+                "order_interaction": self._order_,
+                "verbose": self._verbose_}
+
+    def set_params(self, **parameters):
+        """For sklearn.base.clone() compatibility"""
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
