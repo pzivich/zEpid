@@ -84,6 +84,44 @@ class SuperLearner:
 
     Examples
     --------
+    Setup the environment and data set
+
+    >>> import statsmodels.api as sm
+    >>> from sklearn.linear_model import LinearRegression, LogisticRegression
+    >>> from zepid import load_sample_data
+    >>> from zepid.superlearner import EmpiricalMeanSL, StepwiseSL, SuperLearner
+
+    >>> fb = sm.families.family.Gaussian()
+    >>> fc = sm.families.family.Binomial()
+    >>> df = load_sample_data(False).dropna()
+    >>> X = np.asarray(df[['art', 'male', 'age0']])
+    >>> y = np.asarray(df['dead'])
+
+    SuperLearner for binary outcomes
+
+    >>> # Setting up estimators
+    >>> emp = EmpiricalMeanSL()
+    >>> log = LogisticRegression()
+    >>> step = StepwiseSL(family=fb, selection="backward", order_interaction=1)
+    >>> sl = SuperLearner(estimators=[emp, log, step], estimator_labels=["Mean", "Log", "Step"], loss_function='nloglik')
+    >>> sl.fit(X, y)
+    >>> sl.summary()  # Summary of Cross-Validated Errors
+    >>> sl.predict(X)  # Generating predicted values from super learner
+
+    SuperLearner for continuous outcomes
+
+    >>> emp = EmpiricalMeanSL()
+    >>> lin = LinearRegression()
+    >>> step = StepwiseSL(family=fc, selection="backward", order_interaction=1)
+    >>> sl = SuperLearner(estimators=[emp, log, step], estimator_labels=["Mean", "Lin", "Step"], loss_function='L2')
+    >>> sl.fit(X, y)
+    >>> sl.summary()  # Summary of Cross-Validated Errors
+    >>> sl.predict(X)  # Generating predicted values from super learner
+
+    Discrete Super Learner
+
+    >>> sl = SuperLearner([emp, log, step], ["Mean", "Lin", "Step"], loss_function='L2', discrete=True)
+    >>> sl.fit(X, y)
 
     References
     ----------
@@ -277,7 +315,7 @@ class SuperLearner:
         if self.coefficients is None:
             raise ValueError("fit() must be called before summary()")
         print('======================================================================')
-        print("            Super Learner Performance Summary Metrics                 ")
+        print("            Super Learner Candidate Estimator Performance             ")
         print('======================================================================')
         print(self.est_performance.set_index("estimator"))
         print('======================================================================')

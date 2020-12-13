@@ -80,7 +80,7 @@ class EmpiricalMeanSL(BaseEstimator):
 class StepwiseSL:
     """Step-wise model selection for Generalized Linear Model selection for use with SuperLearner. Briefly, each
     combination of models is compared by AIC with the best one selected. The model selection procedure continues until
-    there are no improvments in the model by AIC. The optimal is the best model estimated by the step-wise selection
+    there are no improvements in the model by AIC. The optimal is the best model estimated by the step-wise selection
     procedure and the lowest AIC value.
 
     Parameters
@@ -93,6 +93,37 @@ class StepwiseSL:
     order_interaction : int, optional
         Order of interactions to explore. For example, `interaction_order=0` explores only the main effects.
     verbose : bool, optional
+
+    Examples
+    --------
+    Setup the environment and data set
+
+    >>> import statsmodels.api as sm
+    >>> from zepid import load_sample_data
+    >>> from zepid.superlearner import StepwiseSL
+    >>> df = load_sample_data(False).dropna()
+    >>> X = np.asarray(df[['art', 'male', 'age0']])
+    >>> y = np.asarray(df['dead'])
+
+    StepwiseSL estimation with no interactions
+
+    >>> f = sm.families.family.Binomial()
+    >>> step_sl = StepwiseSL(family=f, method="backward", order_interaction=0)
+    >>> step_sl.fit(X, y)
+
+    StepwiseSL prediction
+
+    >>> step_sl.predict(X=X)
+
+    StepwiseSL with all first-order interactions
+
+    >>> step_sl = StepwiseSL(family=f, method="backward", order_interaction=1)
+    >>> step_sl.fit(X, y)
+
+    StepwiseSL with forward selection and all second-order interactions
+
+    >>> step_sl = StepwiseSL(family=f, method="forward", order_interaction=2)
+    >>> step_sl.fit(X, y)
     """
     def __init__(self, family, selection="backward", order_interaction=0, verbose=False):
         # Error Checking
