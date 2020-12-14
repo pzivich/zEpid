@@ -178,6 +178,8 @@ class SuperLearner:
         None
         """
         # Some checks
+        X = np.asarray(X)  # this line saves a lot of headaches
+        y = np.asarray(y)  # this line saves a lot of headaches
         if X.shape[0] != y.shape[0]:
             raise ValueError("X and y must have the same number of observations.")
         if np.any(np.isnan(X)) or np.any(np.isnan(y)):
@@ -280,6 +282,7 @@ class SuperLearner:
         -------
         numpy.array of predicted values using either discrete super learner or super learner
         """
+        X = np.asarray(X)  # this line saves a lot of headaches
         if self.coefficients is None:
             raise ValueError("fit() must be called before predict()")
         if np.any(np.isnan(X)):
@@ -327,6 +330,7 @@ class SuperLearner:
         """
         if self.loss_function == 'l2':
             pred = estimator.predict(X)
+
         if self.loss_function == 'nloglik':
             if hasattr(estimator, "predict_proba"):
                 try:  # Allows for use with PyGAM
@@ -337,6 +341,7 @@ class SuperLearner:
                 pred = estimator.predict(X)
                 if pred.min() < 0 or pred.max() > 1:
                     raise SuperLearnerError("Probability less than zero or greater than one")
+
         return pred
 
     def _error_term_(self, y_obs, y_pred):
