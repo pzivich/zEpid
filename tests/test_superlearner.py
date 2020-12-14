@@ -224,9 +224,9 @@ class TestSuperLearner:
         with pytest.raises(ValueError, match="missing values in X or y"):
             sl.fit(np.asarray(data['M']), np.asarray(data['C']))
 
-        sl.fit(np.asarray(data['B']).reshape(-1, 1), np.asarray(data['C']))
+        fsl = sl.fit(np.asarray(data['B']).reshape(-1, 1), np.asarray(data['C']))
         with pytest.raises(ValueError, match="missing values in X"):
-            sl.predict(np.asarray(data['M']))
+            fsl.predict(np.asarray(data['M']))
 
     def test_error_before_fit(self, data, load_estimators_continuous):
         sl = SuperLearner(estimators=load_estimators_continuous, estimator_labels=["Mean", "LineR", "Step"])
@@ -243,28 +243,33 @@ class TestSuperLearner:
 
     def test_continuous_superlearner(self, data_test, load_estimators_continuous):
         sl = SuperLearner(estimators=load_estimators_continuous, estimator_labels=["Mean", "LineR", "Step"], folds=5)
-        sl.fit(np.asarray(data_test[['A', 'W', 'X']]), np.asarray(data_test['Y']))
+        fsl = sl.fit(np.asarray(data_test[['A', 'W', 'X']]), np.asarray(data_test['Y']))
 
         # Coefficients and CV-Error
         expected = pd.DataFrame.from_records([{"estimator": "Mean",  "cv_error": 10.2505625, "coefs": 0.097767},
                                               {"estimator": "LineR", "cv_error": 1.90231789, "coefs": 0.357968},
                                               {"estimator": "Step",  "cv_error": 1.66769069, "coefs": 0.544265}])
-        pdt.assert_frame_equal(sl.est_performance,
+        pdt.assert_frame_equal(fsl.est_performance,
                                expected)
 
         # Predicted values
         expected = np.array([-5.65558813, 4.45487519, -1.91811241, -1.46252119, 4.45487519, -1.91811241])
-        npt.assert_allclose(sl.predict(np.asarray(data_test.loc[0:5, ["A", "W", "X"]])),
+        npt.assert_allclose(fsl.predict(np.asarray(data_test.loc[0:5, ["A", "W", "X"]])),
                             expected)
 
     def test_binary_superlearner(self, data_test, load_estimators_binary):
         sl = SuperLearner(estimators=load_estimators_binary, estimator_labels=["Mean", "LogR", "Step"],
                           loss_function='nloglik', folds=5)
-        sl.fit(np.asarray(data_test[['A', 'X']]), np.asarray(data_test['B']))
+        fsl = sl.fit(np.asarray(data_test[['A', 'X']]), np.asarray(data_test['B']))
 
         # Coefficients and CV-Error
         expected = pd.DataFrame.from_records([{"estimator": "Mean", "cv_error": -0.049431, "coefs": 0.966449},
                                               {"estimator": "LogR", "cv_error": -0.030154, "coefs": 0.033551},
                                               {"estimator": "Step", "cv_error": 1.797190,  "coefs": 0.}])
-        pdt.assert_frame_equal(sl.est_performance,
+        pdt.assert_frame_equal(fsl.est_performance,
                                expected)
+
+        # Predicted values
+        expected = np.array([0.69634645, 0.70191334, 0.70322108, 0.69766808, 0.70191334, 0.70322108])
+        npt.assert_allclose(fsl.predict(np.asarray(data_test.loc[0:5, ["A", "X"]])),
+                            expected)

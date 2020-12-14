@@ -104,9 +104,9 @@ class SuperLearner:
     >>> log = LogisticRegression()
     >>> step = StepwiseSL(family=fb, selection="backward", order_interaction=1)
     >>> sl = SuperLearner(estimators=[emp, log, step], estimator_labels=["Mean", "Log", "Step"], loss_function='nloglik')
-    >>> sl.fit(X, y)
-    >>> sl.summary()  # Summary of Cross-Validated Errors
-    >>> sl.predict(X)  # Generating predicted values from super learner
+    >>> fsl = sl.fit(X, y)
+    >>> fsl.summary()  # Summary of Cross-Validated Errors
+    >>> fsl.predict(X)  # Generating predicted values from super learner
 
     SuperLearner for continuous outcomes
 
@@ -114,9 +114,9 @@ class SuperLearner:
     >>> lin = LinearRegression()
     >>> step = StepwiseSL(family=fc, selection="backward", order_interaction=1)
     >>> sl = SuperLearner(estimators=[emp, log, step], estimator_labels=["Mean", "Lin", "Step"], loss_function='L2')
-    >>> sl.fit(X, y)
-    >>> sl.summary()  # Summary of Cross-Validated Errors
-    >>> sl.predict(X)  # Generating predicted values from super learner
+    >>> fsl = sl.fit(X, y)
+    >>> fsl.summary()  # Summary of Cross-Validated Errors
+    >>> fsl.predict(X)  # Generating predicted values from super learner
 
     Discrete Super Learner
 
@@ -268,6 +268,8 @@ class SuperLearner:
                     if self._verbose_:
                         print("...skipping " + str(self.labels[est_id]))
                     self.fit_estimators.append(est)
+
+        return self
 
     def predict(self, X):
         """Generate predictions using the fit SuperLearner.
