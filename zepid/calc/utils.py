@@ -1424,6 +1424,6 @@ def probability_bounds(v, bounds):
         if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
             raise ValueError('Both bound values must be between (0, 1)')
         v[v < bounds[0]] = bounds[0]
-        v[v > bounds[1]] = 1 - bounds[1]
+        v[v > bounds[1]] = bounds[1]
 
     return v

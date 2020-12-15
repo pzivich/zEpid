@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import numpy.testing as npt
 import pandas.testing as pdt
+import statsmodels.api as sm
 from scipy.stats import logistic
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
@@ -10,6 +11,20 @@ import zepid as ze
 from zepid.causal.doublyrobust import (TMLE, AIPTW, StochasticTMLE,
                                        SingleCrossfitAIPTW, DoubleCrossfitAIPTW, calculate_joint_estimate)
 from zepid.causal.doublyrobust.crossfit import (_sample_split_, _treatment_nuisance_, _outcome_nuisance_)
+
+
+class LogitReg:
+
+    def __init__(self):
+        self.model = None
+
+    def fit(self, X, y):
+        f = sm.families.family.Binomial()
+        self.model = sm.GLM(y, sm.add_constant(X), family=f).fit()
+        return self
+
+    def predict(self, X):
+        return self.model.predict(sm.add_constant(X, has_constant='add'))
 
 
 class TestTMLE:
@@ -754,10 +769,32 @@ class TestAIPTW:
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                            print_results=False)
         aipw.fit()
-        aipw.summary(decimal=10)
 
         npt.assert_allclose(aipw.risk_difference, -0.075280886)
         npt.assert_allclose(aipw.risk_difference_ci, (-0.1329296715, -0.0176321005))
+
+    def test_custom_binary(self, df):
+        aipw = AIPTW(df, exposure='art', outcome='dead')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            custom_model=LogitReg(),
+                            print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           custom_model=LogitReg(),
+                           print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.risk_difference, -0.0848510605)
+
+    def test_custom_continuous(self, cf):
+        aipw = AIPTW(cf, exposure='art', outcome='cd4_wk45')
+        aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            custom_model=LogitReg(),
+                            print_results=False)
+        aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           custom_model=LinearRegression(),
+                           print_results=False)
+        aipw.fit()
+        npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
+        npt.assert_allclose(aipw.average_treatment_effect_ci, [118.64677, 331.62858], rtol=1e-3)
 
 
 class TestCrossfitUtils:

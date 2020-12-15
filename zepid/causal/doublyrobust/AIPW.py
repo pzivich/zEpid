@@ -1,4 +1,6 @@
+import copy
 import warnings
+import patsy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,9 +9,11 @@ import statsmodels.formula.api as smf
 from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
+from zepid.calc import probability_bounds
 from zepid.causal.utils import (propensity_score, plot_kde, plot_love, iptw_calculator,
                                 standardized_mean_differences, positivity, _bounding_,
-                                plot_kde_accuracy, outcome_accuracy, aipw_calculator)
+                                plot_kde_accuracy, outcome_accuracy, aipw_calculator,
+                                exposure_machine_learner, outcome_machine_learner, missing_machine_learner)
 
 
 class AIPTW:
@@ -105,7 +109,7 @@ class AIPTW:
 
     References
     ----------
-    Funk, M. J., Westreich, D., Wiesen, C., Stürmer, T., Brookhart, M. A., & Davidian, M. (2011). Doubly robust
+    Funk MJ, Westreich D, Wiesen C, Stürmer T, Brookhart MA, & Davidian M. (2011). Doubly robust
     estimation of causal effects. American Journal of Epidemiology, 173(7), 761-767.
 
     Lunceford JK, Davidian M. (2004). Stratification and weighting via the propensity score in estimation of causal
@@ -152,12 +156,16 @@ class AIPTW:
         self.average_treatment_effect_se = None
 
         self._fit_exposure_ = False
+        self._exp_model_custom = False
         self._fit_outcome_ = False
+        self._out_model_custom = False
         self._fit_missing_ = False
+        self._miss_model_custom = False
         self._exp_model = None
         self._out_model = None
+        self._predicted_y_ = None
 
-    def exposure_model(self, model, bound=False, print_results=True):
+    def exposure_model(self, model, custom_model=None, bound=False, print_results=True):
         r"""Specify the propensity score / inverse probability weight model. Model used to predict the exposure via a
         logistic regression model. This model estimates
 
@@ -169,6 +177,10 @@ class AIPTW:
         ----------
         model : str
             Independent variables to predict the exposure. For example, 'var1 + var2 + var3'
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. SciKit-Learn style models supported as custom models. In the
+            background, AIPTW will fit the custom model and generate the predicted probablities
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
@@ -181,20 +193,32 @@ class AIPTW:
         """
         self.__mweight = model
         self._exp_model = self.exposure + ' ~ ' + model
-        d, n, iptw = iptw_calculator(df=self.df, treatment=self.exposure, model_denom=model, model_numer='1',
-                                     weight=self._weight_, stabilized=False, standardize='population',
-                                     bound=None, print_results=print_results)
 
-        self.df['_g1_'] = d
-        self.df['_g0_'] = 1 - d
+        if custom_model is None:
+            d, n, iptw = iptw_calculator(df=self.df, treatment=self.exposure, model_denom=model, model_numer='1',
+                                         weight=self._weight_, stabilized=False, standardize='population',
+                                         bound=None, print_results=print_results)
+        else:
+            self._exp_model_custom = True
+            data = patsy.dmatrix(model + ' - 1', self.df)
+            d = exposure_machine_learner(xdata=np.asarray(data),
+                                         ydata=np.asarray(self.df[self.exposure]),
+                                         ml_model=copy.deepcopy(custom_model),
+                                         print_results=print_results)
+
+        g1w = d
+        g0w = 1 - d
+
         # Applying bounds AFTER extracting g1 and g0
         if bound:
-            self.df['_g1_'] = _bounding_(self.df['_g1_'], bounds=bound)
-            self.df['_g0_'] = _bounding_(self.df['_g0_'], bounds=bound)
+            g1w = probability_bounds(g1w, bounds=bound)
+            g0w = probability_bounds(g0w, bounds=bound)
 
+        self.df['_g1_'] = g1w
+        self.df['_g0_'] = g0w
         self._fit_exposure_ = True
 
-    def missing_model(self, model, bound=False, print_results=True):
+    def missing_model(self, model, custom_model=None, bound=False, print_results=True):
         r"""Estimation of Pr(M=0|A,L), which is the missing data mechanism for the outcome. Predicted probabilities are
         used to create inverse probability of censoring weights to account for informative missing data on the outcome.
 
@@ -214,6 +238,10 @@ class AIPTW:
         model : str
             Independent variables to predict the exposure. Example) 'var1 + var2 + var3'. The treatment must be
             included for the missing data model
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. SciKit-Learn style models are supported as custom models. In the
+            background, AIPTW will fit the custom model and generate the predicted probablities
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
             Specifying this argument can improve finite sample performance for random positivity violations. However,
@@ -241,23 +269,40 @@ class AIPTW:
         self._miss_model = self._missing_indicator + ' ~ ' + model
         fitmodel = propensity_score(self.df, self._miss_model, print_results=print_results)
 
-        dfx = self.df.copy()
-        dfx[self.exposure] = 1
-        self.df['_ipmw_a1_'] = np.where(self.df[self._missing_indicator] == 1,
-                                        fitmodel.predict(dfx), np.nan)
-        dfx = self.df.copy()
-        dfx[self.exposure] = 0
-        self.df['_ipmw_a0_'] = np.where(self.df[self._missing_indicator] == 1,
-                                        fitmodel.predict(dfx), np.nan)
+        if custom_model is None:  # Logistic Regression model for predictions
+            dfx = self.df.copy()
+            dfx[self.exposure] = 1
+            m1w = np.where(self.df[self._missing_indicator] == 1, fitmodel.predict(dfx), np.nan)
+            dfx = self.df.copy()
+            dfx[self.exposure] = 0
+            m0w = np.where(self.df[self._missing_indicator] == 1, fitmodel.predict(dfx), np.nan)
+        else:  # User-Specified model
+            self._miss_model_custom = True
+            data = patsy.dmatrix(model + ' - 1', self.df)
+            dfx = self.df.copy()
+            dfx[self.exposure] = 1
+            adata = patsy.dmatrix(model + ' - 1', dfx)
+            dfx = self.df.copy()
+            dfx[self.exposure] = 0
+            ndata = patsy.dmatrix(model + ' - 1', dfx)
+
+            m1w, m0w = missing_machine_learner(xdata=np.array(data),
+                                               mdata=self.df[self._missing_indicator],
+                                               all_a=adata, none_a=ndata,
+                                               ml_model=copy.deepcopy(custom_model),
+                                               print_results=print_results)
 
         # If bounds are requested
         if bound:
-            self.df['_ipmw_a1_'] = _bounding_(self.df['_ipmw_a1_'], bounds=bound)
-            self.df['_ipmw_a0_'] = _bounding_(self.df['_ipmw_a0_'], bounds=bound)
+            m1w = probability_bounds(m1w, bounds=bound)
+            m0w = probability_bounds(m0w, bounds=bound)
+
+        self.df['_ipmw_a1_'] = m1w
+        self.df['_ipmw_a0_'] = m0w
 
         self._fit_missing_ = True
 
-    def outcome_model(self, model, continuous_distribution='gaussian', print_results=True):
+    def outcome_model(self, model, custom_model=None, continuous_distribution='gaussian', print_results=True):
         r"""Specify the outcome model. Model used to predict the outcome via a regression model. For binary outcome
         data, a logistic regression model is used. For continuous outcomes, either linear or Poisson regression are
         available.
@@ -270,6 +315,10 @@ class AIPTW:
         ----------
         model : str
             Independent variables to predict the outcome. For example, 'var1 + var2 + var3 + var4'
+        custom_model : optional
+            Input for a custom model that is used in place of the logit model (default). The model must have the
+            "fit()" and  "predict()" attributes. SciKit-Learn style models are supported as custom models. In the
+            background, TMLE will fit the custom model and generate the predicted values
         continuous_distribution : str, optional
             Distribution to use for continuous outcomes. Options are 'gaussian' for normal distributions and 'poisson'
             for Poisson distributions
@@ -279,40 +328,65 @@ class AIPTW:
         if self.exposure not in model:
             warnings.warn("It looks like '" + self.exposure + "' is not included in the outcome model.")
 
+        if self._miss_flag:
+            cc = self.df.copy().dropna()
+        else:
+            cc = self.df.copy()
+
         self._out_model = self.outcome + ' ~ ' + model
 
-        if self._continuous_outcome:
-            self._continuous_type = continuous_distribution
-            if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
-                f = sm.families.family.Gaussian()
-            elif continuous_distribution == 'poisson':
-                f = sm.families.family.Poisson()
+        if custom_model is None:
+            if self._continuous_outcome:
+                self._continuous_type = continuous_distribution
+                if (continuous_distribution == 'gaussian') or (continuous_distribution == 'normal'):
+                    f = sm.families.family.Gaussian()
+                elif continuous_distribution == 'poisson':
+                    f = sm.families.family.Poisson()
+                else:
+                    raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
             else:
-                raise ValueError("Only 'gaussian' and 'poisson' distributions are supported")
+                f = sm.families.family.Binomial()
+
+            if self._weight_ is None:
+                log = smf.glm(self._out_model, cc, family=f).fit()
+            else:
+                log = smf.glm(self._out_model, cc, freq_weights=cc[self._weight_], family=f).fit()
+
+            if print_results:
+                print('\n----------------------------------------------------------------')
+                print('MODEL: ' + self._out_model)
+                print('-----------------------------------------------------------------')
+                print(log.summary())
+
+            # Predicting under treatment strategies
+            dfx = self.df.copy()
+            dfx[self.exposure] = 1
+            qa1w = log.predict(dfx)
+            dfx = self.df.copy()
+            dfx[self.exposure] = 0
+            qa0w = log.predict(dfx)
+
         else:
-            f = sm.families.family.Binomial()
+            self._out_model_custom = True
+            data = patsy.dmatrix(model + ' - 1', cc)
 
-        if self._weight_ is None:
-            log = smf.glm(self._out_model, self.df, family=f).fit()
-        else:
-            log = smf.glm(self._out_model, self.df, freq_weights=self.df[self._weight_], family=f).fit()
+            dfx = self.df.copy()
+            dfx[self.exposure] = 1
+            adata = patsy.dmatrix(model + ' - 1', dfx)
+            dfx = self.df.copy()
+            dfx[self.exposure] = 0
+            ndata = patsy.dmatrix(model + ' - 1', dfx)
 
-        if print_results:
-            print('\n----------------------------------------------------------------')
-            print('MODEL: ' + self._out_model)
-            print('-----------------------------------------------------------------')
-            print(log.summary())
+            qa1w, qa0w = outcome_machine_learner(xdata=np.asarray(data),
+                                                 ydata=np.asarray(cc[self.outcome]),
+                                                 all_a=adata, none_a=ndata,
+                                                 ml_model=copy.deepcopy(custom_model),
+                                                 continuous=self._continuous_outcome,
+                                                 print_results=print_results)
 
-        # Generating predictions for observed variables
-        self._predicted_y_ = log.predict(self.df)
-
-        # Predicting under treatment strategies
-        dfx = self.df.copy()
-        dfx[self.exposure] = 1
-        self.df['_pY1_'] = log.predict(dfx)
-        dfx = self.df.copy()
-        dfx[self.exposure] = 0
-        self.df['_pY0_'] = log.predict(dfx)
+        self.df['_pY1_'] = qa1w
+        self.df['_pY0_'] = qa0w
+        self._predicted_y_ = qa1w*self.df[self.exposure] + qa0w*(1 - self.df[self.exposure])
         self._fit_outcome_ = True
 
     def fit(self):
@@ -405,22 +479,29 @@ class AIPTW:
         fmt = 'Outcome:          {:<15} No. Missing Outcome:  {:<20}'
         print(fmt.format(self.outcome, np.sum(self.df[self.outcome].isnull())))
 
-        fmt = 'g-Model:          {:<15} Q-model:              {:<20}'
-        e = 'Logistic'
-        if self._continuous_outcome:
-            y = self._continuous_type
+        fmt = 'g-Model:          {:<15} Missing Model:        {:<20}'
+        if self._exp_model_custom:
+            e = 'User-specified'
         else:
-            y = 'Logistic'
-
-        print(fmt.format(e, y))
-
-        fmt = 'Missing model:    {:<15}'
-        if self._fit_missing_:
+            e = 'Logistic'
+        if self._miss_model_custom and self._fit_missing_:
+            m = 'User-specified'
+        elif self._fit_missing_:
             m = 'Logistic'
         else:
             m = 'None'
 
-        print(fmt.format(m))
+        print(fmt.format(e, m))
+
+        fmt = 'Q-Model:          {:<15}'
+        if self._out_model_custom:
+            y = 'User-specified'
+        elif self._continuous_outcome:
+            y = self._continuous_type
+        else:
+            y = 'Logistic'
+
+        print(fmt.format(y))
 
         print('======================================================================')
 

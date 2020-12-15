@@ -63,8 +63,8 @@ def exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
                         "covers both sklearn and supylearner. If there is a predictive model you would "
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
-    if print_results and hasattr(fm, 'summarize'):  # SuPyLearner has a nice summarize function
-        fm.summarize()
+    if print_results and hasattr(fm, 'summary'):  # SuPyLearner has a nice summarize function
+        fm.summary()
 
     # Generating predictions
     if hasattr(fm, 'predict_proba'):
@@ -75,8 +75,7 @@ def exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
         else:
             return g[:, 1]
     elif hasattr(fm, 'predict'):
-        g = fm.predict(xdata)
-        return g
+        return fm.predict(xdata)
     else:
         raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
@@ -93,8 +92,8 @@ def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, p
                         "covers both sklearn and supylearner. If there is a predictive model you would "
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
-    if print_results and hasattr(fm, 'summarize'):  # Nice summarize option from SuPyLearner
-        fm.summarize()
+    if print_results and hasattr(fm, 'summary'):  # Nice summarize option from SuPyLearner
+        fm.summary()
 
     # Generating predictions
     if continuous:
@@ -112,7 +111,7 @@ def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, p
             if (qa1.ndim == 1) and (qa0.ndim == 1):
                 return qa1, qa0
             else:
-                return qa1[:,1], qa0[:,1]
+                return qa1[:, 1], qa0[:, 1]
         elif hasattr(fm, 'predict'):
             qa1 = fm.predict(all_a)
             qa0 = fm.predict(none_a)
@@ -133,8 +132,8 @@ def stochastic_outcome_machine_learner(xdata, ydata, ml_model, continuous, print
                         "covers both sklearn and supylearner. If there is a predictive model you would "
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
-    if print_results and hasattr(fm, 'summarize'):  # Nice summarize option from SuPyLearner
-        fm.summarize()
+    if print_results and hasattr(fm, 'summary'):  # Nice summarize option from SuPyLearner
+        fm.summary()
 
     # Generating predictions
     if continuous:
@@ -195,8 +194,8 @@ def missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results
                         "covers both sklearn and supylearner. If there is a predictive model you would "
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
-    if print_results and hasattr(fm, 'summarize'):  # SuPyLearner has a nice summarize function
-        fm.summarize()
+    if print_results and hasattr(fm, 'summary'):  # SuPyLearner has a nice summarize function
+        fm.summary()
 
     # Generating predictions
     if hasattr(fm, 'predict_proba'):
