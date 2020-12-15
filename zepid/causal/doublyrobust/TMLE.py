@@ -1,3 +1,4 @@
+import copy
 import warnings
 import patsy
 import numpy as np
@@ -7,9 +8,9 @@ import matplotlib.pyplot as plt
 from scipy.stats import logistic, norm
 
 from zepid.causal.utils import propensity_score, stochastic_check_conditional
-from zepid.calc import probability_to_odds, odds_to_probability
+from zepid.calc import probability_to_odds, odds_to_probability, probability_bounds
 from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, stochastic_outcome_machine_learner,
-                                stochastic_outcome_predict, missing_machine_learner, _bounding_, plot_kde, plot_love,
+                                stochastic_outcome_predict, missing_machine_learner, plot_kde, plot_love,
                                 standardized_mean_differences, positivity, plot_kde_accuracy, outcome_accuracy)
 
 
@@ -213,7 +214,7 @@ class TMLE:
             Independent variables to predict the exposure. Example) 'var1 + var2 + var3'
         custom_model : optional
             Input for a custom model that is used in place of the logit model (default). The model must have the
-            "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
+            "fit()" and  "predict()" attributes. SciKit-Learn style models are supported as custom models. In the
             background, TMLE will fit the custom model and generate the predicted probablities
         bound : float, list, optional
             Value between 0,1 to truncate predicted probabilities. Helps to avoid near positivity violations.
@@ -240,13 +241,15 @@ class TMLE:
             #              "certain machine learning algorithms")
             self._exp_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
-            self.g1W = exposure_machine_learner(xdata=np.asarray(data), ydata=np.asarray(self.df[self.exposure]),
-                                                ml_model=custom_model, print_results=print_results)
+            self.g1W = exposure_machine_learner(xdata=np.asarray(data),
+                                                ydata=np.asarray(self.df[self.exposure]),
+                                                ml_model=copy.deepcopy(custom_model),
+                                                print_results=print_results)
 
         self.g0W = 1 - self.g1W
         if bound:  # Bounding predicted probabilities if requested
-            self.g1W = _bounding_(self.g1W, bounds=bound)
-            self.g0W = _bounding_(self.g0W, bounds=bound)
+            self.g1W = probability_bounds(self.g1W, bounds=bound)
+            self.g0W = probability_bounds(self.g0W, bounds=bound)
 
         self._fit_exposure_model = True
 
@@ -315,11 +318,12 @@ class TMLE:
             self.m1W, self.m0W = missing_machine_learner(xdata=np.array(data),
                                                          mdata=self.df[self._missing_indicator],
                                                          all_a=adata, none_a=ndata,
-                                                         ml_model=custom_model, print_results=print_results)
+                                                         ml_model=copy.deepcopy(custom_model),
+                                                         print_results=print_results)
 
         if bound:  # Bounding predicted probabilities if requested
-            self.m1W = _bounding_(self.m1W, bounds=bound)
-            self.m0W = _bounding_(self.m0W, bounds=bound)
+            self.m1W = probability_bounds(self.m1W, bounds=bound)
+            self.m0W = probability_bounds(self.m0W, bounds=bound)
 
         self._fit_missing_model = True
 
@@ -335,7 +339,7 @@ class TMLE:
         custom_model : optional
             Input for a custom model that is used in place of the logit model (default). The model must have the
             "fit()" and  "predict()" attributes. Both sklearn and supylearner are supported as custom models. In the
-            background, TMLE will fit the custom model and generate the predicted probablities
+            background, TMLE will fit the custom model and generate the predicted values
         bound : bool, optional
             This argument should ONLY be used if the outcome is continuous. Value between 0,1 to truncate the bounded
             predicted outcomes. Default is `False`, meaning no truncation of predicted outcomes occurs (unless a
@@ -404,7 +408,7 @@ class TMLE:
             self.QA1W, self.QA0W = outcome_machine_learner(xdata=np.asarray(data),
                                                            ydata=np.asarray(cc[self.outcome]),
                                                            all_a=adata, none_a=ndata,
-                                                           ml_model=custom_model,
+                                                           ml_model=copy.deepcopy(custom_model),
                                                            continuous=self._continuous_outcome,
                                                            print_results=print_results)
 
@@ -412,8 +416,8 @@ class TMLE:
             bound = self._cb
 
         # This bounding step prevents continuous outcomes from being outside the range
-        self.QA1W = _bounding_(self.QA1W, bounds=bound)
-        self.QA0W = _bounding_(self.QA0W, bounds=bound)
+        self.QA1W = probability_bounds(self.QA1W, bounds=bound)
+        self.QA0W = probability_bounds(self.QA0W, bounds=bound)
         self.QAW = self.QA1W * self.df[self.exposure] + self.QA0W * (1 - self.df[self.exposure])
         self._fit_outcome_model = True
 
@@ -1005,7 +1009,7 @@ class StochasticTMLE:
                                             ml_model=custom_model, print_results=self._verbose_)
 
         if bound:  # Bounding predicted probabilities if requested
-            pred2 = _bounding_(pred, bounds=bound)
+            pred2 = probability_bounds(pred, bounds=bound)
             self._specified_bound_ = np.sum(np.where(pred2 == pred, 0, 1))
             pred = pred2
 
@@ -1071,7 +1075,7 @@ class StochasticTMLE:
             bound = self._cb
 
         # This bounding step prevents continuous outcomes from being outside the range
-        self._Qinit_ = _bounding_(self._Qinit_, bounds=bound)
+        self._Qinit_ = probability_bounds(self._Qinit_, bounds=bound)
 
     def fit(self, p, conditional=None, samples=100, seed=None):
         """Calculate the effect from the predicted exposure probabilities and predicted outcome values using the TMLE
