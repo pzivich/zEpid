@@ -67,6 +67,7 @@ class EmpiricalMeanSL(BaseEstimator):
                              "missing data.")
 
         self.empirical_mean = np.mean(y)
+        return self
 
     def predict(self, X):
         """Predict the value of y given a set of X covariates. Because X has no effect on the empirical mean, the
@@ -276,6 +277,8 @@ class StepwiseSL:
         self.cols_optim = best_cols
         if self._verbose_:
             print(self.model_optim.summary())
+
+        return self
 
     def predict(self, X):
         """Predict using the optimal GLM, where optimal is defined as the lowest AIC for the step-wise selection
