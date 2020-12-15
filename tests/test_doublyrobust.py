@@ -257,6 +257,34 @@ class TestTMLE:
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
         npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
 
+    def test_custom_model(self, df):
+        r_rd = -0.08440622
+        r_ci = -0.1541104, -0.01470202
+        tmle = TMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            custom_model=LogitReg(),
+                            print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           custom_model=LogitReg(),
+                           print_results=False)
+        tmle.fit()
+        npt.assert_allclose(tmle.risk_difference, r_rd)
+        npt.assert_allclose(tmle.risk_difference_ci, r_ci, rtol=1e-5)
+
+    def test_custom_model_continuous(self, cf):
+        r_ate = 223.4022
+        r_ci = 118.6037, 328.2008
+
+        tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
+        tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                            custom_model=LogitReg(), print_results=False)
+        tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                           custom_model=LinearRegression(), print_results=False)
+        tmle.fit()
+
+        npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
+        npt.assert_allclose(tmle.average_treatment_effect_ci, r_ci, rtol=1e-3)
+
     def test_sklearn_in_tmle(self, df):
         log = LogisticRegression(C=1.0, solver='liblinear')
         tmle = TMLE(df, exposure='art', outcome='dead')
