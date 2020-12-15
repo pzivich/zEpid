@@ -8,7 +8,7 @@ from scipy.stats.kde import gaussian_kde
 from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
 
-from zepid.calc import probability_to_odds
+from zepid.calc import probability_to_odds, probability_bounds
 
 
 def propensity_score(df, model, weights=None, print_results=True):
@@ -213,41 +213,6 @@ def missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results
         raise ValueError("Currently custom_model must have 'predict' or 'predict_proba' attribute")
 
 
-def _bounding_(v, bounds):
-    """Creates bounding for g-bounds in models
-
-    Parameters
-    ----------
-    v:
-        -Values to be bounded
-    bounds:
-        -Percentile thresholds for bounds
-    """
-    if type(bounds) is float:  # Symmetric bounding
-        if bounds < 0 or bounds > 1:
-            raise ValueError('Bound value must be between (0, 1)')
-        v = np.where(v < bounds, bounds, v)
-        v = np.where(v > 1-bounds, 1-bounds, v)
-    elif type(bounds) is str:  # Catching string inputs
-        raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
-    elif type(bounds) is int:  # Catching string inputs
-        raise ValueError('Bounds must either be a float between (0, 1), or a collection of floats between (0, 1)')
-    else:  # Asymmetric bounds
-        if bounds[0] > bounds[1]:
-            raise ValueError('Bound thresholds must be listed in ascending order')
-        if len(bounds) > 2:
-            warnings.warn('It looks like your specified bounds is more than two floats. Only the first two '
-                          'specified bounds are used by the bound statement. So only ' +
-                          str(bounds[0:2]) + ' will be used', UserWarning)
-        if type(bounds[0]) is str or type(bounds[1]) is str:
-            raise ValueError('Bounds must be floats between (0, 1)')
-        if (bounds[0] < 0 or bounds[1] > 1) or (bounds[0] < 0 or bounds[1] > 1):
-            raise ValueError('Both bound values must be between (0, 1)')
-        v = np.where(v < bounds[0], bounds[0], v)
-        v = np.where(v > bounds[1], bounds[1], v)
-    return v
-
-
 def iptw_calculator(df, treatment, model_denom, model_numer, weight, stabilized, standardize, bound, print_results):
     """Background function to calculate inverse probability of treatment weights. Used by `IPTW`, `AIPTW`, `IPSW`,
     `AIPSW`
@@ -268,8 +233,8 @@ def iptw_calculator(df, treatment, model_denom, model_numer, weight, stabilized,
 
     # Bounding predicted probabilities if requested
     if bound:
-        d = _bounding_(d, bounds=bound)
-        n = _bounding_(n, bounds=bound)
+        d = probability_bounds(d, bounds=bound)
+        n = probability_bounds(n, bounds=bound)
 
     # Calculating weights
     if stabilized:  # Stabilized weights

@@ -4,7 +4,8 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from zepid.causal.utils import propensity_score, iptw_calculator, _bounding_
+from zepid.calc.utils import probability_bounds
+from zepid.causal.utils import propensity_score, iptw_calculator
 
 
 class IPSW:
@@ -161,8 +162,8 @@ class IPSW:
             self.sample['__numer__'] = 1
 
         if bound:
-            self.sample['__denom__'] = _bounding_(self.sample['__denom__'], bounds=bound)
-            self.sample['__numer__'] = _bounding_(self.sample['__numer__'], bounds=bound)
+            self.sample['__denom__'] = probability_bounds(self.sample['__denom__'], bounds=bound)
+            self.sample['__numer__'] = probability_bounds(self.sample['__numer__'], bounds=bound)
 
         # Calculate IPSW (generalizability)
         if self.generalize:

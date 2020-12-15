@@ -11,7 +11,7 @@ from scipy.stats import norm
 
 from zepid.calc import probability_bounds
 from zepid.causal.utils import (propensity_score, plot_kde, plot_love, iptw_calculator,
-                                standardized_mean_differences, positivity, _bounding_,
+                                standardized_mean_differences, positivity,
                                 plot_kde_accuracy, outcome_accuracy, aipw_calculator,
                                 exposure_machine_learner, outcome_machine_learner, missing_machine_learner)
 

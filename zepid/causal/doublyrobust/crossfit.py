@@ -7,7 +7,8 @@ from scipy.stats import logistic, norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from zepid.causal.utils import _bounding_, aipw_calculator
+from zepid.calc.utils import probability_bounds
+from zepid.causal.utils import aipw_calculator
 
 
 class SingleCrossfitAIPTW:
@@ -279,7 +280,7 @@ class SingleCrossfitAIPTW:
 
         # Applying bounds if requested
         if self._gbounds:  # Bounding g-model if requested
-            pred_a_array = _bounding_(pred_a_array, bounds=self._gbounds)
+            pred_a_array = probability_bounds(pred_a_array, bounds=self._gbounds)
 
         # Calculating point estimates
         riskdifference, var_rd = aipw_calculator(y=y_obs, a=a_obs,
@@ -587,7 +588,7 @@ class DoubleCrossfitAIPTW:
 
         # Applying bounds if requested
         if self._gbounds:  # Bounding g-model if requested
-            pred_a_array = _bounding_(pred_a_array, bounds=self._gbounds)
+            pred_a_array = probability_bounds(pred_a_array, bounds=self._gbounds)
 
         # Calculating point estimates
         riskdifference, var_rd = aipw_calculator(y=y_obs, a=a_obs,

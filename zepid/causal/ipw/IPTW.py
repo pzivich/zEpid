@@ -7,8 +7,9 @@ import statsmodels.formula.api as smf
 from statsmodels.tools.sm_exceptions import DomainWarning
 import matplotlib.pyplot as plt
 
+from zepid.calc.utils import probability_bounds
 from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love, stochastic_check_conditional,
-                                standardized_mean_differences, positivity, _bounding_, iptw_calculator)
+                                standardized_mean_differences, positivity, iptw_calculator)
 
 
 class IPTW:
@@ -296,7 +297,7 @@ class IPTW:
             n = 1
 
         if bound:  # Bounding predicted probabilities if requested
-            d = _bounding_(fitmodel.predict(self.df), bounds=bound)
+            d = probability_bounds(fitmodel.predict(self.df), bounds=bound)
         else:
             d = fitmodel.predict(self.df)
 

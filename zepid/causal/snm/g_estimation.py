@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import scipy.optimize
 
-from zepid.causal.utils import propensity_score, _bounding_
+from zepid.calc.utils import probability_bounds
+from zepid.causal.utils import propensity_score
 
 
 class GEstimationSNM:
@@ -287,7 +288,7 @@ class GEstimationSNM:
             n = 1
 
         if bound:  # Bounding predicted probabilities if requested
-            d = _bounding_(fitmodel.predict(self.df), bounds=bound)
+            d = probability_bounds(fitmodel.predict(self.df), bounds=bound)
         else:
             d = fitmodel.predict(self.df)
 
