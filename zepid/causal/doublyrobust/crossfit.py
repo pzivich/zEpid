@@ -133,7 +133,7 @@ class SingleCrossfitAIPTW:
         self._y_covariates = covariates
         self._fit_outcome_ = True
 
-    def fit(self, n_splits=2, n_partitions=100, method='median'):
+    def fit(self, n_splits=2, n_partitions=100, method='median', random_state=None):
         """Runs the crossfit estimation procedure with augmented inverse probability weighted estimator. The
         estimation process is completed for multiple different splits during the procedure. The final estimate is
         defined as either the median or mean of the average causal effect from each of the different splits. Median is
@@ -154,6 +154,10 @@ class SingleCrossfitAIPTW:
             Method to obtain point estimates and standard errors. Median method takes the median (which is more robust)
             and the mean takes the mean. It has been remarked that the median is preferred, since it is more stable to
             extreme outliers, which may happen in finite samples
+        random_state : None, int, optional
+            Whether to set a seed for the partitions. Default is None (which does not use a user-set seed). Any valid
+            NumPy seed can be input. Note that you should also state the random_state of all (applicable) estimators
+            to ensure replicability.
         """
         # Checking for various issues
         if not self._fit_treatment_:
@@ -172,9 +176,13 @@ class SingleCrossfitAIPTW:
         diff_est, diff_var, ratio_est, ratio_var = [], [], [], []
 
         # Conducts the re-sampling procedure
+        if random_state is None:
+            random_state = [None] * n_partitions
+        else:
+            random_state = np.random.RandomState(random_state).choice(range(100000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_()
+            result = self._single_crossfit_(random_state=random_state)
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
@@ -246,11 +254,11 @@ class SingleCrossfitAIPTW:
 
         print('======================================================================')
 
-    def _single_crossfit_(self):
+    def _single_crossfit_(self, random_state):
         """Background function that runs a single crossfit of the split samples
         """
         # Dividing into s different splits
-        sample_split = _sample_split_(self.df, n_splits=self._n_splits_)
+        sample_split = _sample_split_(self.df, n_splits=self._n_splits_, random_state=random_state)
 
         # Determining pairings to use for each sample split and each combination
         pairing_exposure = [i - 1 for i in range(self._n_splits_)]
@@ -457,7 +465,7 @@ class DoubleCrossfitAIPTW:
         self._y_covariates = covariates
         self._fit_outcome_ = True
 
-    def fit(self, n_splits=3, n_partitions=100, method='median'):
+    def fit(self, n_splits=3, n_partitions=100, method='median', random_state=None):
         """Runs the crossfit estimation procedure with augmented inverse probability weighted estimator. The
         estimation process is completed for multiple different splits during the procedure. The final estimate is
         defined as either the median or mean of the average causal effect from each of the different splits. Median is
@@ -479,6 +487,10 @@ class DoubleCrossfitAIPTW:
             Method to obtain point estimates and standard errors. Median method takes the median (which is more robust)
             and the mean takes the mean. It has been remarked that the median is preferred, since it is more stable to
             extreme outliers, which may happen in finite samples
+        random_state : None, int, optional
+            Whether to set a seed for the partitions. Default is None (which does not use a user-set seed). Any valid
+            NumPy seed can be input. Note that you should also state the random_state of all (applicable) estimators
+            to ensure replicability.
         """
         # Checking for various issues
         if not self._fit_treatment_:
@@ -497,9 +509,13 @@ class DoubleCrossfitAIPTW:
         diff_est, diff_var, ratio_est, ratio_var = [], [], [], []
 
         # Conducts the re-sampling procedure
+        if random_state is None:
+            random_state = [None] * n_partitions
+        else:
+            random_state = np.random.RandomState(random_state).choice(range(100000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_()
+            result = self._single_crossfit_(random_state=random_state[j])
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
@@ -524,11 +540,11 @@ class DoubleCrossfitAIPTW:
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
             # Risk Ratio
-            rr, ln_rr_var = calculate_joint_estimate(np.log(ratio_est), ratio_var, method=method)
-            self.risk_ratio = rr
+            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(ratio_est), ratio_var, method=method)
+            self.risk_ratio = np.exp(ln_rr)
             self.risk_ratio_se = np.sqrt(ln_rr_var)
-            self.risk_ratio_ci = (np.exp(np.log(rr) - zalpha*self.risk_ratio_se),
-                                  np.exp(np.log(rr) + zalpha*self.risk_ratio_se))
+            self.risk_ratio_ci = (np.exp(ln_rr - zalpha*self.risk_ratio_se),
+                                  np.exp(ln_rr + zalpha*self.risk_ratio_se))
 
     def summary(self, decimal=3):
         """Prints summary of model results
@@ -571,11 +587,11 @@ class DoubleCrossfitAIPTW:
 
         print('======================================================================')
 
-    def _single_crossfit_(self):
+    def _single_crossfit_(self, random_state):
         """Background function that runs a single crossfit of the split samples
         """
         # Dividing into s different splits
-        sample_split = _sample_split_(self.df, n_splits=self._n_splits_)
+        sample_split = _sample_split_(self.df, n_splits=self._n_splits_, random_state=random_state)
 
         # Determining pairings to use for each sample split and each combination
         pairing_exposure = [i - 1 for i in range(self._n_splits_)]
@@ -694,7 +710,7 @@ def calculate_joint_estimate(point_est, var_est, method):
     return single_point, single_point_var
 
 
-def _sample_split_(data, n_splits):
+def _sample_split_(data, n_splits, random_state=None):
     """Background function to split data into three non-overlapping pieces
     """
     # Break into approx even splits
@@ -704,7 +720,7 @@ def _sample_split_(data, n_splits):
     data_to_sample = data.copy()
     # Procedures is done n_splits - 1 times
     for i in range(n_splits-1):  # Loops through splits and takes random sample all remaining sets of the data
-        s = data_to_sample.sample(n=n)
+        s = data_to_sample.sample(n=n, random_state=random_state)
         splits.append(s.copy())
         data_to_sample = data_to_sample.loc[data_to_sample.index.difference(s.index)].copy()
 
