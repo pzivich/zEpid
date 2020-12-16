@@ -152,3 +152,14 @@ class TestGeneralize:
     def test_return_pandas_conf(self):
         df = ze.load_generalize_data(True)
         assert isinstance(df, type(pd.DataFrame()))
+
+
+class TestZivichBreskin:
+
+    def test_correct_ncols(self):
+        df = ze.load_zivich_breskin_data()
+        assert df.shape[1] == 7
+
+    def test_correct_nobs(self):
+        df = ze.load_zivich_breskin_data()
+        assert df.shape[0] == 3000

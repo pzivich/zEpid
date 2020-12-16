@@ -413,3 +413,24 @@ def load_generalize_data(confounding):
         df = pd.read_csv(resource_filename('zepid', 'datasets/generalize_rct.dat'), index_col=False)
     df['id'] = df.index
     return df[['id', 'Y', 'A', 'S', 'L', 'W']]
+
+
+def load_zivich_breskin_data():
+    """Loads the singular simulation data set from Zivich PN & Breskin 2021.
+
+    Notes
+    -----------
+    Variables within the dataset are
+        * Y - outcome (atherosclerotic cardiovascular disease)
+        * statin - treatment (1 is given statins; 0 is not)
+        * age - Age
+        * ldl_log - log-transformed LDL
+        * diabetes - diabetes indicator
+        * risk_score - calculated risk score between 0 and 1
+
+    Returns
+    ----------
+    DataFrame
+        Returns pandas DataFrame
+    """
+    return pd.read_csv(resource_filename('zepid', 'datasets/zivich_breskin_sim.csv'), index_col=False)
