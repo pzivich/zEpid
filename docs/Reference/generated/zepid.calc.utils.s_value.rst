@@ -1,5 +1,5 @@
-zepid.calc.utils.s\_value
-==============================
+﻿zepid.calc.utils.s\_value
+=========================
 
 .. currentmodule:: zepid.calc.utils
 

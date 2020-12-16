@@ -1,5 +1,5 @@
-zepid.base.interaction_contrast
-=================================
+﻿zepid.base.interaction\_contrast
+================================
 
 .. currentmodule:: zepid.base
 

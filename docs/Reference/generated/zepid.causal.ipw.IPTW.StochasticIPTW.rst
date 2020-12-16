@@ -1,16 +1,25 @@
-zepid.causal.ipw.IPTW.StochasticIPTW
+﻿zepid.causal.ipw.IPTW.StochasticIPTW
 ====================================
 
 .. currentmodule:: zepid.causal.ipw.IPTW
 
 .. autoclass:: StochasticIPTW
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
-      ~StochasticIPTW.treatment_model
+   
+      ~StochasticIPTW.__init__
       ~StochasticIPTW.fit
       ~StochasticIPTW.summary
+      ~StochasticIPTW.treatment_model
+   
+   
 
+   
+   
+   

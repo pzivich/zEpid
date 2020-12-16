@@ -50,7 +50,7 @@ Contents:
   Time-Fixed Exposure
   Time-Varying Exposure
   Generalizability
-  Missing Data
+  Missing Data <Missing data.rst>
   Graphics
   Sensitivity Analyses
   Reference/index

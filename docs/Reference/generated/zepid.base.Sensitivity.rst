@@ -1,14 +1,24 @@
-zepid.base.Sensitivity
-=========================================
+﻿zepid.base.Sensitivity
+======================
 
 .. currentmodule:: zepid.base
 
 .. autoclass:: Sensitivity
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~Sensitivity.__init__
       ~Sensitivity.fit
       ~Sensitivity.summary
+   
+   
+
+   
+   
+   

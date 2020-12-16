@@ -1,17 +1,30 @@
-zepid.causal.doublyrobust.TMLE.StochastsicTMLE
-==============================================
+﻿zepid.causal.doublyrobust.TMLE.StochasticTMLE
+=============================================
 
-.. currentmodule:: zepid.causal.doublyrobust.StochasticTMLE
+.. currentmodule:: zepid.causal.doublyrobust.TMLE
 
 .. autoclass:: StochasticTMLE
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
+   
+      ~StochasticTMLE.__init__
+      ~StochasticTMLE.est_conditional_variance
+      ~StochasticTMLE.est_marginal_variance
+      ~StochasticTMLE.exposure_model
+      ~StochasticTMLE.fit
+      ~StochasticTMLE.outcome_model
+      ~StochasticTMLE.run_diagnostics
+      ~StochasticTMLE.summary
+      ~StochasticTMLE.targeting_step
+   
+   
 
-      ~TMLE.exposure_model
-      ~TMLE.outcome_model
-      ~TMLE.fit
-      ~TMLE.summary
-      ~TMLE.run_diagnostics
+   
+   
+   

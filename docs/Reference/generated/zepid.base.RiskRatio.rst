@@ -1,15 +1,25 @@
-zepid.base.RiskRatio
-=========================================
+﻿zepid.base.RiskRatio
+====================
 
 .. currentmodule:: zepid.base
 
 .. autoclass:: RiskRatio
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~RiskRatio.__init__
       ~RiskRatio.fit
-      ~RiskRatio.summary
       ~RiskRatio.plot
+      ~RiskRatio.summary
+   
+   
+
+   
+   
+   

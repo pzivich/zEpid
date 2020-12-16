@@ -33,6 +33,7 @@ class SuperLearner:
     `SuperLearner` does not accept missing data. All missing data decisions have to occur prior to trying to use the
     `SuperLearner` procedure.
 
+
     `SuperLearner` accepts estimators that are of the SciKit-Learn format. Specifically, the candidate estimators must
     follow the `estimator.fit(X, y)` and `estimator.predict(X)` format. Performance has currently been checked for
     `sklearn`, `pygam`, and the estimators included in `zepid.superlearner`. Please consider opening an issue on
@@ -42,6 +43,7 @@ class SuperLearner:
     ----
     `SuperLearner(discrete=True)` returns predictions from the candidate estimator with the greatest coefficient. In the
     case of a tie, the first candidate estimator with the greatest coefficient is used (as per `numpy.argmax` behavior).
+
 
     To compare performances easily, `SuperLearner` provides both Cross-Validated Error and the Relative Efficiency. The
     Cross-Validated Error calculation depends on the chosen loss function. For L2, the loss function is

@@ -1,19 +1,24 @@
-zepid.causal.ipw.IPMW.IPMW
+﻿zepid.causal.ipw.IPMW.IPMW
 ==========================
 
 .. currentmodule:: zepid.causal.ipw.IPMW
 
 .. autoclass:: IPMW
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
-      ~IPMW.regression_models
+   
+      ~IPMW.__init__
       ~IPMW.fit
+      ~IPMW.regression_models
+   
+   
 
-
-
-
-
+   
+   
+   

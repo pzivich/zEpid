@@ -1,17 +1,27 @@
-zepid.causal.generalize.estimators.AIPSW
-=====================================================
+﻿zepid.causal.generalize.estimators.AIPSW
+========================================
 
 .. currentmodule:: zepid.causal.generalize.estimators
 
 .. autoclass:: AIPSW
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
-      ~AIPSW.sampling_model
-      ~AIPSW.treatment_model
-      ~AIPSW.outcome_model
+   
+      ~AIPSW.__init__
       ~AIPSW.fit
+      ~AIPSW.outcome_model
+      ~AIPSW.sampling_model
       ~AIPSW.summary
+      ~AIPSW.treatment_model
+   
+   
+
+   
+   
+   

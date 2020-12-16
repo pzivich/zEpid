@@ -1,24 +1,32 @@
-zepid.causal.doublyrobust.AIPW.AIPTW
+﻿zepid.causal.doublyrobust.AIPW.AIPTW
 ====================================
 
 .. currentmodule:: zepid.causal.doublyrobust.AIPW
 
 .. autoclass:: AIPTW
-   :members:
 
+   
+   .. automethod:: __init__
 
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~AIPTW.__init__
       ~AIPTW.exposure_model
-      ~AIPTW.outcome_model
-      ~AIPTW.missing_model
       ~AIPTW.fit
-      ~AIPTW.summary
-      ~AIPTW.run_diagnostics
-      ~AIPTW.positivity
-      ~AIPTW.standardized_mean_differences
+      ~AIPTW.missing_model
+      ~AIPTW.outcome_model
       ~AIPTW.plot_kde
       ~AIPTW.plot_love
+      ~AIPTW.positivity
+      ~AIPTW.run_diagnostics
+      ~AIPTW.standardized_mean_differences
+      ~AIPTW.summary
+   
+   
 
+   
+   
+   

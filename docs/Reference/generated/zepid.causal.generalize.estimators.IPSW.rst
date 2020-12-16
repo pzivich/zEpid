@@ -1,16 +1,26 @@
-zepid.causal.generalize.estimators.IPSW
-=================================================
+﻿zepid.causal.generalize.estimators.IPSW
+=======================================
 
 .. currentmodule:: zepid.causal.generalize.estimators
 
 .. autoclass:: IPSW
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
-      ~IPSW.sampling_model
-      ~IPSW.treatment_model
+   
+      ~IPSW.__init__
       ~IPSW.fit
+      ~IPSW.sampling_model
       ~IPSW.summary
+      ~IPSW.treatment_model
+   
+   
+
+   
+   
+   

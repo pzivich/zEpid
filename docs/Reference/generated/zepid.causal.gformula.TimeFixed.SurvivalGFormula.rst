@@ -1,15 +1,25 @@
-zepid.causal.gformula.TimeFixed.SurvivalGFormula
-=================================================
+﻿zepid.causal.gformula.TimeFixed.SurvivalGFormula
+================================================
 
 .. currentmodule:: zepid.causal.gformula.TimeFixed
 
 .. autoclass:: SurvivalGFormula
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
-      ~SurvivalGFormula.outcome_model
+   
+      ~SurvivalGFormula.__init__
       ~SurvivalGFormula.fit
+      ~SurvivalGFormula.outcome_model
       ~SurvivalGFormula.plot
+   
+   
+
+   
+   
+   

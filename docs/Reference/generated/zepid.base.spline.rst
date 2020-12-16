@@ -1,5 +1,5 @@
-zepid.base.spline
-=================================
+﻿zepid.base.spline
+=================
 
 .. currentmodule:: zepid.base
 

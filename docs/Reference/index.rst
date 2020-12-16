@@ -13,6 +13,7 @@ description of the tools, please see the side-bar for each corresponding section
     Calculations
     Graphics
     Causal
+    Super Learner <Super Learner.rst>
     Sensitivity
     Data
 

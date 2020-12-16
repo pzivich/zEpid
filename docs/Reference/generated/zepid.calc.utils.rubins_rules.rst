@@ -1,4 +1,4 @@
-zepid.calc.utils.rubins\_rules
+﻿zepid.calc.utils.rubins\_rules
 ==============================
 
 .. currentmodule:: zepid.calc.utils

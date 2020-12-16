@@ -1,15 +1,25 @@
-zepid.base.RiskDifference
-=========================================
+﻿zepid.base.RiskDifference
+=========================
 
 .. currentmodule:: zepid.base
 
 .. autoclass:: RiskDifference
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~RiskDifference.__init__
       ~RiskDifference.fit
-      ~RiskDifference.summary
       ~RiskDifference.plot
+      ~RiskDifference.summary
+   
+   
+
+   
+   
+   

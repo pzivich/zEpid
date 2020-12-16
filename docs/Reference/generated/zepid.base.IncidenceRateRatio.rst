@@ -1,15 +1,25 @@
-zepid.base.IncidenceRateRatio
-=========================================
+﻿zepid.base.IncidenceRateRatio
+=============================
 
 .. currentmodule:: zepid.base
 
 .. autoclass:: IncidenceRateRatio
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~IncidenceRateRatio.__init__
       ~IncidenceRateRatio.fit
-      ~IncidenceRateRatio.summary
       ~IncidenceRateRatio.plot
+      ~IncidenceRateRatio.summary
+   
+   
+
+   
+   
+   

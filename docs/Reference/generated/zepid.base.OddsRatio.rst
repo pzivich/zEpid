@@ -1,15 +1,25 @@
-zepid.base.OddsRatio
-=========================================
+﻿zepid.base.OddsRatio
+====================
 
 .. currentmodule:: zepid.base
 
 .. autoclass:: OddsRatio
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~OddsRatio.__init__
       ~OddsRatio.fit
-      ~OddsRatio.summary
       ~OddsRatio.plot
+      ~OddsRatio.summary
+   
+   
+
+   
+   
+   

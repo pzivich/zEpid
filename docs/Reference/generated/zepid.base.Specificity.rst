@@ -1,14 +1,24 @@
-zepid.base.Specificity
-=========================================
+﻿zepid.base.Specificity
+======================
 
 .. currentmodule:: zepid.base
 
 .. autoclass:: Specificity
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
+      ~Specificity.__init__
       ~Specificity.fit
       ~Specificity.summary
+   
+   
+
+   
+   
+   

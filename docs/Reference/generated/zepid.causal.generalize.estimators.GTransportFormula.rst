@@ -1,15 +1,25 @@
-zepid.causal.generalize.estimators.GTransportFormula
-=====================================================
+﻿zepid.causal.generalize.estimators.GTransportFormula
+====================================================
 
 .. currentmodule:: zepid.causal.generalize.estimators
 
 .. autoclass:: GTransportFormula
-   :members:
 
+   
+   .. automethod:: __init__
+
+   
    .. rubric:: Methods
 
    .. autosummary::
-
-      ~GTransportFormula.outcome_model
+   
+      ~GTransportFormula.__init__
       ~GTransportFormula.fit
+      ~GTransportFormula.outcome_model
       ~GTransportFormula.summary
+   
+   
+
+   
+   
+   
