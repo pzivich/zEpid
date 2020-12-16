@@ -875,6 +875,23 @@ class TestCrossfitUtils:
             assert type(nm) == LogisticRegression
 
 
+class TestMergeEstimates:
+
+    def test_median_method(self):
+        truth = (0.5, 0.4183300132670378**2)
+        calc = calculate_joint_estimate(point_est=np.array([0.5, 0.5, 0.7, 0.9, 0.3, 0.2]),
+                                        var_est=np.array([0.1, 0.1, 0.15, 0.2, 0.12, 0.16]),
+                                        method="median")
+        npt.assert_allclose(truth, calc)
+
+    def test_mean_method(self):
+        truth = (0.5166666666666667, 0.43938087754880223**2)
+        calc = calculate_joint_estimate(point_est=np.array([0.5, 0.5, 0.7, 0.9, 0.3, 0.2]),
+                                        var_est=np.array([0.1, 0.1, 0.15, 0.2, 0.12, 0.16]),
+                                        method="mean")
+        npt.assert_allclose(truth, calc)
+
+
 class TestSingleCrossfitAIPTW:
 
     @pytest.fixture
@@ -936,6 +953,27 @@ class TestSingleCrossfitAIPTW:
         aipw = SingleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
         assert aipw._continuous_outcome_ is True
 
+    def test_estimation_example(self):
+        d = ze.load_zivich_breskin_data()
+        g_model = 'diabetes + age + risk_score + ldl_log'
+        q_model = 'statin + diabetes + age + risk_score + ldl_log'
+
+        scaipw = SingleCrossfitAIPTW(d, exposure='statin', outcome='Y')
+        scaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        scaipw.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
+        scaipw.fit(n_splits=2, n_partitions=20, random_state=149528)
+
+        # Comparing Results
+        npt.assert_allclose(scaipw.risk_difference, -0.0888922494467794)
+        npt.assert_allclose(scaipw.risk_difference_se, 0.03872758612667732)
+        npt.assert_allclose(scaipw.risk_difference_ci,
+                            (-0.16479692346323999, -0.012987575430318796))
+
+        npt.assert_allclose(scaipw.risk_ratio, 0.711752688620572)
+        npt.assert_allclose(scaipw.risk_ratio_se, 0.12349006741837742)
+        npt.assert_allclose(scaipw.risk_ratio_ci,
+                            (0.5587456826189271, 0.9066591573184756))
+
 
 class TestDoubleCrossfitAIPTW:
 
@@ -989,21 +1027,23 @@ class TestDoubleCrossfitAIPTW:
         aipw = DoubleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
         assert aipw._continuous_outcome_ is True
 
-    # TODO more than error testing...
+    def test_estimation_example(self):
+        d = ze.load_zivich_breskin_data()
+        g_model = 'diabetes + age + risk_score + ldl_log'
+        q_model = 'statin + diabetes + age + risk_score + ldl_log'
 
+        dcaipw = DoubleCrossfitAIPTW(d, exposure='statin', outcome='Y')
+        dcaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        dcaipw.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
+        dcaipw.fit(n_splits=3, n_partitions=20, random_state=789401)
 
-class TestMergeEstimates:
+        # Comparing Results
+        npt.assert_allclose(dcaipw.risk_difference, -0.08476715539589746)
+        npt.assert_allclose(dcaipw.risk_difference_se, 0.03973969484761633)
+        npt.assert_allclose(dcaipw.risk_difference_ci,
+                            (-0.16265552605383743, -0.0068787847379574996))
 
-    def test_median_method(self):
-        truth = (0.5, 0.4183300132670378)
-        calc = calculate_joint_estimate(point_est=np.array([0.5, 0.5, 0.7, 0.9, 0.3, 0.2]),
-                                        var_est=np.array([0.1, 0.1, 0.15, 0.2, 0.12, 0.16]),
-                                        method="median")
-        npt.assert_allclose(truth, calc)
-
-    def test_mean_method(self):
-        truth = (0.5166666666666667, 0.43938087754880223)
-        calc = calculate_joint_estimate(point_est=np.array([0.5, 0.5, 0.7, 0.9, 0.3, 0.2]),
-                                        var_est=np.array([0.1, 0.1, 0.15, 0.2, 0.12, 0.16]),
-                                        method="mean")
-        npt.assert_allclose(truth, calc)
+        npt.assert_allclose(dcaipw.risk_ratio, 0.7215163191024414)
+        npt.assert_allclose(dcaipw.risk_ratio_se, 0.12625039975214342)
+        npt.assert_allclose(dcaipw.risk_ratio_ci,
+                            (0.5633543125162898, 0.9240823885875248))

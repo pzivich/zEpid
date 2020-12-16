@@ -134,10 +134,14 @@ class SingleCrossfitAIPTW:
         self._fit_outcome_ = True
 
     def fit(self, n_splits=2, n_partitions=100, method='median', random_state=None):
-        """Runs the crossfit estimation procedure with augmented inverse probability weighted estimator. The
+        """Runs the crossfit estimation procedure with augmented inverse probability weighting estimator. The
         estimation process is completed for multiple different splits during the procedure. The final estimate is
-        defined as either the median or mean of the average causal effect from each of the different splits. Median is
+        defined as either the median or mean of the causal measure from each of the different splits. Median is
         used as the default since it is more stable.
+
+        Note
+        ----
+        `n_partition` should be kept high to reduce dependency of results on the chosen number of splits
 
         Confidence intervals come from influences curves and incorporates the within-split variance and between-split
         variance.
@@ -157,7 +161,9 @@ class SingleCrossfitAIPTW:
         random_state : None, int, optional
             Whether to set a seed for the partitions. Default is None (which does not use a user-set seed). Any valid
             NumPy seed can be input. Note that you should also state the random_state of all (applicable) estimators
-            to ensure replicability.
+            to ensure replicability. Seeds are chosen by the following procedure. The input random_state is based to
+            np.random.choice to select n_partitions between 0 and 5million. That list of n_partition-length is then
+            passed to each iteration of the cross-fitting pandas.DataFrame.sample(random_state).
         """
         # Checking for various issues
         if not self._fit_treatment_:
@@ -179,7 +185,7 @@ class SingleCrossfitAIPTW:
         if random_state is None:
             random_state = [None] * n_partitions
         else:
-            random_state = np.random.RandomState(random_state).choice(range(100000), size=n_partitions, replace=False)
+            random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
             result = self._single_crossfit_(random_state=random_state)
@@ -471,6 +477,10 @@ class DoubleCrossfitAIPTW:
         defined as either the median or mean of the average causal effect from each of the different splits. Median is
         used as the default since it is more stable.
 
+        Note
+        ----
+        `n_partition` should be kept high to reduce dependency of results on the chosen number of splits
+
         Confidence intervals come from influences curves and incorporates the within-split variance and between-split
         variance.
 
@@ -490,7 +500,9 @@ class DoubleCrossfitAIPTW:
         random_state : None, int, optional
             Whether to set a seed for the partitions. Default is None (which does not use a user-set seed). Any valid
             NumPy seed can be input. Note that you should also state the random_state of all (applicable) estimators
-            to ensure replicability.
+            to ensure replicability. Seeds are chosen by the following procedure. The input random_state is based to
+            np.random.choice to select n_partitions between 0 and 5million. That list of n_partition-length is then
+            passed to each iteration of the cross-fitting pandas.DataFrame.sample(random_state).
         """
         # Checking for various issues
         if not self._fit_treatment_:
@@ -498,7 +510,7 @@ class DoubleCrossfitAIPTW:
         if not self._fit_outcome_:
             raise ValueError("outcome_model() must be called before fit()")
         if n_splits < 3:
-            raise ValueError("DoubleCrossfitAIPTW requires that n_splits > 2")
+            raise ValueError("DoubleCrossfitAIPTW requires that n_splits >= 3")
 
         # Storing some information
         self._n_splits_ = n_splits
@@ -512,7 +524,7 @@ class DoubleCrossfitAIPTW:
         if random_state is None:
             random_state = [None] * n_partitions
         else:
-            random_state = np.random.RandomState(random_state).choice(range(100000), size=n_partitions, replace=False)
+            random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
             result = self._single_crossfit_(random_state=random_state[j])
