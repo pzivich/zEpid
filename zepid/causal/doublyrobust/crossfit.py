@@ -12,12 +12,13 @@ from zepid.causal.utils import aipw_calculator
 
 
 class SingleCrossfitAIPTW:
-    """Implementation of the augmented inverse probability weighted estimator with a cross-fit procedure. The purpose
+    """Implementation of the Augmented Inverse Probability Weighting estimator with a cross-fit procedure. The purpose
     of the cross-fit procedure is to all for non-Donsker nuisance function estimators. Some of machine learning
     algorithms are non-Donsker. In practice this means that confidence interval coverage can be incorrect when certain
-    nuisance function estimators are used. Additionally, bias may persist as well.
+    nuisance function estimators are used. Additionally, bias may persist as well. Cross-fitting is meant to alleviate
+    this issue, therefore cross-fitting with a doubly-robust estimator is recommended when using machine learning.
 
-    SingleCrossfitAIPTW allows for both single cross-fit, where the data set is paritioned into at least two
+    `SingleCrossfitAIPTW` allows for both single cross-fit, where the data set is paritioned into at least two
     non-overlapping splits. The nuisance function estimators are then estimated in each split. The estimated nuisance
     functions are then used to predict values in the opposing split. This decouple the nuisance function estimation
     from the data used to estimate it
@@ -144,8 +145,7 @@ class SingleCrossfitAIPTW:
         Parameters
         ----------
         n_splits : int
-            Number of splits to use. The default is 3, which is valid for both single cross-fit and double cross-fit.
-            Single cross-fit is also compatible with 2 as the the number of splits
+            Number of splits to use with a default of 2. The number of splits must be greater than or equal to 2.
         n_partitions : int
             Number of times to repeat the partition process. The default is 100, which I have seen good performance
             with in the past. Note that this algorithm can take a long time to run for high values of this parameter.
@@ -177,26 +177,33 @@ class SingleCrossfitAIPTW:
             result = self._single_crossfit_()
 
             # Appending results of this particular split combination
-            # TODO Risk Ratios are not currently calculated. They would need to be added throughout
             diff_est.append(result[0])
             diff_var.append(result[1])
+            if not self._continuous_outcome_:
+                ratio_est.append(result[2])
+                ratio_var.append(result[3])
 
         # Obtaining overall estimate and (1-alpha)% CL from all splits
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
+        diff_est, diff_var = calculate_joint_estimate(diff_est, diff_var, method=method)
         if self._continuous_outcome_:
-            self.ace, self.ace_se = calculate_joint_estimate(diff_est, diff_var, method=method)
+            self.ace = diff_est
+            self.ace_se = np.sqrt(diff_var)
             self.ace_ci = (self.ace - zalpha*self.ace_se,
-                                       self.ace + zalpha*self.ace_se)
+                           self.ace + zalpha*self.ace_se)
         else:
             # Risk Difference
-            self.risk_difference, self.risk_difference_se = calculate_joint_estimate(diff_est, diff_var, method=method)
+            self.risk_difference = diff_est
+            self.risk_difference_se = np.sqrt(diff_var)
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
-            # TODO Risk Ratio
-            # self.calculate_estimate(point_est, var_est, method=method)
-            # self.risk_ratio_ci = (self.risk_ratio - zalpha*self.risk_ratio_se,
-            #                           self.risk_ratio + zalpha*self.risk_ratio_se)
+            # Risk Ratio
+            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(ratio_est), ratio_var, method=method)
+            self.risk_ratio = np.exp(ln_rr)
+            self.risk_ratio_se = np.sqrt(ln_rr_var)
+            self.risk_ratio_ci = (np.exp(ln_rr - zalpha*self.risk_ratio_se),
+                                  np.exp(ln_rr + zalpha*self.risk_ratio_se))
 
     def summary(self, decimal=3):
         """Prints summary of model results
@@ -231,11 +238,11 @@ class SingleCrossfitAIPTW:
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.risk_difference_ci[0], decimal)), ',',
                   str(round(self.risk_difference_ci[1], decimal)) + ')')
-            # print('----------------------------------------------------------------------')
-            # print('Risk Ratio:         ', round(float(self.risk_ratio), decimal))
-            # print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-            #      str(round(self.risk_ratio_ci[0], decimal)), ',',
-            #      str(round(self.risk_ratio_ci[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
+            print('Risk Ratio:         ', round(float(self.risk_ratio), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                  str(round(self.risk_ratio_ci[0], decimal)), ',',
+                  str(round(self.risk_ratio_ci[1], decimal)) + ')')
 
         print('======================================================================')
 
@@ -283,11 +290,20 @@ class SingleCrossfitAIPTW:
             pred_a_array = probability_bounds(pred_a_array, bounds=self._gbounds)
 
         # Calculating point estimates
-        riskdifference, var_rd = aipw_calculator(y=y_obs, a=a_obs,
-                                                 py_a=pred_y1_array, py_n=pred_y0_array,
-                                                 pa1=pred_a_array, pa0=1-pred_a_array,
-                                                 splits=np.asarray(split_index))
-        return riskdifference, var_rd
+        difference, var_diff = aipw_calculator(y=y_obs, a=a_obs,
+                                               py_a=pred_y1_array, py_n=pred_y0_array,
+                                               pa1=pred_a_array, pa0=1-pred_a_array,
+                                               splits=np.asarray(split_index),
+                                               difference=True)
+        if self._continuous_outcome_:
+            return difference, var_diff
+        else:
+            ratio, var_ratio = aipw_calculator(y=y_obs, a=a_obs,
+                                               py_a=pred_y1_array, py_n=pred_y0_array,
+                                               pa1=pred_a_array, pa0=1 - pred_a_array,
+                                               splits=np.asarray(split_index),
+                                               difference=False)
+            return difference, var_diff, ratio, var_ratio
 
     def _generate_predictions_(self, sample, a_model_v, y_model_v):
         """Generates predictions from fitted functions (in background of _single_crossfit()
@@ -315,9 +331,10 @@ class DoubleCrossfitAIPTW:
     """Implementation of the augmented inverse probability weighted estimator with a double cross-fit procedure. The
     purpose of the cross-fit procedure is to all for non-Donsker nuisance function estimators. Some of machine learning
     algorithms are non-Donsker. In practice this means that confidence interval coverage can be incorrect when certain
-    nuisance function estimators are used.
+    nuisance function estimators are used. Additionally, bias may persist as well. Cross-fitting is meant to alleviate
+    this issue, therefore cross-fitting with a doubly-robust estimator is recommended when using machine learning.
 
-    DoubleCrossfitAIPTW allows for double-crossfit, where the data set is partitioned into at least three
+    `DoubleCrossfitAIPTW` allows for double cross-fitting, where the data set is partitioned into at least three
     non-overlapping splits. The nuisance function estimators are then estimated in each split. The estimated nuisance
     functions are then used to predict values in the opposing split. Different splits are used for each nuisance
     function. A double cross-fit procedure further de-couples the nuisance function estimation compared to single
@@ -485,26 +502,33 @@ class DoubleCrossfitAIPTW:
             result = self._single_crossfit_()
 
             # Appending results of this particular split combination
-            # TODO Risk Ratios are not currently calculated. They would need to be added throughout
             diff_est.append(result[0])
             diff_var.append(result[1])
+            if not self._continuous_outcome_:
+                ratio_est.append(result[2])
+                ratio_var.append(result[3])
 
         # Obtaining overall estimate and (1-alpha)% CL from all splits
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
+        diff_est, diff_var = calculate_joint_estimate(diff_est, diff_var, method=method)
         if self._continuous_outcome_:
-            self.ace, self.ace_se = calculate_joint_estimate(diff_est, diff_var, method=method)
+            self.ace = diff_est
+            self.ace_se = np.sqrt(diff_var)
             self.ace_ci = (self.ace - zalpha*self.ace_se,
                            self.ace + zalpha*self.ace_se)
         else:
             # Risk Difference
-            self.risk_difference, self.risk_difference_se = calculate_joint_estimate(diff_est, diff_var, method=method)
+            self.risk_difference = diff_est
+            self.risk_difference_se = np.sqrt(diff_var)
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
-            # TODO Risk Ratio
-            # self.calculate_estimate(point_est, var_est, method=method)
-            # self.risk_ratio_ci = (self.risk_ratio - zalpha*self.risk_ratio_se,
-            #                           self.risk_ratio + zalpha*self.risk_ratio_se)
+            # Risk Ratio
+            rr, ln_rr_var = calculate_joint_estimate(np.log(ratio_est), ratio_var, method=method)
+            self.risk_ratio = rr
+            self.risk_ratio_se = np.sqrt(ln_rr_var)
+            self.risk_ratio_ci = (np.exp(np.log(rr) - zalpha*self.risk_ratio_se),
+                                  np.exp(np.log(rr) + zalpha*self.risk_ratio_se))
 
     def summary(self, decimal=3):
         """Prints summary of model results
@@ -539,11 +563,11 @@ class DoubleCrossfitAIPTW:
             print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
                   str(round(self.risk_difference_ci[0], decimal)), ',',
                   str(round(self.risk_difference_ci[1], decimal)) + ')')
-            # print('----------------------------------------------------------------------')
-            # print('Risk Ratio:         ', round(float(self.risk_ratio), decimal))
-            # print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
-            #      str(round(self.risk_ratio_ci[0], decimal)), ',',
-            #      str(round(self.risk_ratio_ci[1], decimal)) + ')')
+            print('----------------------------------------------------------------------')
+            print('Risk Ratio:         ', round(float(self.risk_ratio), decimal))
+            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                  str(round(self.risk_ratio_ci[0], decimal)), ',',
+                  str(round(self.risk_ratio_ci[1], decimal)) + ')')
 
         print('======================================================================')
 
@@ -591,11 +615,20 @@ class DoubleCrossfitAIPTW:
             pred_a_array = probability_bounds(pred_a_array, bounds=self._gbounds)
 
         # Calculating point estimates
-        riskdifference, var_rd = aipw_calculator(y=y_obs, a=a_obs,
-                                                 py_a=pred_y1_array, py_n=pred_y0_array,
-                                                 pa1=pred_a_array, pa0=1-pred_a_array,
-                                                 splits=np.asarray(split_index))
-        return riskdifference, var_rd
+        difference, var_diff = aipw_calculator(y=y_obs, a=a_obs,
+                                               py_a=pred_y1_array, py_n=pred_y0_array,
+                                               pa1=pred_a_array, pa0=1-pred_a_array,
+                                               splits=np.asarray(split_index),
+                                               difference=True)
+        if self._continuous_outcome_:
+            return difference, var_diff
+        else:
+            ratio, var_ratio = aipw_calculator(y=y_obs, a=a_obs,
+                                               py_a=pred_y1_array, py_n=pred_y0_array,
+                                               pa1=pred_a_array, pa0=1 - pred_a_array,
+                                               splits=np.asarray(split_index),
+                                               difference=False)
+            return difference, var_diff, ratio, var_ratio
 
     def _generate_predictions_(self, sample, a_model_v, y_model_v):
         """Generates predictions from fitted functions (in background of _single_crossfit()
@@ -647,18 +680,18 @@ def calculate_joint_estimate(point_est, var_est, method):
     # Using the Median Method
     if method == 'median':
         single_point = np.median(point_est)
-        single_point_se = np.sqrt(np.median(var_est + (point_est - single_point)**2))
+        single_point_var = np.median(var_est + (point_est - single_point)**2)
 
     # Using the Mean Method
     elif method == 'mean':
         single_point = np.mean(point_est)
-        single_point_se = np.sqrt(np.mean(var_est + (point_est - single_point)**2))
+        single_point_var = np.mean(var_est + (point_est - single_point)**2)
 
     # Error if neither exists
     else:
         raise ValueError("Either 'mean' or 'median' must be selected for the pooling of repeated sample splits")
 
-    return single_point, single_point_se
+    return single_point, single_point_var
 
 
 def _sample_split_(data, n_splits):

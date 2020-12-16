@@ -687,10 +687,15 @@ def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, s
     else:
         if weights is None:
             estimate = np.nanmean(y1) / np.nanmean(y0)
-            var = np.nan
+            py_o = a*py_a + (1-a)*py_n
+            ic = ((a*(y-py_o)) / (np.mean(py_a)*pa1) + (py_a - np.mean(py_a)) -
+                  ((1-a)*(y-py_o)) / (np.mean(py_n)*pa0) + (py_n - np.mean(py_n)))
+            var = np.nanvar(ic, ddof=1) / y.shape[0]
         else:
             estimate = DescrStatsW(y1, weights=weights).mean / DescrStatsW(y0, weights=weights).mean
             var = np.nan
 
     return estimate, var
 
+
+# TODO add TMLE calculator!!

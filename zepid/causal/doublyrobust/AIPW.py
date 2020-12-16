@@ -150,6 +150,7 @@ class AIPTW:
         self.risk_difference_ci = None
         self.risk_ratio_ci = None
         self.risk_difference_se = None
+        self.risk_ratio_se = None
 
         self.average_treatment_effect = None
         self.average_treatment_effect_ci = None
@@ -449,12 +450,15 @@ class AIPTW:
             self.risk_difference_ci = [self.risk_difference - zalpha * np.sqrt(diff_var),
                                        self.risk_difference + zalpha * np.sqrt(diff_var)]
 
-            ratio_est, ratio_var = aipw_calculator(y=y_obs, a=a_obs,
-                                                   py_a=py_a1, py_n=py_a0,
-                                                   pa1=ps_g1, pa0=ps_g0,
-                                                   difference=False, weights=w,
-                                                   splits=None)
-            self.risk_ratio = ratio_est
+            rr, ln_rr_var = aipw_calculator(y=y_obs, a=a_obs,
+                                            py_a=py_a1, py_n=py_a0,
+                                            pa1=ps_g1, pa0=ps_g0,
+                                            difference=False, weights=w,
+                                            splits=None)
+            self.risk_ratio = rr
+            self.risk_ratio_se = np.sqrt(ln_rr_var)
+            self.risk_ratio_ci = (np.exp(np.log(rr) - zalpha*self.risk_ratio_se),
+                                  np.exp(np.log(rr) + zalpha*self.risk_ratio_se))
 
     def summary(self, decimal=3):
         """Prints a summary of the results for the doubly robust estimator. Confidence intervals are only available for
@@ -523,7 +527,12 @@ class AIPTW:
                 print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
             print('----------------------------------------------------------------------')
             print('Risk Ratio:        ', round(float(self.risk_ratio), decimal))
-            print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
+            if self._weight_ is None:
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: (' +
+                      str(round(self.risk_ratio_ci[0], decimal)), ',',
+                      str(round(self.risk_ratio_ci[1], decimal)) + ')')
+            else:
+                print(str(round(100 * (1 - self.alpha), 1)) + '% two-sided CI: -')
 
         print('======================================================================')
 

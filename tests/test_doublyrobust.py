@@ -989,6 +989,8 @@ class TestDoubleCrossfitAIPTW:
         aipw = DoubleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
         assert aipw._continuous_outcome_ is True
 
+    # TODO more than error testing...
+
 
 class TestMergeEstimates:
 
