@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from scipy.stats import logistic
 from scipy.stats.kde import gaussian_kde
 from statsmodels.stats.weightstats import DescrStatsW
 import matplotlib.pyplot as plt
@@ -660,7 +661,7 @@ def stochastic_check_conditional(df, conditional):
 
 
 def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, splits=None):
-    """Function to calculate AIPW estimates. Called by AIPTW, SingleCrossfitAIPTW, and DoublyRobustAIPTW
+    """Function to calculate AIPW estimates. Called by AIPTW, SingleCrossfitAIPTW, and DoubleCrossfitAIPTW
     """
     # Point estimate calculation
     y1 = np.where(a == 1, y/pa1 - py_a*((1 - pa1) / pa1), py_a)
@@ -696,6 +697,3 @@ def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, s
             var = np.nan
 
     return estimate, var
-
-
-# TODO add TMLE calculator!!

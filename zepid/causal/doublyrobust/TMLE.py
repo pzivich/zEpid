@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import logistic, norm
 
 from zepid.causal.utils import propensity_score, stochastic_check_conditional
+from zepid.causal.doublyrobust.utils import tmle_unit_bounds, tmle_unit_unbound
 from zepid.calc import probability_to_odds, odds_to_probability, probability_bounds
 from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, stochastic_outcome_machine_learner,
                                 stochastic_outcome_predict, missing_machine_learner, plot_kde, plot_love,
@@ -24,21 +25,6 @@ class TMLE:
     ----
     Valid confidence intervals are only attainable with certain machine learning algorithms. These algorithms must be
     Donsker class for valid confidence intervals. GAM and LASSO are examples of alogorithms that are Donsker class
-
-    Parameters
-    ----------
-    df : DataFrame
-        Pandas dataframe containing the variables of interest
-    exposure : str
-        Column label for the exposure of interest
-    outcome : str
-        Column label for the outcome of interest
-    alpha : float, optional
-        Alpha for confidence interval level. Default is 0.05
-    continuous_bound : float, optional
-        Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
-        in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
-        0,1 respectively. Default value is 0.0005
 
     Note
     ----
@@ -81,6 +67,22 @@ class TMLE:
     4. The targeted Psi is estimated, representing the causal effect of all treated vs. all untreated
 
     Confidence intervals are constructed using influence curves.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Pandas dataframe containing the variables of interest
+    exposure : str
+        Column label for the exposure of interest
+    outcome : str
+        Column label for the outcome of interest
+    alpha : float, optional
+        Alpha for confidence interval level. Default is 0.05
+    continuous_bound : float, optional
+        Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
+        in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
+        0,1 respectively. Default value is 0.0005
+
 
     Examples
     --------
@@ -169,8 +171,8 @@ class TMLE:
             self._continuous_min = np.min(df[outcome])
             self._continuous_max = np.max(df[outcome])
             self._cb = continuous_bound
-            self.df[outcome] = _tmle_unit_bounds_(y=df[outcome], mini=self._continuous_min,
-                                                  maxi=self._continuous_max, bound=self._cb)
+            self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
+                                                maxi=self._continuous_max, bound=self._cb)
 
         self._out_model = None
         self._exp_model = None
@@ -473,13 +475,13 @@ class TMLE:
         delta = np.where(self.df[self._missing_indicator] == 1, 1, 0)
         if self._continuous_outcome:
             # Calculating Average Treatment Effect
-            Qstar = _tmle_unit_unbound_(Qstar, mini=self._continuous_min, maxi=self._continuous_max)
-            Qstar1 = _tmle_unit_unbound_(Qstar1, mini=self._continuous_min, maxi=self._continuous_max)
-            Qstar0 = _tmle_unit_unbound_(Qstar0, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar = tmle_unit_unbound(Qstar, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar1 = tmle_unit_unbound(Qstar1, mini=self._continuous_min, maxi=self._continuous_max)
+            Qstar0 = tmle_unit_unbound(Qstar0, mini=self._continuous_min, maxi=self._continuous_max)
 
             self.average_treatment_effect = np.nanmean(Qstar1 - Qstar0)
             # Influence Curve for CL
-            y_unbound = _tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min, maxi=self._continuous_max)
+            y_unbound = tmle_unit_unbound(self.df[self.outcome], mini=self._continuous_min, maxi=self._continuous_max)
             ic = np.where(delta == 1,
                           HAW * (y_unbound - Qstar) + (Qstar1 - Qstar0) - self.average_treatment_effect,
                           Qstar1 - Qstar0 - self.average_treatment_effect)
@@ -942,8 +944,8 @@ class StochasticTMLE:
             self._continuous_min = np.min(df[outcome])
             self._continuous_max = np.max(df[outcome])
             self._cb = continuous_bound
-            self.df[outcome] = _tmle_unit_bounds_(y=df[outcome], mini=self._continuous_min,
-                                                  maxi=self._continuous_max, bound=self._cb)
+            self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
+                                                maxi=self._continuous_max, bound=self._cb)
 
         self.exposure = exposure
         self.outcome = outcome
@@ -1167,12 +1169,18 @@ class StochasticTMLE:
             q_star_list.append(np.mean(q_star))  # Saving E[Y^*]
 
         if self._continuous_outcome:
-            self.marginals_vector = _tmle_unit_unbound_(np.array(q_star_list),
-                                                        mini=self._continuous_min, maxi=self._continuous_max)
-            y_ = np.array(_tmle_unit_unbound_(self.df[self.outcome], mini=self._continuous_min,
-                                              maxi=self._continuous_max))
-            yq0_ = _tmle_unit_unbound_(self._Qinit_, mini=self._continuous_min, maxi=self._continuous_max)
-            yqstar_ = _tmle_unit_unbound_(np.array(q_i_star_list), mini=self._continuous_min, maxi=self._continuous_max)
+            self.marginals_vector = tmle_unit_unbound(np.array(q_star_list),
+                                                      mini=self._continuous_min,
+                                                      maxi=self._continuous_max)
+            y_ = np.array(tmle_unit_unbound(self.df[self.outcome],
+                                            mini=self._continuous_min,
+                                            maxi=self._continuous_max))
+            yq0_ = tmle_unit_unbound(self._Qinit_,
+                                     mini=self._continuous_min,
+                                     maxi=self._continuous_max)
+            yqstar_ = tmle_unit_unbound(np.array(q_i_star_list),
+                                        mini=self._continuous_min,
+                                        maxi=self._continuous_max)
 
         else:
             self.marginals_vector = q_star_list
@@ -1325,17 +1333,3 @@ class StochasticTMLE:
         doqg_psi_sq = (haw*(y_obs - y_pred))**2
         var_est = np.mean(doqg_psi_sq)
         return var_est
-
-
-# Functions that all TMLEs can call are below
-def _tmle_unit_bounds_(y, mini, maxi, bound):
-    # bounding for continuous outcomes
-    v = (y - mini) / (maxi - mini)
-    v = np.where(np.less(v, bound), bound, v)
-    v = np.where(np.greater(v, 1-bound), 1-bound, v)
-    return v
-
-
-def _tmle_unit_unbound_(ystar, mini, maxi):
-    # unbounding of bounded continuous outcomes
-    return ystar*(maxi - mini) + mini
