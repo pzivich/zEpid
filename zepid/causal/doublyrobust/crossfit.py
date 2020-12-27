@@ -6,6 +6,8 @@ import pandas as pd
 from scipy.stats import logistic, norm
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
 
 from zepid.calc.utils import probability_bounds, probability_to_odds, odds_to_probability
 from zepid.causal.utils import aipw_calculator
@@ -88,6 +90,13 @@ class SingleCrossfitAIPTW:
         self._n_splits_ = 0
         self._n_partitions = 0
         self._combine_method_ = None
+
+        self.ace_vector = None
+        self.ace_var_vector = None
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
 
         self.ace = None
         self.ace_ci = None
@@ -201,20 +210,27 @@ class SingleCrossfitAIPTW:
         # Obtaining overall estimate and (1-alpha)% CL from all splits
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
-        diff_est, diff_var = calculate_joint_estimate(diff_est, diff_var, method=method)
+        est, var = calculate_joint_estimate(diff_est, diff_var, method=method)
         if self._continuous_outcome_:
-            self.ace = diff_est
-            self.ace_se = np.sqrt(diff_var)
+            self.ace_vector = diff_est
+            self.ace_var_vector = diff_var
+            self.ace = est
+            self.ace_se = np.sqrt(var)
             self.ace_ci = (self.ace - zalpha*self.ace_se,
                            self.ace + zalpha*self.ace_se)
         else:
             # Risk Difference
-            self.risk_difference = diff_est
-            self.risk_difference_se = np.sqrt(diff_var)
+            self.risk_difference_vector = diff_est
+            self.risk_difference_var_vector = diff_var
+            self.risk_difference = est
+            self.risk_difference_se = np.sqrt(var)
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
             # Risk Ratio
-            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(ratio_est), ratio_var, method=method)
+            self.risk_ratio_vector = ratio_est
+            self.risk_ratio_var_vector = ratio_var
+            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(self.risk_ratio_vector),
+                                                        self.risk_ratio_var_vector, method=method)
             self.risk_ratio = np.exp(ln_rr)
             self.risk_ratio_se = np.sqrt(ln_rr_var)
             self.risk_ratio_ci = (np.exp(ln_rr - zalpha*self.risk_ratio_se),
@@ -260,6 +276,31 @@ class SingleCrossfitAIPTW:
                   str(round(self.risk_ratio_ci[1], decimal)) + ')')
 
         print('======================================================================')
+
+    def run_diagnostics(self, color='gray'):
+        """Runs available diagnostics for the plots. Currently diagnostics consist of a plot of the different point
+        estimates and variance estimates across different partitions. Diagnostics for cross-fit estimators is ongoing.
+        If you have any suggestions, please feel free to contact me on GitHub
+
+        Parameters
+        ----------
+        color : str, optional
+            Controls color of the plots. Default is gray
+
+        Returns
+        -------
+        Plot to console
+        """
+        # Continuous outcomes have less plots to generate
+        if self._continuous_outcome_:
+            _run_diagnostic_(diff=self.ace_vector, diff_var=self.ace_var_vector,
+                             color=color)
+
+        # Binary outcomes have plots for all measures
+        else:
+            _run_diagnostic_(diff=self.risk_difference_vector, diff_var=self.risk_difference_var_vector,
+                             rratio=self.risk_ratio_vector, rratio_var=self.risk_ratio_var_vector,
+                             color=color)
 
     def _single_crossfit_(self, random_state):
         """Background function that runs a single crossfit of the split samples
@@ -383,11 +424,11 @@ class DoubleCrossfitAIPTW:
 
     Estimating the double cross-fit AIPTW
 
-    >>> scf_aipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
-    >>> scf_aipw.exposure_model("male + age0 + cd40 + dvl0", estimator=LogisticRegression(solver='lbfgs'))
-    >>> scf_aipw.outcome_model("art + male + age0 + cd40 + dvl0", estimator=LogisticRegression(solver='lbfgs'))
-    >>> scf_aipw.fit(n_splits=5, n_partitions=100)
-    >>> scf_aipw.summary()
+    >>> dcaipw = DoubleCrossfitAIPTW(df, exposure='art', outcome='dead')
+    >>> dcaipw.exposure_model("male + age0 + cd40 + dvl0", estimator=LogisticRegression(solver='lbfgs'))
+    >>> dcaipw.outcome_model("art + male + age0 + cd40 + dvl0", estimator=LogisticRegression(solver='lbfgs'))
+    >>> dcaipw.fit(n_splits=5, n_partitions=100)
+    >>> dcaipw.summary()
 
     References
     ----------
@@ -426,6 +467,13 @@ class DoubleCrossfitAIPTW:
         self._n_splits_ = 0
         self._n_partitions = 0
         self._combine_method_ = None
+
+        self.ace_vector = None
+        self.ace_var_vector = None
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
 
         self.ace = None
         self.ace_ci = None
@@ -540,20 +588,27 @@ class DoubleCrossfitAIPTW:
         # Obtaining overall estimate and (1-alpha)% CL from all splits
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
-        diff_est, diff_var = calculate_joint_estimate(diff_est, diff_var, method=method)
+        est, var = calculate_joint_estimate(diff_est, diff_var, method=method)
         if self._continuous_outcome_:
-            self.ace = diff_est
-            self.ace_se = np.sqrt(diff_var)
+            self.ace_vector = diff_est
+            self.ace_var_vector = diff_var
+            self.ace = est
+            self.ace_se = np.sqrt(var)
             self.ace_ci = (self.ace - zalpha*self.ace_se,
                            self.ace + zalpha*self.ace_se)
         else:
             # Risk Difference
-            self.risk_difference = diff_est
-            self.risk_difference_se = np.sqrt(diff_var)
+            self.risk_difference_vector = diff_est
+            self.risk_difference_var_vector = diff_var
+            self.risk_difference = est
+            self.risk_difference_se = np.sqrt(var)
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
             # Risk Ratio
-            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(ratio_est), ratio_var, method=method)
+            self.risk_ratio_vector = ratio_est
+            self.risk_ratio_var_vector = ratio_var
+            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(self.risk_ratio_vector),
+                                                        self.risk_ratio_var_vector, method=method)
             self.risk_ratio = np.exp(ln_rr)
             self.risk_ratio_se = np.sqrt(ln_rr_var)
             self.risk_ratio_ci = (np.exp(ln_rr - zalpha*self.risk_ratio_se),
@@ -599,6 +654,31 @@ class DoubleCrossfitAIPTW:
                   str(round(self.risk_ratio_ci[1], decimal)) + ')')
 
         print('======================================================================')
+
+    def run_diagnostics(self, color='gray'):
+        """Runs available diagnostics for the plots. Currently diagnostics consist of a plot of the different point
+        estimates and variance estimates across different partitions. Diagnostics for cross-fit estimators is ongoing.
+        If you have any suggestions, please feel free to contact me on GitHub
+
+        Parameters
+        ----------
+        color : str, optional
+            Controls color of the plots. Default is gray
+
+        Returns
+        -------
+        Plot to console
+        """
+        # Continuous outcomes have less plots to generate
+        if self._continuous_outcome_:
+            _run_diagnostic_(diff=self.ace_vector, diff_var=self.ace_var_vector,
+                             color=color)
+
+        # Binary outcomes have plots for all measures
+        else:
+            _run_diagnostic_(diff=self.risk_difference_vector, diff_var=self.risk_difference_var_vector,
+                             rratio=self.risk_ratio_vector, rratio_var=self.risk_ratio_var_vector,
+                             color=color)
 
     def _single_crossfit_(self, random_state):
         """Background function that runs a single crossfit of the split samples
@@ -738,7 +818,7 @@ class SingleCrossfitTMLE:
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, SingleCrossfitTMLE will drop all missing "
-                          "data. SingleCrossfitAIPTW will fit " + str(df.dropna().shape[0]) + ' of ' +
+                          "data. SingleCrossfitTMLE will fit " + str(df.dropna().shape[0]) + ' of ' +
                           str(df.shape[0]) + ' observations', UserWarning)
         self.df = df.copy().dropna().reset_index()
         self.exposure = exposure
@@ -773,6 +853,15 @@ class SingleCrossfitTMLE:
         self._n_splits_ = 0
         self._n_partitions = 0
         self._combine_method_ = None
+
+        self.ace_vector = None
+        self.ace_var_vector = None
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
+        self.odds_ratio_vector = None
+        self.odds_ratio_var_vector = None
 
         self.ace = None
         self.ace_ci = None
@@ -861,7 +950,7 @@ class SingleCrossfitTMLE:
         if not self._fit_outcome_:
             raise ValueError("outcome_model() must be called before fit()")
         if n_splits < 2:
-            raise ValueError("SingleCrossfitAIPTW requires that n_splits >= 2")
+            raise ValueError("SingleCrossfitTMLE requires that n_splits >= 2")
 
         # Storing some information
         self._n_splits_ = n_splits
@@ -892,26 +981,36 @@ class SingleCrossfitTMLE:
         # Obtaining overall estimate and (1-alpha)% CL from all splits
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
-        diff_est, diff_var = calculate_joint_estimate(diff_est, diff_var, method=method)
+        est, var = calculate_joint_estimate(diff_est, diff_var, method=method)
         if self._continuous_outcome_:
-            self.ace = diff_est
-            self.ace_se = np.sqrt(diff_var)
+            self.ace_vector = diff_est
+            self.ace_var_vector = diff_var
+            self.ace = est
+            self.ace_se = np.sqrt(var)
             self.ace_ci = (self.ace - zalpha*self.ace_se,
                            self.ace + zalpha*self.ace_se)
         else:
             # Risk Difference
-            self.risk_difference = diff_est
-            self.risk_difference_se = np.sqrt(diff_var)
+            self.risk_difference_vector = diff_est
+            self.risk_difference_var_vector = diff_var
+            self.risk_difference = est
+            self.risk_difference_se = np.sqrt(var)
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
             # Risk Ratio
-            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(rratio_est), rratio_var, method=method)
+            self.risk_ratio_vector = rratio_est
+            self.risk_ratio_var_vector = rratio_var
+            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(self.risk_ratio_vector),
+                                                        self.risk_ratio_var_vector, method=method)
             self.risk_ratio = np.exp(ln_rr)
             self.risk_ratio_se = np.sqrt(ln_rr_var)
             self.risk_ratio_ci = (np.exp(ln_rr - zalpha*self.risk_ratio_se),
                                   np.exp(ln_rr + zalpha*self.risk_ratio_se))
             # Odds Ratio
-            ln_or, ln_or_var = calculate_joint_estimate(np.log(oratio_est), oratio_var, method=method)
+            self.odds_ratio_vector = oratio_est
+            self.odds_ratio_var_vector = oratio_var
+            ln_or, ln_or_var = calculate_joint_estimate(np.log(self.odds_ratio_vector),
+                                                        self.odds_ratio_var_vector, method=method)
             self.odds_ratio = np.exp(ln_or)
             self.odds_ratio_se = np.sqrt(ln_or_var)
             self.odds_ratio_ci = (np.exp(ln_or - zalpha*self.odds_ratio_se),
@@ -961,6 +1060,32 @@ class SingleCrossfitTMLE:
                   str(round(self.odds_ratio_ci[0], decimal)), ',',
                   str(round(self.odds_ratio_ci[1], decimal)) + ')')
         print('======================================================================')
+
+    def run_diagnostics(self, color='gray'):
+        """Runs available diagnostics for the plots. Currently diagnostics consist of a plot of the different point
+        estimates and variance estimates across different partitions. Diagnostics for cross-fit estimators is ongoing.
+        If you have any suggestions, please feel free to contact me on GitHub
+
+        Parameters
+        ----------
+        color : str, optional
+            Controls color of the plots. Default is gray
+
+        Returns
+        -------
+        Plot to console
+        """
+        # Continuous outcomes have less plots to generate
+        if self._continuous_outcome_:
+            _run_diagnostic_(diff=self.ace_vector, diff_var=self.ace_var_vector,
+                             color=color)
+
+        # Binary outcomes have plots for all measures
+        else:
+            _run_diagnostic_(diff=self.risk_difference_vector, diff_var=self.risk_difference_var_vector,
+                             rratio=self.risk_ratio_vector, rratio_var=self.risk_ratio_var_vector,
+                             oratio=self.odds_ratio_vector, oratio_var=self.odds_ratio_var_vector,
+                             color=color)
 
     def _single_crossfit_(self, random_state):
         """Background function that runs a single crossfit of the split samples
@@ -1104,9 +1229,9 @@ class DoubleCrossfitTMLE:
     >>> from zepid.causal.doublyrobust import DoubleCrossfitTMLE
     >>> df = load_sample_data(False).drop(columns='cd4_wk45').dropna()
 
-    Estimating the single cross-fit TMLE
+    Estimating the double cross-fit TMLE
 
-    >>> dctmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+    >>> dctmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
     >>> dctmle.exposure_model("male + age0 + cd40 + dvl0", estimator=LogisticRegression(solver='lbfgs'))
     >>> dctmle.outcome_model("art + male + age0 + cd40 + dvl0", estimator=LogisticRegression(solver='lbfgs'))
     >>> dctmle.fit(n_splits=5, n_partitions=100)
@@ -1114,11 +1239,11 @@ class DoubleCrossfitTMLE:
 
     References
     ----------
-    Newey WK, Robins JR. (2018) "Cross-fitting and fast remainder rates for semiparametric estimation".
-    arXiv:1801.09138
-
     Zivich PN, & Breskin A. (2020). Machine learning for causal inference: on the use of cross-fit estimators.
     arXiv preprint arXiv:2004.10337.
+
+    Newey WK, Robins JR. (2018) "Cross-fitting and fast remainder rates for semiparametric estimation".
+    arXiv:1801.09138
 
     Chernozhukov V, Chetverikov D, Demirer M, Duflo E, Hansen C, Newey W, & Robins J. (2018). "Double/debiased machine
     learning for treatment and structural parameters". The Econometrics Journal 21:1; pC1–C6
@@ -1126,7 +1251,7 @@ class DoubleCrossfitTMLE:
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
         if df.dropna().shape[0] != df.shape[0]:
             warnings.warn("There is missing data in the dataset. By default, SingleCrossfitTMLE will drop all missing "
-                          "data. SingleCrossfitAIPTW will fit " + str(df.dropna().shape[0]) + ' of ' +
+                          "data. DoubleCrossfitTMLE will fit " + str(df.dropna().shape[0]) + ' of ' +
                           str(df.shape[0]) + ' observations', UserWarning)
         self.df = df.copy().dropna().reset_index()
         self.exposure = exposure
@@ -1161,6 +1286,15 @@ class DoubleCrossfitTMLE:
         self._n_splits_ = 0
         self._n_partitions = 0
         self._combine_method_ = None
+
+        self.ace_vector = None
+        self.ace_var_vector = None
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
+        self.odds_ratio_vector = None
+        self.odds_ratio_var_vector = None
 
         self.ace = None
         self.ace_ci = None
@@ -1249,7 +1383,7 @@ class DoubleCrossfitTMLE:
         if not self._fit_outcome_:
             raise ValueError("outcome_model() must be called before fit()")
         if n_splits < 3:
-            raise ValueError("SingleCrossfitAIPTW requires that n_splits >= 3")
+            raise ValueError("DoubleCrossfitTMLE requires that n_splits >= 3")
 
         # Storing some information
         self._n_splits_ = n_splits
@@ -1280,26 +1414,36 @@ class DoubleCrossfitTMLE:
         # Obtaining overall estimate and (1-alpha)% CL from all splits
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
 
-        diff_est, diff_var = calculate_joint_estimate(diff_est, diff_var, method=method)
+        est, var = calculate_joint_estimate(diff_est, diff_var, method=method)
         if self._continuous_outcome_:
-            self.ace = diff_est
-            self.ace_se = np.sqrt(diff_var)
+            self.ace_vector = diff_est
+            self.ace_var_vector = diff_var
+            self.ace = est
+            self.ace_se = np.sqrt(var)
             self.ace_ci = (self.ace - zalpha*self.ace_se,
                            self.ace + zalpha*self.ace_se)
         else:
             # Risk Difference
-            self.risk_difference = diff_est
-            self.risk_difference_se = np.sqrt(diff_var)
+            self.risk_difference_vector = diff_est
+            self.risk_difference_var_vector = diff_var
+            self.risk_difference = est
+            self.risk_difference_se = np.sqrt(var)
             self.risk_difference_ci = (self.risk_difference - zalpha*self.risk_difference_se,
                                        self.risk_difference + zalpha*self.risk_difference_se)
             # Risk Ratio
-            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(rratio_est), rratio_var, method=method)
+            self.risk_ratio_vector = rratio_est
+            self.risk_ratio_var_vector = rratio_var
+            ln_rr, ln_rr_var = calculate_joint_estimate(np.log(self.risk_ratio_vector),
+                                                        self.risk_ratio_var_vector, method=method)
             self.risk_ratio = np.exp(ln_rr)
             self.risk_ratio_se = np.sqrt(ln_rr_var)
             self.risk_ratio_ci = (np.exp(ln_rr - zalpha*self.risk_ratio_se),
                                   np.exp(ln_rr + zalpha*self.risk_ratio_se))
             # Odds Ratio
-            ln_or, ln_or_var = calculate_joint_estimate(np.log(oratio_est), oratio_var, method=method)
+            self.odds_ratio_vector = oratio_est
+            self.odds_ratio_var_vector = oratio_var
+            ln_or, ln_or_var = calculate_joint_estimate(np.log(self.odds_ratio_vector),
+                                                        self.odds_ratio_var_vector, method=method)
             self.odds_ratio = np.exp(ln_or)
             self.odds_ratio_se = np.sqrt(ln_or_var)
             self.odds_ratio_ci = (np.exp(ln_or - zalpha*self.odds_ratio_se),
@@ -1349,6 +1493,32 @@ class DoubleCrossfitTMLE:
                   str(round(self.odds_ratio_ci[0], decimal)), ',',
                   str(round(self.odds_ratio_ci[1], decimal)) + ')')
         print('======================================================================')
+
+    def run_diagnostics(self, color='gray'):
+        """Runs available diagnostics for the plots. Currently diagnostics consist of a plot of the different point
+        estimates and variance estimates across different partitions. Diagnostics for cross-fit estimators is ongoing.
+        If you have any suggestions, please feel free to contact me on GitHub
+
+        Parameters
+        ----------
+        color : str, optional
+            Controls color of the plots. Default is gray
+
+        Returns
+        -------
+        Plot to console
+        """
+        # Continuous outcomes have less plots to generate
+        if self._continuous_outcome_:
+            _run_diagnostic_(diff=self.ace_vector, diff_var=self.ace_var_vector,
+                             color=color)
+
+        # Binary outcomes have plots for all measures
+        else:
+            _run_diagnostic_(diff=self.risk_difference_vector, diff_var=self.risk_difference_var_vector,
+                             rratio=self.risk_ratio_vector, rratio_var=self.risk_ratio_var_vector,
+                             oratio=self.odds_ratio_vector, oratio_var=self.odds_ratio_var_vector,
+                             color=color)
 
     def _single_crossfit_(self, random_state):
         """Background function that runs a single crossfit of the split samples
@@ -1670,3 +1840,101 @@ def _outcome_nuisance_(outcome, estimator, samples, covariates):
         outcome_fit_splits.append(fm)
 
     return outcome_fit_splits
+
+
+def _estimate_density_plot_(estimates, bw_method='scott', fill=True, color='gray', variance=False):
+    """Generates a density plot of the different estimates for each of the different sample splits. Helps to visualize
+    the variability between different splits. If there is high variability, this indicates there is high sensitivity
+    to the particular chosen split.
+
+    Returns
+    -------
+
+    """
+    if variance:
+        x = np.linspace(0, np.max(estimates)+0.005, 10000)
+    else:
+        x = np.linspace(np.min(estimates)-0.02, np.max(estimates)+0.02, 10000)
+    density_t = gaussian_kde(estimates, bw_method=bw_method)
+
+    # Plot
+    ax = plt.gca()
+    if fill:
+        ax.fill_between(x, density_t(x), color=color, alpha=0.2, label=None)
+    ax.plot(x, density_t(x), color=color)
+    ax.set_yticks([])
+    return ax
+
+
+def _run_diagnostic_(diff, diff_var, rratio=None, rratio_var=None, oratio=None, oratio_var=None, color="gray"):
+    """Background function to run all diagnostics
+
+    Returns
+    -------
+    Plot to console
+    """
+    # Continuous outcomes have less plots to generate
+    if rratio is None:
+        # Point estimates
+        plt.subplot(121)
+        _estimate_density_plot_(diff, bw_method='scott', fill=True, color=color)
+        plt.title("ACE")
+        # Variance estimates
+        plt.subplot(122)
+        _estimate_density_plot_(diff_var, bw_method='scott', fill=True, color=color)
+        plt.title("Var(ACE)")
+
+    # Binary outcomes have plots for all measures
+    else:
+        if oratio is None:
+            # Risk Difference estimates
+            plt.subplot(221)
+            _estimate_density_plot_(diff, bw_method='scott', fill=True, color=color)
+            plt.title("Risk Difference")
+            # Var(RD) estimates
+            plt.subplot(223)
+            _estimate_density_plot_(diff_var, bw_method='scott',
+                                    fill=True, color=color, variance=True)
+            plt.title("Var(RD)")
+
+            # Risk Ratio estimates
+            plt.subplot(222)
+            _estimate_density_plot_(rratio, bw_method='scott', fill=True, color=color)
+            plt.title("Risk Ratio")
+            # Var(RR) estimates
+            plt.subplot(224)
+            _estimate_density_plot_(rratio_var, bw_method='scott',
+                                    fill=True, color=color, variance=True)
+            plt.title("Var(ln(RR))")
+        else:
+            # Risk Difference estimates
+            plt.subplot(231)
+            _estimate_density_plot_(diff, bw_method='scott', fill=True, color=color)
+            plt.title("Risk Difference")
+            # Var(RD) estimates
+            plt.subplot(234)
+            _estimate_density_plot_(diff_var, bw_method='scott',
+                                    fill=True, color=color, variance=True)
+            plt.title("Var(RD)")
+
+            # Risk Ratio estimates
+            plt.subplot(232)
+            _estimate_density_plot_(rratio, bw_method='scott', fill=True, color=color)
+            plt.title("Risk Ratio")
+            # Var(RR) estimates
+            plt.subplot(235)
+            _estimate_density_plot_(rratio_var, bw_method='scott',
+                                    fill=True, color=color, variance=True)
+            plt.title("Var(ln(RR))")
+            # Odds Ratio estimates
+            plt.subplot(233)
+            _estimate_density_plot_(oratio, bw_method='scott', fill=True, color=color)
+            plt.title("Odds Ratio")
+            # Var(OR) estimates
+            plt.subplot(236)
+            _estimate_density_plot_(oratio_var, bw_method='scott',
+                                    fill=True, color=color, variance=True)
+            plt.title("Var(ln(OR))")
+
+    plt.tight_layout()
+    plt.show()
