@@ -14,6 +14,7 @@ from zepid.causal.ipw import IPTW
 from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula, TimeFixedGFormula
 from zepid.causal.doublyrobust import AIPTW, TMLE
 from zepid.sensitivity_analysis import MonteCarloRR, trapezoidal
+from zepid.causal.causalgraph import DirectedAcyclicGraph
 
 
 def graphics_check():
@@ -146,8 +147,8 @@ def causal_check():
     g.run_diagnostics(decimal=3)
 
     # Check IPTW plots
-    ipt = IPTW(data, treatment='art', outcome='dead', stabilized=True)
-    ipt.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0')
+    ipt = IPTW(data, treatment='art', outcome='dead')
+    ipt.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0', stabilized=True)
     ipt.marginal_structural_model('art')
     ipt.fit()
     ipt.plot_love()
@@ -273,8 +274,18 @@ def mc_gformula_check():
     plt.show()
 
 
+def causalgraph_check():
+    dag = DirectedAcyclicGraph(exposure="X", outcome="Y")
+    dag.add_arrow(source="X", endpoint="Y")
+    dag.add_arrow(source="V", endpoint="Y")
+    dag.add_arrows(pairs=(("W", "X"), ("W", "Y")))
+    dag.draw_dag()
+    plt.show()
+
+
 # graphics_check()
 # senstivity_check()
 # measures_check()
 # causal_check()
+# causalgraph_check()
 # mc_gformula_check()

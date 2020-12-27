@@ -9,7 +9,9 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 
 import zepid as ze
 from zepid.causal.doublyrobust import (TMLE, AIPTW, StochasticTMLE,
-                                       SingleCrossfitAIPTW, DoubleCrossfitAIPTW, calculate_joint_estimate)
+                                       SingleCrossfitAIPTW, DoubleCrossfitAIPTW,
+                                       SingleCrossfitTMLE, DoubleCrossfitTMLE,
+                                       calculate_joint_estimate)
 from zepid.causal.doublyrobust.crossfit import (_sample_split_, _treatment_nuisance_, _outcome_nuisance_)
 
 
@@ -974,6 +976,21 @@ class TestSingleCrossfitAIPTW:
         npt.assert_allclose(scaipw.risk_ratio_ci,
                             (0.5587456826189271, 0.9066591573184756))
 
+    def test_continuous_example(self, cf):
+        g_model = 'male + age0 + cd40 + dvl0'
+        q_model = 'art + male + age0 + cd40 + dvl0'
+
+        scaipw = SingleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
+        scaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        scaipw.outcome_model(q_model, LinearRegression())
+        scaipw.fit(n_splits=2, n_partitions=20, random_state=743282)
+
+        # Comparing Results
+        npt.assert_allclose(scaipw.ace, 248.66294152974157)
+        npt.assert_allclose(scaipw.ace_se, 59.97329480914895)
+        npt.assert_allclose(scaipw.ace_ci,
+                            (131.11744366960664, 366.2084393898765))
+
 
 class TestDoubleCrossfitAIPTW:
 
@@ -1047,3 +1064,205 @@ class TestDoubleCrossfitAIPTW:
         npt.assert_allclose(dcaipw.risk_ratio_se, 0.12625039975214342)
         npt.assert_allclose(dcaipw.risk_ratio_ci,
                             (0.5633543125162898, 0.9240823885875248))
+
+    def test_continuous_example(self, cf):
+        g_model = 'male + age0 + cd40 + dvl0'
+        q_model = 'art + male + age0 + cd40 + dvl0'
+
+        dcaipw = DoubleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
+        dcaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        dcaipw.outcome_model(q_model, LinearRegression())
+        dcaipw.fit(n_splits=3, n_partitions=20, random_state=333282)
+
+        # Comparing Results
+        npt.assert_allclose(dcaipw.ace, 277.5231137965567)
+        npt.assert_allclose(dcaipw.ace_se, 83.43468194476246)
+        npt.assert_allclose(dcaipw.ace_ci,
+                            (113.99414212326795, 441.05208546984545))
+
+
+class TestSingleCrossfitTMLE:
+
+    @pytest.fixture
+    def data(self):
+        n = 100000
+        data = pd.DataFrame()
+        data['W'] = np.random.normal(size=n)
+        data['A'] = np.random.binomial(n=1, p=logistic.cdf(-0.5 + 0.1 * data['W']), size=n)
+        data['Y'] = data['W'] + 5 * data['A'] + np.random.normal(size=n)
+        return data
+
+    @pytest.fixture
+    def df(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
+
+    def test_drop_missing_data(self):
+        df = ze.load_sample_data(False)
+        tmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+        assert df.dropna().shape[0] == tmle.df.shape[0]
+
+    def test_error_when_no_models_specified1(self, df):
+        tmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+        with pytest.raises(ValueError):
+            tmle.fit()
+
+    def test_error_when_no_models_specified2(self, df):
+        tmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            tmle.fit()
+
+    def test_error_when_no_models_specified3(self, df):
+        tmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+        tmle.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            tmle.fit()
+
+    def test_error_invalid_splits(self, df):
+        tmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        tmle.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            tmle.fit(n_splits=1)
+
+    def test_continuous_flag(self, df, cf):
+        tmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+        assert tmle._continuous_outcome_ is False
+
+        tmle = SingleCrossfitTMLE(cf, exposure='art', outcome='cd4_wk45')
+        assert tmle._continuous_outcome_ is True
+
+    def test_estimation_example(self):
+        d = ze.load_zivich_breskin_data()
+        g_model = 'diabetes + age + risk_score + ldl_log'
+        q_model = 'statin + diabetes + age + risk_score + ldl_log'
+
+        sctmle = SingleCrossfitTMLE(d, exposure='statin', outcome='Y')
+        sctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        sctmle.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
+        sctmle.fit(n_splits=2, n_partitions=20, random_state=743282)
+
+        # Comparing Results
+        npt.assert_allclose(sctmle.risk_difference, -0.12121120811292203)
+        npt.assert_allclose(sctmle.risk_difference_se, 0.0307240832712132)
+        npt.assert_allclose(sctmle.risk_difference_ci,
+                            (-0.18142930478250946, -0.060993111443334594))
+
+        npt.assert_allclose(sctmle.risk_ratio, 0.6438502346264297)
+        npt.assert_allclose(sctmle.risk_ratio_se, 0.1031645302110002)
+        npt.assert_allclose(sctmle.risk_ratio_ci,
+                            (0.5259822045102306, 0.7881314635245334))
+
+    def test_continuous_example(self, cf):
+        g_model = 'male + age0 + cd40 + dvl0'
+        q_model = 'art + male + age0 + cd40 + dvl0'
+
+        sctmle = SingleCrossfitTMLE(cf, exposure='art', outcome='cd4_wk45')
+        sctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        sctmle.outcome_model(q_model, LinearRegression())
+        sctmle.fit(n_splits=2, n_partitions=20, random_state=743282)
+
+        # Comparing Results
+        npt.assert_allclose(sctmle.ace, 248.41503724825228)
+        npt.assert_allclose(sctmle.ace_se, 57.86943447441321)
+        npt.assert_allclose(sctmle.ace_ci,
+                            (134.9930298727018, 361.83704462380274))
+
+
+class TestDoubleCrossfitTMLE:
+
+    @pytest.fixture
+    def df(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['cd4_wk45']).dropna()
+
+    @pytest.fixture
+    def cf(self):
+        df = ze.load_sample_data(False)
+        df[['cd4_rs1', 'cd4_rs2']] = ze.spline(df, 'cd40', n_knots=3, term=2, restricted=True)
+        df[['age_rs1', 'age_rs2']] = ze.spline(df, 'age0', n_knots=3, term=2, restricted=True)
+        return df.drop(columns=['dead']).dropna()
+
+    def test_drop_missing_data(self):
+        df = ze.load_sample_data(False)
+        tmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
+        assert df.dropna().shape[0] == tmle.df.shape[0]
+
+    def test_error_when_no_models_specified1(self, df):
+        tmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
+        with pytest.raises(ValueError):
+            tmle.fit()
+
+    def test_error_when_no_models_specified2(self, df):
+        tmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            tmle.fit()
+
+    def test_error_when_no_models_specified3(self, df):
+        tmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
+        tmle.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            tmle.fit()
+
+    def test_error_invalid_splits(self, df):
+        tmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
+        tmle.exposure_model('male + age0 + cd40 + dvl0', LogisticRegression())
+        tmle.outcome_model('art + male + age0 + cd40 + dvl0', LogisticRegression())
+        with pytest.raises(ValueError):
+            tmle.fit(n_splits=2)
+
+    def test_continuous_flag(self, df, cf):
+        tmle = DoubleCrossfitTMLE(df, exposure='art', outcome='dead')
+        assert tmle._continuous_outcome_ is False
+
+        tmle = DoubleCrossfitTMLE(cf, exposure='art', outcome='cd4_wk45')
+        assert tmle._continuous_outcome_ is True
+
+    def test_estimation_example(self):
+        d = ze.load_zivich_breskin_data()
+        g_model = 'diabetes + age + risk_score + ldl_log'
+        q_model = 'statin + diabetes + age + risk_score + ldl_log'
+
+        dctmle = DoubleCrossfitTMLE(d, exposure='statin', outcome='Y')
+        dctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        dctmle.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
+        dctmle.fit(n_splits=3, n_partitions=20, random_state=333282)
+
+        # Comparing Results
+        npt.assert_allclose(dctmle.risk_difference, -0.12591943185437718)
+        npt.assert_allclose(dctmle.risk_difference_se, 0.029644704942520382)
+        npt.assert_allclose(dctmle.risk_difference_ci,
+                            (-0.18402198587403365, -0.0678168778347207))
+
+        npt.assert_allclose(dctmle.risk_ratio, 0.6316554727094545)
+        npt.assert_allclose(dctmle.risk_ratio_se, 0.10282167308068914)
+        npt.assert_allclose(dctmle.risk_ratio_ci,
+                            (0.5163667822680551, 0.772684552734615))
+
+    def test_continuous_example(self, cf):
+        g_model = 'male + age0 + cd40 + dvl0'
+        q_model = 'art + male + age0 + cd40 + dvl0'
+
+        dctmle = DoubleCrossfitTMLE(cf, exposure='art', outcome='cd4_wk45')
+        dctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
+        dctmle.outcome_model(q_model, LinearRegression())
+        dctmle.fit(n_splits=3, n_partitions=20, random_state=333282)
+
+        # Comparing Results
+        npt.assert_allclose(dctmle.ace, 248.88494343925703)
+        npt.assert_allclose(dctmle.ace_se, 66.3770089675393)
+        npt.assert_allclose(dctmle.ace_ci,
+                            (118.7883964613878, 378.9814904171262))
