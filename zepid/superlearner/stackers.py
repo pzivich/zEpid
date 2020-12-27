@@ -342,6 +342,8 @@ class SuperLearner:
                     pred = estimator.predict_proba(X)[:, 1]
                 except IndexError:
                     pred = estimator.predict_proba(X)
+                if pred.min() < 0 or pred.max() > 1:
+                    raise SuperLearnerError("Probability less than zero or greater than one")
             else:
                 pred = estimator.predict(X)
                 if pred.min() < 0 or pred.max() > 1:
