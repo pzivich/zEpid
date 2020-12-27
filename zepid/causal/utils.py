@@ -664,8 +664,20 @@ def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, s
     """Function to calculate AIPW estimates. Called by AIPTW, SingleCrossfitAIPTW, and DoubleCrossfitAIPTW
     """
     # Point estimate calculation
-    y1 = np.where(a == 1, y/pa1 - py_a*((1 - pa1) / pa1), py_a)
-    y0 = np.where(a == 0, y/pa0 - py_n*((1 - pa0) / pa0), py_n)
+    y1 = np.where(a == 1, (y - py_a*(1 - pa1)) / pa1, py_a)
+    y0 = np.where(a == 0, (y - py_n*(1 - pa0)) / pa0, py_n)
+
+    # Warning system if values are out of range
+    if np.mean(y1) > 1 or np.mean(y1) < 0:
+        warnings.warn("The estimated probability for all-exposed is out of the bounds (less than zero or greater "
+                      "than 1). This may indicate positivity issues resulting from extreme weights, too small of a "
+                      "sample size, or too flexible of models. Try setting the optional `bound` argument. If using "
+                      "DoubleCrossfitAIPTW, try SingleCrossfitAIPTW or the TMLE estimators instead.", UserWarning)
+    if np.mean(y0) > 1 or np.mean(y0) < 0:
+        warnings.warn("The estimated probability for none-exposed is out of the bounds (less than zero or greater "
+                      "than 1). This may indicate positivity issues resulting from extreme weights, too small of a "
+                      "sample size, or too flexible of models. Try setting the optional `bound` argument. If using "
+                      "DoubleCrossfitAIPTW, try SingleCrossfitAIPTW or the TMLE estimators instead.", UserWarning)
 
     # Calculating ACE as a difference
     if difference:
@@ -688,6 +700,8 @@ def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, s
     else:
         if weights is None:
             estimate = np.nanmean(y1) / np.nanmean(y0)
+            if estimate < 0:
+                warnings.warn("lower than 0", UserWarning)
             py_o = a*py_a + (1-a)*py_n
             ic = ((a*(y-py_o)) / (np.mean(py_a)*pa1) + (py_a - np.mean(py_a)) -
                   ((1-a)*(y-py_o)) / (np.mean(py_n)*pa0) + (py_n - np.mean(py_n)))
