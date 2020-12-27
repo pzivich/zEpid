@@ -966,15 +966,15 @@ class TestSingleCrossfitAIPTW:
         scaipw.fit(n_splits=2, n_partitions=20, random_state=149528)
 
         # Comparing Results
-        npt.assert_allclose(scaipw.risk_difference, -0.0888922494467794)
-        npt.assert_allclose(scaipw.risk_difference_se, 0.03872758612667732)
+        npt.assert_allclose(scaipw.risk_difference, -0.0843980637368675)
+        npt.assert_allclose(scaipw.risk_difference_se, 0.03844359720113282)
         npt.assert_allclose(scaipw.risk_difference_ci,
-                            (-0.16479692346323999, -0.012987575430318796))
+                            (-0.15974612968725266, -0.009049997786482356))
 
-        npt.assert_allclose(scaipw.risk_ratio, 0.711752688620572)
-        npt.assert_allclose(scaipw.risk_ratio_se, 0.12349006741837742)
+        npt.assert_allclose(scaipw.risk_ratio, 0.7206485733483604)
+        npt.assert_allclose(scaipw.risk_ratio_se, 0.12286568538051988)
         npt.assert_allclose(scaipw.risk_ratio_ci,
-                            (0.5587456826189271, 0.9066591573184756))
+                            (0.5664219440029588, 0.9168683730698018))
 
     def test_continuous_example(self, cf):
         g_model = 'male + age0 + cd40 + dvl0'
