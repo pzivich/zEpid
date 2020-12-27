@@ -350,7 +350,7 @@ class SingleCrossfitAIPTW:
                                                py_a=pred_y1_array, py_n=pred_y0_array,
                                                pa1=pred_a_array, pa0=1-pred_a_array,
                                                splits=np.asarray(split_index),
-                                               difference=True)
+                                               difference=True, continuous=self._continuous_outcome_)
         if self._continuous_outcome_:
             return difference, var_diff
         else:
@@ -358,7 +358,7 @@ class SingleCrossfitAIPTW:
                                                py_a=pred_y1_array, py_n=pred_y0_array,
                                                pa1=pred_a_array, pa0=1 - pred_a_array,
                                                splits=np.asarray(split_index),
-                                               difference=False)
+                                               difference=False, continuous=False)
             return difference, var_diff, ratio, var_ratio
 
     def _generate_predictions_(self, sample, a_model_v, y_model_v):
@@ -728,7 +728,7 @@ class DoubleCrossfitAIPTW:
                                                py_a=pred_y1_array, py_n=pred_y0_array,
                                                pa1=pred_a_array, pa0=1-pred_a_array,
                                                splits=np.asarray(split_index),
-                                               difference=True)
+                                               difference=True, continuous=self._continuous_outcome_)
         if self._continuous_outcome_:
             return difference, var_diff
         else:
@@ -736,7 +736,7 @@ class DoubleCrossfitAIPTW:
                                                py_a=pred_y1_array, py_n=pred_y0_array,
                                                pa1=pred_a_array, pa0=1 - pred_a_array,
                                                splits=np.asarray(split_index),
-                                               difference=False)
+                                               difference=False, continuous=False)
             return difference, var_diff, ratio, var_ratio
 
     def _generate_predictions_(self, sample, a_model_v, y_model_v):

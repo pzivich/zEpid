@@ -660,7 +660,7 @@ def stochastic_check_conditional(df, conditional):
                       "the conditions that designate each category should be exclusive", UserWarning)
 
 
-def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, splits=None):
+def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, splits=None, continuous=False):
     """Function to calculate AIPW estimates. Called by AIPTW, SingleCrossfitAIPTW, and DoubleCrossfitAIPTW
     """
     # Point estimate calculation
@@ -668,16 +668,17 @@ def aipw_calculator(y, a, py_a, py_n, pa1, pa0, difference=True, weights=None, s
     y0 = np.where(a == 0, (y - py_n*(1 - pa0)) / pa0, py_n)
 
     # Warning system if values are out of range
-    if np.mean(y1) > 1 or np.mean(y1) < 0:
-        warnings.warn("The estimated probability for all-exposed is out of the bounds (less than zero or greater "
-                      "than 1). This may indicate positivity issues resulting from extreme weights, too small of a "
-                      "sample size, or too flexible of models. Try setting the optional `bound` argument. If using "
-                      "DoubleCrossfitAIPTW, try SingleCrossfitAIPTW or the TMLE estimators instead.", UserWarning)
-    if np.mean(y0) > 1 or np.mean(y0) < 0:
-        warnings.warn("The estimated probability for none-exposed is out of the bounds (less than zero or greater "
-                      "than 1). This may indicate positivity issues resulting from extreme weights, too small of a "
-                      "sample size, or too flexible of models. Try setting the optional `bound` argument. If using "
-                      "DoubleCrossfitAIPTW, try SingleCrossfitAIPTW or the TMLE estimators instead.", UserWarning)
+    if not continuous:
+        if np.mean(y1) > 1 or np.mean(y1) < 0:
+            warnings.warn("The estimated probability for all-exposed is out of the bounds (less than zero or greater "
+                          "than 1). This may indicate positivity issues resulting from extreme weights, too small of a "
+                          "sample size, or too flexible of models. Try setting the optional `bound` argument. If using "
+                          "DoubleCrossfitAIPTW, try SingleCrossfitAIPTW or the TMLE estimators instead.", UserWarning)
+        if np.mean(y0) > 1 or np.mean(y0) < 0:
+            warnings.warn("The estimated probability for none-exposed is out of the bounds (less than zero or greater "
+                          "than 1). This may indicate positivity issues resulting from extreme weights, too small of a "
+                          "sample size, or too flexible of models. Try setting the optional `bound` argument. If using "
+                          "DoubleCrossfitAIPTW, try SingleCrossfitAIPTW or the TMLE estimators instead.", UserWarning)
 
     # Calculating ACE as a difference
     if difference:

@@ -433,7 +433,7 @@ class AIPTW:
                                              py_a=py_a1, py_n=py_a0,
                                              pa1=ps_g1, pa0=ps_g0,
                                              difference=True, weights=w,
-                                             splits=None)
+                                             splits=None, continuous=self._continuous_outcome)
 
         # Generating estimates for the risk difference and risk ratio
         zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
@@ -454,7 +454,7 @@ class AIPTW:
                                             py_a=py_a1, py_n=py_a0,
                                             pa1=ps_g1, pa0=ps_g0,
                                             difference=False, weights=w,
-                                            splits=None)
+                                            splits=None, continuous=False)
             self.risk_ratio = rr
             self.risk_ratio_se = np.sqrt(ln_rr_var)
             self.risk_ratio_ci = (np.exp(np.log(rr) - zalpha*self.risk_ratio_se),
