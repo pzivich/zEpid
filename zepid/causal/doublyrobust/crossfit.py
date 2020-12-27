@@ -189,7 +189,7 @@ class SingleCrossfitAIPTW:
             random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_(random_state=random_state)
+            result = self._single_crossfit_(random_state=random_state[j])
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
@@ -878,7 +878,7 @@ class SingleCrossfitTMLE:
             random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_(random_state=random_state)
+            result = self._single_crossfit_(random_state=random_state[j])
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
@@ -1266,7 +1266,7 @@ class DoubleCrossfitTMLE:
             random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_(random_state=random_state)
+            result = self._single_crossfit_(random_state=random_state[j])
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
@@ -1637,7 +1637,7 @@ def _treatment_nuisance_(treatment, estimator, samples, covariates):
         try:
             fm = est.fit(X=xdata, y=ydata)
             # print("Treatment model")
-            # print(fm.summarize())
+            # print(fm.summary())
         except TypeError:
             raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
                             "covers both sklearn and supylearner")
@@ -1661,8 +1661,7 @@ def _outcome_nuisance_(outcome, estimator, samples, covariates):
         est = copy.deepcopy(estimator)
         try:
             fm = est.fit(X=xdata, y=ydata)
-            # print("Outcome model")
-            # print(fm.summarize())
+            # print(est.summary())
         except TypeError:
             raise TypeError("Currently custom_model must have the 'fit' function with arguments 'X', 'y'. This "
                             "covers both sklearn and supylearner")
