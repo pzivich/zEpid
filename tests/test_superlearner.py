@@ -103,8 +103,8 @@ class TestGLMSL:
 
         # Checking chosen covariates
         sm_glm = smf.glm("Y ~ A + W + X", data_test, family=f).fit()
-        npt.assert_array_equal(glm.model.params,
-                               sm_glm.params)
+        npt.assert_allclose(glm.model.params,
+                            sm_glm.params)
 
         # Checking predictions from model
         step_preds = glm.predict(np.asarray(data_test.loc[0:5, ['A', 'W', 'X']]))
@@ -118,8 +118,8 @@ class TestGLMSL:
 
         # Checking chosen covariates
         sm_glm = smf.glm("B ~ A + W", data_test, family=f).fit()
-        npt.assert_array_equal(glm.model.params,
-                               sm_glm.params)
+        npt.assert_allclose(glm.model.params,
+                            sm_glm.params)
 
         # Checking predictions from model
         step_preds = glm.predict(np.asarray(data_test.loc[0:5, ['A', 'W']]))
