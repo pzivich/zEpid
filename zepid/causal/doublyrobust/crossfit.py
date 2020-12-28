@@ -197,7 +197,7 @@ class SingleCrossfitAIPTW:
             random_state = [None] * n_partitions
         else:
             random_state = RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
-            print(random_state)
+
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
             result = self._single_crossfit_(random_state=random_state[j])
@@ -1777,7 +1777,8 @@ def _sample_split_(data, n_splits, random_state=None):
     data_to_sample = data.copy()
     # Procedures is done n_splits - 1 times
     for i in range(n_splits-1):  # Loops through splits and takes random sample all remaining sets of the data
-        s = data_to_sample.sample(n=n, random_state=random_state)
+        s = data_to_sample.sample(n=n, random_state=RandomState(random_state))
+        print(np.sum(s.index))
         splits.append(s.copy())
         data_to_sample = data_to_sample.loc[data_to_sample.index.difference(s.index)].copy()
 
