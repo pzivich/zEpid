@@ -8,6 +8,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+from numpy.random import RandomState
 
 from zepid.calc.utils import probability_bounds, probability_to_odds, odds_to_probability
 from zepid.causal.utils import aipw_calculator
@@ -195,10 +196,10 @@ class SingleCrossfitAIPTW:
         if random_state is None:
             random_state = [None] * n_partitions
         else:
-            random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
+            random_state = RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_(random_state=random_state[j])
+            result = self._single_crossfit_(random_state=RandomState(random_state[j]))
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
