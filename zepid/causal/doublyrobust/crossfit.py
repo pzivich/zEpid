@@ -197,9 +197,10 @@ class SingleCrossfitAIPTW:
             random_state = [None] * n_partitions
         else:
             random_state = RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
+            print(random_state)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
-            result = self._single_crossfit_(random_state=RandomState(random_state[j]))
+            result = self._single_crossfit_(random_state=random_state[j])
 
             # Appending results of this particular split combination
             diff_est.append(result[0])
@@ -574,7 +575,7 @@ class DoubleCrossfitAIPTW:
         if random_state is None:
             random_state = [None] * n_partitions
         else:
-            random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
+            random_state = RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
             result = self._single_crossfit_(random_state=random_state[j])
@@ -965,7 +966,7 @@ class SingleCrossfitTMLE:
         if random_state is None:
             random_state = [None] * n_partitions
         else:
-            random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
+            random_state = RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
             result = self._single_crossfit_(random_state=random_state[j])
@@ -1398,7 +1399,7 @@ class DoubleCrossfitTMLE:
         if random_state is None:
             random_state = [None] * n_partitions
         else:
-            random_state = np.random.RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
+            random_state = RandomState(random_state).choice(range(5000000), size=n_partitions, replace=False)
         for j in range(self._n_partitions):
             # Estimating for a particular split (lots of functions happening in the background)
             result = self._single_crossfit_(random_state=random_state[j])
