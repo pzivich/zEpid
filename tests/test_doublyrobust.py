@@ -13,20 +13,7 @@ from zepid.causal.doublyrobust import (TMLE, AIPTW, StochasticTMLE,
                                        SingleCrossfitTMLE, DoubleCrossfitTMLE,
                                        calculate_joint_estimate)
 from zepid.causal.doublyrobust.crossfit import (_sample_split_, _treatment_nuisance_, _outcome_nuisance_)
-
-
-class LogitReg:
-
-    def __init__(self):
-        self.model = None
-
-    def fit(self, X, y):
-        f = sm.families.family.Binomial()
-        self.model = sm.GLM(y, sm.add_constant(X), family=f).fit()
-        return self
-
-    def predict(self, X):
-        return self.model.predict(sm.add_constant(X, has_constant='add'))
+from zepid.superlearner import GLMSL
 
 
 class TestTMLE:
@@ -264,10 +251,10 @@ class TestTMLE:
         r_ci = -0.1541104, -0.01470202
         tmle = TMLE(df, exposure='art', outcome='dead')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                            custom_model=LogitReg(),
+                            custom_model=GLMSL(sm.families.family.Binomial()),
                             print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           custom_model=LogitReg(),
+                           custom_model=GLMSL(sm.families.family.Binomial()),
                            print_results=False)
         tmle.fit()
         npt.assert_allclose(tmle.risk_difference, r_rd)
@@ -279,9 +266,9 @@ class TestTMLE:
 
         tmle = TMLE(cf, exposure='art', outcome='cd4_wk45')
         tmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                            custom_model=LogitReg(), print_results=False)
+                            custom_model=GLMSL(sm.families.family.Binomial()), print_results=False)
         tmle.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           custom_model=LinearRegression(), print_results=False)
+                           custom_model=GLMSL(sm.families.family.Gaussian()), print_results=False)
         tmle.fit()
 
         npt.assert_allclose(tmle.average_treatment_effect, r_ate, rtol=1e-3)
@@ -806,10 +793,10 @@ class TestAIPTW:
     def test_custom_binary(self, df):
         aipw = AIPTW(df, exposure='art', outcome='dead')
         aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                            custom_model=LogitReg(),
+                            custom_model=GLMSL(sm.families.family.Binomial()),
                             print_results=False)
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           custom_model=LogitReg(),
+                           custom_model=GLMSL(sm.families.family.Binomial()),
                            print_results=False)
         aipw.fit()
         npt.assert_allclose(aipw.risk_difference, -0.0848510605)
@@ -817,10 +804,10 @@ class TestAIPTW:
     def test_custom_continuous(self, cf):
         aipw = AIPTW(cf, exposure='art', outcome='cd4_wk45')
         aipw.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                            custom_model=LogitReg(),
+                            custom_model=GLMSL(sm.families.family.Binomial()),
                             print_results=False)
         aipw.outcome_model('art + male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
-                           custom_model=LinearRegression(),
+                           custom_model=GLMSL(sm.families.family.Gaussian()),
                            print_results=False)
         aipw.fit()
         npt.assert_allclose(aipw.average_treatment_effect, 225.13767, rtol=1e-3)
@@ -961,36 +948,35 @@ class TestSingleCrossfitAIPTW:
         q_model = 'statin + diabetes + age + risk_score + ldl_log'
 
         scaipw = SingleCrossfitAIPTW(d, exposure='statin', outcome='Y')
-        scaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        scaipw.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
+        scaipw.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        scaipw.outcome_model(q_model, GLMSL(sm.families.family.Binomial()))
         scaipw.fit(n_splits=2, n_partitions=20, random_state=149528)
 
         # Comparing Results
-        print(scaipw.risk_difference_vector)
-        npt.assert_allclose(scaipw.risk_difference, -0.0843980637368675)
-        npt.assert_allclose(scaipw.risk_difference_se, 0.03844359720113282)
+        npt.assert_allclose(scaipw.risk_difference, -0.08439863429580897)
+        npt.assert_allclose(scaipw.risk_difference_se, 0.03845818503930426)
         npt.assert_allclose(scaipw.risk_difference_ci,
-                            (-0.15974612968725266, -0.009049997786482356))
+                            (-0.15977529188362244, -0.009021976707995497))
 
-        npt.assert_allclose(scaipw.risk_ratio, 0.7206485733483604)
-        npt.assert_allclose(scaipw.risk_ratio_se, 0.12286568538051988)
+        npt.assert_allclose(scaipw.risk_ratio, 0.7207330613683808)
+        npt.assert_allclose(scaipw.risk_ratio_se, 0.12284661575725178)
         npt.assert_allclose(scaipw.risk_ratio_ci,
-                            (0.5664219440029588, 0.9168683730698018))
+                            (0.5665095240048756, 0.9169415936332386))
 
     def test_continuous_example(self, cf):
         g_model = 'male + age0 + cd40 + dvl0'
         q_model = 'art + male + age0 + cd40 + dvl0'
 
         scaipw = SingleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
-        scaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        scaipw.outcome_model(q_model, LinearRegression())
+        scaipw.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        scaipw.outcome_model(q_model, GLMSL(sm.families.family.Gaussian()))
         scaipw.fit(n_splits=2, n_partitions=20, random_state=743282)
 
         # Comparing Results
-        npt.assert_allclose(scaipw.ace, 248.66294152974157)
-        npt.assert_allclose(scaipw.ace_se, 59.97329480914895)
+        npt.assert_allclose(scaipw.ace, 248.66381428702869)
+        npt.assert_allclose(scaipw.ace_se, 59.74608928489513)
         npt.assert_allclose(scaipw.ace_ci,
-                            (131.11744366960664, 366.2084393898765))
+                            (131.5636310715198, 365.76399750253756))
 
 
 class TestDoubleCrossfitAIPTW:
@@ -1051,36 +1037,35 @@ class TestDoubleCrossfitAIPTW:
         q_model = 'statin + diabetes + age + risk_score + ldl_log'
 
         dcaipw = DoubleCrossfitAIPTW(d, exposure='statin', outcome='Y')
-        dcaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        dcaipw.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
-        dcaipw.fit(n_splits=3, n_partitions=20, random_state=789401)
+        dcaipw.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        dcaipw.outcome_model(q_model, GLMSL(sm.families.family.Binomial()))
+        dcaipw.fit(n_splits=3, n_partitions=20, random_state=149528)
 
         # Comparing Results
-        print(dcaipw.risk_difference_vector)
-        npt.assert_allclose(dcaipw.risk_difference, -0.08476715539589746)
-        npt.assert_allclose(dcaipw.risk_difference_se, 0.03973969484761633)
+        npt.assert_allclose(dcaipw.risk_difference, -0.0876425986321848)
+        npt.assert_allclose(dcaipw.risk_difference_se, 0.038884182734785167)
         npt.assert_allclose(dcaipw.risk_difference_ci,
-                            (-0.16265552605383743, -0.0068787847379574996))
+                            (-0.16385419636063792, -0.011431000903731697))
 
-        npt.assert_allclose(dcaipw.risk_ratio, 0.7215163191024414)
-        npt.assert_allclose(dcaipw.risk_ratio_se, 0.12625039975214342)
+        npt.assert_allclose(dcaipw.risk_ratio, 0.7118710212657574)
+        npt.assert_allclose(dcaipw.risk_ratio_se, 0.12473305494523035)
         npt.assert_allclose(dcaipw.risk_ratio_ci,
-                            (0.5633543125162898, 0.9240823885875248))
+                            (0.557478785513911, 0.9090217674396279))
 
     def test_continuous_example(self, cf):
         g_model = 'male + age0 + cd40 + dvl0'
         q_model = 'art + male + age0 + cd40 + dvl0'
 
         dcaipw = DoubleCrossfitAIPTW(cf, exposure='art', outcome='cd4_wk45')
-        dcaipw.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        dcaipw.outcome_model(q_model, LinearRegression())
-        dcaipw.fit(n_splits=3, n_partitions=20, random_state=333282)
+        dcaipw.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        dcaipw.outcome_model(q_model, GLMSL(sm.families.family.Gaussian()))
+        dcaipw.fit(n_splits=3, n_partitions=20, random_state=743282)
 
         # Comparing Results
-        npt.assert_allclose(dcaipw.ace, 277.5231137965567)
-        npt.assert_allclose(dcaipw.ace_se, 83.43468194476246)
+        npt.assert_allclose(dcaipw.ace, 264.6411037707777)
+        npt.assert_allclose(dcaipw.ace_se, 86.05014377568297)
         npt.assert_allclose(dcaipw.ace_ci,
-                            (113.99414212326795, 441.05208546984545))
+                            (95.98592110594558, 433.29628643560983))
 
 
 class TestSingleCrossfitTMLE:
@@ -1150,36 +1135,35 @@ class TestSingleCrossfitTMLE:
         q_model = 'statin + diabetes + age + risk_score + ldl_log'
 
         sctmle = SingleCrossfitTMLE(d, exposure='statin', outcome='Y')
-        sctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        sctmle.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
-        sctmle.fit(n_splits=2, n_partitions=20, random_state=743282)
+        sctmle.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        sctmle.outcome_model(q_model, GLMSL(sm.families.family.Binomial()))
+        sctmle.fit(n_splits=2, n_partitions=20, random_state=149528)
 
         # Comparing Results
-        print(sctmle.risk_difference_vector)
-        npt.assert_allclose(sctmle.risk_difference, -0.12121120811292203)
-        npt.assert_allclose(sctmle.risk_difference_se, 0.0307240832712132)
+        npt.assert_allclose(sctmle.risk_difference, -0.12271324570295966)
+        npt.assert_allclose(sctmle.risk_difference_se, 0.03050536890832196)
         npt.assert_allclose(sctmle.risk_difference_ci,
-                            (-0.18142930478250946, -0.060993111443334594))
+                            (-0.18250267009837864, -0.06292382130754068))
 
-        npt.assert_allclose(sctmle.risk_ratio, 0.6438502346264297)
-        npt.assert_allclose(sctmle.risk_ratio_se, 0.1031645302110002)
+        npt.assert_allclose(sctmle.risk_ratio, 0.6396994156614049)
+        npt.assert_allclose(sctmle.risk_ratio_se, 0.10240088109353096)
         npt.assert_allclose(sctmle.risk_ratio_ci,
-                            (0.5259822045102306, 0.7881314635245334))
+                            (0.5233740263824294, 0.781879347788897))
 
     def test_continuous_example(self, cf):
         g_model = 'male + age0 + cd40 + dvl0'
         q_model = 'art + male + age0 + cd40 + dvl0'
 
         sctmle = SingleCrossfitTMLE(cf, exposure='art', outcome='cd4_wk45')
-        sctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        sctmle.outcome_model(q_model, LinearRegression())
+        sctmle.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        sctmle.outcome_model(q_model, GLMSL(sm.families.family.Gaussian()))
         sctmle.fit(n_splits=2, n_partitions=20, random_state=743282)
 
         # Comparing Results
-        npt.assert_allclose(sctmle.ace, 248.41503724825228)
-        npt.assert_allclose(sctmle.ace_se, 57.86943447441321)
+        npt.assert_allclose(sctmle.ace, 247.25788152025098)
+        npt.assert_allclose(sctmle.ace_se, 58.006860005167)
         npt.assert_allclose(sctmle.ace_ci,
-                            (134.9930298727018, 361.83704462380274))
+                            (133.56652505386677, 360.9492379866352))
 
 
 class TestDoubleCrossfitTMLE:
@@ -1240,33 +1224,32 @@ class TestDoubleCrossfitTMLE:
         q_model = 'statin + diabetes + age + risk_score + ldl_log'
 
         dctmle = DoubleCrossfitTMLE(d, exposure='statin', outcome='Y')
-        dctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        dctmle.outcome_model(q_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000))
-        dctmle.fit(n_splits=3, n_partitions=20, random_state=333282)
+        dctmle.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        dctmle.outcome_model(q_model, GLMSL(sm.families.family.Binomial()))
+        dctmle.fit(n_splits=3, n_partitions=20, random_state=149528)
 
         # Comparing Results
-        print(dctmle.risk_difference_vector)
-        npt.assert_allclose(dctmle.risk_difference, -0.12591943185437718)
-        npt.assert_allclose(dctmle.risk_difference_se, 0.029644704942520382)
+        npt.assert_allclose(dctmle.risk_difference, -0.12164253131180072)
+        npt.assert_allclose(dctmle.risk_difference_se, 0.02740647410798642)
         npt.assert_allclose(dctmle.risk_difference_ci,
-                            (-0.18402198587403365, -0.0678168778347207))
+                            (-0.17535823350668361, -0.06792682911691783))
 
-        npt.assert_allclose(dctmle.risk_ratio, 0.6316554727094545)
-        npt.assert_allclose(dctmle.risk_ratio_se, 0.10282167308068914)
+        npt.assert_allclose(dctmle.risk_ratio, 0.6442319481957228)
+        npt.assert_allclose(dctmle.risk_ratio_se, 0.09584203316755982)
         npt.assert_allclose(dctmle.risk_ratio_ci,
-                            (0.5163667822680551, 0.772684552734615))
+                            (0.5339017835202516, 0.777361709375735))
 
     def test_continuous_example(self, cf):
         g_model = 'male + age0 + cd40 + dvl0'
         q_model = 'art + male + age0 + cd40 + dvl0'
 
         dctmle = DoubleCrossfitTMLE(cf, exposure='art', outcome='cd4_wk45')
-        dctmle.exposure_model(g_model, LogisticRegression(penalty='none', solver='lbfgs', max_iter=1000), bound=0.01)
-        dctmle.outcome_model(q_model, LinearRegression())
-        dctmle.fit(n_splits=3, n_partitions=20, random_state=333282)
+        dctmle.exposure_model(g_model, GLMSL(sm.families.family.Binomial()), bound=0.01)
+        dctmle.outcome_model(q_model, GLMSL(sm.families.family.Gaussian()))
+        dctmle.fit(n_splits=3, n_partitions=20, random_state=743282)
 
         # Comparing Results
-        npt.assert_allclose(dctmle.ace, 248.88494343925703)
-        npt.assert_allclose(dctmle.ace_se, 66.3770089675393)
+        npt.assert_allclose(dctmle.ace, 238.23203641165946)
+        npt.assert_allclose(dctmle.ace_se, 69.14615318685628)
         npt.assert_allclose(dctmle.ace_ci,
-                            (118.7883964613878, 378.9814904171262))
+                            (102.70806649593166, 373.75600632738724))
