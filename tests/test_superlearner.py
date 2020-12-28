@@ -4,9 +4,10 @@ import pandas as pd
 import numpy.testing as npt
 import pandas.testing as pdt
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
 from sklearn.linear_model import LogisticRegression, LinearRegression
 
-from zepid.superlearner import EmpiricalMeanSL, StepwiseSL, SuperLearner
+from zepid.superlearner import EmpiricalMeanSL, GLMSL, StepwiseSL, SuperLearner
 
 
 @pytest.fixture
@@ -76,6 +77,54 @@ class TestEmpiricalMeanSL:
         assert pred_y.shape[0] == X_pred.shape[0]  # Same shape in output
         npt.assert_allclose(empm.empirical_mean,
                             [np.mean(data['B'])] * X_pred.shape[0])
+
+
+class TestGLMSL:
+
+    def test_error_missing_data(self, data):
+        f = sm.families.family.Binomial()
+        glm = GLMSL(f)
+        with pytest.raises(ValueError, match="missing values in X or y"):
+            glm.fit(np.asarray(data['M']), np.asarray(data['C']))
+
+        with pytest.raises(ValueError, match="missing values in X or y"):
+            glm.fit(np.asarray(data['C']), np.asarray(data['M']))
+
+    def test_error_shapes(self, data):
+        f = sm.families.family.Binomial()
+        glm = GLMSL(f)
+        with pytest.raises(ValueError, match="same number of observations"):
+            glm.fit(np.asarray(data['C']), np.array([0, 1, 1]))
+
+    def test_match_statsmodels_continuous(self, data_test):
+        f = sm.families.family.Gaussian()
+        glm = GLMSL(f)
+        glm.fit(np.asarray(data_test[['A', 'W', 'X']]), np.asarray(data_test['Y']))
+
+        # Checking chosen covariates
+        sm_glm = smf.glm("Y ~ A + W + X", data_test, family=f).fit()
+        npt.assert_array_equal(glm.model.params,
+                               sm_glm.params)
+
+        # Checking predictions from model
+        step_preds = glm.predict(np.asarray(data_test.loc[0:5, ['A', 'W', 'X']]))
+        npt.assert_allclose(step_preds,
+                            sm_glm.predict(data_test.loc[0:5, ]))
+
+    def test_match_statsmodels_binary(self, data_test):
+        f = sm.families.family.Binomial()
+        glm = GLMSL(f)
+        glm.fit(np.asarray(data_test[['A', 'W']]), np.asarray(data_test['B']))
+
+        # Checking chosen covariates
+        sm_glm = smf.glm("B ~ A + W", data_test, family=f).fit()
+        npt.assert_array_equal(glm.model.params,
+                               sm_glm.params)
+
+        # Checking predictions from model
+        step_preds = glm.predict(np.asarray(data_test.loc[0:5, ['A', 'W']]))
+        npt.assert_allclose(step_preds,
+                            sm_glm.predict(data_test.loc[0:5, ]))
 
 
 class TestStepWiseSL:

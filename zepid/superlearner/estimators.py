@@ -85,6 +85,89 @@ class EmpiricalMeanSL(BaseEstimator):
         return np.array([self.empirical_mean] * X.shape[0])
 
 
+class GLMSL:
+    """Generalized Linear Model for use with SuperLearner. This function is a wrapper function for the statsmodels
+    `GLM` class. This is because the GLM implementation in statsmodels is not natively compatible with the sklearn /
+    SuperLearner class. Compatible with all options available in the statsmodels families.
+
+    Parameters
+    ----------
+    family: statsmodels.families.family
+        Family to use for the model. All statsmodels supported families are also supported
+    verbose : bool, optional
+
+    Examples
+    --------
+    Setup the environment and data set
+
+    >>> import statsmodels.api as sm
+    >>> from zepid import load_sample_data
+    >>> from zepid.superlearner import StepwiseSL
+    >>> df = load_sample_data(False).dropna()
+    >>> X = np.asarray(df[['art', 'male', 'age0']])
+    >>> y = np.asarray(df['dead'])
+
+    GLMSL example (logit model)
+
+    >>> f = sm.families.family.Binomial()
+    >>> step_sl = StepwiseSL(family=f)
+    >>> step_sl.fit(X, y)
+    """
+    def __init__(self, family, verbose=False):
+        self._family_ = family
+        self._verbose_ = verbose
+
+        # Storage items
+        self.model = None
+
+    def fit(self, X, y):
+        """Estimate the GLM
+
+        Parameters
+        ----------
+        X : numpy.array
+            Training data
+        y : numpy.array
+            Target values
+
+        Returns
+        -------
+        None
+        """
+        # Error Checking
+        if X.shape[0] != y.shape[0]:
+            raise ValueError("X and y must have the same number of observations (rows).")
+        if np.any(np.isnan(X)) or np.any(np.isnan(y)):
+            raise ValueError("It looks like there is missing values in X or y. GLMSL does not support "
+                             "missing data.")
+
+        # Final results
+        self.model = sm.GLM(y, np.hstack([np.zeros([X.shape[0], 1]) + 1, X]),  # Adds intercept into model
+                            family=self._family_).fit()
+        if self._verbose_:
+            print(self.model.summary())
+
+        return self
+
+    def predict(self, X):
+        """Predict using the fitted GLM.
+
+        Parameters
+        ----------
+        X : numpy.array
+            Samples following the same pattern as the X array input into the fit() statement.
+
+        Returns
+        -------
+        Returns predicted values from the GLM
+        """
+        # Adding intercept
+        Xd = np.hstack([np.zeros([X.shape[0], 1]) + 1, X])
+
+        # Generating predictions to return
+        return self.model.predict(Xd)
+
+
 class StepwiseSL:
     """Step-wise model selection for Generalized Linear Model selection for use with SuperLearner. Briefly, each
     combination of models is compared by AIC with the best one selected. The model selection procedure continues until

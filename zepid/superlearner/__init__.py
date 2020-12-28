@@ -1,2 +1,2 @@
-from .estimators import EmpiricalMeanSL, StepwiseSL
+from .estimators import EmpiricalMeanSL, GLMSL, StepwiseSL
 from .stackers import SuperLearner
