@@ -1,5 +1,5 @@
 pandas>=0.18
-numpy
+numpy>=1.16.5
 statsmodels>=0.7.0
 matplotlib>=2.1.0
 scipy
