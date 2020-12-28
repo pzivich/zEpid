@@ -966,6 +966,7 @@ class TestSingleCrossfitAIPTW:
         scaipw.fit(n_splits=2, n_partitions=20, random_state=149528)
 
         # Comparing Results
+        print(scaipw.risk_difference_vector)
         npt.assert_allclose(scaipw.risk_difference, -0.0843980637368675)
         npt.assert_allclose(scaipw.risk_difference_se, 0.03844359720113282)
         npt.assert_allclose(scaipw.risk_difference_ci,
@@ -1055,6 +1056,7 @@ class TestDoubleCrossfitAIPTW:
         dcaipw.fit(n_splits=3, n_partitions=20, random_state=789401)
 
         # Comparing Results
+        print(dcaipw.risk_difference_vector)
         npt.assert_allclose(dcaipw.risk_difference, -0.08476715539589746)
         npt.assert_allclose(dcaipw.risk_difference_se, 0.03973969484761633)
         npt.assert_allclose(dcaipw.risk_difference_ci,
@@ -1153,6 +1155,7 @@ class TestSingleCrossfitTMLE:
         sctmle.fit(n_splits=2, n_partitions=20, random_state=743282)
 
         # Comparing Results
+        print(sctmle.risk_difference_vector)
         npt.assert_allclose(sctmle.risk_difference, -0.12121120811292203)
         npt.assert_allclose(sctmle.risk_difference_se, 0.0307240832712132)
         npt.assert_allclose(sctmle.risk_difference_ci,
@@ -1242,6 +1245,7 @@ class TestDoubleCrossfitTMLE:
         dctmle.fit(n_splits=3, n_partitions=20, random_state=333282)
 
         # Comparing Results
+        print(dctmle.risk_difference_vector)
         npt.assert_allclose(dctmle.risk_difference, -0.12591943185437718)
         npt.assert_allclose(dctmle.risk_difference_se, 0.029644704942520382)
         npt.assert_allclose(dctmle.risk_difference_ci,
