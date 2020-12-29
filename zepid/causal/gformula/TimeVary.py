@@ -623,13 +623,12 @@ class IterativeCondGFormula:
         # Check same number of treatments and outcomes
         if len(exposures) != len(outcomes):
             raise ValueError("The number of exposures must equal the number of outcomes")
-
         self.exposure = exposures
+
         # Checking that outcome is binary
         for o in outcomes:
             if not df[o].dropna().value_counts().index.isin([0, 1]).all():
                 raise ValueError('Only binary outcomes are currently implemented')
-
         self.outcome = outcomes
 
         # Checking for recurrent outcomes. Recurrent are not currently supported

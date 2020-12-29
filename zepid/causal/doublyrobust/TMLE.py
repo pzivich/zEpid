@@ -12,7 +12,8 @@ from zepid.causal.doublyrobust.utils import tmle_unit_bounds, tmle_unit_unbound
 from zepid.calc import probability_to_odds, odds_to_probability, probability_bounds
 from zepid.causal.utils import (exposure_machine_learner, outcome_machine_learner, stochastic_outcome_machine_learner,
                                 stochastic_outcome_predict, missing_machine_learner, plot_kde, plot_love,
-                                standardized_mean_differences, positivity, plot_kde_accuracy, outcome_accuracy)
+                                standardized_mean_differences, positivity, plot_kde_accuracy, outcome_accuracy,
+                                check_input_data)
 
 
 class TMLE:
@@ -140,39 +141,26 @@ class TMLE:
     Gruber S, van der Laan, MJ. (2011). tmle: An R package for targeted maximum likelihood estimation.
     """
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
-        # Going through missing data (that is not the outcome)
-        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
-            warnings.warn("There is missing data that is not the outcome in the data set. TMLE will drop "
-                          "all missing data that is not missing outcome data. TMLE will fit "
-                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
-                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
-            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
-        else:
-            self.df = df.copy().reset_index()
-
-        # Checking to see if missing outcome data occurs
-        self._missing_indicator = '__missing_indicator__'
-        if self.df.dropna(subset=[outcome]).shape[0] != self.df.shape[0]:
-            self._miss_flag = True
-            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
-        else:
-            self._miss_flag = False
-            self.df[self._missing_indicator] = 1
-
-        # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
         self.exposure = exposure
         self.outcome = outcome
+        self._missing_indicator = '__missing_indicator__'
+        self.df, self._miss_flag, self._continuous_outcome = check_input_data(data=df,
+                                                                              exposure=exposure,
+                                                                              outcome=outcome,
+                                                                              estimator="TMLE",
+                                                                              drop_censoring=False,
+                                                                              drop_missing=True,
+                                                                              binary_exposure_only=True)
 
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome = False
-            self._cb = 0.0
-        else:
-            self._continuous_outcome = True
-            self._continuous_min = np.min(df[outcome])
-            self._continuous_max = np.max(df[outcome])
+        # Detailed steps follow "Targeted Learning" chapter 4, figure 4.2 by van der Laan, Rose
+        if self._continuous_outcome:
+            self._continuous_min = np.min(self.df[outcome])
+            self._continuous_max = np.max(self.df[outcome])
             self._cb = continuous_bound
-            self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
+            self.df[outcome] = tmle_unit_bounds(y=self.df[outcome], mini=self._continuous_min,
                                                 maxi=self._continuous_max, bound=self._cb)
+        else:
+            self._cb = 0.0
 
         self._out_model = None
         self._exp_model = None
@@ -922,33 +910,26 @@ class StochasticTMLE:
     studies. Springer Science & Business Media, 2011.
     """
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005, verbose=False):
-        # Dropping ALL missing data (currently doesn't allow for censored outcomes)
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the data set. StochasticTMLE will drop all missing data. "
-                          "StochasticTMLE will fit "
-                          + str(df.dropna().shape[0]) +
-                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
-            self.df = df.copy().dropna().reset_index()
-        else:
-            self.df = df.copy().reset_index()
-
-        if not df[exposure].value_counts().index.isin([0, 1]).all():
-            raise ValueError("StochasticTMLE only supports binary exposures currently")
-
-        # Manage outcomes
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome = False
-            self._cb = 0.0
-        else:
-            self._continuous_outcome = True
-            self._continuous_min = np.min(df[outcome])
-            self._continuous_max = np.max(df[outcome])
-            self._cb = continuous_bound
-            self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
-                                                maxi=self._continuous_max, bound=self._cb)
-
         self.exposure = exposure
         self.outcome = outcome
+        self._missing_indicator = '__missing_indicator__'
+        self.df, self._miss_flag, self._continuous_outcome = check_input_data(data=df,
+                                                                              exposure=exposure,
+                                                                              outcome=outcome,
+                                                                              estimator="StochasticTMLE",
+                                                                              drop_censoring=True,
+                                                                              drop_missing=True,
+                                                                              binary_exposure_only=True)
+
+        # Manage outcomes
+        if self._continuous_outcome:
+            self._continuous_min = np.min(self.df[outcome])
+            self._continuous_max = np.max(self.df[outcome])
+            self._cb = continuous_bound
+            self.df[outcome] = tmle_unit_bounds(y=self.df[outcome], mini=self._continuous_min,
+                                                maxi=self._continuous_max, bound=self._cb)
+        else:
+            self._cb = 0.0
 
         # Output attributes
         self.epsilon = None

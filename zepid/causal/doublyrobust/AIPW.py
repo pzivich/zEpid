@@ -10,7 +10,7 @@ from statsmodels.stats.weightstats import DescrStatsW
 from scipy.stats import norm
 
 from zepid.calc import probability_bounds
-from zepid.causal.utils import (propensity_score, plot_kde, plot_love, iptw_calculator,
+from zepid.causal.utils import (check_input_data, propensity_score, plot_kde, plot_love, iptw_calculator,
                                 standardized_mean_differences, positivity,
                                 plot_kde_accuracy, outcome_accuracy, aipw_calculator,
                                 exposure_machine_learner, outcome_machine_learner, missing_machine_learner)
@@ -115,32 +115,18 @@ class AIPTW:
     Lunceford JK, Davidian M. (2004). Stratification and weighting via the propensity score in estimation of causal
     treatment effects: a comparative study. Statistics in medicine, 23(19), 2937-2960.
     """
+
     def __init__(self, df, exposure, outcome, weights=None, alpha=0.05):
-        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
-            warnings.warn("There is missing data that is not the outcome in the data set. AIPTW will drop "
-                          "all missing data that is not missing outcome data. AIPTW will fit "
-                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
-                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
-            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
-        else:
-            self.df = df.copy().reset_index()
-
-        # Checking to see if missing outcome data occurs
-        self._missing_indicator = '__missing_indicator__'
-        if self.df.dropna(subset=[outcome]).shape[0] != self.df.shape[0]:
-            self._miss_flag = True
-            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
-        else:
-            self._miss_flag = False
-            self.df[self._missing_indicator] = 1
-
         self.exposure = exposure
         self.outcome = outcome
-
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome = False
-        else:
-            self._continuous_outcome = True
+        self._missing_indicator = '__missing_indicator__'
+        self.df, self._miss_flag, self._continuous_outcome = check_input_data(data=df,
+                                                                              exposure=exposure,
+                                                                              outcome=outcome,
+                                                                              estimator="AIPTW",
+                                                                              drop_censoring=False,
+                                                                              drop_missing=True,
+                                                                              binary_exposure_only=True)
 
         self._weight_ = weights
         self.alpha = alpha
@@ -156,6 +142,7 @@ class AIPTW:
         self.average_treatment_effect_ci = None
         self.average_treatment_effect_se = None
 
+        self._continuous_type = None
         self._fit_exposure_ = False
         self._exp_model_custom = False
         self._fit_outcome_ = False
@@ -387,7 +374,7 @@ class AIPTW:
 
         self.df['_pY1_'] = qa1w
         self.df['_pY0_'] = qa0w
-        self._predicted_y_ = qa1w*self.df[self.exposure] + qa0w*(1 - self.df[self.exposure])
+        self._predicted_y_ = qa1w * self.df[self.exposure] + qa0w * (1 - self.df[self.exposure])
         self._fit_outcome_ = True
 
     def fit(self):
@@ -457,8 +444,8 @@ class AIPTW:
                                             splits=None, continuous=False)
             self.risk_ratio = rr
             self.risk_ratio_se = np.sqrt(ln_rr_var)
-            self.risk_ratio_ci = (np.exp(np.log(rr) - zalpha*self.risk_ratio_se),
-                                  np.exp(np.log(rr) + zalpha*self.risk_ratio_se))
+            self.risk_ratio_ci = (np.exp(np.log(rr) - zalpha * self.risk_ratio_se),
+                                  np.exp(np.log(rr) + zalpha * self.risk_ratio_se))
 
     def summary(self, decimal=3):
         """Prints a summary of the results for the doubly robust estimator. Confidence intervals are only available for

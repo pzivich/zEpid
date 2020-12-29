@@ -144,13 +144,13 @@ class GEstimationSNM:
         self.exposure = exposure
         self.outcome = outcome
         self._missing_indicator = '__missing_indicator__'
-        self.df, self._miss_flag = check_input_data(data=df,
-                                                    exposure=exposure,
-                                                    outcome=outcome,
-                                                    estimator="GEstimationSNM",
-                                                    drop_censoring=False,
-                                                    drop_missing=True,
-                                                    binary_exposure_only=True)
+        self.df, self._miss_flag, continuous = check_input_data(data=df,
+                                                                exposure=exposure,
+                                                                outcome=outcome,
+                                                                estimator="GEstimationSNM",
+                                                                drop_censoring=False,
+                                                                drop_missing=True,
+                                                                binary_exposure_only=True)
 
         self.psi = None
         self.psi_labels = None

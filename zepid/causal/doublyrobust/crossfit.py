@@ -11,7 +11,7 @@ from scipy.stats import gaussian_kde
 from numpy.random import RandomState
 
 from zepid.calc.utils import probability_bounds, probability_to_odds, odds_to_probability
-from zepid.causal.utils import aipw_calculator
+from zepid.causal.utils import check_input_data, aipw_calculator
 from zepid.causal.doublyrobust.utils import tmle_unit_unbound, tmle_unit_bounds
 
 
@@ -66,20 +66,16 @@ class SingleCrossfitAIPTW:
     learning for treatment and structural parameters". The Econometrics Journal 21:1; pC1–C6
     """
     def __init__(self, df, exposure, outcome, alpha=0.05):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, SingleCrossfitAIPTW will drop all missing "
-                          "data. SingleCrossfitAIPTW will fit " + str(df.dropna().shape[0]) + ' of ' +
-                          str(df.shape[0]) + ' observations', UserWarning)
-        self.df = df.copy().dropna().reset_index()
         self.exposure = exposure
         self.outcome = outcome
+        self.df, self._miss_flag, self._continuous_outcome_ = check_input_data(data=df,
+                                                                               exposure=exposure,
+                                                                               outcome=outcome,
+                                                                               estimator="SingleCrossfitAIPTW",
+                                                                               drop_censoring=True,
+                                                                               drop_missing=True,
+                                                                               binary_exposure_only=True)
         self.alpha = alpha
-
-        # Checking whether binary or continuous outcome
-        if self.df[self.outcome].value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome_ = False
-        else:
-            self._continuous_outcome_ = True
 
         self._a_covariates = None
         self._y_covariates = None
@@ -94,19 +90,18 @@ class SingleCrossfitAIPTW:
 
         self.ace_vector = None
         self.ace_var_vector = None
-        self.risk_difference_vector = None
-        self.risk_difference_var_vector = None
-        self.risk_ratio_vector = None
-        self.risk_ratio_var_vector = None
-
         self.ace = None
         self.ace_ci = None
         self.ace_se = None
 
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
         self.risk_difference = None
         self.risk_difference_ci = None
         self.risk_difference_se = None
 
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
         self.risk_ratio = None
         self.risk_ratio_ci = None
         self.risk_ratio_se = None
@@ -444,20 +439,16 @@ class DoubleCrossfitAIPTW:
     learning for treatment and structural parameters". The Econometrics Journal 21:1; pC1–C6
     """
     def __init__(self, df, exposure, outcome, alpha=0.05):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, DoubleCrossfitAIPTW will drop all missing "
-                          "data. DoubleCrossfitAIPTW will fit " + str(df.dropna().shape[0]) + ' of ' +
-                          str(df.shape[0]) + ' observations', UserWarning)
-        self.df = df.copy().dropna().reset_index()
         self.exposure = exposure
         self.outcome = outcome
+        self.df, self._miss_flag, self._continuous_outcome_ = check_input_data(data=df,
+                                                                               exposure=exposure,
+                                                                               outcome=outcome,
+                                                                               estimator="DoubleCrossfitAIPTW",
+                                                                               drop_censoring=True,
+                                                                               drop_missing=True,
+                                                                               binary_exposure_only=True)
         self.alpha = alpha
-
-        # Checking whether binary or continuous outcome
-        if self.df[self.outcome].value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome_ = False
-        else:
-            self._continuous_outcome_ = True
 
         self._a_covariates = None
         self._y_covariates = None
@@ -472,19 +463,18 @@ class DoubleCrossfitAIPTW:
 
         self.ace_vector = None
         self.ace_var_vector = None
-        self.risk_difference_vector = None
-        self.risk_difference_var_vector = None
-        self.risk_ratio_vector = None
-        self.risk_ratio_var_vector = None
-
         self.ace = None
         self.ace_ci = None
         self.ace_se = None
 
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
         self.risk_difference = None
         self.risk_difference_ci = None
         self.risk_difference_se = None
 
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
         self.risk_ratio = None
         self.risk_ratio_ci = None
         self.risk_ratio_se = None
@@ -818,32 +808,26 @@ class SingleCrossfitTMLE:
     learning for treatment and structural parameters". The Econometrics Journal 21:1; pC1–C6
     """
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, SingleCrossfitTMLE will drop all missing "
-                          "data. SingleCrossfitTMLE will fit " + str(df.dropna().shape[0]) + ' of ' +
-                          str(df.shape[0]) + ' observations', UserWarning)
-        self.df = df.copy().dropna().reset_index()
         self.exposure = exposure
         self.outcome = outcome
+        self.df, self._miss_flag, self._continuous_outcome_ = check_input_data(data=df,
+                                                                               exposure=exposure,
+                                                                               outcome=outcome,
+                                                                               estimator="SingleCrossfitTMLE",
+                                                                               drop_censoring=True,
+                                                                               drop_missing=True,
+                                                                               binary_exposure_only=True)
         self.alpha = alpha
 
         # bounding for continuous Y
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome = False
-            self._cb = 0.0
-        else:
-            self._continuous_outcome = True
+        if self._continuous_outcome_:
             self._continuous_min = np.min(df[outcome])
             self._continuous_max = np.max(df[outcome])
             self._cb = continuous_bound
             self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
                                                 maxi=self._continuous_max, bound=self._cb)
-
-        # Checking whether binary or continuous outcome
-        if self.df[self.outcome].value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome_ = False
         else:
-            self._continuous_outcome_ = True
+            self._cb = 0.0
 
         self._a_covariates = None
         self._y_covariates = None
@@ -858,25 +842,24 @@ class SingleCrossfitTMLE:
 
         self.ace_vector = None
         self.ace_var_vector = None
-        self.risk_difference_vector = None
-        self.risk_difference_var_vector = None
-        self.risk_ratio_vector = None
-        self.risk_ratio_var_vector = None
-        self.odds_ratio_vector = None
-        self.odds_ratio_var_vector = None
-
         self.ace = None
         self.ace_ci = None
         self.ace_se = None
 
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
         self.risk_difference = None
         self.risk_difference_ci = None
         self.risk_difference_se = None
 
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
         self.risk_ratio = None
         self.risk_ratio_ci = None
         self.risk_ratio_se = None
 
+        self.odds_ratio_vector = None
+        self.odds_ratio_var_vector = None
         self.odds_ratio = None
         self.odds_ratio_se = None
         self.odds_ratio_ci = None
@@ -1251,32 +1234,26 @@ class DoubleCrossfitTMLE:
     learning for treatment and structural parameters". The Econometrics Journal 21:1; pC1–C6
     """
     def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, SingleCrossfitTMLE will drop all missing "
-                          "data. DoubleCrossfitTMLE will fit " + str(df.dropna().shape[0]) + ' of ' +
-                          str(df.shape[0]) + ' observations', UserWarning)
-        self.df = df.copy().dropna().reset_index()
         self.exposure = exposure
         self.outcome = outcome
+        self.df, self._miss_flag, self._continuous_outcome_ = check_input_data(data=df,
+                                                                               exposure=exposure,
+                                                                               outcome=outcome,
+                                                                               estimator="DoubleCrossfitTMLE",
+                                                                               drop_censoring=True,
+                                                                               drop_missing=True,
+                                                                               binary_exposure_only=True)
         self.alpha = alpha
 
         # bounding for continuous Y
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome = False
-            self._cb = 0.0
-        else:
-            self._continuous_outcome = True
+        if self._continuous_outcome_:
             self._continuous_min = np.min(df[outcome])
             self._continuous_max = np.max(df[outcome])
             self._cb = continuous_bound
             self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
                                                 maxi=self._continuous_max, bound=self._cb)
-
-        # Checking whether binary or continuous outcome
-        if self.df[self.outcome].value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome_ = False
         else:
-            self._continuous_outcome_ = True
+            self._cb = 0.0
 
         self._a_covariates = None
         self._y_covariates = None
@@ -1291,25 +1268,24 @@ class DoubleCrossfitTMLE:
 
         self.ace_vector = None
         self.ace_var_vector = None
-        self.risk_difference_vector = None
-        self.risk_difference_var_vector = None
-        self.risk_ratio_vector = None
-        self.risk_ratio_var_vector = None
-        self.odds_ratio_vector = None
-        self.odds_ratio_var_vector = None
-
         self.ace = None
         self.ace_ci = None
         self.ace_se = None
 
+        self.risk_difference_vector = None
+        self.risk_difference_var_vector = None
         self.risk_difference = None
         self.risk_difference_ci = None
         self.risk_difference_se = None
 
+        self.risk_ratio_vector = None
+        self.risk_ratio_var_vector = None
         self.risk_ratio = None
         self.risk_ratio_ci = None
         self.risk_ratio_se = None
 
+        self.odds_ratio_vector = None
+        self.odds_ratio_var_vector = None
         self.odds_ratio = None
         self.odds_ratio_se = None
         self.odds_ratio_ci = None

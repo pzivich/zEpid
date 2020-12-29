@@ -72,7 +72,13 @@ def check_input_data(data, exposure, outcome, estimator, drop_censoring, drop_mi
         if not data[exposure].value_counts().index.isin([0, 1]).all():
             raise ValueError(str(estimator) + " only supports binary exposures currently")
 
-    return data, miss_flag
+    # Check outcome data type
+    if data[outcome].value_counts().index.isin([0, 1]).all():
+        continuous = False
+    else:
+        continuous = True
+
+    return data, miss_flag, continuous
 
 
 def propensity_score(df, model, weights=None, print_results=True):

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-from zepid.causal.utils import outcome_accuracy, plot_kde_accuracy
+from zepid.causal.utils import check_input_data, outcome_accuracy, plot_kde_accuracy
 
 
 class TimeFixedGFormula:
@@ -149,16 +149,16 @@ class TimeFixedGFormula:
     """
     def __init__(self, df, exposure, outcome, exposure_type='binary', outcome_type='binary', standardize='population',
                  weights=None):
-        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
-            warnings.warn("There is missing data that is not the outcome in the data set. TimeFixedGFormula will drop "
-                          "all missing data that is not missing outcome data. TimeFixedGFormula will fit "
-                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
-                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
-            self.gf = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
-        else:
-            self.gf = df.copy().reset_index()
         self.exposure = exposure
         self.outcome = outcome
+        self._missing_indicator = '__missing_indicator__'
+        self.gf, self._miss_flag, self._continuous_outcome_ = check_input_data(data=df,
+                                                                               exposure=exposure,
+                                                                               outcome=outcome,
+                                                                               estimator="TimeFixedGFormula",
+                                                                               drop_censoring=False,
+                                                                               drop_missing=True,
+                                                                               binary_exposure_only=False)
 
         if (outcome_type == 'binary') or (outcome_type == 'normal') or (outcome_type == 'poisson'):
             self.outcome_type = outcome_type
@@ -556,20 +556,21 @@ class SurvivalGFormula:
     doi:10.1097/EDE.0b013e3181c1ea43
     """
     def __init__(self, df, idvar, exposure, outcome, time, weights=None):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. By default, SurvivalGFormula will drop all missing "
-                          "data. SurvivalGFormula will fit " + str(df.dropna().shape[0]) + ' of ' +
-                          str(df.shape[0]) + ' observations', UserWarning)
-
-        self.gf = df.copy().dropna().sort_values(by=[idvar, time]).reset_index(drop=True)
-
-        if not df[exposure].dropna().value_counts().index.isin([0, 1]).all():
-            raise ValueError("Only binary exposures are supported")
-
         self.exposure = exposure
         self.outcome = outcome
         self.t = time
         self.id = idvar
+        self._missing_indicator = '__missing_indicator__'
+        self.gf, self._miss_flag, self._continuous_outcome_ = check_input_data(data=df,
+                                                                               exposure=exposure,
+                                                                               outcome=outcome,
+                                                                               estimator="SurvivalGFormula",
+                                                                               drop_censoring=True,
+                                                                               drop_missing=True,
+                                                                               binary_exposure_only=True)
+        self.gf = self.gf.copy().sort_values(by=[idvar, time]).reset_index(drop=True)
+        if self._continuous_outcome_:
+            raise ValueError("SurvivalGFormula does not support continuous outcomes")
 
         self._weights = weights
         self._outcome_model = None

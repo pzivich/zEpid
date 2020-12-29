@@ -152,20 +152,13 @@ class IPTW:
         self.treatment = treatment
         self.outcome = outcome
         self._missing_indicator = '__missing_indicator__'
-        self.df, self._miss_flag = check_input_data(data=df,
-                                                    exposure=treatment,
-                                                    outcome=outcome,
-                                                    estimator="IPTW",
-                                                    drop_censoring=False,
-                                                    drop_missing=True,
-                                                    binary_exposure_only=True)
-
-        # Checking for binary / continuous outcome
-        if self.df[self.outcome].dropna().value_counts().index.isin([0, 1]).all():
-            self._continuous_outcome = False
-        else:
-            self._continuous_outcome = True
-
+        self.df, self._miss_flag, self._continuous_outcome = check_input_data(data=df,
+                                                                              exposure=treatment,
+                                                                              outcome=outcome,
+                                                                              estimator="IPTW",
+                                                                              drop_censoring=False,
+                                                                              drop_missing=True,
+                                                                              binary_exposure_only=True)
         # TODO add detection of continuous treatments
 
         self.average_treatment_effect = None
@@ -709,13 +702,13 @@ class StochasticIPTW:
         self.treatment = treatment
         self.outcome = outcome
         self._missing_indicator = '__missing_indicator__'
-        self.df, self._miss_flag = check_input_data(data=df,
-                                                    exposure=treatment,
-                                                    outcome=outcome,
-                                                    estimator="StochasticIPTW",
-                                                    drop_censoring=True,
-                                                    drop_missing=True,
-                                                    binary_exposure_only=True)
+        self.df, self._miss_flag, self._continuous_outcome = check_input_data(data=df,
+                                                                              exposure=treatment,
+                                                                              outcome=outcome,
+                                                                              estimator="StochasticIPTW",
+                                                                              drop_censoring=True,
+                                                                              drop_missing=True,
+                                                                              binary_exposure_only=True)
         self.weights = weights
         self.marginal_outcome = np.nan
         self._pdenom_ = None
