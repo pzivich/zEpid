@@ -168,6 +168,11 @@ class IPTW:
 
         if standardize in ['population', 'exposed', 'unexposed']:
             self.standardize = standardize
+            if standardize in ['exposed', 'unexposed']:
+                warnings.warn("For the ATT and the ATU, confidence intervals calculated using the robust-variance "
+                              "approach (what is currently done in zEpid) may underestimate the variance. Therefore "
+                              "when requesting the ATT or the ATU, it is recommended to use bootstrapped confidence "
+                              "intervals instead.", UserWarning)
         else:
             raise ValueError('Please specify one of the currently supported weighting schemes: ' +
                              'population, exposed, unexposed')

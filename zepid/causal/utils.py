@@ -20,7 +20,9 @@ def check_input_data(data, exposure, outcome, estimator, drop_censoring, drop_mi
     ----------
     data : DataFrame
         Input dataframe to be processed
-    outcome : None, str
+    exposure : str
+        Exposure/treatment column name
+    outcome : str
         Outcome column
     estimator : str
         Name of the input estimator. Reads back the estimator name in the warning system
