@@ -24,6 +24,7 @@ Displaying Results
   pvalue_plot
   dynamic_risk_plot
   labbe_plot
+  zipper_plot
 
 
 .. automodule:: zepid.graphics.graphics

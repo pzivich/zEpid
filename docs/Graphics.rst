@@ -385,3 +385,29 @@ one more example,
 In this example, there is additive modification, but *no multiplicative modification*. These plots also can have the
 number of reference lines displayed changed, and support the keyword arguments of `plt.plot()` function. See the
 function documentation for further details.
+
+
+Zipper Plot
+===========
+Zipper plots provide an easy way to visualize the performance of confidence intervals in simulations. Confidence
+intervals across simulations are displayed in a single plot, with the option to color the confidence limits by whether
+they include the true value. Below is an example of a zipper plot. For ease, I generated the confidence intervals using
+some random numbers (you would pull the confidence intervals from the estimators in practice).
+
+.. code:: python
+
+ from zepid.graphics import zipper_plot
+ lower = np.random.uniform(-0.1, 0.1, size=100)
+ upper = lower + np.random.uniform(0.1, 0.2, size=100)
+
+ zipper_plot(truth=0,
+             lcl=lower,
+             ucl=upper,
+             colors=('blue', 'green'))
+ plt.show()
+
+
+.. image:: images/zipper_example.png
+
+In this example, confidence interval coverage would be considered rather poor (if we are expecting the usual 95%
+coverage).
