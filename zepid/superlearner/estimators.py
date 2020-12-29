@@ -102,7 +102,7 @@ class GLMSL:
 
     >>> import statsmodels.api as sm
     >>> from zepid import load_sample_data
-    >>> from zepid.superlearner import StepwiseSL
+    >>> from zepid.superlearner import GLMSL
     >>> df = load_sample_data(False).dropna()
     >>> X = np.asarray(df[['art', 'male', 'age0']])
     >>> y = np.asarray(df['dead'])
@@ -110,8 +110,8 @@ class GLMSL:
     GLMSL example (logit model)
 
     >>> f = sm.families.family.Binomial()
-    >>> step_sl = StepwiseSL(family=f)
-    >>> step_sl.fit(X, y)
+    >>> glm = GLMSL(family=f)
+    >>> glm.fit(X, y)
     """
     def __init__(self, family, verbose=False):
         self._family_ = family

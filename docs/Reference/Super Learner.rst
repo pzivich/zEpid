@@ -20,4 +20,5 @@ Candidate Estimators
 .. autosummary::
 
   EmpiricalMeanSL
+  GLMSL
   StepwiseSL
