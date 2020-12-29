@@ -9,7 +9,7 @@ from lifelines import KaplanMeierFitter
 from zepid import (load_sample_data, RiskDifference, RiskRatio, OddsRatio, IncidenceRateDifference, IncidenceRateRatio,
                    spline)
 from zepid.graphics import (EffectMeasurePlot, functional_form_plot, pvalue_plot, spaghetti_plot,
-                            roc, dynamic_risk_plot, labbe_plot)
+                            roc, dynamic_risk_plot, labbe_plot, zipper_plot)
 from zepid.causal.ipw import IPTW
 from zepid.causal.gformula import MonteCarloGFormula, SurvivalGFormula, TimeFixedGFormula
 from zepid.causal.doublyrobust import AIPTW, TMLE
@@ -96,6 +96,15 @@ def graphics_check():
     dynamic_risk_plot(a, b, loess=True, loess_value=0.4)
     plt.show()
     dynamic_risk_plot(a, b, loess=False, point_color='green', line_color='green')
+    plt.show()
+
+    # 7) Check Zipper Plot
+    lower = np.random.uniform(-0.1, 0.1, size=100)
+    upper = lower + np.random.uniform(0.1, 0.2, size=100)
+    zipper_plot(truth=0,
+                lcl=lower,
+                ucl=upper,
+                colors=('blue', 'green'))
     plt.show()
 
 

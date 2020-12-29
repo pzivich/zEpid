@@ -836,7 +836,7 @@ def labbe_plot(r1=None, r0=None, scale='both', additive_tuner=12, multiplicative
     return ax
 
 
-def zipper_plot(truth, lcl, ucl, colors=('blue', 'red'), point_est=None):
+def zipper_plot(truth, lcl, ucl, colors=('blue', 'red')):
     """Zipper plots are a way to present simulation data, particularly confidence intervals and their width. They are
     also useful for showing the confidence interval coverage of the true parameter.
 
@@ -851,8 +851,6 @@ def zipper_plot(truth, lcl, ucl, colors=('blue', 'red'), point_est=None):
     colors : set, list, container
         List of colors for confidence intervals. The first color is used to designate confidence intervals that cover
         the true value, and the second indicates confidence intervals
-    point_est : list, array, Series, container, optional
-        Container of point estimates
 
     Returns
     -------
@@ -892,11 +890,6 @@ def zipper_plot(truth, lcl, ucl, colors=('blue', 'red'), point_est=None):
     ax = plt.gca()
     ax.hlines(dat['_order_'], dat['_lower_'], dat['_upper_'], colors=dat['_cover_'])
     ax.vlines(truth, 0, dat.shape[0], colors='k')
-
-    # if point_est is given, then adding to plot
-    if point_est is not None:
-        ax.plot(point_est, dat.index, 'o', color=dat['_cover_'])
-
     ax.set_ylim([0, dat.shape[0]])
     ax.set_yticks([])
     ax.set_xlabel("Confidence Intervals")
