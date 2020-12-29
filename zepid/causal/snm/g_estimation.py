@@ -5,7 +5,7 @@ import pandas as pd
 import scipy.optimize
 
 from zepid.calc.utils import probability_bounds
-from zepid.causal.utils import propensity_score
+from zepid.causal.utils import propensity_score, check_input_data
 
 
 class GEstimationSNM:
@@ -141,31 +141,16 @@ class GEstimationSNM:
     nonresponse models. Journal of the American Statistical Association, 94(448), 1096-1120.
     """
     def __init__(self, df, exposure, outcome, weights=None):
-        # Checking for missing data that is non-outcome
-        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
-            warnings.warn("There is missing data that is not the outcome in the data set. IPTW will drop "
-                          "all missing data that is not missing outcome data. IPTW will fit "
-                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
-                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
-            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
-        else:
-            self.df = df.copy().reset_index()
-
-        # Checking to see if missing outcome data occurs
-        self._missing_indicator = '__missing_indicator__'
-        if self.df.dropna(subset=[outcome]).shape[0] != self.df.shape[0]:
-            self._miss_flag = True
-            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
-        else:
-            self._miss_flag = False
-            self.df[self._missing_indicator] = 1
-
-        # Checking binary exposure only
-        if not self.df[exposure].value_counts().index.isin([0, 1]).all():
-            raise ValueError("GEstimationSNM only supports binary exposures currently")
-
         self.exposure = exposure
         self.outcome = outcome
+        self._missing_indicator = '__missing_indicator__'
+        self.df, self._miss_flag = check_input_data(data=df,
+                                                    exposure=exposure,
+                                                    outcome=outcome,
+                                                    estimator="GEstimationSNM",
+                                                    drop_censoring=False,
+                                                    drop_missing=True,
+                                                    binary_exposure_only=True)
 
         self.psi = None
         self.psi_labels = None

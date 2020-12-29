@@ -276,6 +276,10 @@ class TestStochasticIPTW:
         with pytest.raises(ValueError):
             sipw.fit(p=[0.8], conditional=["df['male']==1", "df['male']==0"])
 
+    def test_drop_missing(self, cdata):
+        sipw = StochasticIPTW(cdata, treatment='art', outcome='cd4_wk45')
+        assert sipw.df.shape[0] == cdata.dropna().shape[0]
+
     def test_uncond_treatment(self, sdata):
         r_pred = 0.1165162207
 

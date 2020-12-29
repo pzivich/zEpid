@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from zepid.calc import probability_to_odds, probability_bounds
 
 
-def check_input_data(data, outcome, estimator, drop_censoring, drop_missing):
+def check_input_data(data, exposure, outcome, estimator, drop_censoring, drop_missing, binary_exposure_only):
     """Background function used by the various estimators to check the input data for possible issues or
     inconsistencies with the format expected by the estimator.
 
@@ -29,6 +29,9 @@ def check_input_data(data, outcome, estimator, drop_censoring, drop_missing):
     drop_missing : bool
         Argument currently does nothing. Will be utilized in the future (when some estimators support missing data
         aside from censoring)
+    binary_exposure_only : bool
+        Argument for whether only binary exposure / treatments are supported. This is currently True for most
+        estimators
 
     Returns
     -------
@@ -63,6 +66,11 @@ def check_input_data(data, outcome, estimator, drop_censoring, drop_missing):
         else:
             miss_flag = False
             data['__missing_indicator__'] = 1
+
+    # Checking for only binary exposures
+    if binary_exposure_only:
+        if not data[exposure].value_counts().index.isin([0, 1]).all():
+            raise ValueError(str(estimator) + " only supports binary exposures currently")
 
     return data, miss_flag
 

@@ -153,10 +153,12 @@ class IPTW:
         self.outcome = outcome
         self._missing_indicator = '__missing_indicator__'
         self.df, self._miss_flag = check_input_data(data=df,
+                                                    exposure=treatment,
                                                     outcome=outcome,
                                                     estimator="IPTW",
                                                     drop_censoring=False,
-                                                    drop_missing=True)
+                                                    drop_missing=True,
+                                                    binary_exposure_only=True)
 
         # Checking for binary / continuous outcome
         if self.df[self.outcome].dropna().value_counts().index.isin([0, 1]).all():
@@ -319,10 +321,8 @@ class IPTW:
         """
         if self.__mdenom is None:
             raise ValueError('No model has been fit to generated predicted probabilities')
-
         if self.ms_model is None:
             raise ValueError('No marginal structural model has been specified')
-
         if self._miss_flag and not self._fit_missing_:
             warnings.warn("All missing outcome data is assumed to be missing completely at random. To relax this "
                           "assumption to outcome data is missing at random please use the `missing_model()` "
@@ -706,18 +706,18 @@ class StochasticIPTW:
     Biometrics, 68(2), 541-549.
     """
     def __init__(self, df, treatment, outcome, weights=None):
-        if df.dropna().shape[0] != df.shape[0]:
-            warnings.warn("There is missing data in the dataset. StochasticIPTW will drop all missing data. "
-                          "StochasticIPTW will fit " + str(df.dropna().shape[0]) + ' of ' + str(df.shape[0]) +
-                          " observations", UserWarning)
-        self.df = df.copy().dropna().reset_index()
-
         self.treatment = treatment
         self.outcome = outcome
+        self._missing_indicator = '__missing_indicator__'
+        self.df, self._miss_flag = check_input_data(data=df,
+                                                    exposure=treatment,
+                                                    outcome=outcome,
+                                                    estimator="StochasticIPTW",
+                                                    drop_censoring=True,
+                                                    drop_missing=True,
+                                                    binary_exposure_only=True)
         self.weights = weights
-
         self.marginal_outcome = np.nan
-
         self._pdenom_ = None
 
     def treatment_model(self, model, print_results=True):
