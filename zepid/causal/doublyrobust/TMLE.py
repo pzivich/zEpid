@@ -226,9 +226,6 @@ class TMLE:
 
         # User-specified prediction model
         else:
-            # TODO need to create smart warning system
-            # warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
-            #              "certain machine learning algorithms")
             self._exp_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
             self.g1W = exposure_machine_learner(xdata=np.asarray(data),
@@ -291,10 +288,6 @@ class TMLE:
 
         # User-specified model
         else:
-            # TODO need to create smart warning system
-            # warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
-            #              "certain machine learning algorithms")
-
             self._miss_model_custom = True
             data = patsy.dmatrix(model + ' - 1', self.df)
 
@@ -367,10 +360,10 @@ class TMLE:
                 log = smf.glm(self._out_model, cc, family=f).fit()
 
             if print_results:
-                print('\n----------------------------------------------------------------')
-                print('MODEL: ' + self._out_model)
-                print('-----------------------------------------------------------------')
+                print('==============================================================================')
+                print('Outcome Model')
                 print(log.summary())
+                print('==============================================================================')
 
             # Step 2) Estimation under the scenarios
             dfx = self.df.copy()
@@ -382,9 +375,6 @@ class TMLE:
 
         # User-specified model
         else:
-            # TODO need to create smart warning system
-            # warnings.warn("TMLE can result in confidence intervals below nominal coverage when used with "
-            #              "certain machine learning algorithms")
             self._out_model_custom = True
             data = patsy.dmatrix(model + ' - 1', cc)
 
@@ -1037,8 +1027,9 @@ class StochasticTMLE:
                 self._outcome_model = smf.glm(self._q_model, self.df, family=f).fit()
             if self._verbose_:
                 print('==============================================================================')
-                print('Q-model')
+                print('Outcome model')
                 print(self._outcome_model.summary())
+                print('==============================================================================')
 
             # Step 2) Estimation under the scenarios
             self._Qinit_ = self._outcome_model.predict(self.df)

@@ -417,7 +417,10 @@ class GTransportFormula:
 
         # Printing results of the model and if any observations were dropped
         if print_results:
+            print('==============================================================================')
+            print('Outcome Model')
             print(self._outcome_model.summary())
+            print('==============================================================================')
 
     def fit(self):
         """Uses the g-transport formula to obtain the risk difference and risk ratio from the sample.
@@ -732,7 +735,10 @@ class AIPSW:
 
         # Printing results of the model and if any observations were dropped
         if print_results:
+            print('==============================================================================')
+            print('Outcome Model')
             print(self._outcome_model.summary())
+            print('==============================================================================')
 
         dfa = self.df.copy()
         dfa[self.exposure] = 1

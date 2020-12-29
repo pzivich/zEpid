@@ -207,7 +207,10 @@ class MonteCarloGFormula:
                                      family=linkdist).fit()
 
         if print_results:
+            print('==============================================================================')
+            print('Predict-Exposure Model')
             print(self.exp_model.summary())
+            print('==============================================================================')
         self._exposure_model_fit = True
 
     def outcome_model(self, model, restriction=None, print_results=True):
@@ -242,8 +245,10 @@ class MonteCarloGFormula:
             self.out_model = smf.glm(self.outcome + ' ~ ' + model, g, freq_weights=g[self._weights],
                                      family=linkdist).fit()
         if print_results:
+            print('==============================================================================')
+            print('Outcome Model')
             print(self.out_model.summary())
-
+            print('==============================================================================')
         self._outcome_model_fit = True
 
     def censoring_model(self, model, restriction=None, print_results=True):
@@ -273,8 +278,10 @@ class MonteCarloGFormula:
             self.cens_model = smf.glm('__uncensored__ ~ ' + model, g, freq_weights=g[self._weights],
                                       family=linkdist).fit()
         if print_results:
+            print('==============================================================================')
+            print('Censoring Model')
             print(self.cens_model.summary())
-
+            print('==============================================================================')
         self._censor_model_fit = True
 
     def add_covariate_model(self, label, covariate, model, restriction=None, recode=None, var_type='binary',
@@ -338,7 +345,10 @@ class MonteCarloGFormula:
 
         f = m.fit()
         if print_results:
+            print('==============================================================================')
+            print('Covariate (' + str(covariate) + ') Model')
             print(f.summary())
+            print('==============================================================================')
 
         # Adding to lists, it is used to predict variables later on for the time-varying...
         self._covariate_models.append(f)
@@ -713,14 +723,14 @@ class IterativeCondGFormula:
             # 2.1) Fit the model to the observed data
             if self.outcome[::-1].index(d) == 0:
                 fm = smf.glm(d + ' ~ ' + m, df, family=linkdist).fit()  # GLM
-                if self._printseqregresults:
-                    print(fm.summary())
             else:
                 df[d] = np.where(df[prior_predict].isna(), df[d], df[prior_predict])
-
                 fm = smf.glm(d + ' ~ ' + m, df, family=linkdist).fit()  # GLM
-                if self._printseqregresults:
-                    print(fm.summary())
+            if self._printseqregresults:
+                print('==============================================================================')
+                print('Sequential Outcome Model')
+                print(fm.summary())
+                print('==============================================================================')
 
             # 2.2) Generating predictions
             tf = df.copy()

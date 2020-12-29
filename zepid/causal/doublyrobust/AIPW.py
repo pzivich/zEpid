@@ -341,10 +341,10 @@ class AIPTW:
                 log = smf.glm(self._out_model, cc, freq_weights=cc[self._weight_], family=f).fit()
 
             if print_results:
-                print('\n----------------------------------------------------------------')
-                print('MODEL: ' + self._out_model)
-                print('-----------------------------------------------------------------')
+                print('==============================================================================')
+                print('Outcome Model')
                 print(log.summary())
+                print('==============================================================================')
 
             # Predicting under treatment strategies
             dfx = self.df.copy()

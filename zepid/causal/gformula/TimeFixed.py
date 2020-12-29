@@ -222,7 +222,10 @@ class TimeFixedGFormula:
 
         # Printing results of the model and if any observations were dropped
         if print_results:
+            print('==============================================================================')
+            print('Outcome Model')
             print(self._outcome_model.summary())
+            print('==============================================================================')
 
     def fit(self, treatment, predict_missing=True):
         """Fit the parametric g-formula as specified. Binary and multivariate treatments are available. This
@@ -604,7 +607,10 @@ class SurvivalGFormula:
 
         # Printing results of the model
         if print_results:
+            print('==============================================================================')
+            print('Outcome Model')
             print(self._outcome_model.summary())
+            print('==============================================================================')
 
     def fit(self, treatment):
         """Fit the parametric g-formula for time-to-event data. To obtain the confidence intervals, use a bootstrap

@@ -114,10 +114,10 @@ def propensity_score(df, model, weights=None, print_results=True):
         log = smf.glm(model, df, freq_weights=df[weights], family=f).fit()
 
     if print_results:
-        print('\n----------------------------------------------------------------')
-        print('MODEL: ' + model)
-        print('-----------------------------------------------------------------')
+        print('==============================================================================')
+        print('Propensity Score Model')
         print(log.summary())
+        print('==============================================================================')
     return log
 
 
@@ -134,7 +134,10 @@ def exposure_machine_learner(xdata, ydata, ml_model, print_results=True):
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
     if print_results and hasattr(fm, 'summary'):  # SuPyLearner has a nice summarize function
+        print('==============================================================================')
+        print('Propensity Score Model')
         fm.summary()
+        print('==============================================================================')
 
     # Generating predictions
     if hasattr(fm, 'predict_proba'):
@@ -163,7 +166,10 @@ def outcome_machine_learner(xdata, ydata, all_a, none_a, ml_model, continuous, p
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
     if print_results and hasattr(fm, 'summary'):  # Nice summarize option from SuPyLearner
+        print('==============================================================================')
+        print('Outcome Model')
         fm.summary()
+        print('==============================================================================')
 
     # Generating predictions
     if continuous:
@@ -203,7 +209,10 @@ def stochastic_outcome_machine_learner(xdata, ydata, ml_model, continuous, print
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
     if print_results and hasattr(fm, 'summary'):  # Nice summarize option from SuPyLearner
+        print('==============================================================================')
+        print('Outcome Model')
         fm.summary()
+        print('==============================================================================')
 
     # Generating predictions
     if continuous:
@@ -265,7 +274,10 @@ def missing_machine_learner(xdata, mdata, all_a, none_a, ml_model, print_results
                         "like to use, please open an issue at https://github.com/pzivich/zepid and I "
                         "can work on adding support")
     if print_results and hasattr(fm, 'summary'):  # SuPyLearner has a nice summarize function
+        print('==============================================================================')
+        print('Censoring Model')
         fm.summary()
+        print('==============================================================================')
 
     # Generating predictions
     if hasattr(fm, 'predict_proba'):
