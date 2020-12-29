@@ -12,6 +12,61 @@ import matplotlib.pyplot as plt
 from zepid.calc import probability_to_odds, probability_bounds
 
 
+def check_input_data(data, outcome, estimator, drop_censoring, drop_missing):
+    """Background function used by the various estimators to check the input data for possible issues or
+    inconsistencies with the format expected by the estimator.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input dataframe to be processed
+    outcome : None, str
+        Outcome column
+    estimator : str
+        Name of the input estimator. Reads back the estimator name in the warning system
+    drop_censoring : bool
+        Whether to drop censored observations. Some estimators do not handle censoring (so this is set to True)
+    drop_missing : bool
+        Argument currently does nothing. Will be utilized in the future (when some estimators support missing data
+        aside from censoring)
+
+    Returns
+    -------
+    formatted DataFrame, boolean for missing data flag
+    """
+    # Handling missing data and censoring
+    if drop_censoring:  # Censoring is not always supported by all estimators
+        valid_obs = data.dropna(subset=[d for d in data.columns]).shape[0]
+        if valid_obs != data.shape[0]:
+            warnings.warn("There is missing data in the dataset. By default, " + str(estimator) +
+                          " will drop all missing data (including missing outcome data). " + str(estimator) +
+                          " will fit " + str(valid_obs) + ' of ' + str(data.shape[0]) + ' observations', UserWarning)
+            data = data.copy().dropna().reset_index()
+        else:
+            data = data.copy().reset_index()
+        miss_flag = False
+        data['__missing_indicator__'] = 1
+    else:
+        valid_obs = data.dropna(subset=[d for d in data.columns if d != outcome]).shape[0]
+        # Checking for other missing data
+        if valid_obs != data.shape[0]:
+            warnings.warn("There is missing data that is not the outcome in the data set. " + str(estimator) +
+                          " will drop all missing data that is not missing outcome data. " + str(estimator) +
+                          " will fit " + str(valid_obs) + " of " + str(data.shape[0]) + " observations", UserWarning)
+            data = data.copy().dropna(subset=[d for d in data.columns if d != outcome]).reset_index()
+        else:
+            data = data.copy().reset_index()
+        # Checking for censored data
+        if valid_obs != data.dropna(subset=[outcome]).shape[0]:
+            miss_flag = True
+            data['__missing_indicator__'] = np.where(data[outcome].isna(), 0, 1)
+        else:
+            miss_flag = False
+            data['__missing_indicator__'] = 1
+
+    return data, miss_flag
+
+
 def propensity_score(df, model, weights=None, print_results=True):
     """Generate propensity scores (probability) based on the model input. Uses logistic regression model
     to calculate

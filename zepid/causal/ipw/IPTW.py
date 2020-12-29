@@ -8,8 +8,9 @@ from statsmodels.tools.sm_exceptions import DomainWarning
 import matplotlib.pyplot as plt
 
 from zepid.calc.utils import probability_bounds
-from zepid.causal.utils import (propensity_score, plot_boxplot, plot_kde, plot_love, stochastic_check_conditional,
-                                standardized_mean_differences, positivity, iptw_calculator)
+from zepid.causal.utils import (check_input_data, propensity_score, plot_boxplot, plot_kde, plot_love,
+                                stochastic_check_conditional, standardized_mean_differences, positivity,
+                                iptw_calculator)
 
 
 class IPTW:
@@ -148,28 +149,17 @@ class IPTW:
     See http://chrp.org/love/JSM2004RoundTableHandout. pdf, 1364.
     """
     def __init__(self, df, treatment, outcome, weights=None, standardize='population'):
-        if df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0] != df.shape[0]:
-            warnings.warn("There is missing data that is not the outcome in the data set. IPTW will drop "
-                          "all missing data that is not missing outcome data. IPTW will fit "
-                          + str(df.dropna(subset=[d for d in df.columns if d != outcome]).shape[0]) +
-                          ' of ' + str(df.shape[0]) + ' observations', UserWarning)
-            self.df = df.copy().dropna(subset=[d for d in df.columns if d != outcome]).reset_index()
-        else:
-            self.df = df.copy().reset_index()
-
-        # Checking to see if missing outcome data occurs
-        self._missing_indicator = '__missing_indicator__'
-        if self.df.dropna(subset=[outcome]).shape[0] != self.df.shape[0]:
-            self._miss_flag = True
-            self.df[self._missing_indicator] = np.where(self.df[outcome].isna(), 0, 1)
-        else:
-            self._miss_flag = False
-            self.df[self._missing_indicator] = 1
-
         self.treatment = treatment
         self.outcome = outcome
+        self._missing_indicator = '__missing_indicator__'
+        self.df, self._miss_flag = check_input_data(data=df,
+                                                    outcome=outcome,
+                                                    estimator="IPTW",
+                                                    drop_censoring=False,
+                                                    drop_missing=True)
 
-        if df[outcome].dropna().value_counts().index.isin([0, 1]).all():
+        # Checking for binary / continuous outcome
+        if self.df[self.outcome].dropna().value_counts().index.isin([0, 1]).all():
             self._continuous_outcome = False
         else:
             self._continuous_outcome = True
