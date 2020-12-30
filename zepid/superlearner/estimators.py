@@ -167,6 +167,17 @@ class GLMSL:
         # Generating predictions to return
         return self.model.predict(Xd)
 
+    def get_params(self, deep=True):
+        """For sklearn.base.clone() compatibility"""
+        return {"family": self._family_,
+                "verbose": self._verbose_}
+
+    def set_params(self, **parameters):
+        """For sklearn.base.clone() compatibility"""
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
+
 
 class StepwiseSL:
     """Step-wise model selection for Generalized Linear Model selection for use with SuperLearner. Briefly, each

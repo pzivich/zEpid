@@ -821,10 +821,10 @@ class SingleCrossfitTMLE:
 
         # bounding for continuous Y
         if self._continuous_outcome_:
-            self._continuous_min = np.min(df[outcome])
-            self._continuous_max = np.max(df[outcome])
+            self._continuous_min = np.min(self.df[outcome])
+            self._continuous_max = np.max(self.df[outcome])
             self._cb = continuous_bound
-            self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
+            self.df[outcome] = tmle_unit_bounds(y=self.df[outcome], mini=self._continuous_min,
                                                 maxi=self._continuous_max, bound=self._cb)
         else:
             self._cb = 0.0
@@ -1247,10 +1247,10 @@ class DoubleCrossfitTMLE:
 
         # bounding for continuous Y
         if self._continuous_outcome_:
-            self._continuous_min = np.min(df[outcome])
-            self._continuous_max = np.max(df[outcome])
+            self._continuous_min = np.min(self.df[outcome])
+            self._continuous_max = np.max(self.df[outcome])
             self._cb = continuous_bound
-            self.df[outcome] = tmle_unit_bounds(y=df[outcome], mini=self._continuous_min,
+            self.df[outcome] = tmle_unit_bounds(y=self.df[outcome], mini=self._continuous_min,
                                                 maxi=self._continuous_max, bound=self._cb)
         else:
             self._cb = 0.0

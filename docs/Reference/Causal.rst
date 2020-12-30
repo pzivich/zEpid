@@ -5,7 +5,7 @@ Documentation for each of the causal inference methods implemented in zEpid
 Causal Diagrams
 ---------------------------
 
-.. currentmodule:: zepid.causal.causalgraphs.dag
+.. currentmodule:: zepid.causal.causalgraph.dag
 
 .. autosummary::
    :toctree: generated/
@@ -71,6 +71,14 @@ Augmented Inverse Probability Weights
 
    AIPTW
 
+.. currentmodule:: zepid.causal.doublyrobust.crossfit
+
+.. autosummary::
+   :toctree: generated/
+
+   SingleCrossfitAIPTW
+   DoubleCrossfitAIPTW
+
 Targeted Maximum Likelihood Estimator
 -------------------------------------
 
@@ -81,6 +89,14 @@ Targeted Maximum Likelihood Estimator
 
    TMLE
    StochasticTMLE
+
+.. currentmodule:: zepid.causal.doublyrobust.crossfit
+
+.. autosummary::
+   :toctree: generated/
+
+   SingleCrossfitTMLE
+   DoubleCrossfitTMLE
 
 G-estimation of SNM
 -------------------

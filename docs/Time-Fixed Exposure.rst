@@ -39,8 +39,8 @@ within defined strata, then g-estimation would be a good choice. Your causal que
 the list of potential estimators
 
 Second, does your question of interest require something not available for all methods? This can also narrow down
-estimators, at least ones currently available. For example, only `TimeFixedGFormula` and `StochasticIPTW` allow for
-stochastic treatments. See the tutorials
+estimators, at least ones currently available. For example, only `TimeFixedGFormula`, `StochasticIPTW`, and
+`StochasticTMLE` allow for stochastic treatments. See the tutorials
 on `Python for Epidemiologists <https://github.com/pzivich/Python-for-Epidemiologists/>`_ for further details on what
 each estimator can do.
 
@@ -49,8 +49,8 @@ don't necessarily make one unilaterally better than the other. If all the estima
 generally be taken as a good sign. It builds some additional confidence in your results. If there are distinctly
 different results across the estimators, that means that at least one assumption is being substantively broken
 somewhere. In these situations, I would recommend the doubly robust estimators because they make less restrictive
-parametric modeling assumptions. Alternatively, machine learning promises to make less restrictive assumptions regarding
-functional forms. However, the lack of agreement between estimators should be noted in your paper.
+modeling assumptions. Alternatively, machine learning promises to make less restrictive assumptions regarding
+functional forms. However, the lack of agreement between estimators should be noted.
 
 Binary Outcome
 ==============================================
@@ -105,8 +105,9 @@ Therefore, the Frechet bounds allow for partial identification of the causal eff
 values from two unit width (-1 to 1) to unit width (-0.87 to 0.13). However, we don't have point identification. The
 following methods allow for point identification under the assumption of conditional exchangeability.
 
-Our unadjusted estimate is -0.05 (-0.13, 0.04), which we could cautiously interpret as: ART is associated with a 4.5%
-point reduction (95% CL: -0.128, 0.038) in the probability of death at 45-weeks.
+Our unadjusted estimate is -0.05 (-0.13, 0.04), which we could interpret as: ART is associated with a 4.5%
+point reduction (95% CL: -0.13, 0.04) in the probability of death at 45-weeks. However, this interpretation implies
+that ART is given randomly (which is unlikely to occur in the data).
 
 Parametric g-formula
 ----------------------------------------
@@ -155,9 +156,9 @@ procedure. Below is an example that uses bootstrapped confidence limits.
     print('95% LCL', riskd - 1.96*se)
     print('95% UCL', riskd + 1.96*se)
 
-In my run (your results may differ), the estimate 95% confidence limits were -0.148, -0.004. We could interpret our
+In my run (your results may differ), the estimate 95% confidence limits were -0.15, 0.00. We could interpret our
 results as; the 45-week risk of death when everyone was treated with ART at enrollment was 7.6% points
-(95% CL: -0.148, -0.004) lower than if no one had been treated with ART at enrollment. For further details and
+(95% CL: -0.15, -0.00) lower than if no one had been treated with ART at enrollment. For further details and
 examples of other usage of this estimator see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/1_g-formula.ipynb>`_
 
@@ -195,9 +196,9 @@ model and print the results
     iptw.fit()
     iptw.summary()
 
-My results were fairly similar to the g-formula (RD = -0.082; 95% CL: -0.156, -0.007). We would interpret this in a
+My results were fairly similar to the g-formula (RD = -0.08; 95% CL: -0.16, -0.01). We would interpret this in a
 similar way: the 45-week risk of death when everyone was treated with ART at enrollment was 8.2% points
-(95% CL: -0.156, -0.007) lower than if no one had been treated with ART at enrollment.
+(95% CL: -0.16, -0.01) lower than if no one had been treated with ART at enrollment.
 
 To account for data that is missing at random, inverse probability of missing weights can be stacked together with
 IPTW. As of v0.8.0, this is built into the `IPTW` class. Below is an example with accounting for informative censoring
@@ -213,7 +214,7 @@ IPTW. As of v0.8.0, this is built into the `IPTW` class. Below is an example wit
     iptw.fit()
     iptw.summary()
 
-When accounting for censoring by the above variables, a similar is obtained (RD = -0.081, 95% CL: -0.156, -0.005). For
+When accounting for censoring by the above variables, a similar is obtained (RD = -0.08, 95% CL: -0.16, -0.01). For
 further details and examples of other usage of this estimator see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/>`_
 
@@ -243,10 +244,10 @@ We can calculate the AIPTW estimator through the following code
     # Printing summary results
     aipw.summary()
 
-In the printed results, we have an estimated risk difference of -0.085 (95% CL: -0.155, -0.015). Confidence intervals
+In the printed results, we have an estimated risk difference of -0.08 (95% CL: -0.15, -0.02). Confidence intervals
 come from the efficient influence curve. You can also bootstrap confidence intervals. For the risk ratio, you will
 need to bootstrap the confidence intervals currently. Our results can be interpreted as: the 45-week risk of death
-when everyone was treated with ART at enrollment was 8.5% points (95% CL: -0.155, -0.015) lower than if no one
+when everyone was treated with ART at enrollment was 8.4% points (95% CL: -0.15, -0.02) lower than if no one
 had been treated with ART at enrollment.
 
 Similarly, we can also account for missing outcome data using inverse probability weights. Below is an example
@@ -260,7 +261,9 @@ Similarly, we can also account for missing outcome data using inverse probabilit
     aipw.fit()
     aipw.summary()
 
-For further details and examples see this
+AIPTW can also be paired with machine learning algorithms, particularly super-learner. The use of machine learning with
+AIPTW means we are making less restrictive parametric assumptions than all the model described above. For further
+details, using super-learner / sklearn with AIPTW, and examples see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/5_AIPTW_intro.ipynb>`_
 
 Targeted maximum likelihood estimation
@@ -282,8 +285,8 @@ outcome data model (like `AIPTW` and `IPTW`).
     tmle.fit()
     tmle.summary()
 
-Using TMLE, we estimate a risk difference of -0.082 (95% CL: -0.152, -0.012). We can interpret this as: the 45-week
-risk of death when everyone was treated with ART at enrollment was 8.2% points (95% CL: -0.152, -0.012) lower than if
+Using TMLE, we estimate a risk difference of -0.08 (95% CL: -0.15, -0.01). We can interpret this as: the 45-week
+risk of death when everyone was treated with ART at enrollment was 8.3% points (95% CL: -0.15, -0.01) lower than if
 no one had been treated with ART at enrollment.
 
 TMLE can also be paired with machine learning algorithms, particularly super-learner. The use of machine learning with
@@ -291,8 +294,55 @@ TMLE means we are making less restrictive parametric assumptions than all the mo
 details, using super-learner / sklearn with TMLE, and examples see this
 `tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/7_TMLE_intro.ipynb>`_
 
-**WARNING**: In v0.9.0, `TMLE` will be losing support of machine learning algorithms due to poor confidence interval
-coverage. Instead machine learning algorithms will only be able to be used with crossfit estimators.
+Single Cross-fit TMLE
+----------------------------------------
+While both AIPTW and TMLE are able to incorporate the use of *some* machine learning algorithms, there are limits.
+More specifically, both require that the machine learning algorithms are Donsker. Unfortunately, many flexible
+algorithms we may want to use may not be Donsker. In this scenario, confidence interval coverage may be below what
+is expected (i.e. the confidence interval are overly narrow due to over-fitting by my the machine learning algorithms).
+
+Recently, cross-fitting procedures have been proposed as a way to weaken this condition. Cross-fitting allows for
+non-Donsker algorithms. For more extensive details on the cross-fitting procedure and why it is necessary, please see my
+`paper <https://arxiv.org/abs/2004.10337>`_ and the references within.
+
+*zEpid* supports both single and double cross-fitting for AIPTW and TMLE. The following is simple examples that use
+`SuperLearner` with a single cross-fitting procedure for TMLE. The 10-fold super-learner consists of a GLM, a
+step-wise GLM with all first-order interactions, and a Random Forest.
+
+.. code::
+
+    from sklearn.ensemble import RandomForestClassifier
+    from zepid.superlearner import GLMSL, StepwiseSL, SuperLearner
+    from zepid.causal.doublyrobust import SingleCrossfitAIPTW, SingleCrossfitTMLE
+
+    # SuperLearner setup
+    labels = ["LogR", "Step.int", "RandFor"]
+    candidates = [GLMSL(sm.families.family.Binomial()),
+                  StepwiseSL(sm.families.family.Binomial(), selection="forward", order_interaction=0),
+                  RandomForestClassifier()]
+
+    # Single cross-fit TMLE
+    sctmle = SingleCrossfitTMLE(df, exposure='art', outcome='dead')
+    sctmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                          SuperLearner(candidates, labels, folds=10, loss_function="nloglik"),
+                          bound=0.01)
+    sctmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                         SuperLearner(candidates, labels, folds=10, loss_function="nloglik"))
+    sctmle.fit()
+    sctmle.summary()
+
+
+Using `SingleCrossfitTMLE`, we estimate a risk difference of -0.08 (95% CL: -0.17, 0.00). We can interpret this as:
+the 45-week risk of death when everyone was treated with ART at enrollment was 8.3% points (95% CL: -0.17, 0.00)
+lower than if no one had been treated with ART at enrollment. When comparing SingleCrossfitTMLE to the previous TMLE,
+you can see the confidence intervals are wider. This is a result of weakening the parametric modeling restrictions
+(by including the random forest as a possible option in super learner).
+
+As these are new procedures, guidelines on their use are still developing. In my experience, I would recommend at least
+100 different partitions to be used. Additionally, the data set must be fairly large (more than 500 observations) to
+take advantage of the flexibility of the cross-fit estimators with machine learning. If data is no that large, I
+recommend using a higher number of folds with SuperLearner (if using), using single cross-fitting, and using the
+minimal number of required splits.
 
 G-estimation of SNM
 ----------------------------------------
@@ -344,9 +394,9 @@ Similarly, we need to bootstrap our confidence intervals
     print('95% LCL', psi - 1.96*se)
     print('95% UCL', psi + 1.96*se)
 
-Overall, the SNM results are similar to the other models (RD = -0.088; 95% CL: -0.172, -0.003). Instead, we interpret
+Overall, the SNM results are similar to the other models (RD = -0.09; 95% CL: -0.17, -0.00). Instead, we interpret
 this estimate as: the 45-week risk of death when everyone was treated with ART at enrollment was 8.8% points
-(95% CL: -0.172, -0.003) lower than if no one had been treated with ART at enrollment across all confounder strata.
+(95% CL: -0.17, -0.00) lower than if no one had been treated with ART at enrollment across all strata.
 
 SNM can be expanded to include additional terms. Below is code to do that. For this SNM, we will assess if there is
 modification by gender
@@ -360,7 +410,7 @@ modification by gender
     snm.summary()
 
 The 45-week risk of death when everyone was treated with ART at enrollment was 17.6% points lower than if no one had
-been treated with ART at enrollment, among women. Among men, risk of death with ART treatment at enrollment was
+been treated with ART at enrollment, *among women*. Among men, risk of death with ART treatment at enrollment was
 6.8% points lower compared to no treatment.
 
 Remember, g-estimation of SNM is distinct from these other methods and targets a different estimand. It is a great
@@ -374,11 +424,12 @@ Below is a figure summarizing the results across methods.
 
 As we can see, all the methods provided fairly similar answers, even the misspecified structural nested model. This
 will not always be the case. Differences in model results may indicate parametric model misspecification. In those
-scenarios, it may be preferable to use a doubly robust estimator.
+scenarios, it may be preferable to use a doubly-robust estimator with machine learning and cross-fitting (when
+possible).
 
 Additionally, for simplicity we dropped all missing outcome data. We made the assumption that outcome data was missing
-complete at random, a strong assumption. We could relax this assumption by pairing the above methods with
-inverse-probability-of-missing-weights or using built-in methods (like `TMLE`'s `missing_model`)
+complete at random, a strong assumption. We could relax this assumption using built-in methods
+(e.g. `missing_model()` functions)
 
 Continuous Outcome
 ==============================================
@@ -503,6 +554,42 @@ outcome.
 Our results are fairly similar to the other models. The mean 45-week CD4 T-cell count if everyone had been given ART
 at enrollment was 228.35 (95% CL: 118.97, 337.72) higher than the mean if everyone has not been given ART at baseline.
 
+Single Cross-fit TMLE
+----------------------------------------
+Similarly, we can pair TMLE with a cross-fitting procedure and machine learning. In this example, we use SuperLearner
+with a GLM, a stepwise selection, and a random forest.
+
+.. code::
+
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+    # SuperLearner set-up
+    labels = ["LogR", "Step.int", "RandFor"]
+    b_candidates = [GLMSL(sm.families.family.Binomial()),
+                    StepwiseSL(sm.families.family.Binomial(), selection="forward", order_interaction=0),
+                    RandomForestClassifier(random_state=809512)]
+    c_candidates = [GLMSL(sm.families.family.Gaussian()),
+                    StepwiseSL(sm.families.family.Gaussian(), selection="forward", order_interaction=0),
+                    RandomForestRegressor(random_state=809512)]
+
+    # Single cross-fit TMLE
+    sctmle = SingleCrossfitTMLE(df, exposure='art', outcome='cd4_wk45')
+    sctmle.exposure_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                          SuperLearner(b_candidates, labels, folds=10, loss_function="nloglik"),
+                          bound=0.01)
+    sctmle.outcome_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
+                         SuperLearner(c_candidates, labels, folds=10))
+    sctmle.fit(n_partitions=3, random_state=201820)
+    sctmle.summary()
+
+The mean 45-week CD4 T-cell count if everyone had been given ART at enrollment was 176.9 (95% CL: -37.7, 391.5)
+higher than the mean if everyone has not been given ART at baseline.
+
+The point estimate is similar to other approaches, but the confidence intervals are substantially wider. This is likely
+a result of the random forest dominating super-learner and being somewhat dependent on the particular split. This is
+the penalty of weaker modeling assumptions (or rather it showcases the undue confidence that results from assuming
+that our particular parametric model is sufficient in other estimators).
+
 G-estimation of SNM
 ----------------------------------------
 Recall that g-estimation of SNM estimate the average causal effect within levels of the confounders, *not* the average
@@ -519,9 +606,9 @@ For illustrative purposes, I will specify a one-parameter SNM. Below is code to 
     snm.fit()
     snm.summary()
 
-Overall, the SNM results are similar to the other models (ATE = 266.56). Instead, we interpret
-this estimate as: the mean 45-week CD T-cell count when everyone was treated with ART at enrollment was 266.56
-higher than if no one had been treated with ART at enrollment across all confounder strata.
+Overall, the SNM results are similar to the other models (ATE = 227.2). Instead, we interpret
+this estimate as: the mean 45-week CD T-cell count when everyone was treated with ART at enrollment was 227.2
+higher (95% CL: 134.2, 320.2) than if no one had been treated with ART at enrollment across all strata.
 
 SNM can be expanded to include additional terms. Below is code to do that. For this SNM, we will assess if there is
 modification by gender
@@ -534,9 +621,9 @@ modification by gender
     snm.fit()
     snm.summary()
 
-The mean 45-week CD4 T-cell count when everyone was treated with ART at enrollment was 258.73 higher than if no one had
-been treated with ART at enrollment, among women. Among men, CD4 T-cell count with ART treatment at enrollment was
-268.28 higher compared to no treatment.
+The mean 45-week CD4 T-cell count when everyone was treated with ART at enrollment was 277.1 higher than if no one had
+been treated with ART at enrollment, *among women*. Among men, CD4 T-cell count with ART treatment at enrollment was
+213.8 higher compared to no treatment.
 
 Remember, g-estimation of SNM is distinct from these other methods and targets a different estimand. It is a great
 method to consider when you are interested in effect measure modification.

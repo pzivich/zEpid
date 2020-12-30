@@ -31,16 +31,18 @@ First we will create the "M-bias" DAG. This DAG is named after its distinct shap
 
 .. code:: python
 
-   from zepid.causal.causalgraphs
+   from zepid.causal.causalgraph import DirectedAcyclicGraph
    import matplotlib.pyplot as plt
 
    dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
    dag.add_arrows((('X', 'Y'),
                    ('U1', 'X'), ('U1', 'B'),
                    ('U2', 'B'), ('U2', 'Y')
-                   ))
+                  ))
+   pos = {"X": [0, 0], "Y": [1, 0], "B": [0.5, 0.5],
+          "U1": [0, 1], "U2": [1, 1]}
 
-   dag.draw_dag()
+   dag.draw_dag(positions=pos)
    plt.tight_layout()
    plt.show()
 
@@ -62,23 +64,24 @@ path (specifically the path it is a collider on).
 
 .. code:: python
 
-   from zepid.causal.causalgraphs
-   import matplotlib.pyplot as plt
-
-   dag = DirectedAcyclicGraph(exposure='X', outcome="Y")
    dag.add_arrows((('X', 'Y'),
                    ('U1', 'X'), ('U1', 'B'),
-                   ('U2', 'B'), ('U2', 'Y')
+                   ('U2', 'B'), ('U2', 'Y'),
+                   ('B', 'X'), ('B', 'Y')
                    ))
 
-   dag.draw_dag()
+   dag.draw_dag(positions=pos)
    plt.tight_layout()
    plt.show()
 
+.. image:: images/zepid_dag_bbias.png
+
+In the case of Butterfly bias, there are 3 possible adjustment sets
+
+.. code:: python
+
    dag.calculate_adjustment_sets()
    print(dag.adjustment_sets)
-
-.. image:: images/zepid_dag_bbias.png
 
 Remember that DAGs should be constructed prior to data collection preferablly. Also the major assumptions that a DAG
 makes is the *lack* of arrows and *lack* of nodes. The assumptions are the items not present within the diagram
