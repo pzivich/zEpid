@@ -9,8 +9,23 @@ include `SingleCrossfitAIPTW`, `DoubleCrossfitAIPTW`, `SingleCrossfitTMLE`, and 
 functionality is limited to treatment and outcome nuisance models only (i.e. no model for missing data). These 
 estimators also do not accept weighted data (since most of `sklearn` does not support weights)
 
-`TimeFixedGFormula` is being deprecated in favor of two estimators with different labels. This will more clearly 
-delineate ATE versus stochastic effects. The replacement estimators are ...
+Super-learner functionality has been added via `SuperLearner`. Additions also include emprical mean (`EmpiricalMeanSL`),
+generalized linear model (`GLMSL`), and step-wise backward/forward selection via AIC (`StepwiseSL`). These new 
+estimators are wrappers that are compatible with `SuperLearner` and mimic some of the R superlearner functionality.
+
+Directed Acyclic Graphs have been added via `DirectedAcyclicGraph`. These analyze the graph for sufficient adjustment
+sets, and can be used to display the graph. These rely on an optional NetworkX dependency.
+
+`AIPTW` now supports the `custom_model` optional argument for user-input models. This is the same as `TMLE` now.
+
+`zipper_plot` function for creating zipper plots has been added. 
+
+Housekeeping: `bound` has been updated to new procedure, updated how `print_results` displays to be uniform, created
+function to check missingness of input data in causal estimators, added warning regarding ATT and ATU variance for 
+IPTW, and added back observation IDs for `MonteCarloGFormula`
+
+Future plans: `TimeFixedGFormula` will be deprecated in favor of two estimators with different labels. This will more 
+clearly delineate ATE versus stochastic effects. The replacement estimators are to be added
 
 ### v0.8.2
 `IPSW` and `AIPSW` now natively support adjusting for confounding. Both now have the `treatment_model()` function, 
@@ -268,9 +283,9 @@ specified
 
 ``TMLE`` now allows estimation of risk ratios and odds ratios. Estimation procedure is based on ``tmle.R``
 
-``TMLE`` variance formula has been modified to match ``tmle.R`` rather than other resources. This is beneficial for future 
-implementation of missing data adjustment. Also would allow for mediation analysis with TMLE (not a priority for me at
-this time). 
+``TMLE`` variance formula has been modified to match ``tmle.R`` rather than other resources. This is beneficial for 
+future implementation of missing data adjustment. Also would allow for mediation analysis with TMLE (not a priority 
+for me at this time). 
 
 ``TMLE`` now includes an option to place bounds on predicted probabilities using the ``bound`` option. Default is to use
 all predicted probabilities. Either symmetrical or asymmetrical truncation can be specified.
@@ -315,9 +330,14 @@ edition pg340.
 ### v0.3.0
 **BIG CHANGES**:
 
-To conform with PEP and for clarity, all association/effect measures on a pandas dataframe are now class statements. This makes them distinct from the summary data calculators. Additionally, it allows users to access any part of the results now, unlike the previous implementation. The SD can be pulled from the corresponds results dataframe. Please see the updated webiste for how to use the class statements.
+To conform with PEP and for clarity, all association/effect measures on a pandas dataframe are now class statements. 
+This makes them distinct from the summary data calculators. Additionally, it allows users to access any part of the 
+results now, unlike the previous implementation. The SD can be pulled from the corresponds results dataframe. Please 
+see the updated webiste for how to use the class statements.
 
-Name changes within the calculator branch. With the shift of the dataframe calculations to classes, now these functions are given more descriptive names. Additionally, all functions now return a list of the point estimate, SD, lower CL, upper CL. Please see the website for all the new function names
+Name changes within the calculator branch. With the shift of the dataframe calculations to classes, now these 
+functions are given more descriptive names. Additionally, all functions now return a list of the point estimate, SD, 
+lower CL, upper CL. Please see the website for all the new function names
 
 Addition of Targeted Maximum Likelihood Estimator as zepid.causal.doublyrobust.TMLE
 
@@ -384,18 +404,21 @@ Addition of IPW for Interference settings. No current timeline but hopefully bef
 Further conforming to PEP guidelines (my bad)
 
 #### 0.1.6
-Removed histogram option from IPTW in favor of kernel density. Since histograms are easy to generate with matplotlib, just dropped the entire option.
+Removed histogram option from IPTW in favor of kernel density. Since histograms are easy to generate with matplotlib, 
+just dropped the entire option.
 
 Created causal branch. IPW functions moved inside this branch
 
-Added depreciation warning to the IPW branch, since this will be removed in 0.2 in favor of the causal branch for organization of future implemented methods
+Added depreciation warning to the IPW branch, since this will be removed in 0.2 in favor of the causal branch for 
+organization of future implemented methods
 
 Added time-fixed g-formula
 
 Added simple double-robust estimator (based on Funk et al 2011)
 
 #### 0.1.5
-Fix to 0.1.4 and since PyPI does not allow reuse of library versions, I had to create new one. Fixes issue with ipcw_prep() that was a pandas error (tried to drop NoneType from columns)
+Fix to 0.1.4 and since PyPI does not allow reuse of library versions, I had to create new one. Fixes issue with 
+ipcw_prep() that was a pandas error (tried to drop NoneType from columns)
 
 #### 0.1.4
 Updates: Added dynamic risk plot
@@ -406,4 +429,5 @@ Fixes: Added user option to allow late entries for ipcw_prep()
 Updates: added ROC curve generator to graphics, allows user-specification of censoring indicator to ipcw,
 
 #### 0.1.2
-Original release. Previous versions (0.1.0, 0.1.1) had errors I found when trying to install via PyPI. I forgot to include the `package` statement in `setup`
+Original release. Previous versions (0.1.0, 0.1.1) had errors I found when trying to install via PyPI. I forgot to 
+include the `package` statement in `setup`
