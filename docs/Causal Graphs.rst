@@ -6,10 +6,10 @@ Causal Graphs
 '''''''''''''
 
 This page demonstrates analysis for causal diagrams (graphs). These diagrams are meant to help identify the sufficient
-adjustment set to identify the causal effect. Currently only directed acyclic graphs are supported by single-world
+adjustment set to identify the causal effect. Currently only directed acyclic graphs supported by single-world
 intervention graphs will be added.
 
-Note that this branch requires installation of ``NetworkX`` since that library is used to analyses the graph objects
+Note that this branch requires installation of ``NetworkX`` since that library is used to analyse the graph objects
 
 Directed Acyclic Graphs
 ==========================
@@ -19,7 +19,7 @@ the exposure and outcome. Currently the ``DirectedAcyclicGraph`` class only allo
 of the exposure and outcome. Additional support for checking d-separation between missingness, censoring, mediators,
 and time-varying exposures will be added in future versions.
 
-Remember that DAGs should be constructed prior to data collection preferablly. Also the major assumptions that a DAG
+Remember that DAGs should be constructed prior to data collection preferably. Also the major assumptions that a DAG
 makes is the *lack* of arrows and *lack* of nodes. The assumptions are the items not present within the diagram.
 
 Let's look at some classical examples of DAGs.

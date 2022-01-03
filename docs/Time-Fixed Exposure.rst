@@ -72,7 +72,7 @@ to
 
 .. math::
 
-    \Pr(Y^{a=1}]) - \Pr(Y^{a=1})
+    \Pr(Y^{a=1}) - \Pr(Y^{a=1})
 
 We will assume conditional mean exchangeability, causal consistency, and positivity. These assumptions allow us to go
 from our observed data to potential outcomes. See
@@ -95,7 +95,7 @@ The first option is the unadjusted risk difference. We can calculate this by
     rd.fit(df, exposure='art', outcome='dead')
     rd.summary()
 
-By using this measure as our average causal effect, we are assuming that there is no confounding variables. However,
+By using this measure as our average causal effect, we are assuming that there are no confounding variables. However,
 this is an unreasonable assumption for our observational data. However, the `RiskDifference` gives us some useful
 information. In the summary, we find `LowerBound` and `UpperBound`. These bounds are the Frechet probability bounds.
 The true causal effect must be contained within these bounds, without requiring exchangeability. This is a good check.
@@ -112,7 +112,7 @@ that ART is given randomly (which is unlikely to occur in the data).
 Parametric g-formula
 ----------------------------------------
 The parametric g-formula allows us to estimate the average causal effect of ART on death by specifying an outcome
-model. From our outcome model, we predict individuals counterfactual outcomes under our treatment plans and marginalize
+model. From our outcome model, we predict individuals' counterfactual outcomes under our treatment plans and marginalize
 over these predicted counterfactuals. This allows us to estimate the marginal risk under our treatment plan of
 interest.
 
@@ -156,11 +156,11 @@ procedure. Below is an example that uses bootstrapped confidence limits.
     print('95% LCL', riskd - 1.96*se)
     print('95% UCL', riskd + 1.96*se)
 
-In my run (your results may differ), the estimate 95% confidence limits were -0.15, 0.00. We could interpret our
+In my run (your results may differ), the estimate's 95% confidence limits were -0.15, 0.00. We could interpret our
 results as; the 45-week risk of death when everyone was treated with ART at enrollment was 7.6% points
 (95% CL: -0.15, -0.00) lower than if no one had been treated with ART at enrollment. For further details and
 examples of other usage of this estimator see this
-`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/1_g-formula.ipynb>`_
+`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/01_g-formula.ipynb>`_
 
 Inverse probability of treatment weights
 ----------------------------------------
@@ -176,7 +176,7 @@ Below is some code to calculate our stabilized inverse probability of treatment 
     iptw.treatment_model('male + age0 + age_rs1 + age_rs2 + cd40 + cd4_rs1 + cd4_rs2 + dvl0',
                          print_results=False)
 
-A variety of diagnostics available to check the calculated weights. See the below referenced tutorial for further
+A variety of diagnostics is available to check the calculated weights. See the below referenced tutorial for further
 details and examples. For our analysis, we use the following marginal structural model
 
 .. math::
@@ -264,7 +264,7 @@ Similarly, we can also account for missing outcome data using inverse probabilit
 AIPTW can also be paired with machine learning algorithms, particularly super-learner. The use of machine learning with
 AIPTW means we are making less restrictive parametric assumptions than all the model described above. For further
 details, using super-learner / sklearn with AIPTW, and examples see this
-`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/5_AIPTW_intro.ipynb>`_
+`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/05_AIPTW_intro.ipynb>`_
 
 Targeted maximum likelihood estimation
 ----------------------------------------
@@ -292,20 +292,20 @@ no one had been treated with ART at enrollment.
 TMLE can also be paired with machine learning algorithms, particularly super-learner. The use of machine learning with
 TMLE means we are making less restrictive parametric assumptions than all the model described above. For further
 details, using super-learner / sklearn with TMLE, and examples see this
-`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/7_TMLE_intro.ipynb>`_
+`tutorial <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/c_causal_inference/1_time-fixed-treatments/07_TMLE_intro.ipynb>`_
 
 Single Cross-fit TMLE
 ----------------------------------------
 While both AIPTW and TMLE are able to incorporate the use of *some* machine learning algorithms, there are limits.
 More specifically, both require that the machine learning algorithms are Donsker. Unfortunately, many flexible
 algorithms we may want to use may not be Donsker. In this scenario, confidence interval coverage may be below what
-is expected (i.e. the confidence interval are overly narrow due to over-fitting by my the machine learning algorithms).
+is expected (i.e. the confidence interval are overly narrow due to over-fitting by the machine learning algorithms).
 
 Recently, cross-fitting procedures have been proposed as a way to weaken this condition. Cross-fitting allows for
 non-Donsker algorithms. For more extensive details on the cross-fitting procedure and why it is necessary, please see my
 `paper <https://arxiv.org/abs/2004.10337>`_ and the references within.
 
-*zEpid* supports both single and double cross-fitting for AIPTW and TMLE. The following is simple examples that use
+*zEpid* supports both single and double cross-fitting for AIPTW and TMLE. The following are simple examples that use
 `SuperLearner` with a single cross-fitting procedure for TMLE. The 10-fold super-learner consists of a GLM, a
 step-wise GLM with all first-order interactions, and a Random Forest.
 
@@ -340,7 +340,7 @@ you can see the confidence intervals are wider. This is a result of weakening th
 
 As these are new procedures, guidelines on their use are still developing. In my experience, I would recommend at least
 100 different partitions to be used. Additionally, the data set must be fairly large (more than 500 observations) to
-take advantage of the flexibility of the cross-fit estimators with machine learning. If data is no that large, I
+take advantage of the flexibility of the cross-fit estimators with machine learning. If the data set is not that large, I
 recommend using a higher number of folds with SuperLearner (if using), using single cross-fitting, and using the
 minimal number of required splits.
 
@@ -428,7 +428,7 @@ scenarios, it may be preferable to use a doubly-robust estimator with machine le
 possible).
 
 Additionally, for simplicity we dropped all missing outcome data. We made the assumption that outcome data was missing
-complete at random, a strong assumption. We could relax this assumption using built-in methods
+completely at random, a strong assumption. We could relax this assumption using built-in methods
 (e.g. `missing_model()` functions)
 
 Continuous Outcome
@@ -452,12 +452,12 @@ In an actual analysis, you wouldn't want to do this
 With our data loaded and restricted, let's compare the estimators. Overall, the estimators are pretty much
 the same as the binary case. However, we are interested in estimating the average treatment effect instead. Most of the
 methods auto-detect binary or continuous data in the background. Additionally, we will assume that CD4 T-cell count
-is appropriately fit by a normal-distribution. Poisson is also available
+is appropriately fit by a normal-distribution. Poisson is also available.
 
 Parametric g-formula
 ----------------------------------------
 The parametric g-formula allows us to estimate the average causal effect of ART on death by specifying an outcome
-model. From our outcome model, we predict individuals counterfactual outcomes under our treatment plans and marginalize
+model. From our outcome model, we predict individuals' counterfactual outcomes under our treatment plans and marginalize
 over these predicted counterfactuals. This allows us to estimate the marginal risk under our treatment plan of
 interest.
 
@@ -498,7 +498,7 @@ bootstrapped confidence limits.
     print('95% LCL', ate - 1.96*se)
     print('95% UCL', ate + 1.96*se)
 
-In my run (your results may differ), the estimate 95% confidence limits were 158.70, 370.54.
+In my run (your results may differ), the estimate's 95% confidence limits were 158.70, 370.54.
 We can interpret this estimate as: the mean 45-week CD4 T-cell count if everyone had been given ART at enrollment
 was 264.62 (95% CL: 158.70, 370.54) higher than the mean if everyone has not been given ART at baseline.
 
@@ -592,7 +592,7 @@ that our particular parametric model is sufficient in other estimators).
 
 G-estimation of SNM
 ----------------------------------------
-Recall that g-estimation of SNM estimate the average causal effect within levels of the confounders, *not* the average
+Recall that g-estimation of SNM estimates the average causal effect within levels of the confounders, *not* the average
 causal effect in the population. Therefore, if no product terms are included in the SNM if there is effect measure
 modification, then the SNM will be biased due to model misspecification.
 
@@ -649,7 +649,7 @@ analysis. For the following methods, we will focus on treatment at baseline. Spe
 treatment to vary over time. For methods that allow for time-varying treatment, see the tutorial for time-varying
 exposures.
 
-For the following analysis, we are interested in the average causal effect of ART treatment at baseline compare to no
+For the following analysis, we are interested in the average causal effect of ART treatment at baseline compared to no
 treatment. We will compare the parametric g-formula and IPTW. The parametric g-formula is further described in Hernan's
 "The hazards of hazard ratio" paper. For the analysis in this section, we will get a little help from the `lifelines`
 library. It is a great library with a variety of survival models and procedures. We will use the `KaplanMeierFitter`
