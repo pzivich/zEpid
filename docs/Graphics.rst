@@ -105,7 +105,7 @@ edit the plot, we will add dashed lines to designate where the spline knots are 
 
 Continuous Variables
 ^^^^^^^^^^^^^^^^^^^^
-For non-discrete variables (indicated by ``discrete=False``, the default), then data is binned into categories
+For non-discrete variables (indicated by ``discrete=False``, the default), data is binned into categories
 automatically. The number of categories is determined via the maximum value minus the minimum divided by 5.
 
 .. math::
@@ -179,7 +179,7 @@ our data and the systematic review
 Spaghetti Plot
 ==============
 Spaghetti plots are a fun (sometimes useful) way to look for outliers/patterns in longitudinal data. The following is
-an example spaghetti plot using the longitudinal data from zepid and looking at CD4 T cell count over time.
+an example spaghetti plot using the longitudinal data from *zEpid* and looking at CD4 T cell count over time.
 
 .. code:: python
 
@@ -240,7 +240,7 @@ is an optional argument ``t_adjuster``. This argument changes the alignment of t
 properly with the plot values. I have NOT figured out a way to do this automatically. Currently, ``t_adjuster`` must
 be changed by the user manually to find a good table alignment. I recommend using changes of ``0.01`` in
 ``t_adjuster`` until a good alignment is found. Additionally, sometimes the plot will be squished. To fix this, the
-plot size can be changes by the ``figsize`` argument
+plot size can be changed by the ``figsize`` argument
 
 Receiver-Operator Curves
 ========================
@@ -304,7 +304,7 @@ Dynamic risk plots allow the visualization of how the risk difference/ratio chan
 see `HERE <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4325676/>`_ and discussed further
 `HERE <https://academic.oup.com/aje/article/181/4/246/122265>`_
 
-For this example, we will borrow our results from our IPTW marginal structural model. We will used the fitted survival
+For this example, we will borrow our results from our IPTW marginal structural model. We will use the fitted survival
 functions to obtain the risk estimates for our exposed and unexposed groups. These were generated from the
 ``lifelines`` Kaplan Meier curves (estimated via ``KaplanMeierFitter``).
 
@@ -339,7 +339,7 @@ The log-transformed risk ratio is also available
 
 L'Abbe Plots
 ============
-L'Abbe plots have generally been use to display meta-analysis results. However, I also find them to be a useful too to
+L'Abbe plots have generally been use to display meta-analysis results. However, I also find them to be a useful tool to
 explain effect/association measure modification on the additive or the multiplicative scales. Furthermore, it
 visually demonstrates that when there is a non-null average causal effect, then there must be modification on at least
 one scale.
