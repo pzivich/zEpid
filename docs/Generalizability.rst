@@ -155,7 +155,7 @@ The 95% confidence intervals for the risk difference were; -0.03, 0.16.
 For observational data, the g-transport formula more naturally extends to account for confounding. To correct for
 confounding, the confounding terms are included in the parametric regression model (we don't need any outside weights
 or calculations). Remember that if there is an effect of treatment, then there must be modification by the confounder
-on at least scale (additive / multiplicative). This suggests you want to include as many interaction terms in the
+on at least one scale (additive / multiplicative). This suggests you want to include as many interaction terms in the
 g-transport formula as possible.
 
 AIPSW
