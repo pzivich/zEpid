@@ -83,7 +83,7 @@ Monte-Carlo g-formula
 ----------------------------------------
 The first option is to use the Monte-Carlo g-formula. This approach works by estimating pooled logistic regression
 models for each time-varying variable (treatment, outcome, time-varying confounding). We then sample the population
-from baseline and predict individuals time-varying variables going forward in time. We use Monte Carlo re-sampling to
+from baseline and predict individuals' time-varying variables going forward in time. We use Monte Carlo re-sampling to
 reduce simulation error of the outcomes.
 
 To begin, we initialize the Monte-Carlo g-formula with
@@ -177,10 +177,10 @@ Afterwards, we can generate a plot of the risk curves.
 
 .. image:: images/zepid_tvg1.png
 
-From this we can see that out natural course predictions (green) follow the observed data pretty well (black). Note:
+From this we can see that out natural course predictions (black) follow the observed data pretty well (gray). Note:
 this does not mean that our models are correctly specified.
 *Rather it only means they may not be incorrectly specified.* Sadly, there is no way to know that all our models are
-correctly specified... We may take some comfort that our curves largely overlap, but do not take this for granted
+correctly specified... We may take some comfort that our curves largely overlap, but do not take this for granted.
 
 We can now estimate the counterfactual outcomes under various treatment plans. In the following code, we will estimate
 the outcomes under treat-all plan, treat-none plan, and treat only once CD4 T-cell count drops below 200.
@@ -248,13 +248,13 @@ all HIV-infected individuals receive ART treatment as soon as they are diagnosed
 
 To obtain confidence intervals, nonparametric bootstrapping should be used. Take note that this will take awhile to
 finish (especially if a high number of resamples are used). As it stands, `MonteCarloGFormula` is slow, and future
-work is to try to optimize the Monte Carlo procedure (specifically some large matrix multiplications)
+work is to try to optimize the Monte Carlo procedure (specifically with some large matrix multiplications)
 
 Marginal Structural Model
 ----------------------------------------
 We can also use inverse probability of treatment weights to estimate a marginal structural model for time-varying
-treatments. Similar to the Monte-Carlo g-formula, we will rely on the sam ITT assumption previous described. To
-calculate the corresponding IPTW, we will use `IPTW` again. Since we will need to do further manipulation of the
+treatments. Similar to the Monte-Carlo g-formula, we will rely on the same ITT assumption previous described. To
+calculate the corresponding IPTW, we will use ``IPTW`` again. Since we will need to do further manipulation of the
 predicted probabilities, we will have ``IPTW`` return the predicted probabilities of the denominator and numerator,
 respectively. We do this through the following code
 
@@ -269,7 +269,7 @@ respectively. We do this through the following code
     dfs = df.loc[df['lagart']==0].copy()
 
     # Calculating probabilities for IPTW
-    ipt = IPTW(dfs,treatment='art')
+    ipt = IPTW(dfs, treatment='art')
     ipt.regression_models(model_denominator=modeld, model_numerator=modeln)
     ipt.fit()
 
@@ -394,7 +394,7 @@ estimate the overall risk of Y at time 3 under a treat-none strategy by running
 
     print('RD =', r_all - r_non)
 
-We can interpret our estimated risk difference as; the risk of Y at time 3 under a treat-all strategy was 19.5% points
+We can interpret our estimated risk difference as: the risk of Y at time 3 under a treat-all strategy was 19.5% points
 lower than under a treat-none strategy. We can make further comparisons between treatment plans by changing the
 `treatments` argument. Below is an example where treatment is only given a baseline
 
