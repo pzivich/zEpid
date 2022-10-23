@@ -1,5 +1,15 @@
 ## Change logs
 
+### v0.9.1
+
+Adding support for Python 3.9 and 3.10
+
+Fixing scikit-learn dependency issue
+
+Adding font size optional argument for `EffectMeasurePlot`
+
+Switched testing from Travis CI to GitHub workflows
+
 ### v0.9.0
 The 0.9.x series drops support of Python 3.5.x. Only Python 3.6+ are now supported. Support has also been added for
 Python 3.8
