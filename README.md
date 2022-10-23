@@ -2,6 +2,7 @@
 # zEpid
 
 [![PyPI version](https://badge.fury.io/py/zepid.svg)](https://badge.fury.io/py/zepid)
+[![DOI](https://zenodo.org/badge/106410048.svg)](https://zenodo.org/badge/latestdoi/106410048)
 [![Python package](https://github.com/pzivich/zEpid/actions/workflows/python-package.yml/badge.svg)](https://github.com/pzivich/zEpid/actions/workflows/python-package.yml)
 [![Documentation Status](https://readthedocs.org/projects/zepid/badge/?version=latest)](https://zepid.readthedocs.io/en/latest/?badge=latest)
 [![Join the chat at https://gitter.im/zEpid/community](https://badges.gitter.im/zEpid/community.svg)](https://gitter.im/zEpid/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
