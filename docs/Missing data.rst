@@ -155,5 +155,5 @@ conditional on age and gender
 Summary
 ==========
 This concludes the discussion of approaches to account for missing data with *zEpid*. Please see the online tutorials
-at this `GitHub repo<https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/b_missing_data/4_IPCW.ipynb>`_
+at this `GitHub repo <https://github.com/pzivich/Python-for-Epidemiologists/blob/master/3_Epidemiology_Analysis/b_missing_data/4_IPCW.ipynb>`_
 for further descriptions and examples
