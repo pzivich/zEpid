@@ -124,7 +124,7 @@ class EffectMeasurePlot:
         if 'pointcolor' in kwargs:
             self.pc = kwargs['pointcolor']
 
-    def plot(self, figsize=(3, 3), t_adjuster=0.01, decimal=3, size=3, max_value=None, min_value=None):
+    def plot(self, figsize=(3, 3), t_adjuster=0.01, decimal=3, size=3, max_value=None, min_value=None, text_size=12):
         """Generates the matplotlib effect measure plot with the default or specified attributes.
         The following variables can be used to further fine-tune the effect measure plot
 
@@ -143,6 +143,8 @@ class EffectMeasurePlot:
             Maximum value of x-axis scale. Default is None, which automatically determines max value
         min_value : float, optional
             Minimum value of x-axis scale. Default is None, which automatically determines min value
+        text_size : int, float, optional
+            Text size for the table. Default is 12.
 
         Returns
         ---------
@@ -213,7 +215,7 @@ class EffectMeasurePlot:
                         bbox=[0, t_adjuster, 1, 1])
         tabl.axis('off')
         tb.auto_set_font_size(False)
-        tb.set_fontsize(12)
+        tb.set_fontsize(text_size)
         for key, cell in tb.get_celld().items():
             cell.set_linewidth(0)
         return plot
