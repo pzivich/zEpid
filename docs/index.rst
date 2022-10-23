@@ -5,7 +5,7 @@
 zEpid
 =====================================
 
-*zEpid* is a Python 3.5+ epidemiology analysis toolkit. The purpose of this library is to make epidemiology e-z to do
+*zEpid* is an epidemiology analysis toolkit for Python 3.6 to 3.10. The purpose of this library is to make epidemiology e-z to do
 in Python. A variety of calculations, estimators, and plots can be implemented. Current features include:
 
 -  Basic epidemiology calculations on pandas Dataframes
@@ -72,4 +72,4 @@ Available on Github `pzivich/zepid <https://github.com/pzivich/zepid/>`_
 Please report bugs, issues, and feature extensions there.
 
 Also feel free to contact us via `Gitter <https://gitter.im/zEpid/community>`_ email (gmail: zepidpy)
-or on Twitter (@zepidpy)
+or on Twitter (@PausalZ)
