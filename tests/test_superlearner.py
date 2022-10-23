@@ -156,10 +156,10 @@ class TestStepWiseSL:
         with pytest.raises(ValueError, match="same number of observations"):
             step.fit(np.asarray(data['C']), np.array([0, 1, 1]))
 
-    def test_error_backward_saturated(self, data_test):
+    def test_warn_backward_saturated(self, data_test):
         f = sm.families.family.Binomial()
-        step = StepwiseSL(f, selection="backward", order_interaction=1, verbose=True)
-        with pytest.raises(ValueError, match="Saturated model"):
+        step = StepwiseSL(f, selection="backward", order_interaction=3, verbose=False)
+        with pytest.warns(UserWarning, match="order_interaction is greater"):
             step.fit(np.asarray(data_test[['A', 'W']]), np.asarray(data_test['B']))
 
     def test_forward_continuous(self, data_test):
