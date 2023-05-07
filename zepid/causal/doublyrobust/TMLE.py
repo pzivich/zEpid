@@ -6,6 +6,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 from scipy.stats import logistic, norm
+import pandas as pd
 
 from zepid.causal.utils import propensity_score, stochastic_check_conditional
 from zepid.causal.doublyrobust.utils import tmle_unit_bounds, tmle_unit_unbound
@@ -83,6 +84,9 @@ class TMLE:
         Optional argument to control the bounding feature for continuous outcomes. The bounding process may result
         in values of 0,1 which are undefined for logit(x). This parameter adds or substracts from the scenarios of
         0,1 respectively. Default value is 0.0005
+    target_gwt: bool, optional 
+        - target_gwt = True: use the "clever covariet" by weighting. This seems to be the default version in R and yields more stable result.
+        - target_gwt = False, the "clever covariet" will be include as covariate in the model. This is the older version in R. (We have seem some unstable result under this setting.)
 
 
     Examples
@@ -140,7 +144,7 @@ class TMLE:
 
     Gruber S, van der Laan, MJ. (2011). tmle: An R package for targeted maximum likelihood estimation.
     """
-    def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005):
+    def __init__(self, df, exposure, outcome, alpha=0.05, continuous_bound=0.0005, target_gwt = True):
         self.exposure = exposure
         self.outcome = outcome
         self._missing_indicator = '__missing_indicator__'
@@ -172,6 +176,7 @@ class TMLE:
         self._fit_outcome_model = False
         self._fit_missing_model = False
         self.alpha = alpha
+        self.target_gwt = target_gwt
 
         self.QA0W = None
         self.QA1W = None
@@ -430,24 +435,55 @@ class TMLE:
             self.g1W_total = self.g1W
             self.g0W_total = self.g0W
         H1W = self.df[self.exposure] / self.g1W_total
-        H0W = -(1 - self.df[self.exposure]) / self.g0W_total
-        HAW = H1W + H0W
+        self.A = self.df[self.exposure]
+        
+        if self.target_gwt:
+            # 4a) if target gwt = TRUE, clever covariate goes to the weighting 
+            wt = self.A/self.g1W_total + (1-self.A)/self.g0W_total
+            H1W = self.A
+            H0W = self.A - 1 
+            ## for A = 1, H1W, H0W = (1, 0), HAW = 1
+            ## for A = 0, H1W, H0W = (0, -1), HAW = -1
+        else:
+            ## 4b) if target gwt = FALSE, use cleaver covariate as adjustment (original Zepid)
+            wt = pd.Series([1] * len(self.A))
+            H1W = self.A / self.g1W_total
+            H0W = -(1 - self.A) / self.g0W_total
+            ## for A = 1, HAW = 1/g1w
+            ## for A = 0, HAW = -1/g0W
 
         # Step 5) Estimating TMLE
         f = sm.families.family.Binomial()
         y = self.df[self.outcome]
-        log = sm.GLM(y, np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)),
-                     family=f, missing='drop').fit()
+        
+        log = sm.GLM(
+            endog = self.y, 
+            exog = np.column_stack((H1W, H0W)), 
+            offset = np.log(probability_to_odds(self.QAW)),
+            family=f, 
+            missing='drop', 
+            freq_weights = wt).fit()
+        
         self._epsilon = log.params
-        Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] / self.g1W_total)
-        Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) - self._epsilon[1] / self.g0W_total)
-        Qstar = log.predict(np.column_stack((H1W, H0W)), offset=np.log(probability_to_odds(self.QAW)))
+        Qstar = log.predict(np.column_stack((H1W, H0W)), 
+                offset=np.log(probability_to_odds(self.QAW)))
+        if self.target_gwt:
+            Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0])
+            Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) - self._epsilon[1])
+        else:
+            Qstar1 = logistic.cdf(np.log(probability_to_odds(self.QA1W)) + self._epsilon[0] / self.g1W_total)
+            Qstar0 = logistic.cdf(np.log(probability_to_odds(self.QA0W)) - self._epsilon[1] / self.g0W_total)
 
         # Step 6) Calculating Psi
         if self.alpha == 0.05:  # Without this, won't match R exactly. R relies on 1.96, while I use SciPy
             zalpha = 1.96
         else:
             zalpha = norm.ppf(1 - self.alpha / 2, loc=0, scale=1)
+        
+        ## use the original HAW for IC calculation 
+        H1W = self.A / self.g1W_total
+        H0W = -(1 - self.A) / self.g0W_total
+        HAW = H1W + H0W
 
         # p-values are not implemented (doing my part to enforce CL over p-values)
         delta = np.where(self.df[self._missing_indicator] == 1, 1, 0)
